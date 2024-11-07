@@ -22,4 +22,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/draft_order.csv
-    - assets/combined_ranks.csv
+    - assets/available_players.csv
