@@ -12,12 +12,14 @@ class DraftApp extends StatefulWidget {
 class _DraftAppState extends State<DraftApp> {
   int _selectedIndex = 0;
   List<List<dynamic>> _draftOrder = [];
+  List<List<dynamic>> _availablePlayers = [];  
   int _numberOfRounds = 1;
 
   @override
   void initState() {
     super.initState();
     _loadDraftOrder();
+    _loadAvailablePlayers();    
   }
 
   Future<void> _loadDraftOrder() async {
@@ -25,6 +27,14 @@ class _DraftAppState extends State<DraftApp> {
     List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
     setState(() {
       _draftOrder = csvTable.take(33).toList();
+    });
+  }
+
+  Future<void> _loadAvailablePlayers() async {
+    final data = await rootBundle.loadString('assets/combined_ranks.csv');
+    List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
+    setState(() {
+      _availablePlayers = csvTable;
     });
   }
 
