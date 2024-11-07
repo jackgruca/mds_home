@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
-import 'draft_order_page.dart';
 import 'available_players_page.dart';
+import 'draft_order_page.dart';
+import 'team_needs_page.dart';
 
 class DraftApp extends StatefulWidget {
   @override
@@ -12,30 +13,35 @@ class DraftApp extends StatefulWidget {
 class _DraftAppState extends State<DraftApp> {
   int _selectedIndex = 0;
   List<List<dynamic>> _draftOrder = [];
-  List<List<dynamic>> _availablePlayers = [];  
+  List<List<dynamic>> _availablePlayers = [];
   int _numberOfRounds = 1;
 
   @override
   void initState() {
     super.initState();
     _loadDraftOrder();
-    _loadAvailablePlayers();    
+    _loadAvailablePlayers();
   }
 
   Future<void> _loadDraftOrder() async {
     final data = await rootBundle.loadString('assets/draft_order.csv');
     List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
     setState(() {
-      _draftOrder = csvTable.take(33).toList();
+      _draftOrder = csvTable.take(33).toList(); // Take first 32 rows + header
     });
   }
 
   Future<void> _loadAvailablePlayers() async {
-    final data = await rootBundle.loadString('assets/combined_ranks.csv');
-    List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
-    setState(() {
-      _availablePlayers = csvTable;
-    });
+    try {
+      final data = await rootBundle.loadString('assets/available_players.csv');
+      List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
+      setState(() {
+        _availablePlayers = csvTable;
+      });
+      print("Available Players Loaded: $_availablePlayers"); // Debugging statement
+    } catch (e) {
+      print("Error loading available players CSV: $e");
+    }
   }
 
   void _onItemTapped(int index) {
@@ -50,39 +56,39 @@ class _DraftAppState extends State<DraftApp> {
       appBar: AppBar(
         title: Text('NFL Draft App'),
       ),
-body: _selectedIndex == 0
-    ? Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: _selectedIndex == 0
+          ? Column(
               children: [
-                Text('Select Number of Rounds:'),
-                DropdownButton<int>(
-                  value: _numberOfRounds,
-                  onChanged: (int? newValue) {
-                    setState(() {
-                      _numberOfRounds = newValue ?? 1;
-                    });
-                  },
-                  items: List.generate(7, (index) => index + 1)
-                      .map<DropdownMenuItem<int>>((int value) {
-                    return DropdownMenuItem<int>(
-                      value: value,
-                      child: Text(value.toString()),
-                    );
-                  }).toList(),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Select Number of Rounds:'),
+                      DropdownButton<int>(
+                        value: _numberOfRounds,
+                        onChanged: (int? newValue) {
+                          setState(() {
+                            _numberOfRounds = newValue ?? 1;
+                          });
+                        },
+                        items: List.generate(7, (index) => index + 1)
+                            .map<DropdownMenuItem<int>>((int value) {
+                          return DropdownMenuItem<int>(
+                            value: value,
+                            child: Text(value.toString()),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
+                Expanded(child: DraftOrderPage(draftOrder: _draftOrder)),
               ],
-            ),
-          ),
-          Expanded(child: DraftOrderPage(draftOrder: _draftOrder)),
-        ],
-      )
-    : _selectedIndex == 1
-        ? AvailablePlayersPage(draftOrder: _draftOrder)
-        : TeamNeedsPage(),  // Display TeamNeedsPage when selected
+            )
+          : _selectedIndex == 1
+              ? AvailablePlayersPage(availablePlayers: _availablePlayers)
+              : TeamNeedsPage(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -102,15 +108,6 @@ body: _selectedIndex == 0
         selectedItemColor: Colors.blue,
         onTap: _onItemTapped,
       ),
-    );
-  }
-}
-
-class TeamNeedsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text('Team Needs will be displayed here.'),
     );
   }
 }
