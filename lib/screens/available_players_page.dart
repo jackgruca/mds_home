@@ -7,9 +7,9 @@ class AvailablePlayersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (availablePlayers.isEmpty || availablePlayers.length <= 1) {
-      return Center(child: CircularProgressIndicator());
-    }
+//    if (availablePlayers.isEmpty || availablePlayers.length <= 1) {
+//      return Center(child: CircularProgressIndicator());
+//    }
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
