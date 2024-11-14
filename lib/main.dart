@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/draft_app.dart';
+import 'screens/team_selection_screen.dart';
 
 void main() {
   runApp(MaterialApp(
@@ -7,6 +7,6 @@ void main() {
     theme: ThemeData(
       primarySwatch: Colors.blue,
     ),
-    home: DraftApp(),
+    home: TeamSelectionScreen(),
   ));
 }
