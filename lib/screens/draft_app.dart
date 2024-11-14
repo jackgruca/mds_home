@@ -5,16 +5,13 @@ import 'available_players_page.dart';
 import 'draft_order_page.dart';
 import 'team_needs_page.dart';
 
-bool _isLoadingAvailablePlayers = true;
-bool _isLoadingTeamNeeds = true;
-
 class DraftApp extends StatefulWidget {
   @override
   _DraftAppState createState() => _DraftAppState();
 }
 
 class _DraftAppState extends State<DraftApp> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
   List<List<dynamic>> _draftOrder = [];
   List<List<dynamic>> _availablePlayers = [];
   List<List<dynamic>> _teamNeeds = [];
@@ -42,15 +39,10 @@ class _DraftAppState extends State<DraftApp> {
       List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
       setState(() {
         _availablePlayers = csvTable;
-        _isLoadingAvailablePlayers = false; // Set loading to false after data is loaded
-
       });
       print("Available Players Loaded: $_availablePlayers"); // Debugging statement
     } catch (e) {
       print("Error loading available players CSV: $e");
-      setState(() {
-        _isLoadingAvailablePlayers = false; // Stop loading state on error
-    });
     }
   }
 
@@ -60,15 +52,10 @@ class _DraftAppState extends State<DraftApp> {
       List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
       setState(() {
         _teamNeeds = csvTable;
-        _isLoadingTeamNeeds = false; // Set loading to false after data is loaded
-
       });
       print("Team Needs Loaded: $_teamNeeds"); // Debugging statement
     } catch (e) {
       print("Error loading team needs CSV: $e");
-      setState(() {
-        _isLoadingTeamNeeds = false; // Stop loading state on error
-    });
     }
   }
 
@@ -115,14 +102,10 @@ class _DraftAppState extends State<DraftApp> {
         );
         break;
       case 1:
-        currentPage = _isLoadingAvailablePlayers
-            ? Center(child: CircularProgressIndicator())
-            : AvailablePlayersPage(availablePlayers: _availablePlayers);
+        currentPage =  AvailablePlayersPage(availablePlayers: _availablePlayers);
         break;
       default:
-        currentPage = _isLoadingTeamNeeds
-            ? Center(child: CircularProgressIndicator())
-            : TeamNeedsPage(teamNeeds: _teamNeeds);
+        currentPage = TeamNeedsPage(teamNeeds: _teamNeeds);
     }
 
     return Scaffold(
