@@ -5,11 +5,13 @@ import 'draft_order_tab.dart';
 import '../../widgets/draft/draft_control_buttons.dart';
 
 class DraftApp extends StatefulWidget {
+  const DraftApp({super.key});
+
   @override
-  _DraftAppState createState() => _DraftAppState();
+  DraftAppState createState() => DraftAppState();
 }
 
-class _DraftAppState extends State<DraftApp> {
+class DraftAppState extends State<DraftApp> {
   int _selectedIndex = 0;
   bool _isDraftRunning = false;
 
@@ -34,7 +36,7 @@ class _DraftAppState extends State<DraftApp> {
 
   void _requestTrade() {
     // Logic to request a trade goes here
-    print("Trade requested");
+    debugPrint("Trade requested");
   }
 
   @override
@@ -53,7 +55,7 @@ class _DraftAppState extends State<DraftApp> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('NFL Draft'),
+        title: const Text('NFL Draft'),
       ),
       body: currentPage,
       bottomNavigationBar: BottomNavigationBar(

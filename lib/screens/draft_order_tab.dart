@@ -6,6 +6,7 @@ class DraftOrderTab extends StatelessWidget {
     [1, "Chicago Bears", "3-14"],
     [2, "Houston Texans", "3-13-1"],
   ];
+  DraftOrderTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,7 @@ class DraftOrderTab extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: DataTable(
-          columns: [
+          columns: const [
             DataColumn(label: Text('Pick')),
             DataColumn(label: Text('Team')),
             DataColumn(label: Text('Previous Record')),

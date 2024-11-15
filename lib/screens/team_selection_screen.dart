@@ -53,7 +53,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   void _startDraft() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => DraftApp()),
+      MaterialPageRoute(builder: (context) => const DraftApp()),
     );
   }
 

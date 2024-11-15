@@ -6,7 +6,8 @@ class DraftControlButtons extends StatelessWidget {
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
 
-  DraftControlButtons({
+  const DraftControlButtons({
+    super.key,
     required this.isDraftRunning,
     required this.onToggleDraft,
     required this.onRestartDraft,
@@ -28,12 +29,12 @@ class DraftControlButtons extends StatelessWidget {
           FloatingActionButton(
             onPressed: onRestartDraft,
             tooltip: 'Restart Draft',
-            child: Icon(Icons.refresh),
+            child: const Icon(Icons.refresh),
           ),
           FloatingActionButton(
             onPressed: onRequestTrade,
             tooltip: 'Request Trade',
-            child: Icon(Icons.swap_horiz),
+            child: const Icon(Icons.swap_horiz),
           ),
         ],
       ),

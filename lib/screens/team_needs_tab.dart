@@ -7,6 +7,8 @@ class TeamNeedsTab extends StatelessWidget {
     ["Houston Texans", "QB, RB, CB"],
   ];
 
+  TeamNeedsTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -14,7 +16,7 @@ class TeamNeedsTab extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: DataTable(
-          columns: [
+          columns: const [
             DataColumn(label: Text('Team')),
             DataColumn(label: Text('Needs')),
           ],
