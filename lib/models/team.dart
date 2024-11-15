@@ -40,40 +40,47 @@ class TeamState extends State<Team> {
     String imgNotFound =
         "https://media.istockphoto.com/id/1409329028/vector/no-picture-available-placeholder-thumbnail-icon-illustration-design.jpg?s=612x612&w=0&k=20&c=_zOuJu755g2eEUioiOUdz_mHKJQJn-tDgIAhQzyeKUQ=";
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        MouseRegion(
-          onEnter: (_) => setState(() => isHovered = true),
-          onExit: (_) => setState(() => isHovered = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 100.0,
-            height: 100.0,
-            decoration: BoxDecoration(
-              color: isHovered ? Colors.black.withOpacity(0.5) : Colors.grey,
-              shape: BoxShape.circle,
-              image: DecorationImage(
-                image: NetworkImage(
-                  teamLogo ?? imgNotFound,
+    return GestureDetector(
+      onTap: () {
+        debugPrint("${widget.teamName} selected");
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MouseRegion(
+            onEnter: (_) => setState(() => isHovered = true),
+            onExit: (_) => setState(() => isHovered = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 100.0,
+              height: 100.0,
+              decoration: BoxDecoration(
+                color: isHovered ? Colors.black.withOpacity(0.5) : Colors.grey,
+                shape: BoxShape.circle,
+                image: DecorationImage(
+                  image: NetworkImage(
+                    teamLogo ?? imgNotFound,
+                  ),
+                  fit: BoxFit.cover,
+                  colorFilter: isHovered
+                      ? ColorFilter.mode(
+                          Colors.black.withOpacity(0.5), BlendMode.darken)
+                      : null,
                 ),
-                fit: BoxFit.cover,
-                colorFilter: isHovered
-                    ? ColorFilter.mode(
-                        Colors.black.withOpacity(0.5), BlendMode.darken)
-                    : null,
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 8.0), // Space between image and text
-        Text(
-          widget.teamName,
-          style: const TextStyle(
-              color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16.0),
-          textAlign: TextAlign.center,
-        ),
-      ],
+          const SizedBox(height: 8.0), // Space between image and text
+          Text(
+            widget.teamName,
+            style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 16.0),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
