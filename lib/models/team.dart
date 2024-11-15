@@ -16,6 +16,7 @@ class Team extends StatefulWidget {
 
 class TeamState extends State<Team> {
   String? teamLogo;
+  bool isHovered = false;
 
   @override
   void initState() {
@@ -42,17 +43,26 @@ class TeamState extends State<Team> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 100.0,
-          height: 100.0,
-          decoration: BoxDecoration(
-            color: Colors.grey,
-            shape: BoxShape.circle,
-            image: DecorationImage(
-              image: NetworkImage(
-                teamLogo ?? imgNotFound,
+        MouseRegion(
+          onEnter: (_) => setState(() => isHovered = true),
+          onExit: (_) => setState(() => isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 100.0,
+            height: 100.0,
+            decoration: BoxDecoration(
+              color: isHovered ? Colors.black.withOpacity(0.5) : Colors.grey,
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                image: NetworkImage(
+                  teamLogo ?? imgNotFound,
+                ),
+                fit: BoxFit.cover,
+                colorFilter: isHovered
+                    ? ColorFilter.mode(
+                        Colors.black.withOpacity(0.5), BlendMode.darken)
+                    : null,
               ),
-              fit: BoxFit.cover,
             ),
           ),
         ),
