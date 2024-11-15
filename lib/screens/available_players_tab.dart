@@ -7,6 +7,8 @@ class AvailablePlayersTab extends StatelessWidget {
     [2, "Jane Doe", "WR", "B"],
   ];
 
+  AvailablePlayersTab({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -14,7 +16,7 @@ class AvailablePlayersTab extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: DataTable(
-          columns: [
+          columns: const [
             DataColumn(label: Text('ID')),
             DataColumn(label: Text('Name')),
             DataColumn(label: Text('Position')),

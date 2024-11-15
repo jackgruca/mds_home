@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mds_home/models/team.dart';
 import 'draft_overview_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
+  const TeamSelectionScreen({super.key});
+
   @override
   _TeamSelectionScreenState createState() => _TeamSelectionScreenState();
 }
@@ -10,7 +13,40 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 1.0;
   double _randomness = 0.5;
-
+  List<String> teams = [
+    "Arizona Cardinals",
+    "Atlanta Falcons",
+    "Baltimore Ravens",
+    "Buffalo Bills",
+    "Carolina Panthers",
+    "Chicago Bears",
+    "Cincinnati Bengals",
+    "Cleveland Browns",
+    "Dallas Cowboys",
+    "Denver Broncos",
+    "Detroit Lions",
+    "Green Bay Packers",
+    "Houston Texans",
+    "Indianapolis Colts",
+    "Jacksonville Jaguars",
+    "Kansas City Chiefs",
+    "Las Vegas Raiders",
+    "Los Angeles Chargers",
+    "Los Angeles Rams",
+    "Miami Dolphins",
+    "Minnesota Vikings",
+    "New England Patriots",
+    "New Orleans Saints",
+    "New York Giants",
+    "New York Jets",
+    "Philadelphia Eagles",
+    "Pittsburgh Steelers",
+    "San Francisco 49ers",
+    "Seattle Seahawks",
+    "Tampa Bay Buccaneers",
+    "Tennessee Titans",
+    "Washington Commanders"
+  ];
   void _startDraft() {
     Navigator.push(
       context,
@@ -22,7 +58,7 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('NFL Draft Setup'),
+        title: const Text('NFL Draft Setup'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -30,27 +66,22 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
           children: [
             Expanded(
               child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
                   crossAxisSpacing: 8.0,
                   mainAxisSpacing: 8.0,
                 ),
                 itemCount: 32,
                 itemBuilder: (context, index) {
-                  return ElevatedButton(
-                    onPressed: () {
-                      print("Team ${index + 1} selected");
-                    },
-                    child: Text('Team ${index + 1}'),
-                  );
+                  return Team(teamName: teams[index]);
                 },
               ),
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Number of Rounds:'),
+                const Text('Number of Rounds:'),
                 DropdownButton<int>(
                   value: _numberOfRounds,
                   onChanged: (int? newValue) {
@@ -71,7 +102,7 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Speed:'),
+                const Text('Speed:'),
                 Slider(
                   value: _speed,
                   min: 0.5,
@@ -89,7 +120,7 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Randomness:'),
+                const Text('Randomness:'),
                 Slider(
                   value: _randomness,
                   min: 0.0,
@@ -104,10 +135,10 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 16.0),
+            const SizedBox(height: 16.0),
             ElevatedButton(
               onPressed: _startDraft,
-              child: Text('Start Draft'),
+              child: const Text('Start Draft'),
             ),
           ],
         ),
