@@ -44,7 +44,8 @@ class TeamState extends State<Team> {
 
     return GestureDetector(
       onTap: () {
-        widget.onTeamSelected(widget.teamName); // Notify parent
+        widget.onTeamSelected(
+            widget.teamName); // Notify parent ( Team Selection Screen)
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -54,7 +55,7 @@ class TeamState extends State<Team> {
             onExit: (_) => setState(() => isHovered = false),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 100.0,
+              width: 100.0, // CAN CHANGE SIZE HERE @GRUCA
               height: 100.0,
               decoration: BoxDecoration(
                 color: isHovered ? Colors.black.withOpacity(0.5) : Colors.grey,
