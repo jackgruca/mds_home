@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 
 class Team extends StatefulWidget {
   final String teamName;
+  final ValueChanged<String> onTeamSelected; // Callback function
 
   const Team({
     super.key,
     required this.teamName,
+    required this.onTeamSelected,
   });
 
   @override
@@ -42,7 +44,7 @@ class TeamState extends State<Team> {
 
     return GestureDetector(
       onTap: () {
-        debugPrint("${widget.teamName} selected");
+        widget.onTeamSelected(widget.teamName); // Notify parent
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,

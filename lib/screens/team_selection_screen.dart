@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/models/team.dart';
+
 import 'draft_overview_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
 
   @override
-  _TeamSelectionScreenState createState() => _TeamSelectionScreenState();
+  TeamSelectionScreenState createState() => TeamSelectionScreenState();
 }
 
-class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
+class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 1.0;
   double _randomness = 0.5;
+
   List<String> teams = [
     "Arizona Cardinals",
     "Atlanta Falcons",
@@ -47,11 +49,18 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
     "Tennessee Titans",
     "Washington Commanders"
   ];
+
   void _startDraft() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => DraftApp()),
     );
+  }
+
+  void _onTeamSelected(String teamName) {
+    debugPrint("$teamName selected");
+
+    // Maybe you want to save the team that is selected as a variable? @Gruca
   }
 
   @override
@@ -73,7 +82,10 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 ),
                 itemCount: 32,
                 itemBuilder: (context, index) {
-                  return Team(teamName: teams[index]);
+                  return Team(
+                    teamName: teams[index],
+                    onTeamSelected: _onTeamSelected,
+                  );
                 },
               ),
             ),
