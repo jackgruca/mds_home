@@ -19,22 +19,39 @@ class DraftControlButtons extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.center, // Center the buttons
         children: [
-          FloatingActionButton(
-            onPressed: onToggleDraft,
-            tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
-            child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: FloatingActionButton(
+              onPressed: onRestartDraft,
+              tooltip: 'Restart Draft',
+              child: const Icon(Icons.refresh),
+              mini: true,
+            ),
           ),
-          FloatingActionButton(
-            onPressed: onRestartDraft,
-            tooltip: 'Restart Draft',
-            child: const Icon(Icons.refresh),
+          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: FloatingActionButton(
+              onPressed: onToggleDraft,
+              tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
+              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
+              mini: true,
+            ),
           ),
-          FloatingActionButton(
-            onPressed: onRequestTrade,
-            tooltip: 'Request Trade',
-            child: const Icon(Icons.swap_horiz),
+          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: FloatingActionButton(
+              onPressed: onRequestTrade,
+              tooltip: 'Request Trade',
+              child: const Icon(Icons.swap_horiz),
+              mini: true,
+            ),
           ),
         ],
       ),
