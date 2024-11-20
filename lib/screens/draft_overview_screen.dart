@@ -4,6 +4,9 @@ import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
 import '../../widgets/draft/draft_control_buttons.dart';
 
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:csv/csv.dart';
+
 class DraftApp extends StatefulWidget {
   const DraftApp({super.key});
 
@@ -12,13 +15,32 @@ class DraftApp extends StatefulWidget {
 }
 
 class DraftAppState extends State<DraftApp> {
-  int _selectedIndex = 0;
   bool _isDraftRunning = false;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  // State variables for data
+  List<List<dynamic>> _draftOrder = [];
+  List<List<dynamic>> _availablePlayers = [];
+  List<List<dynamic>> _teamNeeds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    //_loadDraftOrder();
+    _loadAvailablePlayers();
+    //_loadTeamNeeds();
+  }
+
+  Future<void> _loadAvailablePlayers() async {
+    try {
+      final data = await rootBundle.loadString('assets/available_players.csv');
+      List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
+      setState(() {
+        _availablePlayers = csvTable;
+      });
+      debugPrint("Available Players Loaded: $_availablePlayers");
+    } catch (e) {
+      debugPrint("Error loading available players CSV: $e");
+    }
   }
 
   void _toggleDraft() {
@@ -41,48 +63,33 @@ class DraftAppState extends State<DraftApp> {
 
   @override
   Widget build(BuildContext context) {
-    Widget currentPage;
-    switch (_selectedIndex) {
-      case 0:
-        currentPage = DraftOrderTab();
-        break;
-      case 1:
-        currentPage = AvailablePlayersTab();
-        break;
-      default:
-        currentPage = TeamNeedsTab();
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('NFL Draft'),
-      ),
-      body: currentPage,
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'Draft Order',
+    return DefaultTabController(
+      length: 3, // Number of tabs
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('NFL Draft'),
+          bottom: TabBar(
+            tabs: const [
+              Tab(text: 'Draft Order', icon: Icon(Icons.list)),
+              Tab(text: 'Available Players', icon: Icon(Icons.people)),
+              Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Available Players',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Team Needs',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
-        onTap: _onItemTapped,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: DraftControlButtons(
-        isDraftRunning: _isDraftRunning,
-        onToggleDraft: _toggleDraft,
-        onRestartDraft: _restartDraft,
-        onRequestTrade: _requestTrade,
+        ),
+        body: TabBarView(
+          children: [
+            DraftOrderTab(), // Draft Order tab
+            AvailablePlayersTab(availablePlayers: _availablePlayers), // Available Players tab
+            TeamNeedsTab(), // Team Needs tab
+          ],
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: DraftControlButtons(
+          isDraftRunning: _isDraftRunning,
+          onToggleDraft: _toggleDraft,
+          onRestartDraft: _restartDraft,
+          onRequestTrade: _requestTrade,
+        ),
       ),
     );
   }
