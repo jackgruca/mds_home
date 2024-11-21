@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
 
-  AvailablePlayersTab({required this.availablePlayers, super.key});
+  const AvailablePlayersTab({required this.availablePlayers, super.key});
 
   @override
-  _AvailablePlayersTabState createState() => _AvailablePlayersTabState();
+  AvailablePlayersTabState createState() => AvailablePlayersTabState();
 }
 
-class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
+class AvailablePlayersTabState extends State<AvailablePlayersTab> {
   String _searchQuery = '';
   String _selectedPosition = '';
 
@@ -18,7 +18,10 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     List<List<dynamic>> filteredPlayers = widget.availablePlayers
         .where((player) =>
             (_searchQuery.isEmpty ||
-                player[1].toString().toLowerCase().contains(_searchQuery.toLowerCase())) &&
+                player[1]
+                    .toString()
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase())) &&
             (_selectedPosition.isEmpty || player[2] == _selectedPosition))
         .toList();
 
@@ -28,7 +31,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
         children: [
           // Search Bar
           TextField(
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Search Players',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
@@ -39,14 +42,14 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
               });
             },
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Position Filter Bubbles
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 ChoiceChip(
-                  label: Text('All'),
+                  label: const Text('All'),
                   selected: _selectedPosition.isEmpty,
                   onSelected: (selected) {
                     setState(() {
@@ -54,7 +57,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                     });
                   },
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ...widget.availablePlayers
                     .skip(1) // Skip header row
                     .map((player) => player[2])
@@ -70,12 +73,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                               });
                             },
                           ),
-                        ))
-                    .toList(),
+                        )),
               ],
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Data Table
           Expanded(
             child: SingleChildScrollView(
