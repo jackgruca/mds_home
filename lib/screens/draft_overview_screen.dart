@@ -18,9 +18,9 @@ class DraftAppState extends State<DraftApp> {
   bool _isDraftRunning = false;
 
   // State variables for data
-  List<List<dynamic>> _draftOrder = [];
+  final List<List<dynamic>> _draftOrder = [];
   List<List<dynamic>> _availablePlayers = [];
-  List<List<dynamic>> _teamNeeds = [];
+  final List<List<dynamic>> _teamNeeds = [];
 
   @override
   void initState() {
@@ -47,12 +47,39 @@ class DraftAppState extends State<DraftApp> {
     setState(() {
       _isDraftRunning = !_isDraftRunning;
     });
+    
+    if (_isDraftRunning) {
+    _runDraftLoop();
+    }
+  }
+
+  Future<void> _runDraftLoop() async {
+    while (_isDraftRunning && _availablePlayers.isNotEmpty) {
+      await Future.delayed(const Duration(seconds: 2)); // Wait time between picks
+      _makeDraftPick(); // Auto-pick a player
+    }
+  }
+
+  void _makeDraftPick() {
+    if (_availablePlayers.isNotEmpty) {
+      setState(() {
+        final pick = _availablePlayers.removeAt(0);  // Selects first player
+        _draftOrder.add(pick);  // Adds the pick to draft history
+      });
+
+      debugPrint("Drafted: ${_draftOrder.last}");
+    } else {
+      setState(() {
+        _isDraftRunning = false; // Stop when no players remain
+      });
+    }
   }
 
   void _restartDraft() {
     setState(() {
       _isDraftRunning = false;
-      // Logic to reset the draft goes here
+      _draftOrder.clear(); // Clear draft picks
+      _loadAvailablePlayers(); // Reload the player pool
     });
   }
 
@@ -68,8 +95,8 @@ class DraftAppState extends State<DraftApp> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('NFL Draft'),
-          bottom: TabBar(
-            tabs: const [
+          bottom: const TabBar(
+            tabs: [
               Tab(text: 'Draft Order', icon: Icon(Icons.list)),
               Tab(text: 'Available Players', icon: Icon(Icons.people)),
               Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
