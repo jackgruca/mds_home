@@ -57,6 +57,7 @@ class DraftAppState extends State<DraftApp> {
     //_loadDraftOrder();
     // _loadAvailablePlayers();
     _availablePlayers = availablePlayers; // Use hard coded list
+    debugPrint("Available Players Loaded: $_availablePlayers");
     //_loadTeamNeeds();
   }
 
