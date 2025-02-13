@@ -24,33 +24,39 @@ class DraftControlButtons extends StatelessWidget {
           SizedBox(
             width: 48,
             height: 48,
+            // When using multiple floating action buttons, you want to give them a name (heroTag) to avoid conflicts
             child: FloatingActionButton(
+              heroTag: 'restartDraft', // Added Hero Tags here @Gruca
               onPressed: onRestartDraft,
               tooltip: 'Restart Draft',
-              child: const Icon(Icons.refresh),
               mini: true,
+              child: const Icon(Icons.refresh),
             ),
           ),
-          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          const SizedBox(
+              width: 24), // Reduced spacing to bring buttons closer together
           SizedBox(
             width: 48,
             height: 48,
             child: FloatingActionButton(
+              heroTag: 'toggleDraft', // Added Hero Tags here @Gruca
               onPressed: onToggleDraft,
               tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
-              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
               mini: true,
+              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
             ),
           ),
-          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          const SizedBox(
+              width: 24), // Reduced spacing to bring buttons closer together
           SizedBox(
             width: 48,
             height: 48,
             child: FloatingActionButton(
+              heroTag: 'requestTrade', // Added Hero Tags here @Gruca
               onPressed: onRequestTrade,
               tooltip: 'Request Trade',
-              child: const Icon(Icons.swap_horiz),
               mini: true,
+              child: const Icon(Icons.swap_horiz),
             ),
           ),
         ],

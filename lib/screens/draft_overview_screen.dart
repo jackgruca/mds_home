@@ -47,15 +47,16 @@ class DraftAppState extends State<DraftApp> {
     setState(() {
       _isDraftRunning = !_isDraftRunning;
     });
-    
+
     if (_isDraftRunning) {
-    _runDraftLoop();
+      _runDraftLoop();
     }
   }
 
   Future<void> _runDraftLoop() async {
     while (_isDraftRunning && _availablePlayers.isNotEmpty) {
-      await Future.delayed(const Duration(seconds: 2)); // Wait time between picks
+      await Future.delayed(
+          const Duration(seconds: 2)); // Wait time between picks
       _makeDraftPick(); // Auto-pick a player
     }
   }
@@ -63,8 +64,8 @@ class DraftAppState extends State<DraftApp> {
   void _makeDraftPick() {
     if (_availablePlayers.isNotEmpty) {
       setState(() {
-        final pick = _availablePlayers.removeAt(0);  // Selects first player
-        _draftOrder.add(pick);  // Adds the pick to draft history
+        final pick = _availablePlayers.removeAt(0); // Selects first player
+        _draftOrder.add(pick); // Adds the pick to draft history
       });
 
       debugPrint("Drafted: ${_draftOrder.last}");
@@ -106,7 +107,8 @@ class DraftAppState extends State<DraftApp> {
         body: TabBarView(
           children: [
             DraftOrderTab(), // Draft Order tab
-            AvailablePlayersTab(availablePlayers: _availablePlayers), // Available Players tab
+            AvailablePlayersTab(
+                availablePlayers: _availablePlayers), // Available Players tab
             TeamNeedsTab(), // Team Needs tab
           ],
         ),
