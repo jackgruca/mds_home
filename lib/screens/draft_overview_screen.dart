@@ -8,7 +8,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
 
 class DraftApp extends StatefulWidget {
-  const DraftApp({super.key});
+  final String? selectedTeam; // Nullable team selection
+  
+  const DraftApp({super.key, this.selectedTeam});
 
   @override
   DraftAppState createState() => DraftAppState();
@@ -64,7 +66,7 @@ class DraftAppState extends State<DraftApp> {
     if (_availablePlayers.isNotEmpty) {
       setState(() {
         final pick = _availablePlayers.removeAt(0);  // Selects first player
-        _draftOrder.add(pick);  // Adds the pick to draft history
+        _draftOrder.add([_draftOrder.length + 1, pick[1]]); // Add to draft order
       });
 
       debugPrint("Drafted: ${_draftOrder.last}");
