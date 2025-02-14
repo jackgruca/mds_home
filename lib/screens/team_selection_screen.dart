@@ -11,6 +11,7 @@ class TeamSelectionScreen extends StatefulWidget {
 }
 
 class TeamSelectionScreenState extends State<TeamSelectionScreen> {
+  String? _selectedTeam; // Nullable to allow full sim mode
   int _numberOfRounds = 1;
   double _speed = 1.0;
   double _randomness = 0.5;
@@ -53,15 +54,18 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   void _startDraft() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const DraftApp()),
+      MaterialPageRoute(
+        builder: (context) => DraftApp(selectedTeam: _selectedTeam), // Pass team or null
+      ),
     );
   }
 
-  void _onTeamSelected(String teamName) {
-    debugPrint("$teamName selected");
-
-    // Maybe you want to save the team that is selected as a variable? @Gruca
-  }
+void _onTeamSelected(String teamName) {
+  setState(() {
+    _selectedTeam = teamName; // Store selected team
+  });
+  debugPrint("Selected Team: $_selectedTeam");
+}
 
   @override
   Widget build(BuildContext context) {
