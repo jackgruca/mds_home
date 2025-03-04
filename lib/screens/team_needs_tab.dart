@@ -15,6 +15,7 @@ class _TeamNeedsTabState extends State<TeamNeedsTab> {
   @override
   Widget build(BuildContext context) {
     List<List<dynamic>> filteredTeamNeeds = widget.teamNeeds
+        .skip(1)
         .where((row) =>
             _searchQuery.isEmpty ||
             row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
@@ -66,7 +67,7 @@ class _TeamNeedsTabState extends State<TeamNeedsTab> {
                   ),
 
                   // 🏈 Team Needs Rows
-                  for (var i = 1; i < filteredTeamNeeds.length; i++)
+                  for (var i = 0; i < filteredTeamNeeds.length; i++)
                     TableRow(
                       decoration: BoxDecoration(color: i.isEven ? Colors.white : Colors.grey[200]),
                       children: [
