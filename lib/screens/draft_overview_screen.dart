@@ -34,13 +34,19 @@ class DraftAppState extends State<DraftApp> {
   Future<void> _loadAvailablePlayers() async {
     try {
       final data = await rootBundle.loadString('assets/available_players.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter().convert(data);
+      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+
       setState(() {
-        _availablePlayers = csvTable;
+        _availablePlayers = csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
       });
-      debugPrint("Available Players Loaded: $_availablePlayers");
+
+      // 🚀 Debugging to Verify Fix
+      debugPrint("✅ Data Type of filteredPlayers: ${_availablePlayers.runtimeType}");
+      debugPrint("✅ First Row: ${_availablePlayers.isNotEmpty ? _availablePlayers[0] : "No Data"}");
+      debugPrint("✅ First Player Row: ${_availablePlayers.length > 1 ? _availablePlayers[1] : "No Data"}");
+
     } catch (e) {
-      debugPrint("Error loading available players CSV: $e");
+      debugPrint("❌ Error loading CSV: $e");
     }
   }
 
