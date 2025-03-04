@@ -15,6 +15,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
   @override
   Widget build(BuildContext context) {
     List<List<dynamic>> filteredDraftOrder = widget.draftOrder
+        .skip(1)
         .where((row) =>
             _searchQuery.isEmpty ||
             row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
@@ -76,7 +77,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                   ),
 
                   // 🏈 Draft Order Rows
-                  for (var i = 1; i < filteredDraftOrder.length; i++)
+                  for (var i = 0; i < filteredDraftOrder.length; i++)
                     TableRow(
                       decoration: BoxDecoration(color: i.isEven ? Colors.white : Colors.grey[200]),
                       children: [
