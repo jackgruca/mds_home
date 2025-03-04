@@ -76,47 +76,61 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
             ),
           ),
           const SizedBox(height: 16),
+          
           // Data Table
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-
-             child: 
-             Column( 
-              children: [
-                Text(filteredPlayers[0].toString() , ) ,  // FIX THIS JACK !!!!!!!!
-              ]
-
-
-
-
-
-             ),
-
-            //  child: DataTable(
-            //    columns: const [
-            //      DataColumn(label: Text('ID')),
-            //      DataColumn(label: Text('Name')),
-            //      DataColumn(label: Text('Position')),
-            //      DataColumn(label: Text('Rank Combined')),
-            //    ],
-            //    rows: filteredPlayers
-            //        .skip(1) // Skipping header row
-            //        .map(
-            //          (row) => DataRow(
-            //            cells: [
-            //              Text(${row[0].toString()}), 
-            //         //    DataCell(Text(row[0].toString())),
-            //         //    DataCell(Text(row[1].toString())),
-            //         //    DataCell(Text(row[2].toString())),
-            //         //    DataCell(Text(row[3].toString())),
-            //            ],
-            //          ),
-            //        )
-            //        .toList(),
-            //  ),
+Expanded(
+  child: SingleChildScrollView(
+    scrollDirection: Axis.vertical,
+    child: Table(
+      border: TableBorder.all(color: Colors.grey), // Adds border to table
+      columnWidths: const {
+        0: FlexColumnWidth(3), // Player Name (Wider)
+        1: FlexColumnWidth(2), // Position
+        2: FlexColumnWidth(1), // Rank (Smaller)
+      },
+      children: [
+        // 🏆 Styled Header Row
+        TableRow(
+          decoration: BoxDecoration(color: Colors.blueGrey[100]), // Light background for header
+          children: const [
+            Padding(
+              padding: EdgeInsets.all(8),
+              child: Text("Player", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
+            Padding(
+              padding: EdgeInsets.all(8),
+              child: Text("Position", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            Padding(
+              padding: EdgeInsets.all(8),
+              child: Text("Rank", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ],
+        ),
+
+        // 🏈 Player Data Rows
+        for (var i = 1; i < filteredPlayers.length; i++) 
+          TableRow(
+            decoration: BoxDecoration(color: i.isEven ? Colors.white : Colors.grey[200]), // Alternating row colors
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(filteredPlayers[i][1], style: const TextStyle(fontSize: 14)),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(filteredPlayers[i][2], style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic)),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(filteredPlayers[i].last, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
+      ],
+    ),
+  ),
+),
         ],
       ),
     );
