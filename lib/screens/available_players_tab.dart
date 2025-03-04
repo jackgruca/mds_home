@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
 
-  AvailablePlayersTab({required this.availablePlayers, super.key});
+  const AvailablePlayersTab({required this.availablePlayers, super.key});
 
   @override
   _AvailablePlayersTabState createState() => _AvailablePlayersTabState();
@@ -28,7 +28,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
         children: [
           // Search Bar
           TextField(
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Search Players',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
@@ -39,14 +39,14 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
               });
             },
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Position Filter Bubbles
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 ChoiceChip(
-                  label: Text('All'),
+                  label: const Text('All'),
                   selected: _selectedPosition.isEmpty,
                   onSelected: (selected) {
                     setState(() {
@@ -54,7 +54,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                     });
                   },
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 ...widget.availablePlayers
                     .skip(1) // Skip header row
                     .map((player) => player[2])
@@ -71,36 +71,50 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                             },
                           ),
                         ))
-                    .toList(),
+                    ,
               ],
             ),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Data Table
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.vertical,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('ID')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Position')),
-                  DataColumn(label: Text('Rank Combined')),
-                ],
-                rows: filteredPlayers
-                    .skip(1) // Skipping header row
-                    .map(
-                      (row) => DataRow(
-                        cells: [
-                          DataCell(Text(row[0].toString())),
-                          DataCell(Text(row[1].toString())),
-                          DataCell(Text(row[2].toString())),
-                          DataCell(Text(row[3].toString())),
-                        ],
-                      ),
-                    )
-                    .toList(),
-              ),
+
+             child: 
+             Column( 
+              children: [
+                Text(filteredPlayers[0].toString() , ) ,  // FIX THIS JACK !!!!!!!!
+              ]
+
+
+
+
+
+             ),
+
+            //  child: DataTable(
+            //    columns: const [
+            //      DataColumn(label: Text('ID')),
+            //      DataColumn(label: Text('Name')),
+            //      DataColumn(label: Text('Position')),
+            //      DataColumn(label: Text('Rank Combined')),
+            //    ],
+            //    rows: filteredPlayers
+            //        .skip(1) // Skipping header row
+            //        .map(
+            //          (row) => DataRow(
+            //            cells: [
+            //              Text(${row[0].toString()}), 
+            //         //    DataCell(Text(row[0].toString())),
+            //         //    DataCell(Text(row[1].toString())),
+            //         //    DataCell(Text(row[2].toString())),
+            //         //    DataCell(Text(row[3].toString())),
+            //            ],
+            //          ),
+            //        )
+            //        .toList(),
+            //  ),
             ),
           ),
         ],

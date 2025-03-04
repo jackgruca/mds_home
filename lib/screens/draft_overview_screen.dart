@@ -18,9 +18,9 @@ class DraftAppState extends State<DraftApp> {
   bool _isDraftRunning = false;
 
   // State variables for data
-  List<List<dynamic>> _draftOrder = [];
+  final List<List<dynamic>> _draftOrder = [];
   List<List<dynamic>> _availablePlayers = [];
-  List<List<dynamic>> _teamNeeds = [];
+  final List<List<dynamic>> _teamNeeds = [];
 
   @override
   void initState() {
@@ -30,6 +30,7 @@ class DraftAppState extends State<DraftApp> {
     //_loadTeamNeeds();
   }
 
+    /// Potentially it doesn't like the way its being loaded? 
   Future<void> _loadAvailablePlayers() async {
     try {
       final data = await rootBundle.loadString('assets/available_players.csv');
@@ -68,8 +69,8 @@ class DraftAppState extends State<DraftApp> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('NFL Draft'),
-          bottom: TabBar(
-            tabs: const [
+          bottom: const TabBar(
+            tabs: [
               Tab(text: 'Draft Order', icon: Icon(Icons.list)),
               Tab(text: 'Available Players', icon: Icon(Icons.people)),
               Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
