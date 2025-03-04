@@ -63,6 +63,10 @@ class _TeamNeedsTabState extends State<TeamNeedsTab> {
                         padding: EdgeInsets.all(8),
                         child: Text("Needs", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text("Selected", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
                     ],
                   ),
 
@@ -80,6 +84,14 @@ class _TeamNeedsTabState extends State<TeamNeedsTab> {
                           child: Text(
                             // Joins all needs into a single string, skipping empty ones
                             filteredTeamNeeds[i].sublist(2).where((e) => e.toString().isNotEmpty).join(", "),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            // Joins all needs into a single string, skipping empty ones
+                            filteredTeamNeeds[i].length > 12 ? filteredTeamNeeds[i][12] : "", // Show last selected player                            
                             style: const TextStyle(fontSize: 14),
                           ),
                         ),
