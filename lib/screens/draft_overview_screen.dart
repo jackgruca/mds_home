@@ -18,16 +18,16 @@ class DraftAppState extends State<DraftApp> {
   bool _isDraftRunning = false;
 
   // State variables for data
-  final List<List<dynamic>> _draftOrder = [];
+  List<List<dynamic>> _draftOrder = [];
   List<List<dynamic>> _availablePlayers = [];
-  final List<List<dynamic>> _teamNeeds = [];
+  List<List<dynamic>> _teamNeeds = [];
 
   @override
   void initState() {
     super.initState();
-    //_loadDraftOrder();
+    _loadDraftOrder();
     _loadAvailablePlayers();
-    //_loadTeamNeeds();
+    _loadTeamNeeds();
   }
 
     /// Potentially it doesn't like the way its being loaded? 
@@ -44,6 +44,44 @@ class DraftAppState extends State<DraftApp> {
       debugPrint("✅ Data Type of filteredPlayers: ${_availablePlayers.runtimeType}");
       debugPrint("✅ First Row: ${_availablePlayers.isNotEmpty ? _availablePlayers[0] : "No Data"}");
       debugPrint("✅ First Player Row: ${_availablePlayers.length > 1 ? _availablePlayers[1] : "No Data"}");
+
+    } catch (e) {
+      debugPrint("❌ Error loading CSV: $e");
+    }
+  }
+
+  Future<void> _loadDraftOrder() async {
+    try {
+      final data = await rootBundle.loadString('assets/draft_order.csv');
+      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+
+      setState(() {
+        _draftOrder = csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
+      });
+
+      // 🚀 Debugging to Verify Fix
+      debugPrint("✅ Data Type of draftOrder: ${_draftOrder.runtimeType}");
+      debugPrint("✅ First Row: ${_draftOrder.isNotEmpty ? _draftOrder[0] : "No Data"}");
+      debugPrint("✅ First Draft Row: ${_draftOrder.length > 1 ? _draftOrder[1] : "No Data"}");
+
+    } catch (e) {
+      debugPrint("❌ Error loading CSV: $e");
+    }
+  }
+
+    Future<void> _loadTeamNeeds() async {
+    try {
+      final data = await rootBundle.loadString('assets/team_needs.csv');
+      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+
+      setState(() {
+        _teamNeeds= csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
+      });
+
+      // 🚀 Debugging to Verify Fix
+      debugPrint("✅ Data Type of teamNeeds: ${_teamNeeds.runtimeType}");
+      debugPrint("✅ First Row: ${_teamNeeds.isNotEmpty ? _teamNeeds[0] : "No Data"}");
+      debugPrint("✅ First Needs Row: ${_teamNeeds.length > 1 ? _teamNeeds[1] : "No Data"}");
 
     } catch (e) {
       debugPrint("❌ Error loading CSV: $e");
@@ -85,9 +123,9 @@ class DraftAppState extends State<DraftApp> {
         ),
         body: TabBarView(
           children: [
-            DraftOrderTab(), // Draft Order tab
+            DraftOrderTab(draftOrder: _draftOrder), // Draft Order tab
             AvailablePlayersTab(availablePlayers: _availablePlayers), // Available Players tab
-            TeamNeedsTab(), // Team Needs tab
+            TeamNeedsTab(teamNeeds: _teamNeeds), // Team Needs tab
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
