@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/models/team.dart';
 
+
 import 'draft_overview_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 ),
                 itemCount: 32,
                 itemBuilder: (context, index) {
-                  return Team(
+                  return TeamSelector(
                     teamName: teams[index],
                     onTeamSelected: _onTeamSelected,
                   );

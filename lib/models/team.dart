@@ -1,22 +1,108 @@
+// lib/models/team.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-class Team extends StatefulWidget {
-  final String teamName;
-  final ValueChanged<String> onTeamSelected; // Callback function
+class TeamData {
+  final String name;
+  final String? logo;
+  final String? abbreviation;
+  
+  const TeamData({
+    required this.name,
+    this.logo,
+    this.abbreviation,
+  });
+  
+  static Future<TeamData> fromName(String teamName) async {
+    String? logo = await _getTeamLogoAddress(teamName);
+    return TeamData(
+      name: teamName,
+      logo: logo,
+    );
+  }
+  
+  // Logic to fetch team logo from ESPN API
+  static Future<String?> _getTeamLogoAddress(String teamName) async {
+    try {
+      String teamID = await _getTeamID(teamName);
+      if (teamID == "TEAM ID NOT FOUND") return null;
 
-  const Team({
+      final teamData = await _getTeamAPI(teamID);
+      if (teamData.isNotEmpty) {
+        return teamData['logos']?[0]['href'];
+      }
+    } catch (e) {
+      debugPrint("Error getting team logo address: $e");
+    }
+    return null;
+  }
+
+  static Future<String> _getTeamID(String teamName) async {
+    String url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams";
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['sports'] != null) {
+          for (var sport in data['sports']) {
+            if (sport['leagues'] != null) {
+              for (var league in sport['leagues']) {
+                if (league['teams'] != null) {
+                  for (var team in league['teams']) {
+                    if (team['team'] != null) {
+                      String? location = team['team']['location'];
+                      String? name = team['team']['name'];
+                      String teamLocAndName = "$location $name";
+                      if (teamLocAndName.toLowerCase() == teamName.toLowerCase()) {
+                        String id = team['team']['id'];
+                        return id;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching team ID: $teamName...$e');
+    }
+    return "TEAM ID NOT FOUND";
+  }
+
+  static Future<Map<String, dynamic>> _getTeamAPI(String teamID) async {
+    String url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/$teamID';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        return data['team'] ?? {};
+      }
+    } catch (e) {
+      debugPrint('Error fetching team info: $e');
+    }
+    return {};
+  }
+}
+
+// This is the Team widget, but renamed to make it distinct from the model
+class TeamSelector extends StatefulWidget {
+  final String teamName;
+  final ValueChanged<String> onTeamSelected;
+
+  const TeamSelector({
     super.key,
     required this.teamName,
     required this.onTeamSelected,
   });
 
   @override
-  TeamState createState() => TeamState();
+  TeamSelectorState createState() => TeamSelectorState();
 }
 
-class TeamState extends State<Team> {
+class TeamSelectorState extends State<TeamSelector> {
   String? teamLogo;
   bool isHovered = false;
 
@@ -28,7 +114,7 @@ class TeamState extends State<Team> {
 
   Future<void> _fetchTeamLogo() async {
     try {
-      final logo = await _getTeamLogoAddress(widget.teamName);
+      final logo = await TeamData._getTeamLogoAddress(widget.teamName);
       setState(() {
         teamLogo = logo;
       });
@@ -44,8 +130,7 @@ class TeamState extends State<Team> {
 
     return GestureDetector(
       onTap: () {
-        widget.onTeamSelected(
-            widget.teamName); // Notify parent ( Team Selection Screen)
+        widget.onTeamSelected(widget.teamName);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -55,7 +140,7 @@ class TeamState extends State<Team> {
             onExit: (_) => setState(() => isHovered = false),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 100.0, // CAN CHANGE SIZE HERE @GRUCA
+              width: 100.0,
               height: 100.0,
               decoration: BoxDecoration(
                 color: isHovered ? Colors.black.withOpacity(0.5) : Colors.grey,
@@ -73,7 +158,7 @@ class TeamState extends State<Team> {
               ),
             ),
           ),
-          const SizedBox(height: 8.0), // Space between image and text
+          const SizedBox(height: 8.0),
           Text(
             widget.teamName,
             style: const TextStyle(
@@ -85,72 +170,5 @@ class TeamState extends State<Team> {
         ],
       ),
     );
-  }
-
-  Future<String> _getTeamLogoAddress(String teamName) async {
-    try {
-      String teamID = await getTeamID(teamName);
-      if (teamID == "TEAM ID NOT FOUND") return "Unknown";
-
-      final teamData = await _getTeamAPI(teamID);
-      if (teamData.isNotEmpty) {
-        return teamData['logos']?[0]['href'] ?? "Unknown";
-      }
-    } catch (e) {
-      debugPrint("Error getting team logo address: $e");
-    }
-    return "Unknown"; // Fallback
-  }
-
-  Future<String> getTeamID(String teamName) async {
-    String url =
-        "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams";
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['sports'] != null) {
-          for (var sport in data['sports']) {
-            if (sport['leagues'] != null) {
-              for (var league in sport['leagues']) {
-                if (league['teams'] != null) {
-                  for (var team in league['teams']) {
-                    if (team['team'] != null) {
-                      String? location = team['team']['location'];
-                      String? name = team['team']['name'];
-                      String teamLocAndName = "$location $name";
-                      if (teamLocAndName.toLowerCase() ==
-                          teamName.toLowerCase()) {
-                        String id = team['team']['id'];
-                        return id;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching team ID: $teamName...$e');
-    }
-    debugPrint("Team ID not found... $teamName...");
-    return "TEAM ID NOT FOUND";
-  }
-
-  Future<Map<String, dynamic>> _getTeamAPI(String teamID) async {
-    String url =
-        'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/$teamID';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        var data = jsonDecode(response.body);
-        return data['team'] ?? {};
-      }
-    } catch (e) {
-      debugPrint('Error fetching team info: $e');
-    }
-    return {};
   }
 }
