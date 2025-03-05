@@ -30,7 +30,7 @@ class Player {
   
   // Convert player back to a list for compatibility with existing code
   List<dynamic> toList() {
-    return [id, name, position, school, notes ?? '', rank];
+    return [id.toString(), name, position, school, notes ?? '', rank.toString()];
   }
   
   @override

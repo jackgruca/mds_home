@@ -1,14 +1,30 @@
+// lib/screens/draft_overview_screen.dart
 import 'package:flutter/material.dart';
+import '../models/player.dart';
+import '../models/draft_pick.dart';
+import '../models/team_need.dart';
+import '../services/data_service.dart';
+import '../services/draft_service.dart';
+import '../utils/constants.dart';
+
 import 'available_players_tab.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
-import '../../widgets/draft/draft_control_buttons.dart';
-
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:csv/csv.dart';
+import '../widgets/draft/draft_control_buttons.dart';
 
 class DraftApp extends StatefulWidget {
-  const DraftApp({super.key});
+  final double randomnessFactor;
+  final int numberOfRounds;
+  final double speedFactor;
+  final String? selectedTeam;
+
+  const DraftApp({
+    super.key,
+    this.randomnessFactor = AppConstants.defaultRandomnessFactor,
+    this.numberOfRounds = 1,
+    this.speedFactor = 1.0,
+    this.selectedTeam,
+  });
 
   @override
   DraftAppState createState() => DraftAppState();
@@ -16,211 +32,163 @@ class DraftApp extends StatefulWidget {
 
 class DraftAppState extends State<DraftApp> {
   bool _isDraftRunning = false;
+  bool _isDataLoaded = false;
+  String _statusMessage = "Loading draft data...";
+  DraftService? _draftService;
 
-  // State variables for data
-  List<List<dynamic>> _draftOrder = [];
-  List<List<dynamic>> _availablePlayers = [];
-  List<List<dynamic>> _teamNeeds = [];
+  // State variables for data (now using typed models)
+  List<Player> _players = [];
+  List<DraftPick> _draftPicks = [];
+  List<TeamNeed> _teamNeeds = [];
+  
+  // Compatibility variables for existing UI components
+  List<List<dynamic>> _draftOrderLists = [];
+  List<List<dynamic>> _availablePlayersLists = [];
+  List<List<dynamic>> _teamNeedsLists = [];
 
   @override
   void initState() {
     super.initState();
-    _loadDraftOrder();
-    _loadAvailablePlayers();
-    _loadTeamNeeds();
+    _loadData();
   }
 
-    /// Potentially it doesn't like the way its being loaded? 
-  Future<void> _loadAvailablePlayers() async {
+  Future<void> _loadData() async {
     try {
-      final data = await rootBundle.loadString('assets/available_players.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+      // Load data using our DataService
+      final players = await DataService.loadAvailablePlayers();
+      final draftPicks = await DataService.loadDraftOrder();
+      final teamNeeds = await DataService.loadTeamNeeds();
+      
+      // Filter draft picks based on the number of rounds selected
+      final filteredDraftPicks = draftPicks.where((pick) {
+        int round = int.tryParse(pick.round) ?? 1;
+        return round <= widget.numberOfRounds;
+      }).toList();
+
+      // Create the draft service with the loaded data
+      final draftService = DraftService(
+        availablePlayers: List.from(players), // Create copies to avoid modifying originals
+        draftOrder: filteredDraftPicks,
+        teamNeeds: teamNeeds,
+        randomnessFactor: widget.randomnessFactor,
+      );
+
+      // Convert models to lists for the existing UI components
+      final draftOrderLists = DataService.draftPicksToLists(filteredDraftPicks);
+      final availablePlayersLists = DataService.playersToLists(players);
+      final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
 
       setState(() {
-        _availablePlayers = csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
+        _players = players;
+        _draftPicks = filteredDraftPicks;
+        _teamNeeds = teamNeeds;
+        _draftService = draftService;
+        
+        // Set list versions for UI compatibility
+        _draftOrderLists = draftOrderLists;
+        _availablePlayersLists = availablePlayersLists;
+        _teamNeedsLists = teamNeedsLists;
+        
+        _isDataLoaded = true;
+        _statusMessage = "Draft data loaded successfully";
       });
-
-      // 🚀 Debugging to Verify Fix
-      debugPrint("✅ Data Type of filteredPlayers: ${_availablePlayers.runtimeType}");
-      debugPrint("✅ First Row: ${_availablePlayers.isNotEmpty ? _availablePlayers[0] : "No Data"}");
-      debugPrint("✅ First Player Row: ${_availablePlayers.length > 1 ? _availablePlayers[1] : "No Data"}");
-
     } catch (e) {
-      debugPrint("❌ Error loading CSV: $e");
-    }
-  }
-
-  Future<void> _loadDraftOrder() async {
-    try {
-      final data = await rootBundle.loadString('assets/draft_order.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-
       setState(() {
-        _draftOrder = csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
+        _statusMessage = "Error loading draft data: $e";
       });
-
-      // 🚀 Debugging to Verify Fix
-      debugPrint("✅ Data Type of draftOrder: ${_draftOrder.runtimeType}");
-      debugPrint("✅ First Row: ${_draftOrder.isNotEmpty ? _draftOrder[0] : "No Data"}");
-      debugPrint("✅ First Draft Row: ${_draftOrder.length > 1 ? _draftOrder[1] : "No Data"}");
-
-    } catch (e) {
-      debugPrint("❌ Error loading CSV: $e");
-    }
-  }
-
-    Future<void> _loadTeamNeeds() async {
-    try {
-      final data = await rootBundle.loadString('assets/team_needs.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-
-      setState(() {
-        _teamNeeds= csvTable.map((row) => row.map((cell) => cell.toString()).toList()).toList();
-      });
-
-      // 🚀 Debugging to Verify Fix
-      debugPrint("✅ Data Type of teamNeeds: ${_teamNeeds.runtimeType}");
-      debugPrint("✅ First Row: ${_teamNeeds.isNotEmpty ? _teamNeeds[0] : "No Data"}");
-      debugPrint("✅ First Needs Row: ${_teamNeeds.length > 1 ? _teamNeeds[1] : "No Data"}");
-
-    } catch (e) {
-      debugPrint("❌ Error loading CSV: $e");
+      debugPrint("Error loading data: $e");
     }
   }
 
   void _toggleDraft() {
-  debugPrint("🚀 Toggle Draft Pressed! Current State: $_isDraftRunning");
+    if (!_isDataLoaded || _draftService == null) {
+      debugPrint("Cannot start draft: Data not loaded or draft service is null");
+      return;
+    }
 
-  setState(() {
-    _isDraftRunning = !_isDraftRunning;
-  });
-
-  debugPrint("🛠️ Draft Running Status After Toggle: $_isDraftRunning");
-
-  if (_isDraftRunning) {
-    debugPrint("🏈 Draft is now running! Calling _draftNextPlayer...");
-    _draftNextPlayer();
-  } else {
-    debugPrint("⏹️ Draft Paused or Stopped.");
-  }
-}
-
-  void _draftNextPlayer() {
-  if (!_isDraftRunning) {
-    debugPrint("⏹️ Draft is paused. No pick made.");
-    return;
-  }
-
-  debugPrint("📢 Drafting next player...");
-
-  // ✅ Log current state
-  debugPrint("📝 Draft Order Before: ${_draftOrder.length} entries");
-  debugPrint("📝 Available Players Before: ${_availablePlayers.length} entries");
-
-  if (_availablePlayers.length <= 1 || _draftOrder.length <= 1) {
-    debugPrint("❌ No available players or draft picks left.");
     setState(() {
-      _isDraftRunning = false; // Stop the draft if no players are available
+      _isDraftRunning = !_isDraftRunning;
     });
-    return;
-  }
 
-  // ✅ Step 1: Find the next available draft slot
-  debugPrint("🔍 Finding the next pick...");
-  List<dynamic>? nextPick;
-  for (var pick in _draftOrder) {
-    if (pick.length > 2 && (pick[2] == null || pick[2].toString().isEmpty)) {
-      nextPick = pick;
-      break;
+    if (_isDraftRunning) {
+      _processDraftPick();
     }
   }
 
-  if (nextPick == null) {
-    debugPrint("🏁 Draft Completed! No more picks available.");
-    setState(() {
-      _isDraftRunning = false;
-    });
-    return;
-  }
+  void _processDraftPick() {
+    if (!_isDraftRunning || _draftService == null) {
+      return;
+    }
 
-  debugPrint("📝 Next Pick Found: $nextPick");
+    if (_draftService!.isDraftComplete()) {
+      setState(() {
+        _isDraftRunning = false;
+        _statusMessage = "Draft complete!";
+      });
+      return;
+    }
 
-  // ✅ Step 2: Select the best available player
-  if (_availablePlayers.length < 2) {
-    debugPrint("❌ ERROR: No players left to draft!");
-    return;
-  }
+    try {
+      // Process the next pick
+      final updatedPick = _draftService!.processDraftPick();
+      
+      // Update the UI with newly processed data
+      setState(() {
+        // Refresh the list representations for UI
+        _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+        _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+        _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+        
+        _statusMessage = "Pick #${updatedPick.pickNumber}: ${updatedPick.teamName} selects ${updatedPick.selectedPlayer?.name} (${updatedPick.selectedPlayer?.position})";
+      });
 
-  List<dynamic> bestPlayer = _availablePlayers[1]; // Best player at index 1
-  debugPrint("📝 Best Player Selected: $bestPlayer");
-
-  // ✅ Step 3: Assign the player to the draft order
-  try {
-    nextPick[2] = bestPlayer[1]; // Assign player name
-    nextPick[3] = bestPlayer[2]; // Assign player position
-  } catch (e) {
-    debugPrint("❌ ERROR: Assigning best player to draft order failed - $e");
-    return;
-  }
-
-  // ✅ Remove drafted player's position from team needs
-for (var team in _teamNeeds) {
-  if (team[1] == nextPick[1]) { // Match team name in team needs
-    bool needRemoved = false;
-    
-    for (int i = 2; i < 12; i++) { // Scan only within the 10 needs columns
-      if (team[i] == bestPlayer[2]) { // ✅ If drafted position is a team need
-        team[i] = ""; // ✅ Remove the need
-        needRemoved = true;
-        break; // Stop after removing one instance
+      // Continue the draft loop with delay
+      if (_isDraftRunning) {
+        // Adjust delay based on speed factor (lower is faster)
+        int delay = (AppConstants.defaultDraftSpeed / widget.speedFactor).round();
+        Future.delayed(Duration(milliseconds: delay), _processDraftPick);
       }
+    } catch (e) {
+      debugPrint("Error processing draft pick: $e");
+      setState(() {
+        _isDraftRunning = false;
+        _statusMessage = "Error during draft: $e";
+      });
     }
-
-    // ✅ Ensure "Selected" column exists (team[12])
-    if (team.length < 13) {
-      team.add(""); 
-    }
-
-    // ✅ If position was a need, update selected. If not, still show selection
-    team[12] = bestPlayer[2]; // ✅ Always show the drafted player’s position
   }
-}
-
-  // ✅ Step 4: Remove the drafted player from available players
-  try {
-    setState(() {
-      _draftOrder = List.from(_draftOrder); // Ensure UI updates
-      _availablePlayers.removeAt(1);
-      _teamNeeds = List.from(_teamNeeds);
-    });
-  } catch (e) {
-    debugPrint("❌ ERROR: Removing drafted player from available players list failed - $e");
-    return;
-  }
-
-  debugPrint("✅ Pick Made: ${nextPick[1]} selects ${bestPlayer[1]} (${bestPlayer[2]})");
-
-  // ✅ Step 5: Continue the draft loop
-  if (_isDraftRunning) {
-    debugPrint("🔄 Draft continuing in 1 second...");
-    Future.delayed(const Duration(seconds: 1), _draftNextPlayer);
-  }
-}
 
   void _restartDraft() {
     setState(() {
       _isDraftRunning = false;
-      // Logic to reset the draft goes here
     });
+    
+    // Reload data to reset the draft
+    _loadData();
   }
 
   void _requestTrade() {
-    // Logic to request a trade goes here
-    debugPrint("Trade requested");
+    // To be implemented
+    debugPrint("Trade requested (not implemented yet)");
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isDataLoaded) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('NFL Draft')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(_statusMessage),
+            ],
+          ),
+        ),
+      );
+    }
+
     return DefaultTabController(
       length: 3, // Number of tabs
       child: Scaffold(
@@ -234,11 +202,30 @@ for (var team in _teamNeeds) {
             ],
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            DraftOrderTab(draftOrder: _draftOrder), // Draft Order tab
-            AvailablePlayersTab(availablePlayers: _availablePlayers), // Available Players tab
-            TeamNeedsTab(teamNeeds: _teamNeeds), // Team Needs tab
+            // Status bar
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.blue.shade100,
+              width: double.infinity,
+              child: Text(
+                _statusMessage,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                children: [
+                  DraftOrderTab(draftOrder: _draftOrderLists),
+                  AvailablePlayersTab(availablePlayers: _availablePlayersLists),
+                  TeamNeedsTab(teamNeeds: _teamNeedsLists),
+                ],
+              ),
+            ),
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

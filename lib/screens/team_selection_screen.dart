@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/models/team.dart';
-
+import '../models/team.dart';
+import '../utils/constants.dart';
 
 import 'draft_overview_screen.dart';
 
@@ -15,53 +16,29 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 1.0;
   double _randomness = 0.5;
+  String? _selectedTeam;
 
-  List<String> teams = [
-    "Arizona Cardinals",
-    "Atlanta Falcons",
-    "Baltimore Ravens",
-    "Buffalo Bills",
-    "Carolina Panthers",
-    "Chicago Bears",
-    "Cincinnati Bengals",
-    "Cleveland Browns",
-    "Dallas Cowboys",
-    "Denver Broncos",
-    "Detroit Lions",
-    "Green Bay Packers",
-    "Houston Texans",
-    "Indianapolis Colts",
-    "Jacksonville Jaguars",
-    "Kansas City Chiefs",
-    "Las Vegas Raiders",
-    "Los Angeles Chargers",
-    "Los Angeles Rams",
-    "Miami Dolphins",
-    "Minnesota Vikings",
-    "New England Patriots",
-    "New Orleans Saints",
-    "New York Giants",
-    "New York Jets",
-    "Philadelphia Eagles",
-    "Pittsburgh Steelers",
-    "San Francisco 49ers",
-    "Seattle Seahawks",
-    "Tampa Bay Buccaneers",
-    "Tennessee Titans",
-    "Washington Commanders"
-  ];
+  List<String> teams = NFLTeams.allTeams;
 
   void _startDraft() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const DraftApp()),
+      MaterialPageRoute(
+        builder: (context) => DraftApp(
+          randomnessFactor: _randomness,
+          numberOfRounds: _numberOfRounds,
+          speedFactor: _speed,
+          selectedTeam: _selectedTeam,
+        ),
+      ),
     );
   }
 
   void _onTeamSelected(String teamName) {
+    setState(() {
+      _selectedTeam = teamName;
+    });
     debugPrint("$teamName selected");
-
-    // Maybe you want to save the team that is selected as a variable? @Gruca
   }
 
   @override
