@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
+// In draft_order_tab.dart, find the DraftOrderTab class definition
 class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> draftOrder;
+  final String? userTeam;  // Add this parameter
 
-  const DraftOrderTab({required this.draftOrder, super.key});
+  const DraftOrderTab({
+    required this.draftOrder, 
+    this.userTeam,  // Add this
+    super.key
+  });
 
   @override
   _DraftOrderTabState createState() => _DraftOrderTabState();
@@ -79,7 +85,11 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                   // 🏈 Draft Order Rows
                   for (var i = 0; i < filteredDraftOrder.length; i++)
                     TableRow(
-                      decoration: BoxDecoration(color: i.isEven ? Colors.white : Colors.grey[200]),
+                      decoration: BoxDecoration(
+                        color: filteredDraftOrder[i][1].toString() == widget.userTeam
+                            ? Colors.blue.shade100  // Highlight user team
+                            : (i.isEven ? Colors.white : Colors.grey[200]),
+                      ),
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(8),

@@ -445,4 +445,52 @@ class DraftService {
     _statusMessage = "Trade executed: ${package.tradeDescription}";
     _tradeUp = true;
   }
+
+  /// Get all available picks for a specific team
+  List<DraftPick> getTeamPicks(String teamName) {
+    return draftOrder.where((pick) => 
+      pick.teamName == teamName && !pick.isSelected
+    ).toList();
+  }
+
+  /// Get picks from all other teams
+  List<DraftPick> getOtherTeamPicks(String excludeTeam) {
+    return draftOrder.where((pick) => 
+      pick.teamName != excludeTeam && !pick.isSelected
+    ).toList();
+  }
+
+  /// Process a user-proposed trade
+  bool processUserTradeProposal(TradePackage proposal) {
+    // Calculate probability of accepting based on value
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    
+    // Random factor for team preferences
+    double randomFactor = _random.nextDouble() * 0.2;
+    
+    // Base probability on value and random factor
+    bool shouldAccept = valueRatio >= 0.95 - randomFactor;
+    
+    // Execute the trade if accepted
+    if (shouldAccept) {
+      _executeTrade(proposal);
+      _executedTrades.add(proposal);
+      _statusMessage = "Trade accepted: ${proposal.tradeDescription}";
+    }
+    
+    return shouldAccept;
+  }
+
+  /// Get a rejection reason if trade is declined
+  String? getTradeRejectionReason(TradePackage proposal) {
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    
+    if (valueRatio < 0.8) {
+      return "The offer doesn't provide enough value.";
+    } else if (valueRatio < 0.95) {
+      return "The offer is close, but not quite enough value.";
+    } else {
+      return "Team has other plans for this pick.";
+    }
+  }
 }
