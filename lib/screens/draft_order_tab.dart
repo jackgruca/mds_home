@@ -53,10 +53,10 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
               child: Table(
                 border: TableBorder.all(color: Colors.grey),
                 columnWidths: const {
-                  0: FlexColumnWidth(1), // Pick Number
-                  1: FlexColumnWidth(2), // Team
-                  2: FlexColumnWidth(3), // Selection (Drafted Player)
-                  3: FlexColumnWidth(2), // Trade Info
+                  0: IntrinsicColumnWidth(), // Pick number (auto-sized)
+                  1: FlexColumnWidth(3),     // Team (larger)
+                  2: FlexColumnWidth(4),     // Selection (largest)
+                  3: IntrinsicColumnWidth(), // Trade// Trade Info
                 },
                 children: [
                   // 🏆 Styled Header Row
@@ -95,17 +95,68 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                           padding: const EdgeInsets.all(8),
                           child: Text(filteredDraftOrder[i][0].toString(), style: const TextStyle(fontSize: 14)),
                         ),
+                        // Team column
                         Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(filteredDraftOrder[i][1].toString(), style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic)),
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  image: DecorationImage(
+                                    image: NetworkImage(
+                                      'https://a.espncdn.com/i/teamlogos/nfl/500/${filteredDraftOrder[i][1].toString().toLowerCase()}.png',
+                                    ),
+                                    fit: BoxFit.contain,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                filteredDraftOrder[i][1].toString(),
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Selection column
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: filteredDraftOrder[i][2].toString().isEmpty 
+                            ? const Text("—") 
+                            : Row(
+                                children: [
+                                  Text(
+                                    filteredDraftOrder[i][2].toString(),
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "(${filteredDraftOrder[i][3].toString()})",
+                                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(filteredDraftOrder[i][2].toString().isEmpty ? "—" : filteredDraftOrder[i][2].toString(), style: const TextStyle(fontSize: 14)),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(filteredDraftOrder[i][5].toString().isEmpty ? "—" : filteredDraftOrder[i][5].toString(), style: const TextStyle(fontSize: 14)),
+                          padding: const EdgeInsets.all(8.0),
+                          child: filteredDraftOrder[i][5].toString().isEmpty 
+                            ? const Text("") // Empty when no trade 
+                            : GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => _buildTradeDetailsDialog(filteredDraftOrder[i]),
+                                  );
+                                },
+                                child: const Icon(
+                                  Icons.compare_arrows,
+                                  color: Colors.deepOrange,
+                                  size: 20,
+                                ),
+                              ),
                         ),
                       ],
                     ),
@@ -115,6 +166,108 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
           ),
         ],
       ),
+    );
+  }
+
+  // Add this method to the _DraftOrderTabState class
+  Widget _buildTradeDetailsDialog(List<dynamic> draftRow) {
+    // Extract trade info
+    String tradeInfo = draftRow[5].toString();
+    String team = draftRow[1].toString();
+    String pickNum = draftRow[0].toString();
+    
+    // Parse trade info (assuming format like "From TEAM")
+    String otherTeam = "Unknown Team";
+    if (tradeInfo.startsWith("From ")) {
+      otherTeam = tradeInfo.substring(5);
+    }
+    
+    return AlertDialog(
+      title: const Text('Trade Details'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Trade diagram
+            Row(
+              children: [
+                // Left side - Team that traded up
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        team,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Received:',
+                        style: TextStyle(fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      Card(
+                        color: Colors.green.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Pick #$pickNum',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Arrows
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Icon(Icons.swap_horiz, color: Colors.grey),
+                ),
+                
+                // Right side - Team that traded down
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        otherTeam,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Received:',
+                        style: TextStyle(fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      Card(
+                        color: Colors.blue.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            tradeInfo,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }
