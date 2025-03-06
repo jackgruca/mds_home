@@ -7,6 +7,7 @@ class TradePackage {
   final String teamReceiving;
   final List<DraftPick> picksOffered;
   final DraftPick targetPick;
+  final List<DraftPick> additionalTargetPicks; // Add this field
   final double totalValueOffered;
   final double targetPickValue;
   final bool includesFuturePick;
@@ -18,6 +19,7 @@ class TradePackage {
     required this.teamReceiving,
     required this.picksOffered,
     required this.targetPick,
+    this.additionalTargetPicks = const [], // Default to empty list
     required this.totalValueOffered,
     required this.targetPickValue,
     this.includesFuturePick = false,
@@ -39,7 +41,11 @@ class TradePackage {
     final offerDescription = picksOffered.map((p) => "Pick #${p.pickNumber}").join(", ");
     final futureText = includesFuturePick ? " + $futurePickDescription" : "";
     
-    return "$teamOffering receives: Pick #${targetPick.pickNumber}\n"
+    final targetDescription = [targetPick, ...additionalTargetPicks]
+        .map((p) => "Pick #${p.pickNumber}")
+        .join(", ");
+    
+    return "$teamOffering receives: $targetDescription\n"
            "$teamReceiving receives: $offerDescription$futureText";
   }
 

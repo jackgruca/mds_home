@@ -156,24 +156,35 @@ class DraftService {
   }
   
   /// Execute a trade by swapping teams for picks
-  void _executeTrade(TradePackage package) {
-    // Add these lines:
-    String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
-    if (_executedTradeIds.contains(tradeId)) {
-      return; // Skip if already processed
-    }
-    _executedTradeIds.add(tradeId);
-      
-  final targetPickNumber = package.targetPick.pickNumber;
+  // In _executeTrade method in draft_service.dart
+void _executeTrade(TradePackage package) {
+  // Add these lines:
+  String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
+  if (_executedTradeIds.contains(tradeId)) {
+    return; // Skip if already processed
+  }
+  _executedTradeIds.add(tradeId);
+  
   final teamReceiving = package.teamReceiving;
   final teamOffering = package.teamOffering;
   
   // Update the target pick to belong to the offering team
   for (var pick in draftOrder) {
-    if (pick.pickNumber == targetPickNumber) {
+    if (pick.pickNumber == package.targetPick.pickNumber) {
       pick.teamName = teamOffering; // Now works with updated model
       pick.tradeInfo = "From $teamReceiving";
       break;
+    }
+  }
+  
+  // Update any additional target picks
+  for (var additionalPick in package.additionalTargetPicks) {
+    for (var pick in draftOrder) {
+      if (pick.pickNumber == additionalPick.pickNumber) {
+        pick.teamName = teamOffering;
+        pick.tradeInfo = "From $teamReceiving";
+        break;
+      }
     }
   }
   
@@ -187,8 +198,8 @@ class DraftService {
       }
     }
   }
+  
   _executedTrades.add(package);
-
 }
   
   /// Determine if a trade should be accepted
