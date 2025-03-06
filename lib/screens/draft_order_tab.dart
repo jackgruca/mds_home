@@ -199,8 +199,22 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
     
     // Parse trade info (assuming format like "From TEAM")
     String otherTeam = "Unknown Team";
+    String receivedAssets = "Unknown Assets";
+
     if (tradeInfo.startsWith("From ")) {
       otherTeam = tradeInfo.substring(5);
+      receivedAssets = "Pick #$pickNum";
+
+      List<String> receivedPicks = [];
+      for (var row in widget.draftOrder.skip(1)) {
+        if (row[5].toString().contains("From $team")) {
+          receivedPicks.add("Pick #${row[0]}");
+        }
+      }
+      
+      if (receivedPicks.isNotEmpty) {
+        receivedAssets = receivedPicks.join(", ");
+      }
     }
     
     return AlertDialog(

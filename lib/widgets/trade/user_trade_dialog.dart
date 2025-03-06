@@ -27,7 +27,7 @@ class UserTradeProposalDialog extends StatefulWidget {
 class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   late DraftPick _targetPick;
-  final List<DraftPick> _selectedUserPicks = [];
+  List<DraftPick> _selectedUserPicks = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
   
@@ -158,7 +158,27 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Your picks to offer:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Your picks to offer:', style: TextStyle(fontWeight: FontWeight.bold)),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  // Toggle all/none selection
+                                  if (_selectedUserPicks.length == widget.userPicks.length) {
+                                    _selectedUserPicks.clear(); // Deselect all
+                                  } else {
+                                    _selectedUserPicks = List.from(widget.userPicks); // Select all
+                                  }
+                                  _updateValues();
+                                });
+                              },
+                              child: Text(_selectedUserPicks.length == widget.userPicks.length ?
+                                      'Unselect All' : 'Select All'),
+                            ),
+                          ],
+                        ),
                         
                         // Your picks with checkboxes
                         Expanded(

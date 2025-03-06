@@ -30,6 +30,7 @@ class DraftService {
   String _statusMessage = "";
   int _currentPick = 0;
   final List<TradePackage> _executedTrades = [];
+  final Set<String> _executedTradeIds = {}; // Add this line right here
   
   // Random instance for introducing randomness
   final Random _random = Random();
@@ -81,7 +82,6 @@ class DraftService {
     // If a trade was executed, return the updated pick
     if (executedTrade != null) {
       _tradeUp = true;
-      _executedTrades.add(executedTrade);
       _statusMessage = "Trade executed: ${executedTrade.tradeDescription}";
       return nextPick;
     }
@@ -111,8 +111,8 @@ class DraftService {
   
   /// Evaluate potential trades for the current pick
   TradePackage? _evaluateTrades(DraftPick nextPick) {
-    // Skip trade evaluation if user team (will handle separately)
-    if (nextPick.teamName == userTeam) {
+    // Skip trade evaluation if user team or if the pick already has trade info
+    if (nextPick.teamName == userTeam || (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty)) {
       return null;
     }
     
@@ -157,6 +157,13 @@ class DraftService {
   
   /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
+    // Add these lines:
+    String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
+    if (_executedTradeIds.contains(tradeId)) {
+      return; // Skip if already processed
+    }
+    _executedTradeIds.add(tradeId);
+      
   final targetPickNumber = package.targetPick.pickNumber;
   final teamReceiving = package.teamReceiving;
   final teamOffering = package.teamOffering;
@@ -180,6 +187,8 @@ class DraftService {
       }
     }
   }
+  _executedTrades.add(package);
+
 }
   
   /// Determine if a trade should be accepted
@@ -441,7 +450,6 @@ class DraftService {
   /// Execute a specific trade (for use with UI)
   void executeUserSelectedTrade(TradePackage package) {
     _executeTrade(package);
-    _executedTrades.add(package);
     _statusMessage = "Trade executed: ${package.tradeDescription}";
     _tradeUp = true;
   }
@@ -474,7 +482,6 @@ class DraftService {
     // Execute the trade if accepted
     if (shouldAccept) {
       _executeTrade(proposal);
-      _executedTrades.add(proposal);
       _statusMessage = "Trade accepted: ${proposal.tradeDescription}";
     }
     
