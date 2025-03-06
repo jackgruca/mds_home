@@ -3,11 +3,11 @@ import 'player.dart';
 
 class DraftPick {
   final int pickNumber;
-  final String teamName;
+  String teamName;
   Player? selectedPlayer;
   final String round;
   final int? originalPickNumber;
-  final String? tradeInfo;
+  String? tradeInfo;
   
   DraftPick({
     required this.pickNumber,

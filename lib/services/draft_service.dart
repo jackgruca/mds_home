@@ -1,12 +1,16 @@
-// lib/services/draft_service.dart
+// lib/services/draft_service.dart - Updated with trade integration
 import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
+import '../models/trade_offer.dart';
+import '../models/trade_package.dart';
+import 'trade_service.dart';
+import 'draft_value_service.dart';
 
-/// Handles the logic for the draft simulation
+/// Handles the logic for the draft simulation with trade integration
 class DraftService {
   final List<Player> availablePlayers;
   final List<DraftPick> draftOrder;
@@ -17,11 +21,15 @@ class DraftService {
   final String? userTeam;
   final int numberRounds;
   
-  // Internal state tracking
+  // Trade service
+  late TradeService _tradeService;
+  
+  // Draft state tracking
   bool _tradeUp = false;
   bool _qbTrade = false;
   String _statusMessage = "";
   int _currentPick = 0;
+  final List<TradePackage> _executedTrades = [];
   
   // Random instance for introducing randomness
   final Random _random = Random();
@@ -30,15 +38,24 @@ class DraftService {
     required this.availablePlayers,
     required this.draftOrder,
     required this.teamNeeds,
-    this.randomnessFactor = 0.5, // Default value
+    this.randomnessFactor = 0.5,
     this.userTeam,
     this.numberRounds = 1,
   }) {
     // Sort players by rank initially
     availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
+    
+    // Initialize the trade service
+    _tradeService = TradeService(
+      draftOrder: draftOrder,
+      teamNeeds: teamNeeds,
+      availablePlayers: availablePlayers,
+      userTeam: userTeam,
+      tradeRandomnessFactor: randomnessFactor,
+    );
   }
   
-  /// Process a single draft pick using the specified strategy
+  /// Process a single draft pick with possible trade evaluations
   DraftPick processDraftPick() {
     // Find the next pick in the draft order
     DraftPick? nextPick = _getNextPick();
@@ -54,8 +71,19 @@ class DraftService {
     // Check if this is a user team pick
     if (userTeam != null && nextPick.teamName == userTeam) {
       // User interaction would be handled by the UI, not directly in the service
-      // For now, just make a selection based on the algorithm
       _statusMessage = "User's turn to pick";
+      return nextPick; // Return without making a selection
+    }
+    
+    // Evaluate potential trades
+    TradePackage? executedTrade = _evaluateTrades(nextPick);
+    
+    // If a trade was executed, return the updated pick
+    if (executedTrade != null) {
+      _tradeUp = true;
+      _executedTrades.add(executedTrade);
+      _statusMessage = "Trade executed: ${executedTrade.tradeDescription}";
+      return nextPick;
     }
     
     // Find team needs for the team making the pick
@@ -79,6 +107,93 @@ class DraftService {
     _statusMessage = "Pick #${nextPick.pickNumber}: ${nextPick.teamName} selects ${selectedPlayer.name} (${selectedPlayer.position})";
     
     return nextPick;
+  }
+  
+  /// Evaluate potential trades for the current pick
+  TradePackage? _evaluateTrades(DraftPick nextPick) {
+    // Skip trade evaluation if user team (will handle separately)
+    if (nextPick.teamName == userTeam) {
+      return null;
+    }
+    
+    // First round QB-specific trade evaluation
+    if (nextPick.pickNumber <= 32) {
+      final qbTradeOffer = _tradeService.generateTradeOffersForPick(
+        nextPick.pickNumber, 
+        qbSpecific: true
+      );
+      
+      if (qbTradeOffer.hasFairTrades) {
+        final bestPackage = qbTradeOffer.bestPackage;
+        if (bestPackage != null && _shouldAcceptTrade(bestPackage, isQBTrade: true)) {
+          _qbTrade = true;
+          _executeTrade(bestPackage);
+          return bestPackage;
+        }
+      }
+    }
+    
+    // General trade evaluations - evaluate up to 3 times with different thresholds
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      // Each attempt has stricter value requirements
+      final valueMultiplier = attempt > 1 ? 1.0 + (attempt - 1) * 0.5 : 1.0;
+      
+      // Generate trade offers
+      final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+      
+      if (tradeOffer.hasFairTrades) {
+        final bestPackage = tradeOffer.bestPackage;
+        if (bestPackage != null && 
+            bestPackage.totalValueOffered >= bestPackage.targetPickValue * valueMultiplier &&
+            _shouldAcceptTrade(bestPackage)) {
+          _executeTrade(bestPackage);
+          return bestPackage;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  /// Execute a trade by swapping teams for picks
+  void _executeTrade(TradePackage package) {
+  final targetPickNumber = package.targetPick.pickNumber;
+  final teamReceiving = package.teamReceiving;
+  final teamOffering = package.teamOffering;
+  
+  // Update the target pick to belong to the offering team
+  for (var pick in draftOrder) {
+    if (pick.pickNumber == targetPickNumber) {
+      pick.teamName = teamOffering; // Now works with updated model
+      pick.tradeInfo = "From $teamReceiving";
+      break;
+    }
+  }
+  
+  // Update the offered picks to belong to the receiving team
+  for (var offeredPick in package.picksOffered) {
+    for (var pick in draftOrder) {
+      if (pick.pickNumber == offeredPick.pickNumber) {
+        pick.teamName = teamReceiving; // Now works with updated model
+        pick.tradeInfo = "From $teamOffering";
+        break;
+      }
+    }
+  }
+}
+  
+  /// Determine if a trade should be accepted
+  bool _shouldAcceptTrade(TradePackage package, {bool isQBTrade = false}) {
+    // Random factor for variability
+    final randomTradeChance = _random.nextDouble(); 
+    
+    // QBs get higher acceptance rate
+    if (isQBTrade && randomTradeChance > 0.5) {
+      return true;
+    }
+    
+    // General trade acceptance
+    return _tradeService.shouldAcceptTrade(package) && randomTradeChance > 0.5;
   }
   
   /// Get the next available pick in the draft order
@@ -185,6 +300,10 @@ class DraftService {
     return bestSelection;
   }
   
+  Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
+    return _selectPlayerRStyle(teamNeed, nextPick);
+  }
+
   /// Make a selection for a specific need position (similar to make_selection in R)
   Player? _makeSelection(String needPosition) {
     // Filter players by position
@@ -303,13 +422,75 @@ class DraftService {
   int get currentPick => _currentPick;
   int get completedPicksCount => draftOrder.where((pick) => pick.isSelected).length;
   int get totalPicksCount => draftOrder.length;
+  List<TradePackage> get executedTrades => _executedTrades;
+  
   bool isDraftComplete() {
     return draftOrder.every((pick) => pick.isSelected);
   }
+  
+  /// Get trade offers for the current pick (mainly for UI purposes)
+  TradeOffer getTradeOffersForCurrentPick() {
+    DraftPick? nextPick = _getNextPick();
+    if (nextPick == null) {
+      return const TradeOffer(packages: [], pickNumber: 0);
+    }
+    
+    return _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+  }
+  
+  /// Execute a specific trade (for use with UI)
+  void executeUserSelectedTrade(TradePackage package) {
+    _executeTrade(package);
+    _executedTrades.add(package);
+    _statusMessage = "Trade executed: ${package.tradeDescription}";
+    _tradeUp = true;
+  }
 
-  // Future enhancement: Implement trade logic modeled after the R code
-  // This would include:
-  // - QBTradeLogic
-  // - GeneralTradeLogic
-  // - UserTradeInteraction
+  /// Get all available picks for a specific team
+  List<DraftPick> getTeamPicks(String teamName) {
+    return draftOrder.where((pick) => 
+      pick.teamName == teamName && !pick.isSelected
+    ).toList();
+  }
+
+  /// Get picks from all other teams
+  List<DraftPick> getOtherTeamPicks(String excludeTeam) {
+    return draftOrder.where((pick) => 
+      pick.teamName != excludeTeam && !pick.isSelected
+    ).toList();
+  }
+
+  /// Process a user-proposed trade
+  bool processUserTradeProposal(TradePackage proposal) {
+    // Calculate probability of accepting based on value
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    
+    // Random factor for team preferences
+    double randomFactor = _random.nextDouble() * 0.2;
+    
+    // Base probability on value and random factor
+    bool shouldAccept = valueRatio >= 0.95 - randomFactor;
+    
+    // Execute the trade if accepted
+    if (shouldAccept) {
+      _executeTrade(proposal);
+      _executedTrades.add(proposal);
+      _statusMessage = "Trade accepted: ${proposal.tradeDescription}";
+    }
+    
+    return shouldAccept;
+  }
+
+  /// Get a rejection reason if trade is declined
+  String? getTradeRejectionReason(TradePackage proposal) {
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    
+    if (valueRatio < 0.8) {
+      return "The offer doesn't provide enough value.";
+    } else if (valueRatio < 0.95) {
+      return "The offer is close, but not quite enough value.";
+    } else {
+      return "Team has other plans for this pick.";
+    }
+  }
 }

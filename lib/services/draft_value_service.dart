@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import '../models/draft_value.dart';
-import 'dart:math' as math;
 
 /// Service for handling the draft value chart
 class DraftValueService {
