@@ -1,13 +1,17 @@
-// lib/screens/draft_overview_screen.dart - Updated implementation
+// lib/screens/draft_overview_screen.dart - Updated with trade integration
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
+import '../models/trade_offer.dart';
+import '../models/trade_package.dart';
 import '../services/data_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
 
+import '../widgets/trade/trade_dialog.dart';
+import '../widgets/trade/trade_history.dart';
 import 'available_players_tab.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
@@ -31,16 +35,22 @@ class DraftApp extends StatefulWidget {
   DraftAppState createState() => DraftAppState();
 }
 
-class DraftAppState extends State<DraftApp> {
+class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin {
   bool _isDraftRunning = false;
   bool _isDataLoaded = false;
   String _statusMessage = "Loading draft data...";
   DraftService? _draftService;
+  
+  // Tab controller for the additional trade history tab
+  late TabController _tabController;
 
   // State variables for data (now using typed models)
   List<Player> _players = [];
   List<DraftPick> _draftPicks = [];
   List<TeamNeed> _teamNeeds = [];
+  
+  // Trade tracking
+  List<TradePackage> _executedTrades = [];
   
   // Compatibility variables for existing UI components
   List<List<dynamic>> _draftOrderLists = [];
@@ -50,7 +60,14 @@ class DraftAppState extends State<DraftApp> {
   @override
   void initState() {
     super.initState();
-    _initializeServices(); // Remove the await here
+    _tabController = TabController(length: 4, vsync: this);
+    _initializeServices();
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeServices() async {
@@ -102,6 +119,9 @@ class DraftAppState extends State<DraftApp> {
         _teamNeeds = teamNeeds;
         _draftService = draftService;
         
+        // Reset trade tracking
+        _executedTrades = [];
+        
         // Set list versions for UI compatibility
         _draftOrderLists = draftOrderLists;
         _availablePlayersLists = availablePlayersLists;
@@ -147,8 +167,20 @@ class DraftAppState extends State<DraftApp> {
     }
 
     try {
+      // Get the next pick
+      final nextPick = _draftService!.getNextPick();
+      
+      // Check if this is the user's team and they should make a choice
+      if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+        _handleUserPick(nextPick);
+        return;
+      }
+      
       // Process the next pick using the enhanced algorithm
       final updatedPick = _draftService!.processDraftPick();
+      
+      // Check if a trade was executed
+      _executedTrades = _draftService!.executedTrades;
       
       // Update the UI with newly processed data
       setState(() {
@@ -175,6 +207,181 @@ class DraftAppState extends State<DraftApp> {
     }
   }
 
+  void _handleUserPick(DraftPick pick) {
+    setState(() {
+      _isDraftRunning = false;
+      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber}";
+    });
+    
+    // First show trade offers for this pick
+    _showTradeOptions(pick);
+  }
+
+  void _showTradeOptions(DraftPick pick) {
+    if (_draftService == null) return;
+    
+    // Generate trade offers for this pick
+    final tradeOffers = _draftService!.getTradeOffersForCurrentPick();
+    
+    // Only show the dialog if there are viable trade offers
+    if (tradeOffers.packages.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => TradeDialog(
+          tradeOffer: tradeOffers,
+          onAccept: (package) {
+            // Execute the selected trade
+            _draftService!.executeUserSelectedTrade(package);
+            _executedTrades = _draftService!.executedTrades;
+            
+            // Update UI
+            setState(() {
+              _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+              _statusMessage = _draftService!.statusMessage;
+            });
+            
+            Navigator.pop(context); // Close the dialog
+            
+            // Continue the draft if it was running
+            if (_isDraftRunning) {
+              Future.delayed(
+                Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                _processDraftPick
+              );
+            }
+          },
+          onReject: () {
+            Navigator.pop(context); // Close the dialog
+            
+            // Let the user select a player if this is their pick
+            if (pick.teamName == widget.selectedTeam) {
+              _showPlayerSelectionDialog(pick);
+            } else if (_isDraftRunning) {
+              // Continue the draft if it was running
+              Future.delayed(
+                Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                _processDraftPick
+              );
+            }
+          },
+        ),
+      );
+    } else if (pick.teamName == widget.selectedTeam) {
+      // If no trade offers, go straight to player selection
+      _showPlayerSelectionDialog(pick);
+    } else if (_isDraftRunning) {
+      // Continue the draft if it was running
+      Future.delayed(
+        Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+        _processDraftPick
+      );
+    }
+  }
+
+  void _showPlayerSelectionDialog(DraftPick pick) {
+    if (_draftService == null) return;
+    
+    // Get team needs for the current team
+    final teamNeed = _teamNeeds.firstWhere(
+      (need) => need.teamName == pick.teamName,
+      orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+    );
+    
+    // Filter available players - first 10 players to make selection manageable
+    final topPlayers = _draftService!.availablePlayers.take(10).toList();
+    
+    // Mark players that fill needs
+    final needPositions = teamNeed.needs;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Select a Player for ${pick.teamName}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: topPlayers.length,
+            itemBuilder: (context, index) {
+              final player = topPlayers[index];
+              final isNeed = needPositions.contains(player.position);
+              
+              return ListTile(
+                title: Text(player.name),
+                subtitle: Text('${player.position} - Rank: ${player.rank}'),
+                trailing: isNeed 
+                  ? Chip(
+                      label: const Text('Need'),
+                      backgroundColor: Colors.green.shade100,
+                    )
+                  : null,
+                onTap: () {
+                  Navigator.pop(context);
+                  
+                  // Execute the player selection
+                  _selectPlayer(pick, player);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              
+              // Auto-select best player at position of need
+              _autoSelectPlayer(pick);
+            },
+            child: const Text('Auto Pick'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectPlayer(DraftPick pick, Player player) {
+    if (_draftService == null) return;
+    
+    // Update the pick with the selected player
+    pick.selectedPlayer = player;
+    
+    // Update team needs
+    final teamNeed = _teamNeeds.firstWhere(
+      (need) => need.teamName == pick.teamName,
+      orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+    );
+    teamNeed.removeNeed(player.position);
+    
+    // Remove player from available players
+    _draftService!.availablePlayers.remove(player);
+    
+    // Update UI
+    setState(() {
+      _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+      _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+      _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+      _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
+    });
+    
+    // Continue the draft if it was running
+    if (_isDraftRunning) {
+      Future.delayed(
+        Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+        _processDraftPick
+      );
+    }
+  }
+
+  void _autoSelectPlayer(DraftPick pick) {
+    if (_draftService == null) return;
+    
+    // Let the draft service select the best player
+    final player = _draftService!.selectBestPlayerForTeam(pick.teamName);
+    
+    _selectPlayer(pick, player);
+  }
+
   void _restartDraft() {
     setState(() {
       _isDraftRunning = false;
@@ -185,14 +392,13 @@ class DraftAppState extends State<DraftApp> {
   }
 
   void _requestTrade() {
-    // For now just show a message
-    // This will be implemented with trade logic in Phase 2
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Trade functionality coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (_draftService == null) return;
+    
+    DraftPick? nextPick = _draftService!.getNextPick();
+    if (nextPick == null) return;
+    
+    // Show trade dialog for current pick
+    _showTradeOptions(nextPick);
   }
 
   @override
@@ -213,53 +419,85 @@ class DraftAppState extends State<DraftApp> {
       );
     }
 
-    return DefaultTabController(
-      length: 3, // Number of tabs
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('NFL Draft'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Draft Order', icon: Icon(Icons.list)),
-              Tab(text: 'Available Players', icon: Icon(Icons.people)),
-              Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
-            ],
-          ),
-        ),
-        body: Column(
-          children: [
-            // Status bar
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              color: Colors.blue.shade100,
-              width: double.infinity,
-              child: Text(
-                _statusMessage,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                children: [
-                  DraftOrderTab(draftOrder: _draftOrderLists),
-                  AvailablePlayersTab(availablePlayers: _availablePlayersLists),
-                  TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                ],
-              ),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('NFL Draft'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Draft Order', icon: Icon(Icons.list)),
+            Tab(text: 'Available Players', icon: Icon(Icons.people)),
+            Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
+            Tab(text: 'Trades', icon: Icon(Icons.swap_horiz)),
           ],
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: DraftControlButtons(
-          isDraftRunning: _isDraftRunning,
-          onToggleDraft: _toggleDraft,
-          onRestartDraft: _restartDraft,
-          onRequestTrade: _requestTrade,
-        ),
+      ),
+      body: Column(
+        children: [
+          // Status bar
+          Container(
+            padding: const EdgeInsets.all(8.0),
+            color: Colors.blue.shade100,
+            width: double.infinity,
+            child: Text(
+              _statusMessage,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                DraftOrderTab(draftOrder: _draftOrderLists),
+                AvailablePlayersTab(availablePlayers: _availablePlayersLists),
+                TeamNeedsTab(teamNeeds: _teamNeedsLists),
+                TradeHistoryWidget(trades: _executedTrades),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: DraftControlButtons(
+        isDraftRunning: _isDraftRunning,
+        onToggleDraft: _toggleDraft,
+        onRestartDraft: _restartDraft,
+        onRequestTrade: _requestTrade,
       ),
     );
   }
+}
+
+// Extension method for DraftService to add required functionality
+extension DraftServiceExtensions on DraftService {
+  /// Get the next pick in the draft
+  DraftPick? getNextPick() {
+    for (var pick in draftOrder) {
+      if (!pick.isSelected) {
+        return pick;
+      }
+    }
+    return null;
+  }
+  
+  /// Select the best player for a specific team
+  Player selectBestPlayerForTeam(String teamName) {
+    // Get team needs
+    TeamNeed? teamNeed = teamNeeds.firstWhere(
+      (need) => need.teamName == teamName,
+      orElse: () => TeamNeed(teamName: teamName, needs: []),
+    );
+    
+    // Get next pick
+    DraftPick? nextPick = getNextPick();
+    if (nextPick == null) {
+      // Fallback to best overall player if no pick found
+      return availablePlayers.first;
+    }
+    
+    // Use the existing selection algorithm
+  return selectPlayerRStyle(teamNeed, nextPick);  }
 }

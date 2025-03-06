@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mds_home/models/team.dart';
 import '../models/team.dart';
 import '../utils/constants.dart';
 
