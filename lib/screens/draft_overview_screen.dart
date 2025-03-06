@@ -1,10 +1,11 @@
-// lib/screens/draft_overview_screen.dart
+// lib/screens/draft_overview_screen.dart - Updated implementation
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
 import '../services/data_service.dart';
 import '../services/draft_service.dart';
+import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
 
 import 'available_players_tab.dart';
@@ -49,7 +50,22 @@ class DraftAppState extends State<DraftApp> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _initializeServices(); // Remove the await here
+  }
+
+  Future<void> _initializeServices() async {
+    try {
+      // Initialize the draft value service first
+      await DraftValueService.initialize();
+      
+      // Then load the draft data
+      await _loadData();
+    } catch (e) {
+      setState(() {
+        _statusMessage = "Error initializing services: $e";
+      });
+      debugPrint("Error initializing services: $e");
+    }
   }
 
   Future<void> _loadData() async {
@@ -71,6 +87,8 @@ class DraftAppState extends State<DraftApp> {
         draftOrder: filteredDraftPicks,
         teamNeeds: teamNeeds,
         randomnessFactor: widget.randomnessFactor,
+        userTeam: widget.selectedTeam,
+        numberRounds: widget.numberOfRounds,
       );
 
       // Convert models to lists for the existing UI components
@@ -129,7 +147,7 @@ class DraftAppState extends State<DraftApp> {
     }
 
     try {
-      // Process the next pick
+      // Process the next pick using the enhanced algorithm
       final updatedPick = _draftService!.processDraftPick();
       
       // Update the UI with newly processed data
@@ -139,7 +157,7 @@ class DraftAppState extends State<DraftApp> {
         _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
         _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
         
-        _statusMessage = "Pick #${updatedPick.pickNumber}: ${updatedPick.teamName} selects ${updatedPick.selectedPlayer?.name} (${updatedPick.selectedPlayer?.position})";
+        _statusMessage = _draftService!.statusMessage;
       });
 
       // Continue the draft loop with delay
@@ -167,8 +185,14 @@ class DraftAppState extends State<DraftApp> {
   }
 
   void _requestTrade() {
-    // To be implemented
-    debugPrint("Trade requested (not implemented yet)");
+    // For now just show a message
+    // This will be implemented with trade logic in Phase 2
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Trade functionality coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   @override

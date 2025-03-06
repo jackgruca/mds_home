@@ -25,3 +25,5 @@ flutter:
     - assets/draft_order.csv
     - assets/available_players.csv
     - assets/team_needs.csv
+    - assets/draft_value_chart.csv
+
