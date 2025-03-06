@@ -42,7 +42,12 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   bool _isDataLoaded = false;
   String _statusMessage = "Loading draft data...";
   DraftService? _draftService;
-  
+  bool _isUserPickMode = false;  // Tracks if we're waiting for user to pick
+  DraftPick? _userNextPick;
+final ScrollController _draftOrderScrollController = ScrollController();
+
+
+
   // Tab controller for the additional trade history tab
   late TabController _tabController;
 
@@ -68,9 +73,10 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   
   @override
   void dispose() {
+    _draftOrderScrollController.dispose();
     _tabController.dispose();
     super.dispose();
-  }
+}
 
   Future<void> _initializeServices() async {
     try {
@@ -184,11 +190,14 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
       if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
         setState(() {
           _isDraftRunning = false; // Pause the draft
-          _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
+          _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
+          _isUserPickMode = true; // Add this flag to your class
+          _userNextPick = nextPick; // Add this field to store the current pick
         });
         
-        // Show the player selection dialog
-        _showPlayerSelectionDialog(nextPick);
+        // Switch to the available players tab
+        _tabController.animateTo(1); // Index of available players tab
+        
         return;
       }
       
@@ -206,6 +215,24 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
         _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
         
         _statusMessage = _draftService!.statusMessage;
+
+       if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
+          // Calculate position based on completed picks
+          double position = _draftService!.completedPicksCount * 50.0;
+          
+          // Ensure we don't scroll beyond content
+          if (position > _draftOrderScrollController.position.maxScrollExtent) {
+            position = _draftOrderScrollController.position.maxScrollExtent;
+          }
+          
+          // Smooth scroll
+          _draftOrderScrollController.animateTo(
+            position,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+
       });
 
       // Continue the draft loop with delay
@@ -448,15 +475,23 @@ void _initiateUserTradeProposal() {
       _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
       _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
       _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
+      
+      // Reset user pick mode
+      _isUserPickMode = false;
+      _userNextPick = null;
+      
+      // Automatically resume the draft
+      _isDraftRunning = true;
     });
     
-    // Continue the draft if it was running
-    if (_isDraftRunning) {
-      Future.delayed(
-        Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-        _processDraftPick
-      );
-    }
+    // Switch to draft order tab to see the selection
+    _tabController.animateTo(0);
+    
+    // Continue the draft after a brief pause
+    Future.delayed(
+      const Duration(milliseconds: 500), 
+      _processDraftPick
+    );
   }
 
   void _autoSelectPlayer(DraftPick pick) {
@@ -568,12 +603,40 @@ void _initiateUserTradeProposal() {
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Update this line
                 DraftOrderTab(
                   draftOrder: _draftOrderLists,
-                  userTeam: widget.selectedTeam,  // Add this parameter
+                  userTeam: widget.selectedTeam,
+                  scrollController: _draftOrderScrollController, // Add this line instead of the key
                 ),
-                AvailablePlayersTab(availablePlayers: _availablePlayersLists),
+                AvailablePlayersTab(
+                  availablePlayers: _availablePlayersLists,
+                  selectionEnabled: _isUserPickMode,
+                  userTeam: widget.selectedTeam,
+                  onPlayerSelected: (playerIndex) {
+                    // Keep your existing onPlayerSelected code unchanged
+                    if (_isUserPickMode && _userNextPick != null) {
+                      Player? selectedPlayer;
+                      
+                      try {
+                        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                      } catch (e) {
+                        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                          selectedPlayer = _draftService!.availablePlayers[playerIndex];
+                        }
+                      }
+                      
+                      if (selectedPlayer != null) {
+                        _selectPlayer(_userNextPick!, selectedPlayer);
+                        setState(() {
+                          _isUserPickMode = false;
+                          _userNextPick = null;
+                        });
+                      } else {
+                        debugPrint("Could not find player with index $playerIndex");
+                      }
+                    }
+                  },
+                ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 TradeHistoryWidget(trades: _executedTrades),
               ],

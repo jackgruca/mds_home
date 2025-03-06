@@ -137,13 +137,13 @@ class TradeService {
     final packages = <TradePackage>[];
     
     for (final team in interestedTeams) {
-      // Skip if this is the same team as the target pick
+      // Skip if this is the same team
       if (team == targetPick.teamName) continue;
       
-      // Find available picks from this team
-      final availablePicks = draftOrder.where((pick) => 
-        pick.teamName == team && !pick.isSelected && pick.pickNumber != targetPick.pickNumber
-      ).toList();
+      // Get available picks from this team
+      final availablePicks = draftOrder
+          .where((pick) => pick.teamName == team && !pick.isSelected && pick.pickNumber != targetPick.pickNumber)
+          .toList();
       
       if (availablePicks.isEmpty) continue;
       
@@ -153,11 +153,13 @@ class TradeService {
       // First pick is the primary pick in the offer
       final primaryPick = availablePicks.first;
       final primaryValue = DraftValueService.getValueForPick(primaryPick.pickNumber);
-      final remainingValue = targetValue - primaryValue;
       
-      // If the primary pick is close enough in value, offer just that
-      if (primaryValue >= targetValue * 0.9) {
-        packages.add(TradePackage(
+      // Different trade package structures
+      List<TradePackage> potentialPackages = [];
+      
+      // 1. Simple one-pick trade
+      if (primaryValue >= targetValue) {
+        potentialPackages.add(TradePackage(
           teamOffering: team,
           teamReceiving: targetPick.teamName,
           picksOffered: [primaryPick],
@@ -165,91 +167,64 @@ class TradeService {
           totalValueOffered: primaryValue,
           targetPickValue: targetValue,
         ));
-        continue;
       }
       
-      // Otherwise, try to add a second pick if needed
-      List<DraftPick> picksOffered = [primaryPick];
-      double totalValue = primaryValue;
-      
-      // Try to find a second pick that fills the value gap
-      if (availablePicks.length > 1) {
-        for (int i = 1; i < availablePicks.length; i++) {
+      // 2. Two-pick package
+      if (availablePicks.length >= 2 && primaryValue < targetValue) {
+        for (int i = 1; i < min(availablePicks.length, 5); i++) {
           final secondPick = availablePicks[i];
           final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+          final combinedValue = primaryValue + secondValue;
           
-          // Check if this pick is appropriate value (30% to 150% of needed value)
-          if (secondValue >= remainingValue * 0.3 && secondValue <= remainingValue * 1.5) {
-            picksOffered.add(secondPick);
-            totalValue += secondValue;
-            break;
+          if (combinedValue >= targetValue * 0.9 && combinedValue <= targetValue * 1.3) {
+            potentialPackages.add(TradePackage(
+              teamOffering: team,
+              teamReceiving: targetPick.teamName,
+              picksOffered: [primaryPick, secondPick],
+              targetPick: targetPick,
+              totalValueOffered: combinedValue,
+              targetPickValue: targetValue,
+            ));
           }
         }
       }
       
-      // If we still don't have enough value, consider a future pick
-      if (totalValue < targetValue * 0.9) {
-        // Estimate team strength (for future pick value)
-        final teamStrength = _estimateTeamStrength(team);
-        final futurePick = FuturePick.estimate(team, teamStrength);
-        
-        packages.add(TradePackage(
-          teamOffering: team,
-          teamReceiving: targetPick.teamName,
-          picksOffered: picksOffered,
-          targetPick: targetPick,
-          totalValueOffered: totalValue + futurePick.value,
-          targetPickValue: targetValue,
-          includesFuturePick: true,
-          futurePickDescription: futurePick.description,
-          futurePickValue: futurePick.value,
-        ));
-      } else {
-        // Package is good enough without future picks
-        packages.add(TradePackage(
-          teamOffering: team,
-          teamReceiving: targetPick.teamName,
-          picksOffered: picksOffered,
-          targetPick: targetPick,
-          totalValueOffered: totalValue,
-          targetPickValue: targetValue,
-        ));
-      }
-    }
-    
-    // Sort packages by total value offered (descending)
-    packages.sort((a, b) => b.totalValueOffered.compareTo(a.totalValueOffered));
-    
-    return packages;
-  }
-  
-  /// Execute a trade by swapping teams for the picks
-  void executeTrade(TradePackage package) {
-    final targetPickNumber = package.targetPick.pickNumber;
-    final teamReceiving = package.teamReceiving;
-    final teamOffering = package.teamOffering;
-    
-    // Update the target pick to belong to the offering team
-    for (var pick in draftOrder) {
-      if (pick.pickNumber == targetPickNumber) {
-        // TODO: Add a way to modify the team name in DraftPick class
-        // For now we'll handle this via a callback or event
-        break;
-      }
-    }
-    
-    // Update the offered picks to belong to the receiving team
-    for (var offeredPick in package.picksOffered) {
-      for (var pick in draftOrder) {
-        if (pick.pickNumber == offeredPick.pickNumber) {
-          // TODO: Add a way to modify the team name in DraftPick class
-          break;
+      // 3. Three-pick package (if needed)
+      if (availablePicks.length >= 3 && potentialPackages.isEmpty) {
+        for (int i = 1; i < min(availablePicks.length, 4); i++) {
+          for (int j = i + 1; j < min(availablePicks.length, 7); j++) {
+            final secondPick = availablePicks[i];
+            final thirdPick = availablePicks[j];
+            final combinedValue = primaryValue + 
+                                DraftValueService.getValueForPick(secondPick.pickNumber) +
+                                DraftValueService.getValueForPick(thirdPick.pickNumber);
+            
+            if (combinedValue >= targetValue * 0.9 && combinedValue <= targetValue * 1.3) {
+              potentialPackages.add(TradePackage(
+                teamOffering: team,
+                teamReceiving: targetPick.teamName,
+                picksOffered: [primaryPick, secondPick, thirdPick],
+                targetPick: targetPick,
+                totalValueOffered: combinedValue,
+                targetPickValue: targetValue,
+              ));
+            }
+          }
         }
       }
+      
+      // Add the best package to the result
+      if (potentialPackages.isNotEmpty) {
+        // Sort by fairness (closest to target value)
+        potentialPackages.sort((a, b) => 
+          (a.totalValueOffered - targetValue).abs().compareTo(
+            (b.totalValueOffered - targetValue).abs()));
+        
+        packages.add(potentialPackages.first);
+      }
     }
     
-    // Record the trade information
-    // TODO: Implement trade history tracking
+    return packages;
   }
   
   /// Check if a trade should be accepted based on value and randomness

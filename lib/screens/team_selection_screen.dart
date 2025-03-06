@@ -136,16 +136,20 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         Expanded(
                           child: Slider(
                             value: _speed,
-                            min: 0.5,
-                            max: 2.0,
-                            divisions: 3,
-                            label: '$_speed',
+                            min: 1.0,
+                            max: 5.0,
+                            divisions: 4,
+                            label: '${_speed.toInt()}',
                             onChanged: (value) {
                               setState(() {
                                 _speed = value;
                               });
                             },
                           ),
+                        ),
+                        SizedBox(
+                          width: 30,
+                          child: Text('${_speed.toInt()}', textAlign: TextAlign.center),
                         ),
                       ],
                     ),
@@ -156,17 +160,21 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         const Text('Randomness:'),
                         Expanded(
                           child: Slider(
-                            value: _randomness,
-                            min: 0.0,
-                            max: 1.0,
-                            divisions: 5,
-                            label: '$_randomness',
+                            value: _randomness * 5,
+                            min: 1.0,
+                            max: 5.0,
+                            divisions: 4,
+                            label: '${(_randomness * 5).toInt()}',
                             onChanged: (value) {
                               setState(() {
-                                _randomness = value;
+                                _randomness = value / 5;
                               });
                             },
                           ),
+                        ),
+                        SizedBox(
+                          width: 30,
+                          child: Text('${(_randomness * 5).toInt()}', textAlign: TextAlign.center),
                         ),
                       ],
                     ),

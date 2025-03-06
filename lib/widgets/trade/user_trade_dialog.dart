@@ -26,8 +26,8 @@ class UserTradeProposalDialog extends StatefulWidget {
 
 class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
-  late DraftPick _targetPick;
-  final List<DraftPick> _selectedUserPicks = [];
+  List<DraftPick> _selectedUserPicks = [];
+  List<DraftPick> _selectedTargetPicks = []; // New variable for other team's selections
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
   
@@ -35,210 +35,312 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   void initState() {
     super.initState();
     if (widget.targetPicks.isNotEmpty) {
-      _targetPick = widget.targetPicks.first;
-      _targetTeam = _targetPick.teamName;
-      _targetPickValue = DraftValueService.getValueForPick(_targetPick.pickNumber);
+      _targetTeam = widget.targetPicks.first.teamName;
+      // Initially select the first pick from target team
+      if (widget.targetPicks.isNotEmpty) {
+        _selectedTargetPicks = [widget.targetPicks.first];
+      }
     }
     _updateValues();
   }
   
   void _updateValues() {
-    double total = 0;
+    double userValue = 0;
     for (var pick in _selectedUserPicks) {
-      total += DraftValueService.getValueForPick(pick.pickNumber);
+      userValue += DraftValueService.getValueForPick(pick.pickNumber);
+    }
+    
+    double targetValue = 0;
+    for (var pick in _selectedTargetPicks) {
+      targetValue += DraftValueService.getValueForPick(pick.pickNumber);
     }
     
     setState(() {
-      _totalOfferedValue = total;
-      if (widget.targetPicks.isNotEmpty) {
-        _targetPickValue = DraftValueService.getValueForPick(_targetPick.pickNumber);
-      }
+      _totalOfferedValue = userValue;
+      _targetPickValue = targetValue;
     });
   }
   
-  @override
-  Widget build(BuildContext context) {
-    // Get unique teams from target picks
-    final targetTeams = widget.targetPicks
-        .map((pick) => pick.teamName)
-        .toSet()
-        .toList();
-    
-    // Filter target picks by selected team
-    final teamPicks = widget.targetPicks
-        .where((pick) => pick.teamName == _targetTeam)
-        .toList();
-    
-    return AlertDialog(
-      title: const Text('Propose a Trade'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 500,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Select target team
-            const Text('Select a team to trade with:'),
-            DropdownButton<String>(
-              value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _targetTeam = newValue;
-                    // Reset target pick when team changes
-                    _targetPick = widget.targetPicks
-                        .firstWhere((pick) => pick.teamName == newValue);
-                  });
-                  _updateValues();
-                }
-              },
-              items: targetTeams.map<DropdownMenuItem<String>>((String team) {
-                return DropdownMenuItem<String>(
-                  value: team,
-                  child: Text(team),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            
-            // Select target pick
-            const Text('Select the pick you want:'),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                itemCount: teamPicks.length,
-                itemBuilder: (context, index) {
-                  final pick = teamPicks[index];
-                  final isSelected = _targetPick.pickNumber == pick.pickNumber;
-                  
-                  return ListTile(
-                    title: Text('Pick #${pick.pickNumber} (Round ${pick.round})'),
-                    subtitle: Text('Value: ${DraftValueService.getValueDescription(
-                      DraftValueService.getValueForPick(pick.pickNumber)
-                    )}'),
-                    tileColor: isSelected ? Colors.blue.shade100 : null,
-                    onTap: () {
-                      setState(() {
-                        _targetPick = pick;
-                      });
-                      _updateValues();
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Select picks to offer
-            const Text('Select picks to offer:'),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                itemCount: widget.userPicks.length,
-                itemBuilder: (context, index) {
-                  final pick = widget.userPicks[index];
-                  final isSelected = _selectedUserPicks.contains(pick);
-                  
-                  return CheckboxListTile(
-                    title: Text('Pick #${pick.pickNumber} (Round ${pick.round})'),
-                    subtitle: Text('Value: ${DraftValueService.getValueDescription(
-                      DraftValueService.getValueForPick(pick.pickNumber)
-                    )}'),
-                    value: isSelected,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedUserPicks.add(pick);
-                        } else {
-                          _selectedUserPicks.remove(pick);
-                        }
-                      });
-                      _updateValues();
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Trade value analysis
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+  // In user_trade_dialog.dart, modify the build method
+  // In your user_trade_dialog.dart file, look for the build method and update it:
+
+@override
+Widget build(BuildContext context) {
+  // Get unique teams from target picks
+  final targetTeams = widget.targetPicks
+      .map((pick) => pick.teamName)
+      .toSet()
+      .toList();
+  
+  // Filter target picks by selected team
+  final teamPicks = widget.targetPicks
+      .where((pick) => pick.teamName == _targetTeam)
+      .toList();
+  
+  return AlertDialog(
+    title: const Text('Propose a Trade'),
+    content: SizedBox(
+      width: double.maxFinite,
+      height: 500, // Fixed height to avoid overflow
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left side - Other team's picks selection
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Team dropdown
+                Row(
                   children: [
-                    const Text(
-                      'Trade Value Analysis:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    const Expanded(
+                      child: Text('Team to trade with:', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(height: 8),
-                    Text('Your offer: ${_totalOfferedValue.toStringAsFixed(0)} points'),
-                    Text('Target pick: ${_targetPickValue.toStringAsFixed(0)} points'),
-                    Text(
-                      'Difference: ${(_totalOfferedValue - _targetPickValue).toStringAsFixed(0)} points',
-                      style: TextStyle(
-                        color: _totalOfferedValue >= _targetPickValue
-                            ? Colors.green
-                            : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: _targetPickValue > 0
-                          ? _totalOfferedValue / _targetPickValue
-                          : 0,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _totalOfferedValue >= _targetPickValue * 1.1
-                            ? Colors.green
-                            : (_totalOfferedValue >= _targetPickValue * 0.9
-                                ? Colors.blue
-                                : Colors.orange),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _getTradeAdviceText(),
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                        color: _getTradeAdviceColor(),
-                      ),
+                    DropdownButton<String>(
+                      value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _targetTeam = newValue;
+                            // Clear selected picks when team changes
+                            _selectedTargetPicks.clear();
+                          });
+                          _updateValues();
+                        }
+                      },
+                      items: targetTeams.map<DropdownMenuItem<String>>((String team) {
+                        return DropdownMenuItem<String>(
+                          value: team,
+                          child: Text(team, style: const TextStyle(fontSize: 14)),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 8),
+                
+                // Their picks selection
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Their picks to receive:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          // Toggle all/none selection
+                          if (_selectedTargetPicks.length == teamPicks.length) {
+                            _selectedTargetPicks.clear(); // Deselect all
+                          } else {
+                            _selectedTargetPicks = List.from(teamPicks); // Select all
+                          }
+                          _updateValues();
+                        });
+                      },
+                      child: Text(_selectedTargetPicks.length == teamPicks.length ?
+                               'Unselect All' : 'Select All'),
+                    ),
+                  ],
+                ),
+                
+                // Their picks with checkboxes
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: teamPicks.length,
+                    itemBuilder: (context, index) {
+                      final pick = teamPicks[index];
+                      final isSelected = _selectedTargetPicks.contains(pick);
+                      
+                      return Card(
+                        color: isSelected ? Colors.blue.shade100 : null,
+                        child: CheckboxListTile(
+                          dense: true,
+                          title: Text('Pick #${pick.pickNumber}'),
+                          subtitle: Text('Round ${pick.round}'),
+                          secondary: Text(
+                            DraftValueService.getValueDescription(
+                              DraftValueService.getValueForPick(pick.pickNumber)
+                            ),
+                          ),
+                          value: isSelected,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              if (value == true) {
+                                _selectedTargetPicks.add(pick);
+                              } else {
+                                _selectedTargetPicks.remove(pick);
+                              }
+                            });
+                            _updateValues();
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          
+          const VerticalDivider(), // Divider between sections
+          
+          // Right side - Your picks selection
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Your picks to offer:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          // Toggle all/none selection
+                          if (_selectedUserPicks.length == widget.userPicks.length) {
+                            _selectedUserPicks.clear(); // Deselect all
+                          } else {
+                            _selectedUserPicks = List.from(widget.userPicks); // Select all
+                          }
+                          _updateValues();
+                        });
+                      },
+                      child: Text(_selectedUserPicks.length == widget.userPicks.length ?
+                               'Unselect All' : 'Select All'),
+                    ),
+                  ],
+                ),
+                
+                // Your picks with checkboxes
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: widget.userPicks.length,
+                    itemBuilder: (context, index) {
+                      final pick = widget.userPicks[index];
+                      final isSelected = _selectedUserPicks.contains(pick);
+                      
+                      return Card(
+                        color: isSelected ? Colors.green.shade100 : null,
+                        child: CheckboxListTile(
+                          dense: true,
+                          title: Text('Pick #${pick.pickNumber}'),
+                          subtitle: Text('Round ${pick.round}'),
+                          secondary: Text(
+                            DraftValueService.getValueDescription(
+                              DraftValueService.getValueForPick(pick.pickNumber)
+                            ),
+                          ),
+                          value: isSelected,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              if (value == true) {
+                                _selectedUserPicks.add(pick);
+                              } else {
+                                _selectedUserPicks.remove(pick);
+                              }
+                            });
+                            _updateValues();
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: widget.onCancel,
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _canProposeTrade() ? _proposeTrade : null,
-          child: const Text('Propose Trade'),
-        ),
-      ],
-    );
-  }
+    ),
+    // Trade value analysis section at the bottom
+    insetPadding: const EdgeInsets.all(16),
+    contentPadding: const EdgeInsets.all(16),
+    actionsPadding: const EdgeInsets.all(16),
+    actions: [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.grey.shade100,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Trade Value Analysis:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Your offer: ${_totalOfferedValue.toStringAsFixed(0)} points'),
+                    Text('Their picks: ${_targetPickValue.toStringAsFixed(0)} points'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: _targetPickValue > 0
+                      ? _totalOfferedValue / _targetPickValue
+                      : 0,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _totalOfferedValue >= _targetPickValue * 1.1
+                        ? Colors.green
+                        : (_totalOfferedValue >= _targetPickValue * 0.9
+                            ? Colors.blue
+                            : Colors.orange),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _getTradeAdviceText(),
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: _getTradeAdviceColor(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: widget.onCancel,
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: _canProposeTrade() ? _proposeTrade : null,
+                child: const Text('Propose Trade'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
   
   bool _canProposeTrade() {
-    return _selectedUserPicks.isNotEmpty && _targetPickValue > 0;
+    return _selectedUserPicks.isNotEmpty && _selectedTargetPicks.isNotEmpty;
   }
   
   void _proposeTrade() {
-    // Create a trade package with the selected picks
+    // Create a trade package with multiple picks on both sides
     final package = TradePackage(
       teamOffering: widget.userTeam,
       teamReceiving: _targetTeam,
       picksOffered: _selectedUserPicks,
-      targetPick: _targetPick,
+      targetPick: _selectedTargetPicks.first, // Need one "main" pick for the structure
       totalValueOffered: _totalOfferedValue,
       targetPickValue: _targetPickValue,
+      // Add additional selected target picks
+      additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
+          _selectedTargetPicks.sublist(1) : [],
     );
     
     widget.onPropose(package);
