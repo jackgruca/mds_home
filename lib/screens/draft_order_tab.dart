@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-// In draft_order_tab.dart, find the DraftOrderTab class definition
 class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> draftOrder;
-  final String? userTeam;  // Add this parameter
-
+  final String? userTeam;
+  final ScrollController? scrollController; // Add this parameter
+  
   const DraftOrderTab({
-    required this.draftOrder, 
-    this.userTeam,  // Add this
-    super.key
+    required this.draftOrder,
+    this.userTeam,
+    this.scrollController, // Accept external scroll controller
+    super.key,
   });
 
   @override
@@ -17,6 +18,20 @@ class DraftOrderTab extends StatefulWidget {
 
 class _DraftOrderTabState extends State<DraftOrderTab> {
   String _searchQuery = '';
+  final ScrollController _localScrollController = ScrollController();
+  
+  // Use provided controller or local one
+  ScrollController get _scrollController => 
+      widget.scrollController ?? _localScrollController;
+
+  @override
+  void dispose() {
+    // Only dispose the local controller if we created it
+    if (widget.scrollController == null) {
+      _localScrollController.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,14 +64,15 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
           // Draft Order Table
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController, // Use the getter
               scrollDirection: Axis.vertical,
               child: Table(
                 border: TableBorder.all(color: Colors.grey),
                 columnWidths: const {
-                  0: IntrinsicColumnWidth(), // Pick number (auto-sized)
-                  1: FlexColumnWidth(3),     // Team (larger)
-                  2: FlexColumnWidth(4),     // Selection (largest)
-                  3: IntrinsicColumnWidth(), // Trade// Trade Info
+                  0: FlexColumnWidth(1), // Pick Number
+                  1: FlexColumnWidth(3), // Team
+                  2: FlexColumnWidth(4), // Selection
+                  3: FlexColumnWidth(2), // Trade Info
                 },
                 children: [
                   // 🏆 Styled Header Row
@@ -91,18 +107,20 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                             : (i.isEven ? Colors.white : Colors.grey[200]),
                       ),
                       children: [
+                        // Pick number
                         Padding(
                           padding: const EdgeInsets.all(8),
                           child: Text(filteredDraftOrder[i][0].toString(), style: const TextStyle(fontSize: 14)),
                         ),
-                        // Team column
+                        
+                        // Team column with logo
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Row(
                             children: [
                               Container(
-                                width: 36,
-                                height: 36,
+                                width: 36, // 50% larger
+                                height: 36, // 50% larger
                                 decoration: BoxDecoration(
                                   image: DecorationImage(
                                     image: NetworkImage(
@@ -121,7 +139,8 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                             ],
                           ),
                         ),
-                        // Selection column
+                        
+                        // Selection with player name and position
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: filteredDraftOrder[i][2].toString().isEmpty 
@@ -140,6 +159,8 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                                 ],
                               ),
                         ),
+                        
+                        // Trade info with icon
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: filteredDraftOrder[i][5].toString().isEmpty 
@@ -169,7 +190,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
     );
   }
 
-  // Add this method to the _DraftOrderTabState class
+  // Trade details dialog
   Widget _buildTradeDetailsDialog(List<dynamic> draftRow) {
     // Extract trade info
     String tradeInfo = draftRow[5].toString();
