@@ -9,6 +9,8 @@ import '../services/data_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
+import '../widgets/trade/user_trade_dialog.dart';
+import '../widgets/trade/trade_response_dialog.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
@@ -98,6 +100,12 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
         return round <= widget.numberOfRounds;
       }).toList();
 
+      // After loading draftPicks
+      debugPrint("Teams in draft order:");
+      for (var pick in filteredDraftPicks.take(10)) {
+        debugPrint("Pick #${pick.pickNumber}: Team '${pick.teamName}'");
+      }
+
       // Create the draft service with the loaded data
       final draftService = DraftService(
         availablePlayers: List.from(players), // Create copies to avoid modifying originals
@@ -169,10 +177,18 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     try {
       // Get the next pick
       final nextPick = _draftService!.getNextPick();
+
+      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Team: ${widget.selectedTeam}");
       
       // Check if this is the user's team and they should make a choice
       if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
-        _handleUserPick(nextPick);
+        setState(() {
+          _isDraftRunning = false; // Pause the draft
+          _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
+        });
+        
+        // Show the player selection dialog
+        _showPlayerSelectionDialog(nextPick);
         return;
       }
       
@@ -216,6 +232,76 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     // First show trade offers for this pick
     _showTradeOptions(pick);
   }
+
+// In draft_overview_screen.dart, inside the DraftAppState class
+void _initiateUserTradeProposal() {
+  if (_draftService == null || widget.selectedTeam == null) {
+    debugPrint("Draft service or selected team is null");
+    return;
+  }
+  
+  // Get user's available picks
+  final userPicks = _draftService!.getTeamPicks(widget.selectedTeam!);
+  debugPrint("User picks found: ${userPicks.length}");
+  for (var pick in userPicks) {
+    debugPrint("User pick: #${pick.pickNumber}, Team: ${pick.teamName}");
+  }
+  
+  // Get other teams' available picks
+  final otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeam!);
+  debugPrint("Other team picks found: ${otherTeamPicks.length}");
+  
+  if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No available picks to trade'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    return;
+  }
+  
+  // Show trade proposal dialog
+  showDialog(
+    context: context,
+    builder: (context) => UserTradeProposalDialog(
+      userTeam: widget.selectedTeam!,
+      userPicks: userPicks,
+      targetPicks: otherTeamPicks,
+      onPropose: (proposal) {
+        Navigator.pop(context); // Close proposal dialog
+        
+        // Process the proposal
+        final accepted = _draftService!.processUserTradeProposal(proposal);
+        
+        // Show response dialog
+        showDialog(
+          context: context,
+          builder: (context) => TradeResponseDialog(
+            tradePackage: proposal,
+            wasAccepted: accepted,
+            rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(proposal),
+            onClose: () {
+              Navigator.pop(context);
+              
+              // Update UI if trade was accepted
+              if (accepted) {
+                setState(() {
+                  _executedTrades = _draftService!.executedTrades;
+                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+                  _statusMessage = _draftService!.statusMessage;
+                });
+              }
+            },
+          ),
+        );
+      },
+      onCancel: () {
+        Navigator.pop(context);
+      },
+    ),
+  );
+}
 
   void _showTradeOptions(DraftPick pick) {
     if (_draftService == null) return;
@@ -391,14 +477,21 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     _loadData();
   }
 
+  // Find this method in draft_overview_screen.dart and replace it
   void _requestTrade() {
     if (_draftService == null) return;
     
-    DraftPick? nextPick = _draftService!.getNextPick();
-    if (nextPick == null) return;
+    // If user has selected a team, show user trade proposal UI
+    if (widget.selectedTeam != null) {
+      _initiateUserTradeProposal();
+      return;
+    }
     
-    // Show trade dialog for current pick
-    _showTradeOptions(nextPick);
+    // Otherwise, show trade options for current pick
+    DraftPick? nextPick = _draftService!.getNextPick();
+    if (nextPick != null) {
+      _showTradeOptions(nextPick);
+    }
   }
 
   @override
@@ -446,12 +539,40 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
             ),
           ),
           
+          if (widget.selectedTeam != null)
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.green.shade50,
+              child: Row(
+                children: [
+                  const Icon(Icons.sports_football, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(
+                    'You are controlling: ${widget.selectedTeam}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: _initiateUserTradeProposal,
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Propose Trade'),
+                  ),
+                ],
+              ),
+            ),
           // Tab content
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                DraftOrderTab(draftOrder: _draftOrderLists),
+                // Update this line
+                DraftOrderTab(
+                  draftOrder: _draftOrderLists,
+                  userTeam: widget.selectedTeam,  // Add this parameter
+                ),
                 AvailablePlayersTab(availablePlayers: _availablePlayersLists),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 TradeHistoryWidget(trades: _executedTrades),
@@ -500,4 +621,6 @@ extension DraftServiceExtensions on DraftService {
     
     // Use the existing selection algorithm
   return selectPlayerRStyle(teamNeed, nextPick);  }
+
+  
 }
