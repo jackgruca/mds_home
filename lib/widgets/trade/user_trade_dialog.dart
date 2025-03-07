@@ -31,9 +31,10 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
+  List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  final List<int> _selectedFutureRounds = [];
+  List<int> _selectedFutureRounds = [];
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   
   @override
@@ -69,6 +70,12 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
       targetValue += DraftValueService.getValueForPick(pick.pickNumber);
     }
     
+    // Add their future picks value
+    for (var round in _selectedTargetFutureRounds) {
+      final futurePick = FuturePick.forRound(_targetTeam, round);
+      targetValue += futurePick.value;
+    }
+    
     setState(() {
       _totalOfferedValue = userValue;
       _targetPickValue = targetValue;
@@ -88,106 +95,68 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
         .where((pick) => pick.teamName == _targetTeam)
         .toList();
     
+    // Shared styles for consistent appearance
+    const headerStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
+    const subheaderStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
+    const labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
+    const sublabelStyle = TextStyle(fontSize: 11);
+    const valueStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
+    
+    // Card dimensions for symmetry
+    const double cardHeight = 72.0;
+    const double valueColumnWidth = 55.0;
+    
     // Create the content widget
     Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title (only when not embedded)
-        if (!widget.isEmbedded)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              'Propose a Trade',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-        // Headers row with dropdowns
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              // Left team dropdown
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Team to trade with:',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)
-                    ),
-                    if (targetTeams.isNotEmpty)
-                      DropdownButton<String>(
-                        value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _targetTeam = newValue;
-                              _selectedTargetPicks.clear();
-                            });
-                            _updateValues();
-                          }
-                        },
-                        items: targetTeams.map<DropdownMenuItem<String>>((String team) {
-                          return DropdownMenuItem<String>(
-                            value: team,
-                            child: Text(team, style: const TextStyle(fontSize: 13)),
-                          );
-                        }).toList(),
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              // Right side "Used Capital" indicator (for symmetry)
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Draft Capital Used:',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)
-                    ),
-                    Text(
-                      '${_selectedUserPicks.length} picks',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Main content area - two columns side by side
+        // Main content area - two columns side by side (Their team | Your team)
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left side - Current year picks
-                Expanded(
-                  flex: 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left side - Their team
+              Expanded(
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Team selection dropdown
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Their picks to receive:',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)
-                          ),
+                          const Text('Team to trade with:', style: headerStyle),
+                          if (targetTeams.isNotEmpty)
+                            DropdownButton<String>(
+                              value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _targetTeam = newValue;
+                                    _selectedTargetPicks.clear();
+                                    _selectedTargetFutureRounds.clear();
+                                  });
+                                  _updateValues();
+                                }
+                              },
+                              items: targetTeams.map<DropdownMenuItem<String>>((String team) {
+                                return DropdownMenuItem<String>(
+                                  value: team,
+                                  child: Text(team, style: const TextStyle(fontSize: 13)),
+                                );
+                              }).toList(),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                        ],
+                      ),
+                      
+                      // Sub-header for their picks
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Their picks to receive:', style: headerStyle),
                           TextButton(
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
@@ -195,285 +164,217 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                             ),
                             onPressed: () {
                               setState(() {
-                                if (_selectedTargetPicks.length == teamPicks.length) {
-                                  _selectedTargetPicks.clear(); // Deselect all
+                                if (_selectedTargetPicks.length == teamPicks.length &&
+                                    _selectedTargetFutureRounds.length == _availableFutureRounds.length) {
+                                  // Unselect all
+                                  _selectedTargetPicks.clear();
+                                  _selectedTargetFutureRounds.clear();
                                 } else {
-                                  _selectedTargetPicks = List.from(teamPicks); // Select all
+                                  // Select all
+                                  _selectedTargetPicks = List.from(teamPicks);
+                                  _selectedTargetFutureRounds = List.from(_availableFutureRounds);
                                 }
                                 _updateValues();
                               });
                             },
-                            child: Text(
-                              _selectedTargetPicks.length == teamPicks.length ? 'Unselect All' : 'Select All',
-                              style: const TextStyle(fontSize: 12)
+                            child: const Text(
+                              'Select All',
+                              style: TextStyle(fontSize: 12)
                             ),
                           ),
                         ],
                       ),
                       
-                      // Their picks list in a grid layout
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 2.5,
-                            crossAxisSpacing: 4,
-                            mainAxisSpacing: 4,
-                          ),
-                          itemCount: teamPicks.length,
-                          itemBuilder: (context, index) {
-                            final pick = teamPicks[index];
-                            final isSelected = _selectedTargetPicks.contains(pick);
-                            final pickValue = DraftValueService.getValueForPick(pick.pickNumber);
-                            
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedTargetPicks.remove(pick);
-                                    } else {
-                                      _selectedTargetPicks.add(pick);
-                                    }
-                                    _updateValues();
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 4, right: 2),
-                                  child: Row(
-                                    children: [
-                                      // Left side with value
-                                      SizedBox(
-                                        width: 30,
-                                        child: Center(
-                                          child: Text(
-                                            '${pickValue.toInt()}',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Middle section with pick info
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'Pick #${pick.pickNumber}',
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold
-                                                ),
-                                              ),
-                                              Text(
-                                                'Round ${pick.round}',
-                                                style: const TextStyle(fontSize: 11),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      // Checkbox
-                                      Checkbox(
-                                        value: isSelected,
-                                        visualDensity: VisualDensity.compact,
-                                        onChanged: (bool? value) {
-                                          setState(() {
-                                            if (value == true) {
-                                              _selectedTargetPicks.add(pick);
-                                            } else {
-                                              _selectedTargetPicks.remove(pick);
-                                            }
-                                            _updateValues();
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                      // Draft years header row
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Center(
+                                child: Text('2025 Draft', style: subheaderStyle),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const VerticalDivider(width: 16),
-                
-                // Right side - Current year picks + future picks
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header for your picks
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Your picks to offer:',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)
-                          ),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                              minimumSize: const Size(0, 24),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                if (_selectedUserPicks.length == widget.userPicks.length) {
-                                  _selectedUserPicks.clear(); // Deselect all
-                                } else {
-                                  _selectedUserPicks = List.from(widget.userPicks); // Select all
-                                }
-                                _updateValues();
-                              });
-                            },
-                            child: Text(
-                              _selectedUserPicks.length == widget.userPicks.length ? 'Unselect All' : 'Select All',
-                              style: const TextStyle(fontSize: 12)
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      // Your current year picks
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 2.5,
-                            crossAxisSpacing: 4,
-                            mainAxisSpacing: 4,
-                          ),
-                          itemCount: widget.userPicks.length,
-                          itemBuilder: (context, index) {
-                            final pick = widget.userPicks[index];
-                            final isSelected = _selectedUserPicks.contains(pick);
-                            final pickValue = DraftValueService.getValueForPick(pick.pickNumber);
-                            
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 1),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedUserPicks.remove(pick);
-                                    } else {
-                                      _selectedUserPicks.add(pick);
-                                    }
-                                    _updateValues();
-                                  });
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 4, right: 2),
-                                  child: Row(
-                                    children: [
-                                      // Left side with value
-                                      SizedBox(
-                                        width: 30,
-                                        child: Center(
-                                          child: Text(
-                                            '${pickValue.toInt()}',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Middle section with pick info
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'Pick #${pick.pickNumber}',
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold
-                                                ),
-                                              ),
-                                              Text(
-                                                'Round ${pick.round}',
-                                                style: const TextStyle(fontSize: 11),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      // Checkbox
-                                      Checkbox(
-                                        value: isSelected,
-                                        visualDensity: VisualDensity.compact,
-                                        onChanged: (bool? value) {
-                                          setState(() {
-                                            if (value == true) {
-                                              _selectedUserPicks.add(pick);
-                                            } else {
-                                              _selectedUserPicks.remove(pick);
-                                            }
-                                            _updateValues();
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                            Expanded(
+                              child: Center(
+                                child: Text('2026 Draft', style: subheaderStyle),
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
                       ),
                       
-                      // Future picks section - more compact
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                        width: double.infinity,
-                        child: Column(
+                      // Their picks in a split layout
+                      Expanded(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('2026 Draft Picks to Include:',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _availableFutureRounds.map((round) {
-                                  bool isSelected = _selectedFutureRounds.contains(round);
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: ChoiceChip(
-                                      label: Text(_getRoundText(round),
-                                        style: const TextStyle(fontSize: 11)),
-                                      selected: isSelected,
-                                      visualDensity: VisualDensity.compact,
-                                      labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                                      padding: EdgeInsets.zero,
-                                      onSelected: (selected) {
+                            // 2025 Draft column
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: teamPicks.length,
+                                itemBuilder: (context, index) {
+                                  final pick = teamPicks[index];
+                                  final isSelected = _selectedTargetPicks.contains(pick);
+                                  final pickValue = DraftValueService.getValueForPick(pick.pickNumber);
+                                  
+                                  return Card(
+                                    elevation: 0,
+                                    margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
                                         setState(() {
-                                          if (selected) {
-                                            _selectedFutureRounds.add(round);
+                                          if (isSelected) {
+                                            _selectedTargetPicks.remove(pick);
                                           } else {
-                                            _selectedFutureRounds.remove(round);
+                                            _selectedTargetPicks.add(pick);
                                           }
+                                          _updateValues();
                                         });
-                                        _updateValues();
                                       },
+                                      child: SizedBox(
+                                        height: cardHeight,
+                                        child: Row(
+                                          children: [
+                                            // Value column
+                                            SizedBox(
+                                              width: valueColumnWidth,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 8),
+                                                child: Text(
+                                                  '${pickValue.toInt()}',
+                                                  style: valueStyle,
+                                                ),
+                                              ),
+                                            ),
+                                            // Pick details
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Pick #${pick.pickNumber}',
+                                                    style: labelStyle,
+                                                  ),
+                                                  const Text(
+                                                    'Round',
+                                                    style: sublabelStyle,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Checkbox
+                                            Checkbox(
+                                              value: isSelected,
+                                              visualDensity: VisualDensity.compact,
+                                              onChanged: (bool? value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    _selectedTargetPicks.add(pick);
+                                                  } else {
+                                                    _selectedTargetPicks.remove(pick);
+                                                  }
+                                                  _updateValues();
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   );
-                                }).toList(),
+                                },
+                              ),
+                            ),
+                            
+                            // 2026 Draft column with future picks
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: _availableFutureRounds.length,
+                                itemBuilder: (context, index) {
+                                  final round = _availableFutureRounds[index];
+                                  final isSelected = _selectedTargetFutureRounds.contains(round);
+                                  final futurePick = FuturePick.forRound(_targetTeam, round);
+                                  final pickValue = futurePick.value;
+                                  
+                                  return Card(
+                                    elevation: 0,
+                                    margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedTargetFutureRounds.remove(round);
+                                          } else {
+                                            _selectedTargetFutureRounds.add(round);
+                                          }
+                                          _updateValues();
+                                        });
+                                      },
+                                      child: SizedBox(
+                                        height: cardHeight,
+                                        child: Row(
+                                          children: [
+                                            // Value column
+                                            SizedBox(
+                                              width: valueColumnWidth,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 8),
+                                                child: Text(
+                                                  '${pickValue.toInt()}',
+                                                  style: valueStyle,
+                                                ),
+                                              ),
+                                            ),
+                                            // Pick details
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    '${_getRoundText(round)} Round',
+                                                    style: labelStyle,
+                                                  ),
+                                                  const Text(
+                                                    'Future Pick',
+                                                    style: sublabelStyle,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Checkbox
+                                            Checkbox(
+                                              value: isSelected,
+                                              visualDensity: VisualDensity.compact,
+                                              onChanged: (bool? value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    _selectedTargetFutureRounds.add(round);
+                                                  } else {
+                                                    _selectedTargetFutureRounds.remove(round);
+                                                  }
+                                                  _updateValues();
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -482,8 +383,263 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              
+              const VerticalDivider(thickness: 1, width: 1),
+              
+              // Right side - Your team
+              Expanded(
+                flex: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Team indicator with used capital
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Your team: ${widget.userTeam}', style: headerStyle),
+                          Text(
+                            'Capital Used: ${_selectedUserPicks.length} picks',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                      
+                      // Sub-header for your picks
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Your picks to offer:', style: headerStyle),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                              minimumSize: const Size(0, 24),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (_selectedUserPicks.length == widget.userPicks.length &&
+                                    _selectedFutureRounds.length == _availableFutureRounds.length) {
+                                  // Unselect all
+                                  _selectedUserPicks.clear();
+                                  _selectedFutureRounds.clear();
+                                } else {
+                                  // Select all
+                                  _selectedUserPicks = List.from(widget.userPicks);
+                                  _selectedFutureRounds = List.from(_availableFutureRounds);
+                                }
+                                _updateValues();
+                              });
+                            },
+                            child: const Text(
+                              'Select All',
+                              style: TextStyle(fontSize: 12)
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Draft years header row
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Center(
+                                child: Text('2025 Draft', style: subheaderStyle),
+                              ),
+                            ),
+                            Expanded(
+                              child: Center(
+                                child: Text('2026 Draft', style: subheaderStyle),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Your picks in a split layout
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 2025 Draft column
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: widget.userPicks.length,
+                                itemBuilder: (context, index) {
+                                  final pick = widget.userPicks[index];
+                                  final isSelected = _selectedUserPicks.contains(pick);
+                                  final pickValue = DraftValueService.getValueForPick(pick.pickNumber);
+                                  
+                                  return Card(
+                                    elevation: 0,
+                                    margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedUserPicks.remove(pick);
+                                          } else {
+                                            _selectedUserPicks.add(pick);
+                                          }
+                                          _updateValues();
+                                        });
+                                      },
+                                      child: SizedBox(
+                                        height: cardHeight,
+                                        child: Row(
+                                          children: [
+                                            // Value column
+                                            SizedBox(
+                                              width: valueColumnWidth,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 8),
+                                                child: Text(
+                                                  '${pickValue.toInt()}',
+                                                  style: valueStyle,
+                                                ),
+                                              ),
+                                            ),
+                                            // Pick details
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Pick #${pick.pickNumber}',
+                                                    style: labelStyle,
+                                                  ),
+                                                  const Text(
+                                                    'Round',
+                                                    style: sublabelStyle,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Checkbox
+                                            Checkbox(
+                                              value: isSelected,
+                                              visualDensity: VisualDensity.compact,
+                                              onChanged: (bool? value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    _selectedUserPicks.add(pick);
+                                                  } else {
+                                                    _selectedUserPicks.remove(pick);
+                                                  }
+                                                  _updateValues();
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            
+                            // 2026 Draft column with future picks
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                itemCount: _availableFutureRounds.length,
+                                itemBuilder: (context, index) {
+                                  final round = _availableFutureRounds[index];
+                                  final isSelected = _selectedFutureRounds.contains(round);
+                                  final futurePick = FuturePick.forRound(widget.userTeam, round);
+                                  final pickValue = futurePick.value;
+                                  
+                                  return Card(
+                                    elevation: 0,
+                                    margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: BorderSide(color: Colors.grey.shade300),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            _selectedFutureRounds.remove(round);
+                                          } else {
+                                            _selectedFutureRounds.add(round);
+                                          }
+                                          _updateValues();
+                                        });
+                                      },
+                                      child: SizedBox(
+                                        height: cardHeight,
+                                        child: Row(
+                                          children: [
+                                            // Value column
+                                            SizedBox(
+                                              width: valueColumnWidth,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 8),
+                                                child: Text(
+                                                  '${pickValue.toInt()}',
+                                                  style: valueStyle,
+                                                ),
+                                              ),
+                                            ),
+                                            // Pick details
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    '${_getRoundText(round)} Round',
+                                                    style: labelStyle,
+                                                  ),
+                                                  const Text(
+                                                    'Future Pick',
+                                                    style: sublabelStyle,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Checkbox
+                                            Checkbox(
+                                              value: isSelected,
+                                              visualDensity: VisualDensity.compact,
+                                              onChanged: (bool? value) {
+                                                setState(() {
+                                                  if (value == true) {
+                                                    _selectedFutureRounds.add(round);
+                                                  } else {
+                                                    _selectedFutureRounds.remove(round);
+                                                  }
+                                                  _updateValues();
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         
@@ -569,7 +725,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   }
   
   bool _canProposeTrade() {
-    return _selectedUserPicks.isNotEmpty && _selectedTargetPicks.isNotEmpty;
+    return (_selectedUserPicks.isNotEmpty || _selectedFutureRounds.isNotEmpty) && 
+           (_selectedTargetPicks.isNotEmpty || _selectedTargetFutureRounds.isNotEmpty);
   }
   
   void _proposeTrade() {
@@ -583,20 +740,51 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
       futurePicksValue += futurePick.value;
     }
     
-    final package = TradePackage(
-      teamOffering: widget.userTeam,
-      teamReceiving: _targetTeam,
-      picksOffered: _selectedUserPicks,
-      targetPick: _selectedTargetPicks.first,
-      totalValueOffered: _totalOfferedValue,
-      targetPickValue: _targetPickValue,
-      additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
-          _selectedTargetPicks.sublist(1) : [],
-      includesFuturePick: _selectedFutureRounds.isNotEmpty,
-      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-          futurePickDescriptions.join(", ") : null,
-      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-    );
+    // Create the base package
+    TradePackage package;
+    
+    // Check if we need to handle pure future picks trade
+    if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
+      // Create a virtual draft pick for the first future round
+      final firstRound = _selectedTargetFutureRounds.first;
+      final futurePick = FuturePick.forRound(_targetTeam, firstRound);
+      
+      // Create a dummy DraftPick for the future pick
+      final dummyPick = DraftPick(
+        pickNumber: 1000 + firstRound, // Use a high number that won't conflict
+        teamName: _targetTeam,
+        round: firstRound.toString(),
+      );
+      
+      package = TradePackage(
+        teamOffering: widget.userTeam,
+        teamReceiving: _targetTeam,
+        picksOffered: _selectedUserPicks,
+        targetPick: dummyPick,
+        totalValueOffered: _totalOfferedValue,
+        targetPickValue: _targetPickValue,
+        includesFuturePick: _selectedFutureRounds.isNotEmpty,
+        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+            futurePickDescriptions.join(", ") : null,
+        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      );
+    } else {
+      // Normal trade with current year picks
+      package = TradePackage(
+        teamOffering: widget.userTeam,
+        teamReceiving: _targetTeam,
+        picksOffered: _selectedUserPicks,
+        targetPick: _selectedTargetPicks.first,
+        totalValueOffered: _totalOfferedValue,
+        targetPickValue: _targetPickValue,
+        additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
+            _selectedTargetPicks.sublist(1) : [],
+        includesFuturePick: _selectedFutureRounds.isNotEmpty,
+        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+            futurePickDescriptions.join(", ") : null,
+        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      );
+    }
     
     widget.onPropose(package);
   }
@@ -630,14 +818,5 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     if (round == 2) return "2nd";
     if (round == 3) return "3rd";
     return "${round}th";
-  }
-
-  double _calculateFuturePicksValue() {
-    double value = 0;
-    for (var round in _selectedFutureRounds) {
-      final futurePick = FuturePick.forRound(widget.userTeam, round);
-      value += futurePick.value;
-    }
-    return value;
   }
 }
