@@ -39,6 +39,11 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   @override
   void initState() {
     super.initState();
+    debugPrint("Testing direct pick values:");
+    debugPrint("Pick #1: ${DraftValueService.getValueForPick(1)}");
+    debugPrint("Pick #9: ${DraftValueService.getValueForPick(9)}");
+    debugPrint("Pick #75: ${DraftValueService.getValueForPick(75)}");
+
     if (widget.targetPicks.isNotEmpty) {
       _targetTeam = widget.targetPicks.first.teamName;
       // Don't auto-select any picks by default
@@ -164,6 +169,9 @@ Widget build(BuildContext context) {
                       final pick = teamPicks[index];
                       final isSelected = _selectedTargetPicks.contains(pick);
                       
+                      double pickValue = DraftValueService.getValueForPick(pick.pickNumber);
+                      debugPrint("UI Rendering - Pick #${pick.pickNumber}: $pickValue points");
+
                       return Card(
                         color: isSelected ? Colors.blue.shade100 : null,
                         child: CheckboxListTile(
