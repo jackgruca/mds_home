@@ -1,4 +1,6 @@
 // lib/services/data_service.dart
+import 'dart:math';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
@@ -28,20 +30,37 @@ class DataService {
 
   /// Load and parse the draft order CSV
   static Future<List<DraftPick>> loadDraftOrder() async {
-    try {
-      final data = await rootBundle.loadString('assets/draft_order.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-      
-      // Skip the header row (index 0)
-      return csvTable
-          .skip(1)
-          .map((row) => DraftPick.fromCsvRow(row))
-          .toList();
-    } catch (e) {
-      debugPrint("Error loading draft order: $e");
-      return [];
+  try {
+    final data = await rootBundle.loadString('assets/draft_order.csv');
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    
+    // Debug the first few rows
+    debugPrint("Draft order CSV - first 5 rows:");
+    for (int i = 0; i < min(5, csvTable.length); i++) {
+      debugPrint("Row $i: ${csvTable[i]}");
     }
+    
+    // Skip the header row (index 0)
+    List<DraftPick> picks = csvTable
+        .skip(1)
+        .map((row) {
+          int pickNum = int.tryParse(row[0].toString()) ?? 0;
+          debugPrint("Creating pick #$pickNum with team ${row[1]}");
+          return DraftPick.fromCsvRow(row);
+        })
+        .toList();
+    
+    // Debug the first few processed picks
+    for (int i = 0; i < min(5, picks.length); i++) {
+      debugPrint("Processed Pick #${picks[i].pickNumber}: ${picks[i].teamName}");
+    }
+    
+    return picks;
+  } catch (e) {
+    debugPrint("Error loading draft order: $e");
+    return [];
   }
+}
 
   /// Load and parse the team needs CSV
   static Future<List<TeamNeed>> loadTeamNeeds() async {

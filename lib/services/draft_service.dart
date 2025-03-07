@@ -1,4 +1,4 @@
-// lib/services/draft_service.dart - Updated with trade integration
+// lib/services/draft_service.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 
@@ -30,10 +30,38 @@ class DraftService {
   String _statusMessage = "";
   int _currentPick = 0;
   final List<TradePackage> _executedTrades = [];
-  final Set<String> _executedTradeIds = {}; // Add this line right here
+  final Set<String> _executedTradeIds = {}; 
   
   // Random instance for introducing randomness
   final Random _random = Random();
+
+  // In draft_service.dart, add:
+  final Map<int, List<TradePackage>> _pendingUserOffers = {};
+
+  // Add method to generate offers for user picks
+  void generateUserPickOffers() {
+    // Find all user picks
+    final userPicks = draftOrder.where((pick) => 
+      pick.teamName == userTeam && !pick.isSelected
+    ).toList();
+    
+    // Generate offers for each pick
+    for (var pick in userPicks) {
+      TradeOffer offers = _tradeService.generateTradeOffersForPick(pick.pickNumber);
+      if (offers.packages.isNotEmpty) {
+        _pendingUserOffers[pick.pickNumber] = offers.packages;
+      }
+    }
+  }
+
+  // Check if there are offers for a specific pick
+  bool hasOffersForPick(int pickNumber) {
+    return _pendingUserOffers.containsKey(pickNumber) && 
+          _pendingUserOffers[pickNumber]!.isNotEmpty;
+  }
+
+  // Get all pending offers
+  Map<int, List<TradePackage>> get pendingUserOffers => _pendingUserOffers;
   
   DraftService({
     required this.availablePlayers,
@@ -76,7 +104,7 @@ class DraftService {
       return nextPick; // Return without making a selection
     }
     
-    // Evaluate potential trades
+    // Evaluate potential trades using realistic behavior
     TradePackage? executedTrade = _evaluateTrades(nextPick);
     
     // If a trade was executed, return the updated pick
@@ -109,15 +137,29 @@ class DraftService {
     return nextPick;
   }
   
-  /// Evaluate potential trades for the current pick
+  /// Evaluate potential trades for the current pick with realistic behavior
   TradePackage? _evaluateTrades(DraftPick nextPick) {
     // Skip trade evaluation if user team or if the pick already has trade info
     if (nextPick.teamName == userTeam || (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty)) {
       return null;
     }
     
-    // First round QB-specific trade evaluation
-    if (nextPick.pickNumber <= 32) {
+    // Generate trade offers for this pick
+    // For QB-specific trades, check available QBs first
+    final availableQBs = availablePlayers
+        .where((p) => p.position == "QB" && p.rank <= 20)
+        .toList();
+    
+    // Higher probability for QB trades when top QBs are available early
+    bool tryQBTrade = false;
+    if (nextPick.pickNumber <= 15 && availableQBs.isNotEmpty) {
+      // Check if any team has QB as a top need
+      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
+      double qbTradeProb = topQBAvailable ? 0.7 : 0.4;
+      tryQBTrade = _random.nextDouble() < qbTradeProb;
+    }
+    
+    if (tryQBTrade) {
       final qbTradeOffer = _tradeService.generateTradeOffersForPick(
         nextPick.pickNumber, 
         qbSpecific: true
@@ -125,7 +167,7 @@ class DraftService {
       
       if (qbTradeOffer.hasFairTrades) {
         final bestPackage = qbTradeOffer.bestPackage;
-        if (bestPackage != null && _shouldAcceptTrade(bestPackage, isQBTrade: true)) {
+        if (bestPackage != null && _shouldAcceptTradeRealistic(bestPackage, isQBTrade: true)) {
           _qbTrade = true;
           _executeTrade(bestPackage);
           return bestPackage;
@@ -133,21 +175,31 @@ class DraftService {
       }
     }
     
-    // General trade evaluations - evaluate up to 3 times with different thresholds
-    for (int attempt = 1; attempt <= 3; attempt++) {
-      // Each attempt has stricter value requirements
-      final valueMultiplier = attempt > 1 ? 1.0 + (attempt - 1) * 0.5 : 1.0;
+    // Regular trade evaluations
+    final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+    
+    if (tradeOffer.hasFairTrades) {
+      // Sort packages by value differential
+      List<TradePackage> sortedPackages = List.from(tradeOffer.packages);
+      sortedPackages.sort((a, b) => 
+        b.valueDifferential.compareTo(a.valueDifferential)
+      );
       
-      // Generate trade offers
-      final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
-      
-      if (tradeOffer.hasFairTrades) {
-        final bestPackage = tradeOffer.bestPackage;
-        if (bestPackage != null && 
-            bestPackage.totalValueOffered >= bestPackage.targetPickValue * valueMultiplier &&
-            _shouldAcceptTrade(bestPackage)) {
+      // Try best package first
+      if (sortedPackages.isNotEmpty) {
+        final bestPackage = sortedPackages.first;
+        if (_shouldAcceptTradeRealistic(bestPackage)) {
           _executeTrade(bestPackage);
           return bestPackage;
+        }
+        
+        // Try second package if available
+        if (sortedPackages.length > 1) {
+          final secondPackage = sortedPackages[1];
+          if (_shouldAcceptTradeRealistic(secondPackage, secondChoice: true)) {
+            _executeTrade(secondPackage);
+            return secondPackage;
+          }
         }
       }
     }
@@ -155,68 +207,246 @@ class DraftService {
     return null;
   }
   
-  /// Execute a trade by swapping teams for picks
-  // In _executeTrade method in draft_service.dart
-void _executeTrade(TradePackage package) {
-  // Add these lines:
-  String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
-  if (_executedTradeIds.contains(tradeId)) {
-    return; // Skip if already processed
-  }
-  _executedTradeIds.add(tradeId);
-  
-  final teamReceiving = package.teamReceiving;
-  final teamOffering = package.teamOffering;
-  
-  // Update the target pick to belong to the offering team
-  for (var pick in draftOrder) {
-    if (pick.pickNumber == package.targetPick.pickNumber) {
-      pick.teamName = teamOffering; // Now works with updated model
-      pick.tradeInfo = "From $teamReceiving";
-      break;
+  /// Determine if a trade should be accepted using realistic criteria
+  bool _shouldAcceptTradeRealistic(TradePackage package, {bool isQBTrade = false, bool secondChoice = false}) {
+    // Core decision factors
+    final valueRatio = package.totalValueOffered / package.targetPickValue;
+    final pickNumber = package.targetPick.pickNumber;
+    
+    // 1. Consider value - foundation of any trade decision
+    double acceptanceProbability;
+    
+    if (valueRatio >= 1.2) {
+      // Excellent value (20%+ surplus)
+      acceptanceProbability = 0.85;
+    } else if (valueRatio >= 1.1) {
+      // Good value (10-20% surplus)
+      acceptanceProbability = 0.7;
+    } else if (valueRatio >= 1.0) {
+      // Fair value (0-10% surplus)
+      acceptanceProbability = 0.55;
+    } else if (valueRatio >= 0.9) {
+      // Slightly below value (0-10% below)
+      acceptanceProbability = 0.3;
+    } else {
+      // Poor value (>10% below)
+      acceptanceProbability = 0.1;
     }
+    
+    // 2. Consider pick position - early picks carry premium
+    if (pickNumber <= 5) {
+      acceptanceProbability -= 0.2; // Top 5 picks have premium value
+    } else if (pickNumber <= 10) {
+      acceptanceProbability -= 0.15; // Top 10 picks have significant premium
+    } else if (pickNumber <= 32) {
+      acceptanceProbability -= 0.1; // 1st round picks have moderate premium
+    } else if (pickNumber <= 64) {
+      acceptanceProbability -= 0.05; // 2nd round picks have slight premium
+    }
+    
+    // 3. Consider player availability - don't trade if great player available
+    final teamNeed = _getTeamNeed(package.teamReceiving);
+    if (teamNeed != null) {
+      // Check top 3 available players to see if they match team needs
+      final topPlayers = availablePlayers.take(3).toList();
+      
+      bool topNeedPlayerAvailable = false;
+      for (var player in topPlayers) {
+        if (teamNeed.needs.take(2).contains(player.position)) {
+          topNeedPlayerAvailable = true;
+          break;
+        }
+      }
+      
+      if (topNeedPlayerAvailable) {
+        acceptanceProbability -= 0.2; // Less likely to trade with top need player available
+      }
+    }
+    
+    // 4. Consider package composition
+    // Teams often prefer specific package types
+    
+    // Prefer packages with future picks in early rounds
+    if (package.includesFuturePick && pickNumber <= 32) {
+      acceptanceProbability += 0.1;
+    }
+    
+    // Prefer packages with multiple picks for rebuilding teams
+    bool isRebuildingTeam = false;
+    if (teamNeed != null) {
+      // Rough proxy for rebuilding - multiple high needs
+      isRebuildingTeam = teamNeed.needs.length >= 5;
+    }
+    
+    if (isRebuildingTeam && package.picksOffered.length > 1) {
+      acceptanceProbability += 0.15;
+    }
+    
+    // 5. QB-specific adjustments
+    if (isQBTrade) {
+      acceptanceProbability += 0.15; // Teams more willing to trade when QBs involved
+    }
+    
+    // 6. Adjust for second-choice packages
+    if (secondChoice) {
+      acceptanceProbability -= 0.1;
+    }
+    
+    // 7. Add randomness for team-specific preferences
+    final randomFactor = _random.nextDouble() * randomnessFactor - (randomnessFactor / 2);
+    acceptanceProbability += randomFactor;
+    
+    // Ensure probability is within 0-1 range
+    acceptanceProbability = min(0.95, max(0.05, acceptanceProbability));
+    
+    // Make final decision
+    return _random.nextDouble() < acceptanceProbability;
   }
   
-  // Update any additional target picks
-  for (var additionalPick in package.additionalTargetPicks) {
+  /// Execute a trade by swapping teams for picks
+  void _executeTrade(TradePackage package) {
+    // Add these lines:
+    String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
+    if (_executedTradeIds.contains(tradeId)) {
+      return; // Skip if already processed
+    }
+    _executedTradeIds.add(tradeId);
+    
+    final teamReceiving = package.teamReceiving;
+    final teamOffering = package.teamOffering;
+    
+    // Update the target pick to belong to the offering team
     for (var pick in draftOrder) {
-      if (pick.pickNumber == additionalPick.pickNumber) {
-        pick.teamName = teamOffering;
+      if (pick.pickNumber == package.targetPick.pickNumber) {
+        pick.teamName = teamOffering; // Now works with updated model
         pick.tradeInfo = "From $teamReceiving";
         break;
       }
     }
-  }
-  
-  // Update the offered picks to belong to the receiving team
-  for (var offeredPick in package.picksOffered) {
-    for (var pick in draftOrder) {
-      if (pick.pickNumber == offeredPick.pickNumber) {
-        pick.teamName = teamReceiving; // Now works with updated model
-        pick.tradeInfo = "From $teamOffering";
-        break;
+    
+    // Update any additional target picks
+    for (var additionalPick in package.additionalTargetPicks) {
+      for (var pick in draftOrder) {
+        if (pick.pickNumber == additionalPick.pickNumber) {
+          pick.teamName = teamOffering;
+          pick.tradeInfo = "From $teamReceiving";
+          break;
+        }
       }
     }
-  }
-  
-  _executedTrades.add(package);
-}
-  
-  /// Determine if a trade should be accepted
-  bool _shouldAcceptTrade(TradePackage package, {bool isQBTrade = false}) {
-    // Random factor for variability
-    final randomTradeChance = _random.nextDouble(); 
     
-    // QBs get higher acceptance rate
-    if (isQBTrade && randomTradeChance > 0.5) {
-      return true;
+    // Update the offered picks to belong to the receiving team
+    for (var offeredPick in package.picksOffered) {
+      for (var pick in draftOrder) {
+        if (pick.pickNumber == offeredPick.pickNumber) {
+          pick.teamName = teamReceiving; // Now works with updated model
+          pick.tradeInfo = "From $teamOffering";
+          break;
+        }
+      }
     }
     
-    // General trade acceptance
-    return _tradeService.shouldAcceptTrade(package) && randomTradeChance > 0.5;
+    _executedTrades.add(package);
   }
   
-  /// Get the next available pick in the draft order
+  /// Get a realistic rejection reason if trade is declined
+  String? getTradeRejectionReason(TradePackage proposal) {
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    final teamNeed = teamNeeds.firstWhere(
+      (need) => need.teamName == proposal.teamReceiving,
+      orElse: () => TeamNeed(teamName: proposal.teamReceiving, needs: []),
+    );
+    
+    // 1. Value-based rejections
+    if (valueRatio < 0.85) {
+      final options = [
+        "The offer doesn't provide sufficient draft value.",
+        "We need more compensation to move down from this position.",
+        "That offer falls well short of our valuation of this pick.",
+        "We're looking for significantly more value to make this move.",
+        "Our draft models show this proposal undervalues our pick considerably."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 2. Slightly below market value
+    else if (valueRatio < 0.95) {
+      final options = [
+        "We're close, but we need a bit more value to make this deal work.",
+        "The offer is slightly below what we're looking for.",
+        "We'd need a little more compensation to justify moving back.",
+        "Interesting offer, but not quite enough value for us.",
+        "Our analytics team is looking for a slightly better return."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 3. Need-based rejections (when value is fair but team has needs)
+    else if (teamNeed.needs.isNotEmpty) {
+      // Check if there are players available that match team needs
+      final topPlayers = availablePlayers.take(5).toList();
+      bool hasNeedMatch = false;
+      
+      for (var player in topPlayers) {
+        if (teamNeed.needs.take(3).contains(player.position)) {
+          hasNeedMatch = true;
+          break;
+        }
+      }
+      
+      if (hasNeedMatch) {
+        final options = [
+          "We have our eye on a specific player at this position.",
+          "We believe we can address a key roster need with this selection.",
+          "Our scouts are high on a player that should be available here.",
+          "We have immediate needs that we're planning to address with this pick.",
+          "Our draft board has fallen favorably, and we're targeting a player at this spot."
+        ];
+        return options[_random.nextInt(options.length)];
+      }
+    }
+    
+    // 4. Position-specific concerns
+    final pickNumber = proposal.targetPick.pickNumber;
+    if (pickNumber <= 15) {
+      // Early picks often involve premium positions
+      final premiumPositionOptions = [
+        "We're targeting a blue-chip talent at a premium position with this pick.",
+        "Our front office values the opportunity to select a game-changing player here.",
+        "We believe there's a franchise cornerstone available at this position.",
+        "Our draft strategy is built around making this selection."
+      ];
+      return premiumPositionOptions[_random.nextInt(premiumPositionOptions.length)];
+    }
+    
+    // 5. Future pick preferences (when teams want current picks)
+    else if (proposal.includesFuturePick) {
+      final options = [
+        "We're focused on building our roster now rather than acquiring future assets.",
+        "We prefer more immediate draft capital over future picks.",
+        "Our preference is for picks in this year's draft.",
+        "We're not looking to add future draft capital at this time.",
+        "Our team is in win-now mode and we need immediate contributors."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 6. Generic rejections for when value is fair but team still declines
+    else {
+      final options = [
+        "After careful consideration, we've decided to stay put and make our selection.",
+        "We've received several offers and are going in a different direction.",
+        "We're comfortable with our draft position and plan to make our pick.",
+        "Our draft board has fallen favorably, so we're keeping the pick.",
+        "We don't see enough value in moving back from this position.",
+        "The timing isn't right for us on this deal.",
+        "We've decided to pass on this opportunity."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+  }
+  
+  /// Get the next pick in the draft order
   DraftPick? _getNextPick() {
     for (var pick in draftOrder) {
       if (!pick.isSelected) {
@@ -240,7 +470,7 @@ void _executeTrade(TradePackage package) {
   Player _selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     // If team has no needs defined, use best player available
     if (teamNeed == null || teamNeed.needs.isEmpty) {
-      return _selectBestPlayerWithRandomness(availablePlayers);
+      return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
     }
     
     // Following your R code pattern for selections
@@ -268,7 +498,7 @@ void _executeTrade(TradePackage package) {
     
     // If no candidates found through needs, use best player available
     if (selectionCandidates.isEmpty) {
-      return _selectBestPlayerAvailable();
+      return _selectBestPlayerAvailable(nextPick.pickNumber);
     }
     
     // Initialize with the first selection (need1)
@@ -314,7 +544,7 @@ void _executeTrade(TradePackage package) {
     
     // If no selection made, use best player available that matches any team need
     if (prevCondition && selectionCandidates.length == needsToConsider) {
-      return _selectBestPlayerForPosition(teamNeed.needs);
+      return _selectBestPlayerForPosition(teamNeed.needs, nextPick.pickNumber);
     }
     
     return bestSelection;
@@ -353,33 +583,59 @@ void _executeTrade(TradePackage package) {
     return candidatesForPosition[selectIndex];
   }
   
-  /// Select the best player available from all available players
-  Player _selectBestPlayerAvailable() {
-    // Random selection with bias toward top players
+ /// Select the best player available with consideration for pick position
+Player _selectBestPlayerAvailable(int pickNumber) {
+  // For top picks, be more consistent
+  if (pickNumber <= 5) {
     double randSelect = _random.nextDouble();
-    int selectIndex;
     
-    if (randSelect <= 0.75) {
-      selectIndex = 0; // 75% chance for top player
-    } else if (randSelect > 0.75 && randSelect <= 0.95) {
-      selectIndex = min(1, availablePlayers.length - 1); // 20% for second
-    } else {
-      selectIndex = min(2, availablePlayers.length - 1); // 5% for third
+    // For picks 1-3, almost always pick the top player (90%)
+    if (pickNumber <= 3) {
+      if (randSelect <= 0.9) {
+        return availablePlayers.first;
+      } else if (randSelect <= 0.98) {
+        return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
+      } else {
+        return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
+      }
     }
-    
-    return availablePlayers[selectIndex];
+    // For picks 4-5, usually pick top 2 players (80%)
+    else {
+      if (randSelect <= 0.8) {
+        return availablePlayers.first;
+      } else if (randSelect <= 0.95) {
+        return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
+      } else {
+        return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
+      }
+    }
   }
   
+  // Regular random selection with bias toward top players for picks 6+
+  double randSelect = _random.nextDouble();
+  int selectIndex;
+  
+  if (randSelect <= 0.75) {
+    selectIndex = 0; // 75% chance for top player
+  } else if (randSelect > 0.75 && randSelect <= 0.95) {
+    selectIndex = min(1, availablePlayers.length - 1); // 20% for second
+  } else {
+    selectIndex = min(2, availablePlayers.length - 1); // 5% for third
+  }
+  
+  return availablePlayers[selectIndex];
+}
+  
   /// Select best player that matches any of the given positions
-  Player _selectBestPlayerForPosition(List<String> positions) {
+  Player _selectBestPlayerForPosition(List<String> positions, int pickNumber) {
     // Filter players by any matching position
     List<Player> candidatesForPositions = availablePlayers
-        .where((player) => positions.contains(player.position))
-        .toList();
-    
+      .where((player) => positions.contains(player.position))
+      .toList();
+  
     // If no matches, fall back to best overall
     if (candidatesForPositions.isEmpty) {
-      return _selectBestPlayerAvailable();
+      return _selectBestPlayerAvailable(pickNumber);
     }
     
     // Sort by rank
@@ -400,8 +656,8 @@ void _executeTrade(TradePackage package) {
     return candidatesForPositions[selectIndex];
   }
   
-  /// Select the best player with some randomness factor applied
-  Player _selectBestPlayerWithRandomness(List<Player> players) {
+  /// Select the best player with appropriate randomness factor for draft position
+  Player _selectBestPlayerWithRandomness(List<Player> players, int pickNumber) {
     if (players.isEmpty) {
       throw Exception('No players available for selection');
     }
@@ -414,28 +670,46 @@ void _executeTrade(TradePackage package) {
       return players.first;
     }
     
+    // Adjust randomness based on pick position
+    // Top 5 picks should be much more predictable
+    double effectiveRandomness = randomnessFactor;
+    if (pickNumber <= 3) {
+      // First 3 picks are highly predictable (80% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.2;
+    } else if (pickNumber <= 5) {
+      // Picks 4-5 are very predictable (70% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.3;
+    } else if (pickNumber <= 10) {
+      // Picks 6-10 are fairly predictable (50% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.5;
+    } else if (pickNumber <= 32) {
+      // First round has slightly reduced randomness (25% reduction)
+      effectiveRandomness = randomnessFactor * 0.75;
+    }
+    
     // Calculate how many players to consider in the pool
-    // More randomness = larger pool of players that could be selected
-    int poolSize = max(1, (players.length * randomnessFactor).round());
+    // Less randomness = smaller pool of players that could be selected
+    int poolSize = max(1, (players.length * effectiveRandomness).round());
     poolSize = min(poolSize, players.length); // Don't exceed list length
+    
+    // For top 3 picks, further restrict the pool size
+    if (pickNumber <= 3) {
+      poolSize = min(2, poolSize); // At most consider top 2 players
+    }
     
     // Select a random player from the top poolSize players
     int randomIndex = _random.nextInt(poolSize);
     return players[randomIndex];
   }
-  
-  // Randomization helper functions from your R code
-  double _getRandomAddValue() {
-    return _random.nextDouble() * 10 - 4; // Range from -4 to 6
-  }
-  
-  double _getRandomMultValue() {
-    return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
-  }
-  
-  double _getRandomTradeValue() {
-    return _random.nextDouble(); // Range from 0 to 1
-  }
+    
+    // Randomization helper functions from your R code
+    double _getRandomAddValue() {
+      return _random.nextDouble() * 10 - 4; // Range from -4 to 6
+    }
+    
+    double _getRandomMultValue() {
+      return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
+    }
   
   // Getters for state information
   String get statusMessage => _statusMessage;
@@ -479,16 +753,10 @@ void _executeTrade(TradePackage package) {
     ).toList();
   }
 
-  /// Process a user-proposed trade
+  /// Process a user-proposed trade with realistic acceptance criteria
   bool processUserTradeProposal(TradePackage proposal) {
-    // Calculate probability of accepting based on value
-    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
-    
-    // Random factor for team preferences
-    double randomFactor = _random.nextDouble() * 0.2;
-    
-    // Base probability on value and random factor
-    bool shouldAccept = valueRatio >= 0.95 - randomFactor;
+    // Use realistic trade acceptance logic
+    final shouldAccept = _shouldAcceptTradeRealistic(proposal);
     
     // Execute the trade if accepted
     if (shouldAccept) {
@@ -497,18 +765,5 @@ void _executeTrade(TradePackage package) {
     }
     
     return shouldAccept;
-  }
-
-  /// Get a rejection reason if trade is declined
-  String? getTradeRejectionReason(TradePackage proposal) {
-    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
-    
-    if (valueRatio < 0.8) {
-      return "The offer doesn't provide enough value.";
-    } else if (valueRatio < 0.95) {
-      return "The offer is close, but not quite enough value.";
-    } else {
-      return "Team has other plans for this pick.";
-    }
   }
 }

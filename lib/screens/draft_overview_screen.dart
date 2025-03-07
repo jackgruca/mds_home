@@ -11,12 +11,14 @@ import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
 import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
+import '../widgets/trade/user_trade_tabs_dialog.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
 import 'available_players_tab.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
+import 'team_selection_screen.dart';
 import '../widgets/draft/draft_control_buttons.dart';
 
 class DraftApp extends StatefulWidget {
@@ -267,16 +269,14 @@ void _initiateUserTradeProposal() {
     return;
   }
   
+  // Generate offers for user picks if needed
+  _draftService!.generateUserPickOffers();
+  
   // Get user's available picks
   final userPicks = _draftService!.getTeamPicks(widget.selectedTeam!);
-  debugPrint("User picks found: ${userPicks.length}");
-  for (var pick in userPicks) {
-    debugPrint("User pick: #${pick.pickNumber}, Team: ${pick.teamName}");
-  }
   
   // Get other teams' available picks
   final otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeam!);
-  debugPrint("Other team picks found: ${otherTeamPicks.length}");
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -288,15 +288,28 @@ void _initiateUserTradeProposal() {
     return;
   }
   
-  // Show trade proposal dialog
+  // Show trade tabs dialog
   showDialog(
     context: context,
-    builder: (context) => UserTradeProposalDialog(
+    builder: (context) => UserTradeTabsDialog(
       userTeam: widget.selectedTeam!,
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
+      pendingOffers: _draftService!.pendingUserOffers,
+      onAcceptOffer: (offer) {
+        Navigator.pop(context); // Close dialog
+        
+        // Execute the trade
+        _draftService!.executeUserSelectedTrade(offer);
+        
+        setState(() {
+          _executedTrades = _draftService!.executedTrades;
+          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
+        });
+      },
       onPropose: (proposal) {
-        Navigator.pop(context); // Close proposal dialog
+        Navigator.pop(context); // Close dialog
         
         // Process the proposal
         final accepted = _draftService!.processUserTradeProposal(proposal);
@@ -504,12 +517,13 @@ void _initiateUserTradeProposal() {
   }
 
   void _restartDraft() {
-    setState(() {
-      _isDraftRunning = false;
-    });
-    
-    // Reload data to reset the draft
-    _loadData();
+  // Navigate back to team selection screen instead of reloading data
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TeamSelectionScreen(),
+      ),
+    );
   }
 
   // Find this method in draft_overview_screen.dart and replace it
@@ -545,6 +559,14 @@ void _initiateUserTradeProposal() {
           ),
         ),
       );
+    }
+
+     bool hasTradeOffers = false;
+      if (_draftService != null && widget.selectedTeam != null) {
+        DraftPick? nextPick = _draftService!.getNextPick();
+        if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+          hasTradeOffers = _draftService!.hasOffersForPick(nextPick.pickNumber);
+        }
     }
 
     return Scaffold(
@@ -647,6 +669,7 @@ void _initiateUserTradeProposal() {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
         isDraftRunning: _isDraftRunning,
+        hasTradeOffers: hasTradeOffers,  // Pass this value
         onToggleDraft: _toggleDraft,
         onRestartDraft: _restartDraft,
         onRequestTrade: _requestTrade,

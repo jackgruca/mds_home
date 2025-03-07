@@ -189,8 +189,6 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       ),
     );
   }
-
-  // Trade details dialog
   Widget _buildTradeDetailsDialog(List<dynamic> draftRow) {
     // Extract trade info
     String tradeInfo = draftRow[5].toString();
@@ -199,22 +197,29 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
     
     // Parse trade info (assuming format like "From TEAM")
     String otherTeam = "Unknown Team";
-    String receivedAssets = "Unknown Assets";
-
+    
     if (tradeInfo.startsWith("From ")) {
       otherTeam = tradeInfo.substring(5);
-      receivedAssets = "Pick #$pickNum";
-
-      List<String> receivedPicks = [];
-      for (var row in widget.draftOrder.skip(1)) {
-        if (row[5].toString().contains("From $team")) {
-          receivedPicks.add("Pick #${row[0]}");
+    }
+    
+    // Track the assets each team received
+    String teamReceived = 'Pick #$pickNum';
+    String otherTeamReceived = '';
+    
+    // Find all picks traded to the other team
+    for (var row in widget.draftOrder.skip(1)) {
+      if (row[5].toString().contains("From $team")) {
+        if (otherTeamReceived.isEmpty) {
+          otherTeamReceived = 'Pick #${row[0]}';
+        } else {
+          otherTeamReceived += ', Pick #${row[0]}';
         }
       }
-      
-      if (receivedPicks.isNotEmpty) {
-        receivedAssets = receivedPicks.join(", ");
-      }
+    }
+    
+    // If we couldn't find any, use a fallback message
+    if (otherTeamReceived.isEmpty) {
+      otherTeamReceived = "Unknown picks";
     }
     
     return AlertDialog(
@@ -248,7 +253,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
-                            'Pick #$pickNum',
+                            teamReceived,
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -284,7 +289,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
-                            tradeInfo,
+                            otherTeamReceived,
                             textAlign: TextAlign.center,
                           ),
                         ),
