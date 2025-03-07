@@ -13,6 +13,7 @@ class TradePackage {
   final bool includesFuturePick;
   final String? futurePickDescription;
   final double? futurePickValue;
+  final List<String>? targetReceivedFuturePicks; // Added field for future picks received by target team
 
   const TradePackage({
     required this.teamOffering,
@@ -25,6 +26,7 @@ class TradePackage {
     this.includesFuturePick = false,
     this.futurePickDescription,
     this.futurePickValue,
+    this.targetReceivedFuturePicks, // Initialize the new field
   });
 
   /// Calculate the value differential between offer and target
@@ -45,7 +47,11 @@ class TradePackage {
         .map((p) => "Pick #${p.pickNumber}")
         .join(", ");
     
-    return "$teamOffering receives: $targetDescription\n"
+    final targetFutureText = targetReceivedFuturePicks != null && targetReceivedFuturePicks!.isNotEmpty
+        ? " + ${targetReceivedFuturePicks!.join(", ")}"
+        : "";
+    
+    return "$teamOffering receives: $targetDescription$targetFutureText\n"
            "$teamReceiving receives: $offerDescription$futureText";
   }
 
@@ -58,4 +64,3 @@ class TradePackage {
            "Difference: ${valueFormat(valueDifferential)} points";
   }
 }
-

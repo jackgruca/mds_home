@@ -31,6 +31,10 @@ class DraftService {
   int _currentPick = 0;
   final List<TradePackage> _executedTrades = [];
   final Set<String> _executedTradeIds = {}; 
+
+  final bool enableTrading;
+  final bool enableUserTradeProposals;
+  final bool enableQBPremium;
   
   // Random instance for introducing randomness
   final Random _random = Random();
@@ -69,7 +73,10 @@ class DraftService {
     required this.teamNeeds,
     this.randomnessFactor = 0.5,
     this.userTeam,
-    this.numberRounds = 1,
+    this.numberRounds = 1, 
+    this.enableTrading = true,
+    this.enableUserTradeProposals = true,
+    this.enableQBPremium = true,
   }) {
     // Sort players by rank initially
     availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));

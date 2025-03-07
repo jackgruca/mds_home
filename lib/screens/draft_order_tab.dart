@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/draft_pick.dart';
+import '../models/player.dart';
+import '../widgets/draft/animated_draft_pick_card.dart';
 
 class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> draftOrder;
@@ -33,6 +36,61 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
     super.dispose();
   }
 
+  Widget _buildDraftOrderCards() {
+  List<List<dynamic>> filteredDraftOrder = widget.draftOrder
+      .skip(1)
+      .where((row) =>
+          _searchQuery.isEmpty ||
+          row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
+      .toList();
+      
+  // Convert dynamic rows to DraftPick objects
+  List<DraftPick> draftPicks = [];
+    for (var row in filteredDraftOrder) {
+      final pickNumber = int.tryParse(row[0].toString()) ?? 0;
+      final teamName = row[1].toString();
+      final selection = row[2].toString();
+      final position = row[3].toString();
+      final round = row[4].toString();
+      final tradeInfo = row[5].toString();
+      
+      // Create a basic DraftPick
+      final draftPick = DraftPick(
+        pickNumber: pickNumber,
+        teamName: teamName,
+        round: round,
+        tradeInfo: tradeInfo.isEmpty ? null : tradeInfo,
+      );
+      
+      // Add selected player if there is one
+      if (selection.isNotEmpty) {
+        draftPick.selectedPlayer = Player(
+          id: pickNumber, // Using pick number as ID for simplicity
+          name: selection,
+          position: position,
+          rank: pickNumber, // Default to pick number as rank if you don't have the actual rank
+        );
+      }
+      
+      draftPicks.add(draftPick);
+    }
+
+  return ListView.builder(
+    controller: _scrollController,
+    itemCount: draftPicks.length,
+    itemBuilder: (context, index) {
+      final isUserTeam = draftPicks[index].teamName == widget.userTeam;
+      final isRecentPick = index < 3; // Consider the first 3 picks as "recent"
+      
+      return AnimatedDraftPickCard(
+        draftPick: draftPicks[index],
+        isUserTeam: isUserTeam,
+        isRecentPick: isRecentPick,
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     List<List<dynamic>> filteredDraftOrder = widget.draftOrder
@@ -63,127 +121,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
 
           // Draft Order Table
           Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollController, // Use the getter
-              scrollDirection: Axis.vertical,
-              child: Table(
-                border: TableBorder.all(color: Colors.grey),
-                columnWidths: const {
-                  0: FlexColumnWidth(1), // Pick Number
-                  1: FlexColumnWidth(3), // Team
-                  2: FlexColumnWidth(4), // Selection
-                  3: FlexColumnWidth(2), // Trade Info
-                },
-                children: [
-                  // 🏆 Styled Header Row
-                  TableRow(
-                    decoration: BoxDecoration(color: Colors.blueGrey[100]),
-                    children: const [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text("Pick", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text("Team", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text("Selection", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text("Trade", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      ),
-                    ],
-                  ),
-
-                  // 🏈 Draft Order Rows
-                  for (var i = 0; i < filteredDraftOrder.length; i++)
-                    TableRow(
-                      decoration: BoxDecoration(
-                        color: filteredDraftOrder[i][1].toString() == widget.userTeam
-                            ? Colors.blue.shade100  // Highlight user team
-                            : (i.isEven ? Colors.white : Colors.grey[200]),
-                      ),
-                      children: [
-                        // Pick number
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(filteredDraftOrder[i][0].toString(), style: const TextStyle(fontSize: 14)),
-                        ),
-                        
-                        // Team column with logo
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36, // 50% larger
-                                height: 36, // 50% larger
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: NetworkImage(
-                                      'https://a.espncdn.com/i/teamlogos/nfl/500/${filteredDraftOrder[i][1].toString().toLowerCase()}.png',
-                                    ),
-                                    fit: BoxFit.contain,
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                filteredDraftOrder[i][1].toString(),
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        // Selection with player name and position
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: filteredDraftOrder[i][2].toString().isEmpty 
-                            ? const Text("—") 
-                            : Row(
-                                children: [
-                                  Text(
-                                    filteredDraftOrder[i][2].toString(),
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "(${filteredDraftOrder[i][3].toString()})",
-                                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                        ),
-                        
-                        // Trade info with icon
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: filteredDraftOrder[i][5].toString().isEmpty 
-                            ? const Text("") // Empty when no trade 
-                            : GestureDetector(
-                                onTap: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => _buildTradeDetailsDialog(filteredDraftOrder[i]),
-                                  );
-                                },
-                                child: const Icon(
-                                  Icons.compare_arrows,
-                                  color: Colors.deepOrange,
-                                  size: 20,
-                                ),
-                              ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
+            child: _buildDraftOrderCards(),
           ),
         ],
       ),

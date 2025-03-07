@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../utils/constants.dart';
 import 'draft_overview_screen.dart';
+import 'draft_settings_screen.dart';
+
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
@@ -16,6 +18,11 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   double _speed = 3.0;
   double _randomness = 0.5;
   String? _selectedTeam;
+
+  final bool _enableTrading = true;
+  final bool _enableUserTradeProposals = true;
+  final bool _enableQBPremium = true;
+  final bool _showAnalytics = true;
 
   // NFL divisions and conferences
   final Map<String, List<String>> _afcDivisions = {
@@ -31,6 +38,35 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     'NFC South': ['Atlanta Falcons', 'Carolina Panthers', 'New Orleans Saints', 'Tampa Bay Buccaneers'],
     'NFC West': ['Arizona Cardinals', 'Los Angeles Rams', 'San Francisco 49ers', 'Seattle Seahawks'],
   };
+
+  void _openDraftSettings() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftSettingsScreen(
+        numberOfRounds: _numberOfRounds,
+        randomnessFactor: _randomness,
+        draftSpeed: _speed,
+        userTeam: _selectedTeam,
+        // Default values for new settings
+        enableTrading: true,
+        enableUserTradeProposals: true,
+        enableQBPremium: true,
+        showAnalytics: true,
+        onSettingsSaved: (settings) {
+          // Update settings when saved
+          setState(() {
+            _numberOfRounds = settings['numberOfRounds'];
+            _randomness = settings['randomnessFactor'];
+            _speed = settings['draftSpeed'];
+            // Store the other settings to be passed to the draft screen
+            // These might require you to update your DraftApp constructor to accept them
+          });
+        },
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +439,29 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 textStyle: const TextStyle(fontSize: 18.0),
               ),
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _startDraft,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Draft'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
+                    textStyle: const TextStyle(fontSize: 18.0),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                OutlinedButton.icon(
+                  onPressed: _openDraftSettings,
+                  icon: const Icon(Icons.settings),
+                  label: const Text('Advanced Settings'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -410,23 +469,28 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   }
 
   void _startDraft() {
-    // Debug what's happening
-    debugPrint("Selected team (full name): $_selectedTeam");
-    String? teamAbbr = _selectedTeam != null 
-        ? NFLTeamMappings.fullNameToAbbreviation[_selectedTeam]
-        : null;
-    debugPrint("Selected team (abbreviation): $teamAbbr");
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DraftApp(
-          randomnessFactor: _randomness,
-          numberOfRounds: _numberOfRounds,
-          speedFactor: _speed,
-          selectedTeam: teamAbbr, // This should be BUF, not Buffalo Bills
-        ),
+  // Debug what's happening
+  debugPrint("Selected team (full name): $_selectedTeam");
+  String? teamAbbr = _selectedTeam != null 
+      ? NFLTeamMappings.fullNameToAbbreviation[_selectedTeam]
+      : null;
+  debugPrint("Selected team (abbreviation): $teamAbbr");
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftApp(
+        randomnessFactor: _randomness,
+        numberOfRounds: _numberOfRounds,
+        speedFactor: _speed,
+        selectedTeam: teamAbbr,
+        // Add these new parameters (they need to be stored as class variables):
+        enableTrading: _enableTrading, // You'll need to add this as a class variable
+        enableUserTradeProposals: _enableUserTradeProposals, // Add this too
+        enableQBPremium: _enableQBPremium, // And this
+        showAnalytics: _showAnalytics, // And this
       ),
-    );
-  }
+    ),
+  );
+}
 }
