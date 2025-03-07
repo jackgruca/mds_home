@@ -538,7 +538,7 @@ class TradeService {
         }
         
         // Sometimes teams just swap picks when close in value
-        if (bestPickValue >= targetValue * 0.95) {
+        if (bestPickValue >= targetValue) {
           teamStrategies.add(TradePackage(
             teamOffering: team,
             teamReceiving: targetPick.teamName,
@@ -573,7 +573,7 @@ class TradeService {
         // Very simple trades in later rounds
         // Usually just pick swaps with minimal additional value
         
-        if (bestPickValue >= targetValue * 0.9) {
+        if (bestPickValue >= targetValue) {
           teamStrategies.add(TradePackage(
             teamOffering: team,
             teamReceiving: targetPick.teamName,
@@ -585,7 +585,7 @@ class TradeService {
         }
         
         // Sometimes simple 2-pick combinations
-        if (availablePicks.length >= 2 && bestPickValue < targetValue * 0.9) {
+        if (availablePicks.length >= 2 && bestPickValue < targetValue) {
           final secondPick = availablePicks[1];
           final combinedValue = bestPickValue + DraftValueService.getValueForPick(secondPick.pickNumber);
           

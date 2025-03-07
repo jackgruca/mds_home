@@ -90,8 +90,8 @@ class _TeamNeedsTabState extends State<TeamNeedsTab> {
                         Padding(
                           padding: const EdgeInsets.all(8),
                           child: Text(
-                            // Joins all needs into a single string, skipping empty ones
-                            filteredTeamNeeds[i].length > 12 ? filteredTeamNeeds[i][12] : "", // Show last selected player                            
+                            // Display all selected positions rather than just the last one
+                            filteredTeamNeeds[i].length > 12 ? filteredTeamNeeds[i][12].toString() : "", 
                             style: const TextStyle(fontSize: 14),
                           ),
                         ),

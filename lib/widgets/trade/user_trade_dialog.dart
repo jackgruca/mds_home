@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
+import '../../models/future_pick.dart';
+
 
 class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
@@ -30,26 +32,37 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   List<DraftPick> _selectedTargetPicks = []; // New variable for other team's selections
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
+  final bool _includeFuturePick = false;
+  final List<int> _selectedFutureRounds = [];
+  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   
   @override
   void initState() {
     super.initState();
     if (widget.targetPicks.isNotEmpty) {
       _targetTeam = widget.targetPicks.first.teamName;
-      // Initially select the first pick from target team
-      if (widget.targetPicks.isNotEmpty) {
-        _selectedTargetPicks = [widget.targetPicks.first];
-      }
+      // Don't auto-select any picks by default
+      _selectedTargetPicks = [];
+      _selectedUserPicks = [];
     }
     _updateValues();
   }
   
   void _updateValues() {
     double userValue = 0;
+    
+    // Current year picks
     for (var pick in _selectedUserPicks) {
       userValue += DraftValueService.getValueForPick(pick.pickNumber);
     }
     
+    // Future picks
+    for (var round in _selectedFutureRounds) {
+      final futurePick = FuturePick.forRound(widget.userTeam, round);
+      userValue += futurePick.value;
+    }
+    
+    // Target picks calculation (unchanged)
     double targetValue = 0;
     for (var pick in _selectedTargetPicks) {
       targetValue += DraftValueService.getValueForPick(pick.pickNumber);
@@ -156,7 +169,17 @@ Widget build(BuildContext context) {
                         child: CheckboxListTile(
                           dense: true,
                           title: Text('Pick #${pick.pickNumber}'),
-                          subtitle: Text('Round ${pick.round}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Round ${pick.round}'),
+                              // Add this debug information
+                              Text(
+                                'Value: ${DraftValueService.getValueForPick(pick.pickNumber)}',
+                                style: const TextStyle(color: Colors.red, fontSize: 10),
+                              ),
+                            ],
+                          ),
                           secondary: Text(
                             DraftValueService.getValueDescription(
                               DraftValueService.getValueForPick(pick.pickNumber)
@@ -207,12 +230,12 @@ Widget build(BuildContext context) {
                         });
                       },
                       child: Text(_selectedUserPicks.length == widget.userPicks.length ?
-                               'Unselect All' : 'Select All'),
+                              'Unselect All' : 'Select All'),
                     ),
                   ],
                 ),
                 
-                // Your picks with checkboxes
+                // Current year picks list
                 Expanded(
                   child: ListView.builder(
                     itemCount: widget.userPicks.length,
@@ -245,6 +268,58 @@ Widget build(BuildContext context) {
                         ),
                       );
                     },
+                  ),
+                ),
+                
+                // Future picks selection (now at the bottom)
+                Container(
+                  margin: const EdgeInsets.only(top: 8.0),
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '2026 Draft Picks to Include:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8.0,
+                        children: _availableFutureRounds.map((round) {
+                          bool isSelected = _selectedFutureRounds.contains(round);
+                          return FilterChip(
+                            label: Text('${_getRoundText(round)} Round'),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedFutureRounds.add(round);
+                                } else {
+                                  _selectedFutureRounds.remove(round);
+                                }
+                              });
+                              _updateValues();
+                            },
+                            selectedColor: Colors.green.shade100,
+                            labelStyle: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      if (_selectedFutureRounds.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Value: ${_calculateFuturePicksValue().toStringAsFixed(0)} points',
+                            style: const TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -330,17 +405,29 @@ Widget build(BuildContext context) {
   }
   
   void _proposeTrade() {
-    // Create a trade package with multiple picks on both sides
+    // Create future pick descriptions
+    List<String> futurePickDescriptions = [];
+    double futurePicksValue = 0;
+    
+    for (var round in _selectedFutureRounds) {
+      futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
+      final futurePick = FuturePick.forRound(widget.userTeam, round);
+      futurePicksValue += futurePick.value;
+    }
+    
     final package = TradePackage(
       teamOffering: widget.userTeam,
       teamReceiving: _targetTeam,
       picksOffered: _selectedUserPicks,
-      targetPick: _selectedTargetPicks.first, // Need one "main" pick for the structure
+      targetPick: _selectedTargetPicks.first,
       totalValueOffered: _totalOfferedValue,
       targetPickValue: _targetPickValue,
-      // Add additional selected target picks
       additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
           _selectedTargetPicks.sublist(1) : [],
+      includesFuturePick: _selectedFutureRounds.isNotEmpty,
+      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+          futurePickDescriptions.join(", ") : null,
+      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
     );
     
     widget.onPropose(package);
@@ -368,5 +455,22 @@ Widget build(BuildContext context) {
     } else {
       return Colors.red;
     }
+  }
+
+  // Add helper methods
+  String _getRoundText(int round) {
+    if (round == 1) return "1st";
+    if (round == 2) return "2nd";
+    if (round == 3) return "3rd";
+    return "${round}th";
+  }
+
+  double _calculateFuturePicksValue() {
+    double value = 0;
+    for (var round in _selectedFutureRounds) {
+      final futurePick = FuturePick.forRound(widget.userTeam, round);
+      value += futurePick.value;
+    }
+    return value;
   }
 }

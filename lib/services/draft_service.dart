@@ -442,7 +442,7 @@ class DraftService {
   Player _selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     // If team has no needs defined, use best player available
     if (teamNeed == null || teamNeed.needs.isEmpty) {
-      return _selectBestPlayerWithRandomness(availablePlayers);
+      return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
     }
     
     // Following your R code pattern for selections
@@ -470,7 +470,7 @@ class DraftService {
     
     // If no candidates found through needs, use best player available
     if (selectionCandidates.isEmpty) {
-      return _selectBestPlayerAvailable();
+      return _selectBestPlayerAvailable(nextPick.pickNumber);
     }
     
     // Initialize with the first selection (need1)
@@ -516,7 +516,7 @@ class DraftService {
     
     // If no selection made, use best player available that matches any team need
     if (prevCondition && selectionCandidates.length == needsToConsider) {
-      return _selectBestPlayerForPosition(teamNeed.needs);
+      return _selectBestPlayerForPosition(teamNeed.needs, nextPick.pickNumber);
     }
     
     return bestSelection;
@@ -555,33 +555,59 @@ class DraftService {
     return candidatesForPosition[selectIndex];
   }
   
-  /// Select the best player available from all available players
-  Player _selectBestPlayerAvailable() {
-    // Random selection with bias toward top players
+ /// Select the best player available with consideration for pick position
+Player _selectBestPlayerAvailable(int pickNumber) {
+  // For top picks, be more consistent
+  if (pickNumber <= 5) {
     double randSelect = _random.nextDouble();
-    int selectIndex;
     
-    if (randSelect <= 0.75) {
-      selectIndex = 0; // 75% chance for top player
-    } else if (randSelect > 0.75 && randSelect <= 0.95) {
-      selectIndex = min(1, availablePlayers.length - 1); // 20% for second
-    } else {
-      selectIndex = min(2, availablePlayers.length - 1); // 5% for third
+    // For picks 1-3, almost always pick the top player (90%)
+    if (pickNumber <= 3) {
+      if (randSelect <= 0.9) {
+        return availablePlayers.first;
+      } else if (randSelect <= 0.98) {
+        return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
+      } else {
+        return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
+      }
     }
-    
-    return availablePlayers[selectIndex];
+    // For picks 4-5, usually pick top 2 players (80%)
+    else {
+      if (randSelect <= 0.8) {
+        return availablePlayers.first;
+      } else if (randSelect <= 0.95) {
+        return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
+      } else {
+        return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
+      }
+    }
   }
   
+  // Regular random selection with bias toward top players for picks 6+
+  double randSelect = _random.nextDouble();
+  int selectIndex;
+  
+  if (randSelect <= 0.75) {
+    selectIndex = 0; // 75% chance for top player
+  } else if (randSelect > 0.75 && randSelect <= 0.95) {
+    selectIndex = min(1, availablePlayers.length - 1); // 20% for second
+  } else {
+    selectIndex = min(2, availablePlayers.length - 1); // 5% for third
+  }
+  
+  return availablePlayers[selectIndex];
+}
+  
   /// Select best player that matches any of the given positions
-  Player _selectBestPlayerForPosition(List<String> positions) {
+  Player _selectBestPlayerForPosition(List<String> positions, int pickNumber) {
     // Filter players by any matching position
     List<Player> candidatesForPositions = availablePlayers
-        .where((player) => positions.contains(player.position))
-        .toList();
-    
+      .where((player) => positions.contains(player.position))
+      .toList();
+  
     // If no matches, fall back to best overall
     if (candidatesForPositions.isEmpty) {
-      return _selectBestPlayerAvailable();
+      return _selectBestPlayerAvailable(pickNumber);
     }
     
     // Sort by rank
@@ -602,8 +628,8 @@ class DraftService {
     return candidatesForPositions[selectIndex];
   }
   
-  /// Select the best player with some randomness factor applied
-  Player _selectBestPlayerWithRandomness(List<Player> players) {
+  /// Select the best player with appropriate randomness factor for draft position
+  Player _selectBestPlayerWithRandomness(List<Player> players, int pickNumber) {
     if (players.isEmpty) {
       throw Exception('No players available for selection');
     }
@@ -616,24 +642,46 @@ class DraftService {
       return players.first;
     }
     
+    // Adjust randomness based on pick position
+    // Top 5 picks should be much more predictable
+    double effectiveRandomness = randomnessFactor;
+    if (pickNumber <= 3) {
+      // First 3 picks are highly predictable (80% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.2;
+    } else if (pickNumber <= 5) {
+      // Picks 4-5 are very predictable (70% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.3;
+    } else if (pickNumber <= 10) {
+      // Picks 6-10 are fairly predictable (50% reduction in randomness)
+      effectiveRandomness = randomnessFactor * 0.5;
+    } else if (pickNumber <= 32) {
+      // First round has slightly reduced randomness (25% reduction)
+      effectiveRandomness = randomnessFactor * 0.75;
+    }
+    
     // Calculate how many players to consider in the pool
-    // More randomness = larger pool of players that could be selected
-    int poolSize = max(1, (players.length * randomnessFactor).round());
+    // Less randomness = smaller pool of players that could be selected
+    int poolSize = max(1, (players.length * effectiveRandomness).round());
     poolSize = min(poolSize, players.length); // Don't exceed list length
+    
+    // For top 3 picks, further restrict the pool size
+    if (pickNumber <= 3) {
+      poolSize = min(2, poolSize); // At most consider top 2 players
+    }
     
     // Select a random player from the top poolSize players
     int randomIndex = _random.nextInt(poolSize);
     return players[randomIndex];
   }
-  
-  // Randomization helper functions from your R code
-  double _getRandomAddValue() {
-    return _random.nextDouble() * 10 - 4; // Range from -4 to 6
-  }
-  
-  double _getRandomMultValue() {
-    return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
-  }
+    
+    // Randomization helper functions from your R code
+    double _getRandomAddValue() {
+      return _random.nextDouble() * 10 - 4; // Range from -4 to 6
+    }
+    
+    double _getRandomMultValue() {
+      return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
+    }
   
   // Getters for state information
   String get statusMessage => _statusMessage;

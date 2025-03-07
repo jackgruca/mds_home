@@ -2,12 +2,11 @@
 class TeamNeed {
   final String teamName;
   final List<String> needs;
-  String? lastSelectedPosition;
+  final List<String> selectedPositions = []; // Change from String? to List<String>
   
   TeamNeed({
     required this.teamName,
     required this.needs,
-    this.lastSelectedPosition,
   });
   
   // Create a TeamNeed from CSV row data
@@ -38,16 +37,16 @@ class TeamNeed {
       result.addAll(List.filled(needsToFill, ''));
     }
     
-    // Add the last selected position
-    result.add(lastSelectedPosition ?? '');
+    // Add the selected positions, joined by commas
+    result.add(selectedPositions.join(", "));
     
     return result;
   }
   
-  // Remove a position from needs when drafted
+  // Remove a position from needs when drafted and add to selected positions
   void removeNeed(String position) {
     needs.remove(position);
-    lastSelectedPosition = position;
+    selectedPositions.add(position); // Add to the list instead of replacing
   }
   
   // Check if this position is a need

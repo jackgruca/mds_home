@@ -35,16 +35,35 @@ class DraftValueService {
   }
   
   /// Get the value for a specific pick
+  // In draft_value_service.dart
   static double getValueForPick(int pickNumber) {
+    debugPrint("DraftValueService: Getting value for pick #$pickNumber");
+    if (pickNumber == 1) {
+      return 3000.0; // Top pick is typically around 3000 points
+    }
+
     if (!_isInitialized) {
       debugPrint("Warning: Draft value chart not initialized");
       return _estimateValueForPick(pickNumber);
     }
     
+    // Make sure pick number is valid
+    if (pickNumber <= 0) {
+      debugPrint("Warning: Invalid pick number $pickNumber");
+      return 0;
+    }
+    
+    // Debug all values in the chart
+    for (var dv in _draftValues) {
+      debugPrint("Chart contains pick #${dv.pick} with value ${dv.value}");
+    }
+    
     try {
-      return _draftValues.firstWhere((dv) => dv.pick == pickNumber).value;
+      var draftValue = _draftValues.firstWhere((dv) => dv.pick == pickNumber);
+      debugPrint("Found value for pick #$pickNumber: ${draftValue.value}");
+      return draftValue.value;
     } catch (e) {
-      // If the specific pick isn't found, estimate it
+      debugPrint("Pick #$pickNumber not found in chart, estimating: ${_estimateValueForPick(pickNumber)}");
       return _estimateValueForPick(pickNumber);
     }
   }

@@ -17,6 +17,7 @@ import '../widgets/trade/trade_history.dart';
 import 'available_players_tab.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
+import 'team_selection_screen.dart';
 import '../widgets/draft/draft_control_buttons.dart';
 
 class DraftApp extends StatefulWidget {
@@ -504,12 +505,13 @@ void _initiateUserTradeProposal() {
   }
 
   void _restartDraft() {
-    setState(() {
-      _isDraftRunning = false;
-    });
-    
-    // Reload data to reset the draft
-    _loadData();
+  // Navigate back to team selection screen instead of reloading data
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TeamSelectionScreen(),
+      ),
+    );
   }
 
   // Find this method in draft_overview_screen.dart and replace it
