@@ -34,6 +34,34 @@ class DraftService {
   
   // Random instance for introducing randomness
   final Random _random = Random();
+
+  // In draft_service.dart, add:
+  final Map<int, List<TradePackage>> _pendingUserOffers = {};
+
+  // Add method to generate offers for user picks
+  void generateUserPickOffers() {
+    // Find all user picks
+    final userPicks = draftOrder.where((pick) => 
+      pick.teamName == userTeam && !pick.isSelected
+    ).toList();
+    
+    // Generate offers for each pick
+    for (var pick in userPicks) {
+      TradeOffer offers = _tradeService.generateTradeOffersForPick(pick.pickNumber);
+      if (offers.packages.isNotEmpty) {
+        _pendingUserOffers[pick.pickNumber] = offers.packages;
+      }
+    }
+  }
+
+  // Check if there are offers for a specific pick
+  bool hasOffersForPick(int pickNumber) {
+    return _pendingUserOffers.containsKey(pickNumber) && 
+          _pendingUserOffers[pickNumber]!.isNotEmpty;
+  }
+
+  // Get all pending offers
+  Map<int, List<TradePackage>> get pendingUserOffers => _pendingUserOffers;
   
   DraftService({
     required this.availablePlayers,

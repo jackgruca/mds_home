@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+// In draft_control_buttons.dart
 class DraftControlButtons extends StatelessWidget {
   final bool isDraftRunning;
+  final bool hasTradeOffers;  // Add this parameter
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
@@ -12,6 +14,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onToggleDraft,
     required this.onRestartDraft,
     required this.onRequestTrade,
+    this.hasTradeOffers = false,  // Default to false
   });
 
   @override
@@ -19,7 +22,7 @@ class DraftControlButtons extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, // Center the buttons
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
             width: 48,
@@ -27,30 +30,34 @@ class DraftControlButtons extends StatelessWidget {
             child: FloatingActionButton(
               onPressed: onRestartDraft,
               tooltip: 'Restart Draft',
-              child: const Icon(Icons.refresh),
               mini: true,
+              child: const Icon(Icons.refresh),
             ),
           ),
-          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          const SizedBox(width: 24),
           SizedBox(
             width: 48,
             height: 48,
             child: FloatingActionButton(
               onPressed: onToggleDraft,
               tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
-              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
               mini: true,
+              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
             ),
           ),
-          SizedBox(width: 24), // Reduced spacing to bring buttons closer together
+          const SizedBox(width: 24),
           SizedBox(
             width: 48,
             height: 48,
-            child: FloatingActionButton(
-              onPressed: onRequestTrade,
-              tooltip: 'Request Trade',
-              child: const Icon(Icons.swap_horiz),
-              mini: true,
+            child: Badge(
+              isLabelVisible: hasTradeOffers,
+              label: const Text('!'),
+              child: FloatingActionButton(
+                onPressed: onRequestTrade,
+                tooltip: 'Trade Center',
+                mini: true,
+                child: const Icon(Icons.swap_horiz),
+              ),
             ),
           ),
         ],
