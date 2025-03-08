@@ -9,9 +9,12 @@ import '../services/data_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
+import '../widgets/trade/enhanced_trade_dialog.dart';
 import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
+import '../widgets/analytics/draft_analytics_dashboard.dart';
+import '../widgets/draft/draft_history_widget.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
@@ -19,6 +22,7 @@ import 'available_players_tab.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
 import 'team_selection_screen.dart';
+
 import '../widgets/draft/draft_control_buttons.dart';
 
 class DraftApp extends StatefulWidget {
@@ -26,6 +30,10 @@ class DraftApp extends StatefulWidget {
   final int numberOfRounds;
   final double speedFactor;
   final String? selectedTeam;
+  final bool enableTrading; // New parameter
+  final bool enableUserTradeProposals; // New parameter
+  final bool enableQBPremium; // New parameter
+  final bool showAnalytics; // New parameter
 
   const DraftApp({
     super.key,
@@ -33,6 +41,10 @@ class DraftApp extends StatefulWidget {
     this.numberOfRounds = 1,
     this.speedFactor = 1.0,
     this.selectedTeam,
+    this.enableTrading = true, // Default value
+    this.enableUserTradeProposals = true, // Default value
+    this.enableQBPremium = true, // Default value
+    this.showAnalytics = true, // Default value
   });
 
   @override
@@ -95,6 +107,26 @@ final ScrollController _draftOrderScrollController = ScrollController();
     }
   }
 
+  List<String> _getSelectedPositions() {
+  // Extract positions that have been drafted
+  List<String> selectedPositions = [];
+  
+  // Find all picks from user's team that have been made
+  final userPicks = _draftPicks.where((pick) => 
+    pick.teamName == widget.selectedTeam && 
+    pick.selectedPlayer != null
+  );
+  
+  // Add those positions to the list
+  for (var pick in userPicks) {
+    if (pick.selectedPlayer?.position != null) {
+      selectedPositions.add(pick.selectedPlayer!.position);
+    }
+  }
+  
+  return selectedPositions;
+}
+
   Future<void> _loadData() async {
     try {
       // Load data using our DataService
@@ -116,13 +148,17 @@ final ScrollController _draftOrderScrollController = ScrollController();
 
       // Create the draft service with the loaded data
       final draftService = DraftService(
-        availablePlayers: List.from(players), // Create copies to avoid modifying originals
-        draftOrder: filteredDraftPicks,
-        teamNeeds: teamNeeds,
-        randomnessFactor: widget.randomnessFactor,
-        userTeam: widget.selectedTeam,
-        numberRounds: widget.numberOfRounds,
-      );
+  availablePlayers: List.from(players),
+  draftOrder: filteredDraftPicks,
+  teamNeeds: teamNeeds,
+  randomnessFactor: widget.randomnessFactor,
+  userTeam: widget.selectedTeam,
+  numberRounds: widget.numberOfRounds,
+  enableTrading: widget.enableTrading, // New parameter
+  enableUserTradeProposals: widget.enableUserTradeProposals, // New parameter
+  enableQBPremium: widget.enableQBPremium, // New parameter
+);
+
 
       // Convert models to lists for the existing UI components
       final draftOrderLists = DataService.draftPicksToLists(filteredDraftPicks);
@@ -353,7 +389,7 @@ void _initiateUserTradeProposal() {
     if (tradeOffers.packages.isNotEmpty) {
       showDialog(
         context: context,
-        builder: (context) => TradeDialog(
+        builder: (context) => EnhancedTradeDialog(  // <-- Using the enhanced dialog
           tradeOffer: tradeOffers,
           onAccept: (package) {
             // Execute the selected trade
@@ -403,6 +439,30 @@ void _initiateUserTradeProposal() {
       );
     }
   }
+
+void _openDraftHistory() {
+  if (_draftService == null) return;
+  
+  // Show a full-screen dialog with the draft history
+  showDialog(
+    context: context,
+    builder: (context) => Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Draft History'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: DraftHistoryWidget(
+          completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+          userTeam: widget.selectedTeam,
+        ),
+      ),
+    ),
+  );
+}
 
   void _showPlayerSelectionDialog(DraftPick pick) {
     if (_draftService == null) return;
@@ -574,11 +634,12 @@ void _initiateUserTradeProposal() {
         title: const Text('NFL Draft'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Draft Order', icon: Icon(Icons.list)),
-            Tab(text: 'Available Players', icon: Icon(Icons.people)),
-            Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
-            Tab(text: 'Trades', icon: Icon(Icons.swap_horiz)),
+          tabs: [
+            const Tab(text: 'Draft Order', icon: Icon(Icons.list)),
+            const Tab(text: 'Available Players', icon: Icon(Icons.people)),
+            const Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
+            if (widget.showAnalytics) // Only show if enabled
+              const Tab(text: 'Analytics', icon: Icon(Icons.analytics)),
           ],
         ),
       ),
@@ -630,11 +691,12 @@ void _initiateUserTradeProposal() {
                   userTeam: widget.selectedTeam,
                   scrollController: _draftOrderScrollController, // Add this line instead of the key
                 ),
-                AvailablePlayersTab(
-                  availablePlayers: _availablePlayersLists,
-                  selectionEnabled: _isUserPickMode,
-                  userTeam: widget.selectedTeam,
-                  onPlayerSelected: (playerIndex) {
+               AvailablePlayersTab(
+                availablePlayers: _availablePlayersLists,
+                selectionEnabled: _isUserPickMode,
+                userTeam: widget.selectedTeam,
+                selectedPositions: _getSelectedPositions(), // Add this parameter
+                onPlayerSelected: (playerIndex) {
                     // Keep your existing onPlayerSelected code unchanged
                     if (_isUserPickMode && _userNextPick != null) {
                       Player? selectedPlayer;
@@ -660,12 +722,37 @@ void _initiateUserTradeProposal() {
                   },
                 ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                TradeHistoryWidget(trades: _executedTrades),
-              ],
+                if (widget.showAnalytics)
+                  DraftAnalyticsDashboard(
+                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+                    draftedPlayers: _players.where((player) => 
+                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+                    executedTrades: _executedTrades,
+                    userTeam: widget.selectedTeam,
+                  ),
+                ],
             ),
           ),
         ],
       ),
+      bottomNavigationBar: BottomAppBar(
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Existing UI elements, if any
+        
+        // Add the history button
+        OutlinedButton.icon(
+          onPressed: _openDraftHistory,
+          icon: const Icon(Icons.history),
+          label: const Text('Draft History'),
+        ),
+      ],
+    ),
+  ),
+),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
         isDraftRunning: _isDraftRunning,
