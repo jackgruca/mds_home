@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
-import '../../services/enhanced_player_selection.dart';
 import '../../models/team_need.dart';
 import '../../utils/constants.dart';
 
@@ -26,8 +25,6 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  
-  final EnhancedPlayerSelection _playerAnalyzer = EnhancedPlayerSelection();
   
   @override
   void initState() {
@@ -63,64 +60,10 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     super.dispose();
   }
 
-  Widget _buildTeamLogo(String teamName) {
-  // First try to get the abbreviation from the mapping
-  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-  
-  return _buildPlaceholderLogo(teamName);
-}
-
-Widget _buildPlaceholderLogo(String teamName) {
-  // Get the first character of each word in the team name
-  final initials = teamName.split(' ')
-      .map((word) => word.isNotEmpty ? word[0] : '')
-      .join('')
-      .toUpperCase();
-  
-  return Container(
-    width: 40.0,
-    height: 40.0,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: Colors.blue.shade700,
-    ),
-    child: Center(
-      child: Text(
-        initials.length > 2 ? initials.substring(0, 2) : initials,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14.0,
-        ),
-      ),
-    ),
-  );
-}
-
-  ImageProvider _getTeamLogoImage(String teamName) {
-  // First try to get the abbreviation from the mapping
-  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-  
-  if (abbr != null) {
-    // If we have an abbreviation, use it to form the URL
-    return NetworkImage(
-      'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
-    );
-  } else {
-    // If we don't have an abbreviation, use a generic NFL logo
-    return const NetworkImage(
-      'https://a.espncdn.com/i/teamlogos/nfl/500/nfl.png',
-    );
-    
-    // Alternatively, if you have a local placeholder image:
-    // return const AssetImage('assets/placeholder.png');
-  }
-}
-
   @override
   Widget build(BuildContext context) {
-    // Determine the card color
-    Color cardColor = _getCardColor();
+    // Determine the card color - no yellow highlight
+    Color cardColor = widget.isUserTeam ? Colors.blue.shade50 : Colors.white;
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -128,9 +71,9 @@ Widget _buildPlaceholderLogo(String teamName) {
         scale: _scaleAnimation,
         child: Card(
           elevation: widget.isRecentPick ? 4.0 : 1.0,
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Reduced margins
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(8.0), // Smaller border radius
             side: BorderSide(
               color: widget.isUserTeam ? Colors.blue : Colors.transparent,
               width: widget.isUserTeam ? 2.0 : 0.0,
@@ -138,252 +81,275 @@ Widget _buildPlaceholderLogo(String teamName) {
           ),
           color: cardColor,
           child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0), // Reduced padding
+            child: Row(
               children: [
-                // Header with pick number and team
-                _buildHeader(),
-                
-                // Divider
-                const Divider(height: 16.0),
-                
-                // Player info if selected
-                if (widget.draftPick.selectedPlayer != null)
-                  _buildPlayerInfo()
-                else
-                  const Text('Selection pending...', style: TextStyle(fontStyle: FontStyle.italic)),
-                  
-                // Trade information if applicable  
-                if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
-                  _buildTradeInfo(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildHeader() {
-  return Row(
-    children: [
-      // Pick number with round indicator
-      Container(
-        width: 50.0,
-        height: 50.0,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _getPickNumberColor(),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${widget.draftPick.pickNumber}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
-                ),
-              ),
-              Text(
-                'Rd ${widget.draftPick.round}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10.0,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(width: 12.0),
-      
-      // Team logo and name
-      Expanded(
-        child: Row(
-          children: [
-            // Team Logo (using the new method)
-            _buildTeamLogo(widget.draftPick.teamName),
-            const SizedBox(width: 8.0),
-            
-            // Team Name
-            Expanded(
-              child: Text(
-                widget.draftPick.teamName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.0,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-  
-  Widget _buildPlayerInfo() {
-    Player player = widget.draftPick.selectedPlayer!;
-    
-    // Mock analysis - would ideally use a real TeamNeed object
-    TeamNeed mockNeed = TeamNeed(
-      teamName: widget.draftPick.teamName,
-      needs: [player.position],
-    );
-    
-    Map<String, dynamic> analysis = _playerAnalyzer.analyzeSelection(
-      player,
-      widget.draftPick.teamName,
-      widget.draftPick.pickNumber,
-      mockNeed,
-    );
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Player name and position
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    player.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18.0,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                // Pick number (smaller)
+                Container(
+                  width: 30.0,
+                  height: 30.0,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _getPickNumberColor(),
                   ),
-                  Row(
+                  child: Center(
+                    child: Text(
+                      '${widget.draftPick.pickNumber}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.0, // Smaller font
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8.0),
+                
+                // Team logo
+                _buildTeamLogo(widget.draftPick.teamName),
+                const SizedBox(width: 8.0),
+                
+                // Player info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min, // Keep column tight
                     children: [
+                      // Player name
+                      Text(
+                        widget.draftPick.selectedPlayer?.name ?? 'Pick pending',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.0, // Smaller font
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // Position and team
+                      Row(
+                        children: [
+                          if (widget.draftPick.selectedPlayer != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0), // Smaller padding
+                              margin: const EdgeInsets.only(right: 4.0),
+                              decoration: BoxDecoration(
+                                color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
+                                borderRadius: BorderRadius.circular(3.0), // Smaller radius
+                              ),
+                              child: Text(
+                                widget.draftPick.selectedPlayer!.position,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.0, // Smaller font
+                                ),
+                              ),
+                            ),
+                          Text(
+                            widget.draftPick.teamName,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11.0, // Smaller font
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Right side widgets
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Trade icon if applicable (moved to the left)
+                    if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4.0),
+                        child: Icon(
+                          Icons.swap_horiz,
+                          size: 16.0,
+                          color: Colors.orange[700],
+                        ),
+                      ),
+                      
+                    // Info icon for analysis
+                    if (widget.draftPick.selectedPlayer != null)
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.info_outline,
+                          size: 16.0,
+                          color: Colors.grey[600],
+                        ),
+                        onPressed: () => _showAnalysisDialog(context),
+                      ),
+                    
+                    const SizedBox(width: 4.0),
+                    
+                    // Player rank (instead of showing pick number)
+                    if (widget.draftPick.selectedPlayer != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Smaller padding
                         decoration: BoxDecoration(
-                          color: _getPositionColor(player.position),
-                          borderRadius: BorderRadius.circular(4.0),
+                          color: _getRankColor(
+                            widget.draftPick.selectedPlayer!.rank,
+                            widget.draftPick.pickNumber,
+                          ).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(3.0), // Smaller radius
                         ),
                         child: Text(
-                          player.position,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          '#${widget.draftPick.selectedPlayer!.rank}',
+                          style: TextStyle(
+                            color: _getRankColor(
+                              widget.draftPick.selectedPlayer!.rank,
+                              widget.draftPick.pickNumber,
+                            ),
                             fontWeight: FontWeight.bold,
-                            fontSize: 12.0,
+                            fontSize: 11.0, // Smaller font
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8.0),
-                      if (player.school.isNotEmpty)
-                        Text(
-                          player.school,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12.0,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Player rank
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  'Rank',
-                  style: TextStyle(
-                    fontSize: 12.0,
-                    color: Colors.grey,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(4.0),
-                  decoration: BoxDecoration(
-                    color: _getRankColor(player.rank, widget.draftPick.pickNumber),
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                  child: Text(
-                    '#${player.rank}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        
-        const SizedBox(height: 8.0),
-        
-        // Pick analysis
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            color: _getAnalysisColor(analysis).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(4.0),
-            border: Border.all(
-              color: _getAnalysisColor(analysis),
-              width: 1.0,
-            ),
-          ),
-          child: Text(
-            analysis['analysis'],
-            style: TextStyle(
-              fontSize: 12.0,
-              color: _getAnalysisColor(analysis),
-              fontStyle: FontStyle.italic,
-            ),
           ),
         ),
-      ],
+      ),
     );
   }
   
-  Widget _buildTradeInfo() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.swap_horiz,
-            color: Colors.deepOrange,
-            size: 16.0,
+  Widget _buildTeamLogo(String teamName) {
+  // Get team abbreviation using the same method as the team selection screen
+  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+  
+  print('Team: $teamName, Abbreviation: $abbr'); // Debug info
+  
+  // If no abbreviation, return placeholder
+  if (abbr == null) {
+    return _buildPlaceholderLogo(teamName);
+  }
+  
+  // Use EXACTLY the same URL format as your team selection screen
+  final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
+  
+  return Container(
+    width: 25.0,
+    height: 25.0,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      image: DecorationImage(
+        image: NetworkImage(logoUrl),
+        fit: BoxFit.cover,
+      ),
+    ),
+  );
+}
+
+  Widget _buildPlaceholderLogo(String teamName) {
+    final initials = teamName.split(' ')
+        .map((word) => word.isNotEmpty ? word[0] : '')
+        .join('')
+        .toUpperCase();
+    
+    return Container(
+      width: 25.0, // Smaller logo
+      height: 25.0, // Smaller logo
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.blue.shade700,
+      ),
+      child: Center(
+        child: Text(
+          initials.length > 2 ? initials.substring(0, 2) : initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 10.0, // Smaller font
           ),
-          const SizedBox(width: 4.0),
-          Expanded(
-            child: Text(
-              widget.draftPick.tradeInfo!,
-              style: const TextStyle(
-                fontSize: 12.0,
-                fontStyle: FontStyle.italic,
-                color: Colors.deepOrange,
+        ),
+      ),
+    );
+  }
+  
+  void _showAnalysisDialog(BuildContext context) {
+    if (widget.draftPick.selectedPlayer == null) return;
+    
+    // Get player
+    Player player = widget.draftPick.selectedPlayer!;
+    
+    // Create simple analysis
+    Map<String, dynamic> analysis = _analyzeSelectionSimple(
+      player,
+      widget.draftPick.teamName,
+      widget.draftPick.pickNumber,
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Analysis: ${player.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Player details
+            Text(
+              '${player.position}${player.school.isNotEmpty ? ' - ${player.school}' : ''}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text('Pick #${widget.draftPick.pickNumber} - Rank #${player.rank}'),
+            const SizedBox(height: 16),
+            
+            // Value assessment
+            const Text(
+              'Value Assessment:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: _getAnalysisColor(analysis).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4.0),
+                border: Border.all(
+                  color: _getAnalysisColor(analysis),
+                  width: 1.0,
+                ),
+              ),
+              child: Text(
+                analysis['analysis'],
+                style: TextStyle(
+                  color: _getAnalysisColor(analysis),
+                ),
               ),
             ),
+            
+            const SizedBox(height: 16),
+            // Value differential
+            Text(
+              'Value Differential: ${analysis['valueGap'] > 0 ? '+' : ''}${analysis['valueGap']}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: analysis['valueGap'] >= 0 ? Colors.green : Colors.red,
+              ),
+            ),
+            
+            // Additional analysis could go here
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
-  }
-  
-  Color _getCardColor() {
-    if (widget.isUserTeam) {
-      return Colors.blue.shade50;
-    } else if (widget.isRecentPick) {
-      return Colors.amber.shade50;
-    } else {
-      return Colors.white;
-    }
   }
   
   Color _getPickNumberColor() {
@@ -458,5 +424,36 @@ Widget _buildPlaceholderLogo(String teamName) {
     } else {
       return Colors.grey.shade600; // Standard pick
     }
+  }
+  
+  // Simple analysis method that doesn't require EnhancedPlayerSelection
+  Map<String, dynamic> _analyzeSelectionSimple(Player player, String teamName, int pickNumber) {
+    // Basic value analysis
+    bool isValue = player.rank < pickNumber;
+    bool isSignificantValue = player.rank <= pickNumber - 10;
+    bool isReach = player.rank > pickNumber + 10;
+    
+    int valueGap = pickNumber - player.rank;
+    String analysisText;
+    
+    // Simplified analysis text
+    if (isSignificantValue) {
+      analysisText = 'Great value selection - ranked much higher than this pick';
+    } else if (isValue) {
+      analysisText = 'Good value selection at this pick';
+    } else if (isReach) {
+      analysisText = 'Reach pick - selected earlier than rank suggests';
+    } else {
+      analysisText = 'Standard pick - reasonable selection at this position';
+    }
+    
+    return {
+      'isValue': isValue,
+      'isSignificantValue': isSignificantValue,
+      'isReach': isReach,
+      'isNeed': false, // We don't have team needs info in this simple version
+      'valueGap': valueGap,
+      'analysis': analysisText,
+    };
   }
 }
