@@ -56,7 +56,7 @@ class TradeService {
         _teamCurrentPickPosition[teamName] = teamPicks.first.pickNumber;
       }
     }
-  }
+  }  
   
   /// Generate team-specific player grades that slightly differ from consensus rankings
   void _generateTeamSpecificGrades() {
@@ -190,7 +190,8 @@ class TradeService {
       (pick) => pick.pickNumber == pickNumber,
       orElse: () => throw Exception('Pick number $pickNumber not found in draft order'),
     );
-    
+    final bool isUserPick = currentPick.teamName == userTeam;
+
     // Skip if this is a user team's pick and we're not forcing trade offers
     if (currentPick.teamName == userTeam && !qbSpecific) {
       return TradeOffer(
@@ -336,7 +337,7 @@ class TradeService {
     return TradeOffer(
       packages: packages,
       pickNumber: pickNumber,
-      isUserInvolved: isUserInvolved,
+      isUserInvolved: isUserPick || packages.any((p) => p.teamOffering == userTeam),
     );
   }
   
