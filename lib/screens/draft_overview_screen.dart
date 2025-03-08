@@ -1,5 +1,7 @@
 // lib/screens/draft_overview_screen.dart - Updated with trade integration
 import 'package:flutter/material.dart';
+import 'package:mds_home/utils/theme_manager.dart';
+import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
@@ -512,6 +514,7 @@ void _openDraftHistory() {
           ),
         ),
         actions: [
+          
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -632,6 +635,21 @@ void _openDraftHistory() {
     return Scaffold(
       appBar: AppBar(
         title: const Text('NFL Draft'),
+        actions: [
+    // Theme toggle button
+    IconButton(
+      icon: Icon(
+        Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+            ? Icons.dark_mode
+            : Icons.light_mode,
+      ),
+      tooltip: 'Toggle Theme',
+      onPressed: () {
+        Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+      },
+    ),
+    // Other app bar actions...
+  ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

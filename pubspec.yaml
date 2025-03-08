@@ -13,6 +13,9 @@ dependencies:
   csv: ^5.0.0  # Add CSV support
   cupertino_icons: ^1.0.8
   http: ^1.2.0
+  provider: ^6.0.3 # For state management
+  shared_preferences: ^2.2.2 # For saving theme preference
+
 
 dev_dependencies:
   flutter_test:
