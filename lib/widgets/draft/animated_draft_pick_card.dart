@@ -223,12 +223,21 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   }
   
   Widget _buildTeamLogo(String teamName) {
-  // Get team abbreviation using the same method as the team selection screen
-  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+  // Check if the team name is already an abbreviation (typically 2-3 letters)
+  bool isAlreadyAbbreviation = teamName.length <= 3;
   
-  print('Team: $teamName, Abbreviation: $abbr'); // Debug info
+  String? abbr;
+  if (isAlreadyAbbreviation) {
+    // If it's already an abbreviation, use it directly
+    abbr = teamName;
+    print('Using abbreviation directly: $abbr'); // Debug info
+  } else {
+    // Otherwise, look up the abbreviation
+    abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+    print('Team: $teamName, Abbreviation: $abbr'); // Debug info
+  }
   
-  // If no abbreviation, return placeholder
+  // If still no abbreviation, return placeholder
   if (abbr == null) {
     return _buildPlaceholderLogo(teamName);
   }
