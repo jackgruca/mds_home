@@ -81,7 +81,7 @@ final ScrollController _draftOrderScrollController = ScrollController();
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _initializeServices();
   }
   
@@ -106,6 +106,26 @@ final ScrollController _draftOrderScrollController = ScrollController();
       debugPrint("Error initializing services: $e");
     }
   }
+
+  List<String> _getSelectedPositions() {
+  // Extract positions that have been drafted
+  List<String> selectedPositions = [];
+  
+  // Find all picks from user's team that have been made
+  final userPicks = _draftPicks.where((pick) => 
+    pick.teamName == widget.selectedTeam && 
+    pick.selectedPlayer != null
+  );
+  
+  // Add those positions to the list
+  for (var pick in userPicks) {
+    if (pick.selectedPlayer?.position != null) {
+      selectedPositions.add(pick.selectedPlayer!.position);
+    }
+  }
+  
+  return selectedPositions;
+}
 
   Future<void> _loadData() async {
     try {
@@ -618,7 +638,6 @@ void _openDraftHistory() {
             const Tab(text: 'Draft Order', icon: Icon(Icons.list)),
             const Tab(text: 'Available Players', icon: Icon(Icons.people)),
             const Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
-            const Tab(text: 'Trades', icon: Icon(Icons.swap_horiz)),
             if (widget.showAnalytics) // Only show if enabled
               const Tab(text: 'Analytics', icon: Icon(Icons.analytics)),
           ],
@@ -672,11 +691,12 @@ void _openDraftHistory() {
                   userTeam: widget.selectedTeam,
                   scrollController: _draftOrderScrollController, // Add this line instead of the key
                 ),
-                AvailablePlayersTab(
-                  availablePlayers: _availablePlayersLists,
-                  selectionEnabled: _isUserPickMode,
-                  userTeam: widget.selectedTeam,
-                  onPlayerSelected: (playerIndex) {
+               AvailablePlayersTab(
+                availablePlayers: _availablePlayersLists,
+                selectionEnabled: _isUserPickMode,
+                userTeam: widget.selectedTeam,
+                selectedPositions: _getSelectedPositions(), // Add this parameter
+                onPlayerSelected: (playerIndex) {
                     // Keep your existing onPlayerSelected code unchanged
                     if (_isUserPickMode && _userNextPick != null) {
                       Player? selectedPlayer;
@@ -702,7 +722,6 @@ void _openDraftHistory() {
                   },
                 ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                TradeHistoryWidget(trades: _executedTrades),
                 if (widget.showAnalytics)
                   DraftAnalyticsDashboard(
                     completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
