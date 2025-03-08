@@ -146,6 +146,18 @@ class DraftService {
   
   /// Evaluate potential trades for the current pick with realistic behavior
   TradePackage? _evaluateTrades(DraftPick nextPick) {
+      // Add a round-based probability filter to reduce trades in later rounds
+      int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
+      if (round >= 4) {
+        // Generate a probability threshold that decreases with each round
+        double tradeThreshold = 0.8 - ((round - 4) * 0.15); // 80% in round 4, 65% in round 5, etc.
+        
+        // Only proceed with trade evaluation with decreasing probability
+        if (_random.nextDouble() > tradeThreshold) {
+          debugPrint("SKIPPING TRADE EVALUATION in Round $round (${(tradeThreshold * 100).toStringAsFixed(0)}% chance)");
+          return null; // Skip trade evaluation
+        }
+      }
     // Skip trade evaluation if user team or if the pick already has trade info
     if (nextPick.teamName == userTeam || (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty)) {
       return null;
@@ -184,6 +196,16 @@ class DraftService {
     
     // Regular trade evaluations
     final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+    if (nextPick.teamName == userTeam) {
+    debugPrint("USER TEAM PICK: No automatic trades will be executed");
+    return null; // Never auto-execute trades for user team
+  }
+  
+  // Additional check before executing any trade
+  if (tradeOffer.isUserInvolved) {
+    debugPrint("USER INVOLVED IN TRADE: Requires explicit user confirmation");
+    return null; // Don't execute trades involving user team
+  }
     
     if (tradeOffer.hasFairTrades) {
       // Sort packages by value differential
@@ -303,12 +325,35 @@ class DraftService {
     final randomFactor = _random.nextDouble() * randomnessFactor - (randomnessFactor / 2);
     acceptanceProbability += randomFactor;
     
-    // Ensure probability is within 0-1 range
-    acceptanceProbability = min(0.95, max(0.05, acceptanceProbability));
+    // Add round-based modifiers to reduce trade frequency in later rounds
+  int round = DraftValueService.getRoundForPick(package.targetPick.pickNumber);
+  if (round >= 4) {
+    // Significantly reduce trade probability in later rounds
+    double roundPenalty = (round - 3) * 0.15; // 15% reduction per round after round 3
+    acceptanceProbability -= roundPenalty;
     
-    // Make final decision
-    return _random.nextDouble() < acceptanceProbability;
+    // Add some debug info
+    debugPrint("ROUND $round: Reducing trade probability by ${(roundPenalty * 100).toStringAsFixed(0)}%");
   }
+  
+  // Add declining trade frequency as the draft progresses
+  int totalPicks = draftOrder.length;
+  int currentPicksCompleted = draftOrder.where((p) => p.isSelected).length;
+  double draftProgressPercentage = currentPicksCompleted / totalPicks;
+  
+  // Gradually reduce trade probability as draft progresses
+  if (draftProgressPercentage > 0.5) { // After halfway point
+    double progressPenalty = (draftProgressPercentage - 0.5) * 0.4; // Up to 20% reduction
+    acceptanceProbability -= progressPenalty;
+    debugPrint("DRAFT PROGRESS ${(draftProgressPercentage * 100).toStringAsFixed(0)}%: " "Reducing trade probability by ${(progressPenalty * 100).toStringAsFixed(0)}%");
+  }
+  
+  // Ensure probability is within 0-1 range
+  acceptanceProbability = min(0.95, max(0.05, acceptanceProbability));
+  
+  // Make final decision
+  return _random.nextDouble() < acceptanceProbability;
+}
   
   /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
