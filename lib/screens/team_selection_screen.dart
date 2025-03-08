@@ -109,22 +109,22 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
           children: [
             // Team selection prompt
             Container(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // Reduced vertical padding
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.sports_football, color: Colors.blue.shade700),
-                  const SizedBox(width: 16.0),
+                  Icon(Icons.sports_football, color: Colors.blue.shade700, size: 18), // Smaller icon
+                  const SizedBox(width: 12.0), // Less spacing
                   Expanded(
                     child: Text(
                       _selectedTeam != null 
                         ? 'You will control the $_selectedTeam' 
                         : 'Select a team to control in the draft',
                       style: TextStyle(
-                        fontSize: 16.0,
+                        fontSize: 14.0, // Smaller font
                         fontWeight: FontWeight.bold,
                         color: Colors.blue.shade700,
                       ),
@@ -133,7 +133,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16.0),
+            const SizedBox(height: 8.0), 
             
             // Two-column conference layout
             Expanded(
@@ -361,6 +361,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
             ),
             
             // Draft settings
+            // Draft settings
             Card(
               margin: const EdgeInsets.only(top: 16.0),
               child: Padding(
@@ -410,23 +411,22 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // Right side: Start Draft button
                         const SizedBox(width: 16),
                         Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: SizedBox(
-                            height: 40, // Match height to the dropdown
+                            height: 40,
                             child: ElevatedButton(
                               onPressed: _startDraft,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD50A0A), // Deep red
+                                backgroundColor: Colors.green.shade700,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
                               ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.play_arrow, size: 16),
-                                  SizedBox(width: 4),
-                                  Text('Start Draft'),
-                                ],
+                              child: const Center(
+                                child: Text(
+                                  'Start Draft', 
+                                  style: TextStyle(fontSize: 12),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),
@@ -434,7 +434,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                       ],
                     ),
                     
-                    const SizedBox(height: 8.0), // Reduced spacing
+                    const SizedBox(height: 8.0),
                     
                     // Speed row with Advanced button
                     Row(
@@ -453,6 +453,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                   max: 5.0,
                                   divisions: 4,
                                   label: '${_speed.toInt()}',
+                                  activeColor: Colors.green.shade700,
+                                  thumbColor: Colors.green.shade700,
                                   onChanged: (value) {
                                     setState(() {
                                       _speed = value;
@@ -470,21 +472,25 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // Right side: Advanced Settings button
                         const SizedBox(width: 16),
                         Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: SizedBox(
-                            height: 40, // Match height to the slider row
+                            height: 40,
                             child: OutlinedButton(
                               onPressed: _openDraftSettings,
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF002244), // Navy blue
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                foregroundColor: Colors.grey.shade700,
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.settings, size: 16),
-                                  SizedBox(width: 4),
-                                  Text('Advanced'),
+                                  Icon(Icons.settings, size: 16, color: Colors.grey.shade700),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    'Advanced', 
+                                    style: TextStyle(fontSize: 12),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ],
                               ),
                             ),
@@ -493,7 +499,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                       ],
                     ),
                     
-                    const SizedBox(height: 8.0), // Reduced spacing
+                    const SizedBox(height: 8.0),
                     
                     // Randomness row (no button on this row)
                     Row(
@@ -512,6 +518,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                   max: 5.0,
                                   divisions: 4,
                                   label: '${(_randomness * 5).toInt()}',
+                                  activeColor: Colors.green.shade700,
+                                  thumbColor: Colors.green.shade700,
                                   onChanged: (value) {
                                     setState(() {
                                       _randomness = value / 5;
@@ -529,9 +537,9 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // Empty space to align with buttons above
                         const SizedBox(width: 16),
                         const Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: SizedBox(
-                            height: 40, // Match height to maintain consistent spacing
+                            height: 40,
                           ),
                         ),
                       ],
