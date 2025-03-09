@@ -12,72 +12,55 @@ import '../models/team_need.dart';
 /// Service responsible for loading and parsing data from CSV files
 class DataService {
   /// Load and parse the available players CSV
-  static Future<List<Player>> loadAvailablePlayers() async {
-    try {
-      final data = await rootBundle.loadString('assets/available_players.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-      
-      // Skip the header row (index 0)
-      return csvTable
-          .skip(1)
-          .map((row) => Player.fromCsvRow(row))
-          .toList();
-    } catch (e) {
-      debugPrint("Error loading available players: $e");
-      return [];
-    }
-  }
-
-  /// Load and parse the draft order CSV
-  static Future<List<DraftPick>> loadDraftOrder() async {
+ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
   try {
-    final data = await rootBundle.loadString('assets/draft_order.csv');
+    final data = await rootBundle.loadString('assets/$year/available_players.csv');
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
     
-    // Debug the first few rows
-    debugPrint("Draft order CSV - first 5 rows:");
-    for (int i = 0; i < min(5, csvTable.length); i++) {
-      debugPrint("Row $i: ${csvTable[i]}");
-    }
+    // Skip the header row (index 0)
+    return csvTable
+        .skip(1)
+        .map((row) => Player.fromCsvRow(row))
+        .toList();
+  } catch (e) {
+    debugPrint("Error loading available players for year $year: $e");
+    return [];
+  }
+}
+
+  /// Load and parse the draft order CSV
+  static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
+  try {
+    final data = await rootBundle.loadString('assets/$year/draft_order.csv');
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
     
     // Skip the header row (index 0)
-    List<DraftPick> picks = csvTable
+    return csvTable
         .skip(1)
-        .map((row) {
-          int pickNum = int.tryParse(row[0].toString()) ?? 0;
-          debugPrint("Creating pick #$pickNum with team ${row[1]}");
-          return DraftPick.fromCsvRow(row);
-        })
+        .map((row) => DraftPick.fromCsvRow(row))
         .toList();
-    
-    // Debug the first few processed picks
-    for (int i = 0; i < min(5, picks.length); i++) {
-      debugPrint("Processed Pick #${picks[i].pickNumber}: ${picks[i].teamName}");
-    }
-    
-    return picks;
   } catch (e) {
-    debugPrint("Error loading draft order: $e");
+    debugPrint("Error loading draft order for year $year: $e");
     return [];
   }
 }
 
   /// Load and parse the team needs CSV
-  static Future<List<TeamNeed>> loadTeamNeeds() async {
-    try {
-      final data = await rootBundle.loadString('assets/team_needs.csv');
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-      
-      // Skip the header row (index 0)
-      return csvTable
-          .skip(1)
-          .map((row) => TeamNeed.fromCsvRow(row))
-          .toList();
-    } catch (e) {
-      debugPrint("Error loading team needs: $e");
-      return [];
-    }
+  static Future<List<TeamNeed>> loadTeamNeeds({required int year}) async {
+  try {
+    final data = await rootBundle.loadString('assets/$year/team_needs.csv');
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    
+    // Skip the header row (index 0)
+    return csvTable
+        .skip(1)
+        .map((row) => TeamNeed.fromCsvRow(row))
+        .toList();
+  } catch (e) {
+    debugPrint("Error loading team needs for year $year: $e");
+    return [];
   }
+}
 
   /// Convert models back to CSV-like lists for compatibility with existing UI
   static List<List<dynamic>> playersToLists(List<Player> players) {
