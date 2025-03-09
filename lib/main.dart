@@ -33,6 +33,7 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
+          debugShowCheckedModeBanner: false,
           title: 'NFL Draft App',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
