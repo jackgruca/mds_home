@@ -19,6 +19,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   double _speed = 3.0;
   double _randomness = 0.5;
   String? _selectedTeam;
+  int _selectedYear = 2025; // Default to current year
+  final List<int> _availableYears = [2023, 2024, 2025];
+
+
 
   final bool _enableTrading = true;
   final bool _enableUserTradeProposals = true;
@@ -377,7 +381,29 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                       ),
                     ),
                     const SizedBox(height: 12.0),
-                    
+                    Row(
+                      children: [
+                        const Text('Draft Year:'),
+                        const Spacer(),
+                        DropdownButton<int>(
+                          value: _selectedYear,
+                          onChanged: (int? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedYear = newValue;
+                              });
+                            }
+                          },
+                          items: _availableYears.map<DropdownMenuItem<int>>((int year) {
+                            return DropdownMenuItem<int>(
+                              value: year,
+                              child: Text(year.toString()),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12.0),
                     // Number of Rounds row with Start Draft button
                     Row(
                       children: [
@@ -555,28 +581,28 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   }
 
   void _startDraft() {
-    // Debug what's happening
-    debugPrint("Selected team (full name): $_selectedTeam");
-    String? teamAbbr = _selectedTeam != null 
-        ? NFLTeamMappings.fullNameToAbbreviation[_selectedTeam]
-        : null;
-    debugPrint("Selected team (abbreviation): $teamAbbr");
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DraftApp(
-          randomnessFactor: _randomness,
-          numberOfRounds: _numberOfRounds,
-          speedFactor: _speed,
-          selectedTeam: teamAbbr,
-          // Add these new parameters (they need to be stored as class variables):
-          enableTrading: _enableTrading,
-          enableUserTradeProposals: _enableUserTradeProposals,
-          enableQBPremium: _enableQBPremium,
-          showAnalytics: _showAnalytics,
-        ),
+  // Debug what's happening
+  debugPrint("Selected team (full name): $_selectedTeam");
+  String? teamAbbr = _selectedTeam != null 
+      ? NFLTeamMappings.fullNameToAbbreviation[_selectedTeam]
+      : null;
+  debugPrint("Selected team (abbreviation): $teamAbbr");
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftApp(
+        randomnessFactor: _randomness,
+        numberOfRounds: _numberOfRounds,
+        speedFactor: _speed,
+        selectedTeam: teamAbbr,
+        draftYear: _selectedYear, // Add this line
+        enableTrading: _enableTrading,
+        enableUserTradeProposals: _enableUserTradeProposals,
+        enableQBPremium: _enableQBPremium,
+        showAnalytics: _showAnalytics,
       ),
-    );
-  }
+    ),
+  );
+}
 }
