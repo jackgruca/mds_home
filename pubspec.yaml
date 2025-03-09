@@ -25,8 +25,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/draft_order.csv
-    - assets/available_players.csv
-    - assets/team_needs.csv
-    - assets/draft_value_chart.csv
+    - assets/2024/available_players.csv
+    - assets/2024/draft_order.csv
+    - assets/2024/team_needs.csv
+    - assets/2025/available_players.csv
+    - assets/2025/draft_order.csv
+    - assets/2025/team_needs.csv
+
 
