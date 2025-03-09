@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/draft_pick.dart';
-import '../models/player.dart';
-import '../widgets/draft/animated_draft_pick_card.dart';
+import '../utils/csv_data_handler.dart';
 
 class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> draftOrder;
-  final String? userTeam;
-  final ScrollController? scrollController; // Add this parameter
-  
-  const DraftOrderTab({
-    required this.draftOrder,
-    this.userTeam,
-    this.scrollController, // Accept external scroll controller
-    super.key,
-  });
+
+  const DraftOrderTab({required this.draftOrder, super.key});
 
   @override
   _DraftOrderTabState createState() => _DraftOrderTabState();
@@ -21,83 +12,68 @@ class DraftOrderTab extends StatefulWidget {
 
 class _DraftOrderTabState extends State<DraftOrderTab> {
   String _searchQuery = '';
-  final ScrollController _localScrollController = ScrollController();
   
-  // Use provided controller or local one
-  ScrollController get _scrollController => 
-      widget.scrollController ?? _localScrollController;
-
+  // Field indexes for key columns
+  late Map<String, int> _fieldIndexes;
+  late int _pickIndex;
+  late int _teamIndex;
+  late int _selectionIndex;
+  late int _tradeIndex;
+  
   @override
-  void dispose() {
-    // Only dispose the local controller if we created it
-    if (widget.scrollController == null) {
-      _localScrollController.dispose();
-    }
-    super.dispose();
+  void initState() {
+    super.initState();
+    _mapFieldIndexes();
   }
-
-  Widget _buildDraftOrderCards() {
-  List<List<dynamic>> filteredDraftOrder = widget.draftOrder
-      .skip(1)
-      .where((row) =>
-          _searchQuery.isEmpty ||
-          row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
-      .toList();
-      
-  // Convert dynamic rows to DraftPick objects
-  List<DraftPick> draftPicks = [];
-    for (var row in filteredDraftOrder) {
-      final pickNumber = int.tryParse(row[0].toString()) ?? 0;
-      final teamName = row[1].toString();
-      final selection = row[2].toString();
-      final position = row[3].toString();
-      final round = row[4].toString();
-      final tradeInfo = row[5].toString();
-      
-      // Create a basic DraftPick
-      final draftPick = DraftPick(
-        pickNumber: pickNumber,
-        teamName: teamName,
-        round: round,
-        tradeInfo: tradeInfo.isEmpty ? null : tradeInfo,
-      );
-      
-      // Add selected player if there is one
-      if (selection.isNotEmpty) {
-        draftPick.selectedPlayer = Player(
-          id: pickNumber, // Using pick number as ID for simplicity
-          name: selection,
-          position: position,
-          rank: pickNumber, // Default to pick number as rank if you don't have the actual rank
-        );
+  
+  @override
+  void didUpdateWidget(DraftOrderTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Re-map field indexes if data changes
+    if (widget.draftOrder != oldWidget.draftOrder) {
+      _mapFieldIndexes();
+    }
+  }
+  
+  /// Maps field indexes dynamically from header row
+  void _mapFieldIndexes() {
+    _fieldIndexes = {};
+    
+    if (widget.draftOrder.isNotEmpty && widget.draftOrder[0].isNotEmpty) {
+      // Try to map fields by header names
+      for (int i = 0; i < widget.draftOrder[0].length; i++) {
+        String header = widget.draftOrder[0][i].toString().toLowerCase();
+        _fieldIndexes[header] = i;
       }
       
-      draftPicks.add(draftPick);
-    }
-
-  return ListView.builder(
-    controller: _scrollController,
-    itemCount: draftPicks.length,
-    itemBuilder: (context, index) {
-      final isUserTeam = draftPicks[index].teamName == widget.userTeam;
-      final isRecentPick = index < 3; // Consider the first 3 picks as "recent"
+      // Map common field names to their indexes
+      _pickIndex = _fieldIndexes['pick'] ?? 0;
+      _teamIndex = _fieldIndexes['team'] ?? 1;
+      _selectionIndex = _fieldIndexes['selection'] ?? 2;
       
-      return AnimatedDraftPickCard(
-        draftPick: draftPicks[index],
-        isUserTeam: isUserTeam,
-        isRecentPick: isRecentPick,
-      );
-    },
-  );
-}
+      // Try various possible names for trade column
+      _tradeIndex = _fieldIndexes['trade'] ?? 
+                   _fieldIndexes['trade info'] ?? 
+                   _fieldIndexes['trade details'] ??
+                   _fieldIndexes['notes'] ?? 5; // Default to column 5 if not found
+    } else {
+      // Default values if no data
+      _pickIndex = 0;
+      _teamIndex = 1;
+      _selectionIndex = 2;
+      _tradeIndex = 5;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     List<List<dynamic>> filteredDraftOrder = widget.draftOrder
-        .skip(1)
-        .where((row) =>
-            _searchQuery.isEmpty ||
-            row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
+        .skip(1) // Skip header row
+        .where((row) {
+          if (row.length <= _teamIndex) return false;
+          String teamName = row[_teamIndex]?.toString().toLowerCase() ?? "";
+          return _searchQuery.isEmpty || teamName.contains(_searchQuery.toLowerCase());
+        })
         .toList();
 
     return Padding(
@@ -121,131 +97,82 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
 
           // Draft Order Table
           Expanded(
-            child: _buildDraftOrderCards(),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Table(
+                border: TableBorder.all(color: Colors.grey),
+                columnWidths: const {
+                  0: FlexColumnWidth(1), // Pick Number
+                  1: FlexColumnWidth(2), // Team
+                  2: FlexColumnWidth(3), // Selection (Drafted Player)
+                  3: FlexColumnWidth(2), // Trade Info
+                },
+                children: [
+                  // 🏆 Styled Header Row
+                  TableRow(
+                    decoration: BoxDecoration(color: Colors.blueGrey[100]),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text("Pick", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text("Team", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text("Selection", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text("Trade", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+
+                  // 🏈 Draft Order Rows
+                  for (var i = 0; i < filteredDraftOrder.length; i++)
+                    TableRow(
+                      decoration: BoxDecoration(color: i.isEven ? Colors.white : Colors.grey[200]),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            CsvDataHandler.safeAccess(filteredDraftOrder[i], _pickIndex),
+                            style: const TextStyle(fontSize: 14)
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            CsvDataHandler.safeAccess(filteredDraftOrder[i], _teamIndex),
+                            style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic)
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            CsvDataHandler.safeAccess(filteredDraftOrder[i], _selectionIndex, fallback: "—"),
+                            style: const TextStyle(fontSize: 14)
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            filteredDraftOrder[i].length > _tradeIndex ? 
+                              CsvDataHandler.safeAccess(filteredDraftOrder[i], _tradeIndex, fallback: "—") : "—",
+                            style: const TextStyle(fontSize: 14)
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
-  Widget _buildTradeDetailsDialog(List<dynamic> draftRow) {
-    // Extract trade info
-    String tradeInfo = draftRow[5].toString();
-    String team = draftRow[1].toString();
-    String pickNum = draftRow[0].toString();
-    
-    // Parse trade info (assuming format like "From TEAM")
-    String otherTeam = "Unknown Team";
-    
-    if (tradeInfo.startsWith("From ")) {
-      otherTeam = tradeInfo.substring(5);
-    }
-    
-    // Track the assets each team received
-    String teamReceived = 'Pick #$pickNum';
-    String otherTeamReceived = '';
-    
-    // Find all picks traded to the other team
-    for (var row in widget.draftOrder.skip(1)) {
-      if (row[5].toString().contains("From $team")) {
-        if (otherTeamReceived.isEmpty) {
-          otherTeamReceived = 'Pick #${row[0]}';
-        } else {
-          otherTeamReceived += ', Pick #${row[0]}';
-        }
-      }
-    }
-    
-    // If we couldn't find any, use a fallback message
-    if (otherTeamReceived.isEmpty) {
-      otherTeamReceived = "Unknown picks";
-    }
-    
-    return AlertDialog(
-      title: const Text('Trade Details'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Trade diagram
-            Row(
-              children: [
-                // Left side - Team that traded up
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        team,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Received:',
-                        style: TextStyle(fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      Card(
-                        color: Colors.green.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            teamReceived,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Arrows
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Icon(Icons.swap_horiz, color: Colors.grey),
-                ),
-                
-                // Right side - Team that traded down
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        otherTeam,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Received:',
-                        style: TextStyle(fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      Card(
-                        color: Colors.blue.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            otherTeamReceived,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 }
