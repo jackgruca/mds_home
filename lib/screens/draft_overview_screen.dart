@@ -32,10 +32,11 @@ class DraftApp extends StatefulWidget {
   final int numberOfRounds;
   final double speedFactor;
   final String? selectedTeam;
-  final bool enableTrading; // New parameter
-  final bool enableUserTradeProposals; // New parameter
-  final bool enableQBPremium; // New parameter
-  final bool showAnalytics; // New parameter
+  final int draftYear; // Add this line
+  final bool enableTrading;
+  final bool enableUserTradeProposals;
+  final bool enableQBPremium;
+  final bool showAnalytics;
 
   const DraftApp({
     super.key,
@@ -43,10 +44,11 @@ class DraftApp extends StatefulWidget {
     this.numberOfRounds = 1,
     this.speedFactor = 1.0,
     this.selectedTeam,
-    this.enableTrading = true, // Default value
-    this.enableUserTradeProposals = true, // Default value
-    this.enableQBPremium = true, // Default value
-    this.showAnalytics = true, // Default value
+    this.draftYear = 2025, // Add this line with default
+    this.enableTrading = true,
+    this.enableUserTradeProposals = true,
+    this.enableQBPremium = true,
+    this.showAnalytics = true,
   });
 
   @override
@@ -131,10 +133,12 @@ final ScrollController _draftOrderScrollController = ScrollController();
 
   Future<void> _loadData() async {
     try {
+      await DraftValueService.initialize();
+
       // Load data using our DataService
-      final players = await DataService.loadAvailablePlayers();
-      final draftPicks = await DataService.loadDraftOrder();
-      final teamNeeds = await DataService.loadTeamNeeds();
+      final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
+      final draftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
+      final teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
       
       // Filter draft picks based on the number of rounds selected
       final filteredDraftPicks = draftPicks.where((pick) {
@@ -451,7 +455,7 @@ void _openDraftHistory() {
     builder: (context) => Dialog.fullscreen(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Draft History'),
+          title: Text('${widget.draftYear} NFL Draft'),
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
