@@ -1,7 +1,6 @@
 // lib/widgets/draft/draft_history_widget.dart
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
-import '../../models/player.dart';
 import 'animated_draft_pick_card.dart';
 
 class DraftHistoryWidget extends StatefulWidget {

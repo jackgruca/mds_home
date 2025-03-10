@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
 import '../models/trade_package.dart';
-import '../widgets/analytics/draft_analytics_dashboard.dart';
 
 class DraftSummaryScreen extends StatefulWidget {
   final List<DraftPick> completedPicks;

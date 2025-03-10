@@ -66,10 +66,10 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     
     // Get column indices
     int idIndex = columnIndices['ID'] ?? 0;
-    int nameIndex = columnIndices['NAME'] ?? 1;
-    int positionIndex = columnIndices['POSITION'] ?? 2;
+    int nameIndex = columnIndices["Name"] ?? 1;
+    int positionIndex = columnIndices["Position"] ?? 2;
     int schoolIndex = columnIndices['SCHOOL'] ?? 3;
-    int rankIndex = columnIndices['RANK'] ?? widget.availablePlayers[0].length - 1;
+    int rankIndex = columnIndices["Rank_combined"] ?? widget.availablePlayers[0].length - 1;
 
     // Filter players
     List<Player> filteredPlayers = [];

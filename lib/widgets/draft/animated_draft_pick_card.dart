@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
-import '../../models/team_need.dart';
 import '../../utils/constants.dart';
 
 class AnimatedDraftPickCard extends StatefulWidget {
