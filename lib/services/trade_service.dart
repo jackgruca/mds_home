@@ -193,13 +193,13 @@ class TradeService {
     final bool isUserPick = currentPick.teamName == userTeam;
 
     // Skip if this is a user team's pick and we're not forcing trade offers
-    if (currentPick.teamName == userTeam && !qbSpecific) {
-      return TradeOffer(
-        packages: [],
-        pickNumber: pickNumber,
-        isUserInvolved: true,
-      );
-    }
+    // if (currentPick.teamName == userTeam && !qbSpecific) {
+    //  return TradeOffer(
+    //    packages: [],
+    //    pickNumber: pickNumber,
+    //    isUserInvolved: true,
+    //  );
+    //}
     
     // Check if the team with the pick has a valuable player available
     // Step 1: Identify valuable players

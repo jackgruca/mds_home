@@ -148,16 +148,12 @@ class DraftService {
   TradePackage? _evaluateTrades(DraftPick nextPick) {
       // Add a round-based probability filter to reduce trades in later rounds
       int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
-      if (round >= 4) {
-        // Generate a probability threshold that decreases with each round
-        double tradeThreshold = 0.8 - ((round - 4) * 0.15); // 80% in round 4, 65% in round 5, etc.
-        
-        // Only proceed with trade evaluation with decreasing probability
-        if (_random.nextDouble() > tradeThreshold) {
-          debugPrint("SKIPPING TRADE EVALUATION in Round $round (${(tradeThreshold * 100).toStringAsFixed(0)}% chance)");
-          return null; // Skip trade evaluation
+        if (round >= 5) { // Change from 4 to 5 (only start skipping in round 5+)
+          double tradeThreshold = 0.7 - ((round - 5) * 0.1); // Reduce penalty
+          if (_random.nextDouble() > tradeThreshold) {
+            return null;
+          }
         }
-      }
     // Skip trade evaluation if user team or if the pick already has trade info
     if (nextPick.teamName == userTeam || (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty)) {
       return null;
@@ -171,10 +167,9 @@ class DraftService {
     
     // Higher probability for QB trades when top QBs are available early
     bool tryQBTrade = false;
-    if (nextPick.pickNumber <= 15 && availableQBs.isNotEmpty) {
-      // Check if any team has QB as a top need
-      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
-      double qbTradeProb = topQBAvailable ? 0.7 : 0.4;
+    if (nextPick.pickNumber <= 25 && availableQBs.isNotEmpty) { // Expanded from 15 to 25
+      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 15); // Expanded from 10 to 15
+      double qbTradeProb = topQBAvailable ? 0.8 : 0.5; // Increased probabilities
       tryQBTrade = _random.nextDouble() < qbTradeProb;
     }
     
@@ -197,9 +192,9 @@ class DraftService {
     // Regular trade evaluations
     final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
     if (nextPick.teamName == userTeam) {
-    debugPrint("USER TEAM PICK: No automatic trades will be executed");
-    return null; // Never auto-execute trades for user team
-  }
+      final tradeOffers = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+      return null; // Still return null to avoid auto-execution, but store offers
+    }
   
   // Additional check before executing any trade
   if (tradeOffer.isUserInvolved) {
@@ -246,14 +241,11 @@ class DraftService {
     double acceptanceProbability;
     
     if (valueRatio >= 1.2) {
-      // Excellent value (20%+ surplus)
-      acceptanceProbability = 0.85;
+      acceptanceProbability = 0.9; // Increase from 0.85
     } else if (valueRatio >= 1.1) {
-      // Good value (10-20% surplus)
-      acceptanceProbability = 0.7;
+      acceptanceProbability = 0.8; // Increase from 0.7
     } else if (valueRatio >= 1.0) {
-      // Fair value (0-10% surplus)
-      acceptanceProbability = 0.55;
+      acceptanceProbability = 0.65; // Increase from 0.55
     } else if (valueRatio >= 0.9) {
       // Slightly below value (0-10% below)
       acceptanceProbability = 0.3;
@@ -329,7 +321,7 @@ class DraftService {
   int round = DraftValueService.getRoundForPick(package.targetPick.pickNumber);
   if (round >= 4) {
     // Significantly reduce trade probability in later rounds
-    double roundPenalty = (round - 3) * 0.15; // 15% reduction per round after round 3
+    double roundPenalty = (round - 3) * 0.08; // 15% reduction per round after round 3
     acceptanceProbability -= roundPenalty;
     
     // Add some debug info
@@ -343,7 +335,7 @@ class DraftService {
   
   // Gradually reduce trade probability as draft progresses
   if (draftProgressPercentage > 0.5) { // After halfway point
-    double progressPenalty = (draftProgressPercentage - 0.5) * 0.4; // Up to 20% reduction
+    double progressPenalty = (draftProgressPercentage - 0.5) * 0.2; // Up to 20% reduction
     acceptanceProbability -= progressPenalty;
     debugPrint("DRAFT PROGRESS ${(draftProgressPercentage * 100).toStringAsFixed(0)}%: " "Reducing trade probability by ${(progressPenalty * 100).toStringAsFixed(0)}%");
   }
