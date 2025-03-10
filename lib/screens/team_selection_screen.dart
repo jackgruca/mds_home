@@ -19,10 +19,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   double _speed = 3.0;
   double _randomness = 0.5;
   String? _selectedTeam;
-  int _selectedYear = 2025; // Default to current year
+  int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
-
-
 
   final bool _enableTrading = true;
   final bool _enableUserTradeProposals = true;
@@ -65,7 +63,6 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
               _randomness = settings['randomnessFactor'];
               _speed = settings['draftSpeed'];
               // Store the other settings to be passed to the draft screen
-              // These might require you to update your DraftApp constructor to accept them
             });
           },
         ),
@@ -77,9 +74,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final bool isSmallScreen = screenSize.width < 600;
+    final bool isVerySmallScreen = screenSize.width < 360;
     
-    // Calculate team logo size based on screen size
-    final double teamLogoSize = isSmallScreen ? 30.0 : 40.0;
+    // Responsive values
+    final double teamLogoSize = isSmallScreen ? 
+        (isVerySmallScreen ? 24.0 : 30.0) : 40.0;
+    final double fontSize = isSmallScreen ? 
+        (isVerySmallScreen ? 9.0 : 10.0) : 12.0;
+    final double sectionPadding = isSmallScreen ? 6.0 : 12.0;
     
     // Define theme colors
     const Color afcColor = Color(0xFFD50A0A);  // Dark red
@@ -107,39 +109,94 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
         child: Column(
           children: [
-            // Team selection prompt
+            // Year selector - prominent at the top
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0), // Reduced vertical padding
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8.0),
+              padding: EdgeInsets.symmetric(
+                vertical: 8.0, 
+                horizontal: sectionPadding
               ),
+              color: Colors.blue.shade700,
               child: Row(
                 children: [
-                  Icon(Icons.sports_football, color: Colors.blue.shade700, size: 18), // Smaller icon
-                  const SizedBox(width: 12.0), // Less spacing
+                  const Text(
+                    'Draft Year:',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      _selectedTeam != null 
-                        ? 'You will control the $_selectedTeam' 
-                        : 'Select a team to control in the draft',
-                      style: TextStyle(
-                        fontSize: 14.0, // Smaller font
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: _availableYears.map((year) {
+                        final isSelected = year == _selectedYear;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedYear = year;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isSelected 
+                                  ? Colors.white 
+                                  : Colors.blue.shade600,
+                              foregroundColor: isSelected 
+                                  ? Colors.blue.shade800 
+                                  : Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isSmallScreen ? 12.0 : 16.0,
+                                vertical: 8.0
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4.0),
+                              ),
+                            ),
+                            child: Text(
+                              year.toString(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isSmallScreen ? 14.0 : 16.0,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8.0), 
             
-            // Two-column conference layout
+            // Team selection indicator if a team is selected
+            if (_selectedTeam != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                color: Colors.green.shade50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.sports_football, color: Colors.green, size: 16.0),
+                    const SizedBox(width: 8.0),
+                    Text(
+                      'You are controlling: $_selectedTeam',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                        fontSize: 14.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Team selection area (expanded)
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +208,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // AFC header
                         Container(
                           color: afcColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: sectionPadding, 
+                            vertical: 6.0
+                          ),
                           width: double.infinity,
                           child: const Text(
                             'AFC',
@@ -167,6 +227,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // AFC divisions
                         Expanded(
                           child: ListView(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: sectionPadding / 2,
+                              vertical: sectionPadding / 2
+                            ),
                             children: _afcDivisions.entries.map((entry) {
                               final String division = entry.key;
                               final List<String> teams = entry.value;
@@ -176,11 +240,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                 children: [
                                   // Division header
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4.0, 
+                                      vertical: 2.0
+                                    ),
                                     child: Text(
                                       division.substring(4), // Remove 'AFC ' prefix
-                                      style: const TextStyle(
-                                        fontSize: 12.0,
+                                      style: TextStyle(
+                                        fontSize: fontSize,
                                         fontWeight: FontWeight.bold,
                                         color: afcColor,
                                       ),
@@ -205,7 +272,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                             decoration: BoxDecoration(
                                               border: isSelected 
                                                 ? Border.all(color: Colors.blue, width: 3.0) 
-                                                : Border.all(color: Colors.grey.shade300),
+                                                : Border.all(color: Colors.grey[300]!),
                                               borderRadius: BorderRadius.circular(8.0),
                                             ),
                                             child: Column(
@@ -227,8 +294,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                 const SizedBox(height: 2.0),
                                                 Text(
                                                   NFLTeamMappings.fullNameToAbbreviation[team] ?? team,
-                                                  style: const TextStyle(
-                                                    fontSize: 10.0,
+                                                  style: TextStyle(
+                                                    fontSize: fontSize,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                   textAlign: TextAlign.center,
@@ -241,7 +308,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                       );
                                     }).toList(),
                                   ),
-                                  const SizedBox(height: 8.0),
+                                  SizedBox(height: isSmallScreen ? 4.0 : 8.0),
                                 ],
                               );
                             }).toList(),
@@ -261,7 +328,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // NFC header
                         Container(
                           color: nfcColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: sectionPadding, 
+                            vertical: 6.0
+                          ),
                           width: double.infinity,
                           child: const Text(
                             'NFC',
@@ -277,6 +347,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         // NFC divisions
                         Expanded(
                           child: ListView(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: sectionPadding / 2,
+                              vertical: sectionPadding / 2
+                            ),
                             children: _nfcDivisions.entries.map((entry) {
                               final String division = entry.key;
                               final List<String> teams = entry.value;
@@ -286,11 +360,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                 children: [
                                   // Division header
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4.0, 
+                                      vertical: 2.0
+                                    ),
                                     child: Text(
                                       division.substring(4), // Remove 'NFC ' prefix
-                                      style: const TextStyle(
-                                        fontSize: 12.0,
+                                      style: TextStyle(
+                                        fontSize: fontSize,
                                         fontWeight: FontWeight.bold,
                                         color: nfcColor,
                                       ),
@@ -315,7 +392,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                             decoration: BoxDecoration(
                                               border: isSelected 
                                                 ? Border.all(color: Colors.blue, width: 3.0) 
-                                                : Border.all(color: Colors.grey.shade300),
+                                                : Border.all(color: Colors.grey[300]!),
                                               borderRadius: BorderRadius.circular(8.0),
                                             ),
                                             child: Column(
@@ -337,8 +414,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                 const SizedBox(height: 2.0),
                                                 Text(
                                                   NFLTeamMappings.fullNameToAbbreviation[team] ?? team,
-                                                  style: const TextStyle(
-                                                    fontSize: 10.0,
+                                                  style: TextStyle(
+                                                    fontSize: fontSize,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                   textAlign: TextAlign.center,
@@ -351,7 +428,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                       );
                                     }).toList(),
                                   ),
-                                  const SizedBox(height: 8.0),
+                                  SizedBox(height: isSmallScreen ? 4.0 : 8.0),
                                 ],
                               );
                             }).toList(),
@@ -364,123 +441,114 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
               ),
             ),
             
-            // Draft settings
-            // Draft settings
-            Card(
-              margin: const EdgeInsets.only(top: 16.0),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Draft Settings',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12.0),
-                    Row(
+            // Compact settings bar at bottom
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: sectionPadding,
+                vertical: 8.0
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                border: Border(top: BorderSide(color: Colors.grey[300]!)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Draft settings in a responsive layout
+                  isSmallScreen ?
+                    // Small screen layout (vertical stacking)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Draft Year:'),
-                        const Spacer(),
-                        DropdownButton<int>(
-                          value: _selectedYear,
-                          onChanged: (int? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedYear = newValue;
-                              });
-                            }
-                          },
-                          items: _availableYears.map<DropdownMenuItem<int>>((int year) {
-                            return DropdownMenuItem<int>(
-                              value: year,
-                              child: Text(year.toString()),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12.0),
-                    // Number of Rounds row with Start Draft button
-                    Row(
-                      children: [
-                        // Left side: Rounds dropdown
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Number of Rounds:'),
-                              DropdownButton<int>(
-                                value: _numberOfRounds,
-                                onChanged: (int? newValue) {
-                                  if (newValue != null) {
-                                    setState(() {
-                                      _numberOfRounds = newValue;
-                                    });
-                                  }
-                                },
-                                items: List.generate(7, (index) => index + 1)
-                                    .map<DropdownMenuItem<int>>((int value) {
-                                  return DropdownMenuItem<int>(
-                                    value: value,
-                                    child: Text(value.toString()),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Right side: Start Draft button
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 1,
-                          child: SizedBox(
-                            height: 40,
-                            child: ElevatedButton(
-                              onPressed: _startDraft,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade700,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Start Draft', 
-                                  style: TextStyle(fontSize: 12),
-                                  textAlign: TextAlign.center,
+                        // Rounds row
+                        Row(
+                          children: [
+                            // Rounds label
+                            const SizedBox(
+                              width: 50,
+                              child: Text(
+                                'Rounds:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 12.0
                                 ),
                               ),
                             ),
-                          ),
+                            // Round selection buttons
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: List.generate(7, (index) {
+                                    final roundNum = index + 1;
+                                    final isSelected = _numberOfRounds == roundNum;
+                                    
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 4.0),
+                                      child: Material(
+                                        color: isSelected ? Colors.blue : Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(4.0),
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _numberOfRounds = roundNum;
+                                            });
+                                          },
+                                          borderRadius: BorderRadius.circular(4.0),
+                                          child: Container(
+                                            width: 24.0,
+                                            height: 24.0,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              '$roundNum',
+                                              style: TextStyle(
+                                                color: isSelected ? Colors.white : Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12.0,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 8.0),
-                    
-                    // Speed row with Advanced button
-                    Row(
-                      children: [
-                        // Left side: Speed slider
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Speed:'),
-                              Expanded(
+                        
+                        const SizedBox(height: 8.0),
+                        
+                        // Speed row
+                        Row(
+                          children: [
+                            // Speed label
+                            const SizedBox(
+                              width: 50,
+                              child: Text(
+                                'Speed:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 12.0
+                                ),
+                              ),
+                            ),
+                            // Speed slider
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 4.0,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                                ),
                                 child: Slider(
                                   value: _speed,
                                   min: 1.0,
                                   max: 5.0,
                                   divisions: 4,
-                                  label: '${_speed.toInt()}',
-                                  activeColor: Colors.green.shade700,
-                                  thumbColor: Colors.green.shade700,
+                                  activeColor: Colors.green[700],
                                   onChanged: (value) {
                                     setState(() {
                                       _speed = value;
@@ -488,90 +556,146 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                   },
                                 ),
                               ),
-                              SizedBox(
-                                width: 30,
-                                child: Text('${_speed.toInt()}', textAlign: TextAlign.center),
-                              ),
-                            ],
+                            ),
+                            Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                          ],
+                        ),
+                      ],
+                    )
+                  :
+                    // Regular layout (horizontal)
+                    Row(
+                      children: [
+                        // Rounds buttons
+                        const Text(
+                          'Rounds:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold, 
+                            fontSize: 12.0
                           ),
                         ),
-                        // Right side: Advanced Settings button
-                        const SizedBox(width: 16),
-                        Expanded(
-                          flex: 1,
-                          child: SizedBox(
-                            height: 40,
-                            child: OutlinedButton(
-                              onPressed: _openDraftSettings,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.grey.shade700,
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.settings, size: 16, color: Colors.grey.shade700),
-                                  const SizedBox(width: 4),
-                                  const Text(
-                                    'Advanced', 
-                                    style: TextStyle(fontSize: 12),
-                                    textAlign: TextAlign.center,
+                        const SizedBox(width: 8.0),
+                        // Round selection buttons
+                        Row(
+                          children: List.generate(7, (index) {
+                            final roundNum = index + 1;
+                            final isSelected = _numberOfRounds == roundNum;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 4.0),
+                              child: Material(
+                                color: isSelected ? Colors.blue : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(4.0),
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _numberOfRounds = roundNum;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(4.0),
+                                  child: Container(
+                                    width: 24.0,
+                                    height: 24.0,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '$roundNum',
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.0,
+                                      ),
+                                    ),
                                   ),
-                                ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        
+                        const SizedBox(width: 16.0),
+                        
+                        // Speed slider (compact)
+                        const Text(
+                          'Speed:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold, 
+                            fontSize: 12.0
+                          ),
+                        ),
+                        const SizedBox(width: 8.0),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 4.0,
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                            ),
+                            child: Slider(
+                              value: _speed,
+                              min: 1.0,
+                              max: 5.0,
+                              divisions: 4,
+                              activeColor: Colors.green[700],
+                              onChanged: (value) {
+                                setState(() {
+                                  _speed = value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                      ],
+                    ),
+                  
+                  const SizedBox(height: 8.0),
+                  
+                  // Bottom row with Advanced button and Start button
+                  Row(
+                    children: [
+                      // Advanced settings button
+                      OutlinedButton.icon(
+                        onPressed: _openDraftSettings,
+                        icon: const Icon(Icons.settings, size: 16),
+                        label: const Text('Advanced'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12, 
+                            vertical: 8
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 12.0),
+                      
+                      // Start button (expanded width)
+                      Expanded(
+                        child: SizedBox(
+                          height: 40.0,
+                          child: ElevatedButton(
+                            onPressed: _selectedTeam != null ? _startDraft : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[700],
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey[300],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4.0),
+                              ),
+                            ),
+                            child: const Text(
+                              'START DRAFT',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16.0,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 8.0),
-                    
-                    // Randomness row (no button on this row)
-                    Row(
-                      children: [
-                        // Left side: Randomness slider with identical structure to Speed
-                        Expanded(
-                          flex: 3,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Randomness:'),
-                              Expanded(
-                                child: Slider(
-                                  value: _randomness * 5,
-                                  min: 1.0,
-                                  max: 5.0,
-                                  divisions: 4,
-                                  label: '${(_randomness * 5).toInt()}',
-                                  activeColor: Colors.green.shade700,
-                                  thumbColor: Colors.green.shade700,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _randomness = value / 5;
-                                    });
-                                  },
-                                ),
-                              ),
-                              SizedBox(
-                                width: 30,
-                                child: Text('${(_randomness * 5).toInt()}', textAlign: TextAlign.center),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Empty space to align with buttons above
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          flex: 1,
-                          child: SizedBox(
-                            height: 40,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -579,39 +703,38 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
       ),
     );
   }
-
-void _startDraft() {
-  // Debug what's happening
-  debugPrint("Starting draft for year: $_selectedYear");
-  debugPrint("Selected team (full name): $_selectedTeam");
   
-  // Determine the team identifier to use
-  String? teamIdentifier;
-  if (_selectedTeam != null) {
-    // If a full team name is selected, use its abbreviation if available
-    teamIdentifier = NFLTeamMappings.fullNameToAbbreviation[_selectedTeam];
+  void _startDraft() {
+    debugPrint("Starting draft for year: $_selectedYear");
+    debugPrint("Selected team (full name): $_selectedTeam");
     
-    // If no abbreviation found, use the full name
-    teamIdentifier ??= _selectedTeam;
+    // Determine the team identifier to use
+    String? teamIdentifier;
+    if (_selectedTeam != null) {
+      // If a full team name is selected, use its abbreviation if available
+      teamIdentifier = NFLTeamMappings.fullNameToAbbreviation[_selectedTeam];
+      
+      // If no abbreviation found, use the full name
+      teamIdentifier ??= _selectedTeam;
+      
+      debugPrint("Using team identifier: $teamIdentifier");
+    }
     
-    debugPrint("Using team identifier: $teamIdentifier");
-  }
-  
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => DraftApp(
-        randomnessFactor: _randomness,
-        numberOfRounds: _numberOfRounds,
-        speedFactor: _speed,
-        selectedTeam: teamIdentifier,
-        draftYear: _selectedYear,
-        enableTrading: _enableTrading,
-        enableUserTradeProposals: _enableUserTradeProposals,
-        enableQBPremium: _enableQBPremium,
-        showAnalytics: _showAnalytics,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DraftApp(
+          randomnessFactor: _randomness,
+          numberOfRounds: _numberOfRounds,
+          speedFactor: _speed,
+          selectedTeam: teamIdentifier,
+          draftYear: _selectedYear,
+          enableTrading: _enableTrading,
+          enableUserTradeProposals: _enableUserTradeProposals,
+          enableQBPremium: _enableQBPremium,
+          showAnalytics: _showAnalytics,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
