@@ -269,30 +269,53 @@ class TradeService {
   
   // Determine if the current team sees value in staying at their pick
   bool _currentTeamWantsToStay(DraftPick currentPick, List<Player> valuablePlayers) {
-    // Get the team's needs
-    final currentTeamNeeds = _getTeamNeeds(currentPick.teamName);
-    if (currentTeamNeeds == null) return false;
-    
-    // Check for high-value players at positions of need
-    for (var player in valuablePlayers.take(3)) {
-      // Top 3 available players at position of need = high value
-      if (currentTeamNeeds.needs.take(2).contains(player.position)) {
-        // Stronger desire to stay for premium positions
-        double stayFactor = _premiumPositions.contains(player.position) ? 0.8 : 0.6;
-        
-        // Even stronger for QBs in first round
-        if (player.position == "QB" && currentPick.pickNumber <= 32) {
-          stayFactor = 0.9;
+  // Get the team's needs
+  final currentTeamNeeds = _getTeamNeeds(currentPick.teamName);
+  if (currentTeamNeeds == null) return false;
+  
+  // Check for QB-specific logic first (highest priority)
+  bool hasQBNeed = currentTeamNeeds.needs.take(3).contains("QB");
+  
+  if (hasQBNeed) {
+    // Check for valuable QB available
+    for (var player in valuablePlayers) {
+      if (player.position == "QB" && player.rank <= currentPick.pickNumber + 10) {
+        // Early pick with QB need and valuable QB available = almost never trade out
+        if (currentPick.pickNumber <= 15) {
+          return _random.nextDouble() < 0.98; // 98% chance to stay
+        } else if (currentPick.pickNumber <= 32) {
+          return _random.nextDouble() < 0.95; // 95% chance to stay
+        } else {
+          return _random.nextDouble() < 0.9; // 90% chance to stay
         }
-        
-        return _random.nextDouble() < stayFactor;
       }
     }
-    
-    // Check if team is the user's team - allow more trade offers
-    if (currentPick.teamName == userTeam) {
-      return false; // Generate offers for user regardless
+  }
+  
+  // Check for high-value players at other premium positions of need
+  for (var player in valuablePlayers.take(3)) {
+    // Top 3 available players at position of need = high value
+    if (currentTeamNeeds.needs.take(3).contains(player.position)) {
+      // Stronger desire to stay for premium positions
+      if (_premiumPositions.contains(player.position)) {
+        // For premium positions with top pick, very unlikely to trade out
+        if (currentPick.pickNumber <= 15) {
+          return _random.nextDouble() < 0.9; // 90% chance to stay
+        } else {
+          return _random.nextDouble() < 0.8; // 80% chance to stay
+        }
+      } else if (_secondaryPositions.contains(player.position)) {
+        return _random.nextDouble() < 0.7; // 70% chance to stay
+      } else {
+        return _random.nextDouble() < 0.6; // 60% chance to stay
+      }
     }
+  }
+  
+  // Check if team is the user's team - allow more trade offers
+  if (currentPick.teamName == userTeam) {
+    return false; // Generate offers for user regardless
+  }
     
     // Default moderate chance to stay
     return _random.nextDouble() < 0.4;
@@ -413,14 +436,14 @@ class TradeService {
     if (player.position == "QB") {
       // Even higher premium for QB-specific trades
       if (qbSpecific) {
-        interestLevel += 0.3;
+        interestLevel += 0.5; // Increased from 0.3
       } else {
-        interestLevel += 0.2;
+        interestLevel += 0.3; // Increased from 0.2
       }
       
       // Top QBs are even more valuable
       if (player.rank <= 15) {
-        interestLevel += 0.15;
+        interestLevel += 0.25; // Increased from 0.15
       }
     }
     
@@ -562,11 +585,13 @@ class TradeService {
       
       // Apply QB premium if applicable
       if (isQBTrade && potentialPackages.isNotEmpty && enableQBPremium) {
-        // QB trades historically have a premium of 10-30%
-        double qbPremiumFactor = 1.0 + (_random.nextDouble() * 0.2 + 0.1); // 1.1 to 1.3
+        // QB trades historically have a higher premium
+        double qbPremiumFactor = 1.2 + (_random.nextDouble() * 0.3); // 1.2 to 1.5 (increased)
         
-        potentialPackages = potentialPackages.map((package) {
-          return TradePackage(
+        // Apply the premium to each package's offered value
+        for (var i = 0; i < potentialPackages.length; i++) {
+          final package = potentialPackages[i];
+          potentialPackages[i] = TradePackage(
             teamOffering: package.teamOffering,
             teamReceiving: package.teamReceiving,
             picksOffered: package.picksOffered,
@@ -579,9 +604,8 @@ class TradeService {
             futurePickValue: package.futurePickValue,
             targetReceivedFuturePicks: package.targetReceivedFuturePicks,
           );
-        }).toList();
-      }
-      
+        }
+      }   
       // Filter packages based on value considerations
       potentialPackages = _filterPackagesByValue(potentialPackages, targetValue, tendency);
       

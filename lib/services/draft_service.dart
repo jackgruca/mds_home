@@ -177,7 +177,27 @@ class DraftService {
     if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty) {
       return null;
     }
+
+    // Get team needs
+    TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
     
+    // Check for QB needs specifically - teams with a QB need should almost never
+    // trade out of a pick where they could select a valuable QB
+    bool teamNeedsQB = teamNeeds != null && teamNeeds.needs.take(3).contains("QB");
+    
+    if (teamNeedsQB && nextPick.pickNumber <= 32) {
+      // Check for valuable QBs available
+      bool valuableQBAvailable = availablePlayers
+          .any((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 10);
+      
+      if (valuableQBAvailable) {
+        // 98% chance to stay and draft the QB
+        if (_random.nextDouble() < 0.98) {
+          return null;
+        }
+      }
+    }
+
     // Determine the chance of trade evaluation based on round
     int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
     double tradeChance = _roundTradeFrequency[round] ?? 0.10;
@@ -232,39 +252,49 @@ class DraftService {
   
   /// Evaluate if we should try a QB-specific trade scenario
   bool _evaluateQBTradeScenario(DraftPick nextPick) {
-    // Skip QB trade logic for user team picks
-    if (nextPick.teamName == userTeam) return false;
-    
-    // Check for available QB prospects in the top 20
-    final availableQBs = availablePlayers
-        .where((p) => p.position == "QB" && p.rank <= 20)
-        .toList();
-    
-    if (availableQBs.isEmpty) return false;
-    
-    // Higher probability for QB trades when top QBs are available
-    // Different thresholds by pick position
-    if (nextPick.pickNumber <= 10) {
-      // Very high chance in top 10 with top QB
-      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
-      double qbTradeProb = topQBAvailable ? 0.8 : 0.5;
-      return _random.nextDouble() < qbTradeProb;
-    } 
-    else if (nextPick.pickNumber <= 32) {
-      // Moderate chance in first round
-      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 15);
-      double qbTradeProb = topQBAvailable ? 0.6 : 0.35;
-      return _random.nextDouble() < qbTradeProb;
-    }
-    else if (nextPick.pickNumber <= 45) {
-      // Lower chance early in second round
-      double qbTradeProb = 0.25;
-      return _random.nextDouble() < qbTradeProb;
-    }
-    
-    // Very low chance in later rounds
-    return _random.nextDouble() < 0.1;
+  // Skip QB trade logic for user team picks
+  if (nextPick.teamName == userTeam) return false;
+  
+  // Get team needs for the team with the current pick
+  TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
+  bool currentTeamNeedsQB = teamNeeds != null && 
+                           teamNeeds.needs.take(3).contains("QB");
+  
+  // If team with the pick needs a QB, they likely won't trade out
+  // for a QB-motivated trade (but might trade for other reasons)
+  if (currentTeamNeedsQB && nextPick.pickNumber <= 15) {
+    return false;
   }
+  
+  // Check for available QB prospects in the top 20
+  final availableQBs = availablePlayers
+      .where((p) => p.position == "QB" && p.rank <= 20)
+      .toList();
+  
+  if (availableQBs.isEmpty) return false;
+  
+  // High probabilities for QB trades when top QBs are available
+  if (nextPick.pickNumber <= 10) {
+    // Very high chance in top 10 with top QB
+    bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
+    double qbTradeProb = topQBAvailable ? 0.9 : 0.7;
+    return _random.nextDouble() < qbTradeProb;
+  } 
+  else if (nextPick.pickNumber <= 32) {
+    // Moderate chance in first round
+    bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 15);
+    double qbTradeProb = topQBAvailable ? 0.8 : 0.5;
+    return _random.nextDouble() < qbTradeProb;
+  }
+  else if (nextPick.pickNumber <= 45) {
+    // Lower chance early in second round
+    double qbTradeProb = 0.4;
+    return _random.nextDouble() < qbTradeProb;
+  }
+  
+  // Very low chance in later rounds
+  return _random.nextDouble() < 0.15;
+}
   
   /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
@@ -323,87 +353,62 @@ class DraftService {
   
   /// Select a player based on the R algorithm - enhanced with better need/position weighting
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
-    // If team has no needs defined, use best player available
-    if (teamNeed == null || teamNeed.needs.isEmpty) {
-      return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
-    }
-    
-    // Following R code pattern for selections
-    List<Player?> selectionCandidates = [];
-    
-    // Calculate round based on pick number
-    int round = (nextPick.pickNumber / 32).ceil();
-    
-    // Get needs based on round (more needs considered in later rounds)
-    int needsToConsider = min(3 + round, teamNeed.needs.length);
-    
-    // Generate selections for each need
-    for (int i = 0; i < needsToConsider; i++) {
-      String? needPosition = i < teamNeed.needs.length ? teamNeed.needs[i] : null;
-      
-      if (needPosition != null && needPosition != "-") {
-        selectionCandidates.add(_makeSelection(needPosition));
-      } else {
-        selectionCandidates.add(null);
-      }
-    }
-    
-    // Remove null entries
-    selectionCandidates.removeWhere((player) => player == null);
-    
-    // If no candidates found through needs, use best player available
-    if (selectionCandidates.isEmpty) {
-      return _selectBestPlayerAvailable(nextPick.pickNumber);
-    }
-    
-    // Initialize with the first selection (need1)
-    Player bestSelection = selectionCandidates[0]!;
-    int selectedIndex = 0;
-    
-    // QB preference logic
-    if (_qbTrade && bestSelection.position == "QB") {
-      return bestSelection;
-    }
-    
-    // Need 1 QB auto pick (high priority for QBs in first need)
-    if (selectedIndex == 0 && 
-        bestSelection.position == "QB" && 
-        bestSelection.rank <= 2 * _getRandomAddValue() + 7 + nextPick.pickNumber) {
-      return bestSelection;
-    }
-    
-    // Variables for selection logic
-    double randMult = _getRandomMultValue();
-    double randAdd = _getRandomAddValue();
-    int pickNum = nextPick.pickNumber;
-    
-    // Previous condition
-    bool prevCondition = true;
-    
-    // Loop through candidates to find best selection
-    for (int i = 0; i < selectionCandidates.length; i++) {
-      Player candidate = selectionCandidates[i]!;
-      
-      // Calculate conditions similar to R code
-      double factor = ((21 - i) / 20) * randMult;
-      bool rankCondition = candidate.rank < pickNum + factor * pickNum + randAdd;
-      
-      if (i > 0 && rankCondition && prevCondition) {
-        bestSelection = candidate;
-        selectedIndex = i;
-        prevCondition = false;
-      } else if (i == 0) {
-        prevCondition = bestSelection.rank > pickNum + factor * pickNum + randAdd;
-      }
-    }
-    
-    // If no selection made, use best player available that matches any team need
-    if (prevCondition && selectionCandidates.length == needsToConsider) {
-      return _selectBestPlayerForPosition(teamNeed.needs, nextPick.pickNumber);
-    }
-    
-    return bestSelection;
+  // If team has no needs defined, use best player available
+  if (teamNeed == null || teamNeed.needs.isEmpty) {
+    return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
   }
+  
+  // Calculate round based on pick number (1-indexed)
+  int round = (nextPick.pickNumber / 32).ceil();
+  
+  // Get needs based on round (only consider round+3 needs as you specified)
+  int needsToConsider = min(round + 3, teamNeed.needs.length);
+  
+  // Generate selections for each need, but strictly prioritize earlier needs
+  List<Player?> candidates = [];
+  for (int i = 0; i < needsToConsider; i++) {
+    if (i < teamNeed.needs.length) {
+      String needPosition = teamNeed.needs[i];
+      if (needPosition != "-") {
+        candidates.add(_makeSelection(needPosition));
+      }
+    }
+  }
+  
+  // Remove null entries
+  candidates.removeWhere((player) => player == null);
+  
+  // If no candidates found through needs, use best player available
+  if (candidates.isEmpty) {
+    return _selectBestPlayerAvailable(nextPick.pickNumber);
+  }
+  
+  // Special case for QB-needy teams 
+  if (_qbTrade && candidates.any((p) => p!.position == "QB")) {
+    return candidates.firstWhere((p) => p!.position == "QB")!;
+  }
+  
+  // Calculate value thresholds with less randomness for early picks
+  double factor = min(0.2, ((round * 0.05) + 0.05));
+  
+  // Evaluate each need/player in order of priority
+  for (int i = 0; i < candidates.length; i++) {
+    Player candidate = candidates[i]!;
+    // Check if this player's rank is close enough to pick value
+    if (candidate.rank <= nextPick.pickNumber * (1 + factor) + round) {
+      return candidate; // Pick player at this need position
+    }
+  }
+  
+  // If no good value at needs, select best player available that matches any team need
+  if (candidates.isNotEmpty) {
+    candidates.sort((a, b) => a!.rank.compareTo(b!.rank));
+    return candidates.first!;
+  }
+  
+  // Fallback to best overall player
+  return _selectBestPlayerAvailable(nextPick.pickNumber);
+}
   
   /// Make a selection for a specific need position
   Player? _makeSelection(String needPosition) {
