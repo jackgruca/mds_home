@@ -67,8 +67,6 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       }
     }
     
-    Map<String, List<String>> teamNeedsMap = {};
-    
     // Get index for key columns
     int pickIndex = columnIndices['PICK'] ?? 0;
     int teamIndex = columnIndices['TEAM'] ?? 1;
@@ -160,13 +158,6 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
 
   @override
   Widget build(BuildContext context) {
-    List<List<dynamic>> filteredDraftOrder = widget.draftOrder
-        .skip(1)
-        .where((row) =>
-            _searchQuery.isEmpty ||
-            row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -192,128 +183,6 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
           ),
         ],
       ),
-    );
-  }
-  
-  Widget _buildTradeDetailsDialog(List<dynamic> draftRow) {
-    // Extract trade info
-    String tradeInfo = draftRow[5].toString();
-    String team = draftRow[1].toString();
-    String pickNum = draftRow[0].toString();
-    
-    // Parse trade info (assuming format like "From TEAM")
-    String otherTeam = "Unknown Team";
-    
-    if (tradeInfo.startsWith("From ")) {
-      otherTeam = tradeInfo.substring(5);
-    }
-    
-    // Track the assets each team received
-    String teamReceived = 'Pick #$pickNum';
-    String otherTeamReceived = '';
-    
-    // Find all picks traded to the other team
-    for (var row in widget.draftOrder.skip(1)) {
-      if (row[5].toString().contains("From $team")) {
-        if (otherTeamReceived.isEmpty) {
-          otherTeamReceived = 'Pick #${row[0]}';
-        } else {
-          otherTeamReceived += ', Pick #${row[0]}';
-        }
-      }
-    }
-    
-    // If we couldn't find any, use a fallback message
-    if (otherTeamReceived.isEmpty) {
-      otherTeamReceived = "Unknown picks";
-    }
-    
-    return AlertDialog(
-      title: const Text('Trade Details'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Trade diagram
-            Row(
-              children: [
-                // Left side - Team that traded up
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        team,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Received:',
-                        style: TextStyle(fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      Card(
-                        color: Colors.green.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            teamReceived,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Arrows
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Icon(Icons.swap_horiz, color: Colors.grey),
-                ),
-                
-                // Right side - Team that traded down
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        otherTeam,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Received:',
-                        style: TextStyle(fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      Card(
-                        color: Colors.blue.shade50,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            otherTeamReceived,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 }
