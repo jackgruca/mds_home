@@ -1,5 +1,7 @@
 // lib/screens/draft_overview_screen.dart - Updated with trade integration
 import 'package:flutter/material.dart';
+import 'package:mds_home/utils/theme_manager.dart';
+import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
@@ -30,10 +32,11 @@ class DraftApp extends StatefulWidget {
   final int numberOfRounds;
   final double speedFactor;
   final String? selectedTeam;
-  final bool enableTrading; // New parameter
-  final bool enableUserTradeProposals; // New parameter
-  final bool enableQBPremium; // New parameter
-  final bool showAnalytics; // New parameter
+  final int draftYear; // Add this line
+  final bool enableTrading;
+  final bool enableUserTradeProposals;
+  final bool enableQBPremium;
+  final bool showAnalytics;
 
   const DraftApp({
     super.key,
@@ -41,10 +44,11 @@ class DraftApp extends StatefulWidget {
     this.numberOfRounds = 1,
     this.speedFactor = 1.0,
     this.selectedTeam,
-    this.enableTrading = true, // Default value
-    this.enableUserTradeProposals = true, // Default value
-    this.enableQBPremium = true, // Default value
-    this.showAnalytics = true, // Default value
+    this.draftYear = 2025, // Add this line with default
+    this.enableTrading = true,
+    this.enableUserTradeProposals = true,
+    this.enableQBPremium = true,
+    this.showAnalytics = true,
   });
 
   @override
@@ -127,68 +131,74 @@ final ScrollController _draftOrderScrollController = ScrollController();
   return selectedPositions;
 }
 
-  Future<void> _loadData() async {
-    try {
-      // Load data using our DataService
-      final players = await DataService.loadAvailablePlayers();
-      final draftPicks = await DataService.loadDraftOrder();
-      final teamNeeds = await DataService.loadTeamNeeds();
-      
-      // Filter draft picks based on the number of rounds selected
-      final filteredDraftPicks = draftPicks.where((pick) {
-        int round = int.tryParse(pick.round) ?? 1;
-        return round <= widget.numberOfRounds;
-      }).toList();
+  // Modify the loadData method in DraftAppState
+Future<void> _loadData() async {
+  try {
+    await DraftValueService.initialize();
 
-      // After loading draftPicks
-      debugPrint("Teams in draft order:");
-      for (var pick in filteredDraftPicks.take(10)) {
-        debugPrint("Pick #${pick.pickNumber}: Team '${pick.teamName}'");
-      }
-
-      // Create the draft service with the loaded data
-      final draftService = DraftService(
-  availablePlayers: List.from(players),
-  draftOrder: filteredDraftPicks,
-  teamNeeds: teamNeeds,
-  randomnessFactor: widget.randomnessFactor,
-  userTeam: widget.selectedTeam,
-  numberRounds: widget.numberOfRounds,
-  enableTrading: widget.enableTrading, // New parameter
-  enableUserTradeProposals: widget.enableUserTradeProposals, // New parameter
-  enableQBPremium: widget.enableQBPremium, // New parameter
-);
-
-
-      // Convert models to lists for the existing UI components
-      final draftOrderLists = DataService.draftPicksToLists(filteredDraftPicks);
-      final availablePlayersLists = DataService.playersToLists(players);
-      final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
-
-      setState(() {
-        _players = players;
-        _draftPicks = filteredDraftPicks;
-        _teamNeeds = teamNeeds;
-        _draftService = draftService;
-        
-        // Reset trade tracking
-        _executedTrades = [];
-        
-        // Set list versions for UI compatibility
-        _draftOrderLists = draftOrderLists;
-        _availablePlayersLists = availablePlayersLists;
-        _teamNeedsLists = teamNeedsLists;
-        
-        _isDataLoaded = true;
-        _statusMessage = "Draft data loaded successfully";
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = "Error loading draft data: $e";
-      });
-      debugPrint("Error loading data: $e");
+    // Load data using our DataService
+    final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
+    final allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
+    final teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
+    
+    // Mark which picks are active in the current draft (based on selected rounds)
+    // but keep all picks for trading purposes
+    for (var pick in allDraftPicks) {
+      int round = int.tryParse(pick.round) ?? 1;
+      pick.isActiveInDraft = round <= widget.numberOfRounds;
     }
+    
+    // Filter display picks for draft order tab
+    final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
+
+    // After loading draftPicks
+    debugPrint("Teams in draft order:");
+    for (var pick in displayDraftPicks.take(10)) {
+      debugPrint("Pick #${pick.pickNumber}: Team '${pick.teamName}'");
+    }
+
+    // Create the draft service with ALL picks (not just filtered ones)
+    final draftService = DraftService(
+      availablePlayers: List.from(players),
+      draftOrder: allDraftPicks,  // Use all picks for the draft service
+      teamNeeds: teamNeeds,
+      randomnessFactor: widget.randomnessFactor,
+      userTeam: widget.selectedTeam,
+      numberRounds: widget.numberOfRounds,
+      enableTrading: widget.enableTrading,
+      enableUserTradeProposals: widget.enableUserTradeProposals,
+      enableQBPremium: widget.enableQBPremium,
+    );
+
+    // Convert models to lists for the existing UI components
+    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks); // Only filtered picks for display
+    final availablePlayersLists = DataService.playersToLists(players);
+    final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
+
+    setState(() {
+      _players = players;
+      _draftPicks = allDraftPicks;  // Store all picks
+      _teamNeeds = teamNeeds;
+      _draftService = draftService;
+      
+      // Reset trade tracking
+      _executedTrades = [];
+      
+      // Set list versions for UI compatibility
+      _draftOrderLists = draftOrderLists;
+      _availablePlayersLists = availablePlayersLists;
+      _teamNeedsLists = teamNeedsLists;
+      
+      _isDataLoaded = true;
+      _statusMessage = "Draft data loaded successfully";
+    });
+  } catch (e) {
+    setState(() {
+      _statusMessage = "Error loading draft data: $e";
+    });
+    debugPrint("Error loading data: $e");
   }
+}
 
   void _toggleDraft() {
     if (!_isDataLoaded || _draftService == null) {
@@ -449,7 +459,7 @@ void _openDraftHistory() {
     builder: (context) => Dialog.fullscreen(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Draft History'),
+          title: Text('${widget.draftYear} NFL Draft'),
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
@@ -512,6 +522,7 @@ void _openDraftHistory() {
           ),
         ),
         actions: [
+          
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -632,6 +643,21 @@ void _openDraftHistory() {
     return Scaffold(
       appBar: AppBar(
         title: const Text('NFL Draft'),
+        actions: [
+    // Theme toggle button
+    IconButton(
+      icon: Icon(
+        Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+            ? Icons.dark_mode
+            : Icons.light_mode,
+      ),
+      tooltip: 'Toggle Theme',
+      onPressed: () {
+        Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+      },
+    ),
+    // Other app bar actions...
+  ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -648,39 +674,66 @@ void _openDraftHistory() {
           // Status bar
           Container(
             padding: const EdgeInsets.all(8.0),
-            color: Colors.blue.shade100,
-            width: double.infinity,
-            child: Text(
-              _statusMessage,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: widget.selectedTeam != null 
+                  ? [Colors.blue.shade50, Colors.green.shade50]
+                  : [Colors.blue.shade50, Colors.blue.shade100],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          ),
-          
-          if (widget.selectedTeam != null)
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              color: Colors.green.shade50,
-              child: Row(
-                children: [
+            child: Row(
+              children: [
+                if (widget.selectedTeam != null) ...[
                   const Icon(Icons.sports_football, color: Colors.green),
                   const SizedBox(width: 8),
                   Text(
-                    'You are controlling: ${widget.selectedTeam}',
+                    '${widget.selectedTeam}:',  
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                       color: Colors.green,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
+                ],
+                
+                // Status message - always show this
+                Expanded(
+                  child: Text(
+                    _statusMessage,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    textAlign: widget.selectedTeam != null ? TextAlign.left : TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                
+                // Always show the propose trade button if user team selected
+                if (widget.selectedTeam != null)
                   OutlinedButton.icon(
                     onPressed: _initiateUserTradeProposal,
-                    icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Propose Trade'),
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('Trade'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
           // Tab content
           Expanded(
             child: TabBarView(
@@ -690,6 +743,7 @@ void _openDraftHistory() {
                   draftOrder: _draftOrderLists,
                   userTeam: widget.selectedTeam,
                   scrollController: _draftOrderScrollController, // Add this line instead of the key
+                  teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(
                 availablePlayers: _availablePlayersLists,

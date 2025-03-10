@@ -56,13 +56,18 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
     _tabController.dispose();
     super.dispose();
   }
-  
+
   void _calculateAnalytics() {
     // Reset analytics
     _positionCounts = {};
     _teamPicks = {};
     _valueByTeam = {};
     _rankDifferentials = {};
+    
+    // Only process data if there are completed picks
+    if (widget.completedPicks.isEmpty) {
+      return; // Exit early if no picks have been made yet
+    }
     
     // Count positions drafted
     for (var pick in widget.completedPicks) {
@@ -95,6 +100,27 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
 
   @override
   Widget build(BuildContext context) {
+    if (widget.completedPicks.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.analytics_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              "No draft data available yet",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Analytics will appear after the draft begins",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
         TabBar(

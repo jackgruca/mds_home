@@ -103,7 +103,7 @@ class DraftService {
     _currentPick = nextPick.pickNumber;
     _tradeUp = false;
     _qbTrade = false;
-    
+      
     // Check if this is a user team pick
     if (userTeam != null && nextPick.teamName == userTeam) {
       // User interaction would be handled by the UI, not directly in the service
@@ -501,7 +501,7 @@ class DraftService {
   /// Get the next pick in the draft order
   DraftPick? _getNextPick() {
     for (var pick in draftOrder) {
-      if (!pick.isSelected) {
+      if (!pick.isSelected && pick.isActiveInDraft) {  // Only consider active picks for the draft
         return pick;
       }
     }
@@ -771,7 +771,7 @@ Player _selectBestPlayerAvailable(int pickNumber) {
   List<TradePackage> get executedTrades => _executedTrades;
   
   bool isDraftComplete() {
-    return draftOrder.every((pick) => pick.isSelected);
+    return draftOrder.where((pick) => pick.isActiveInDraft).every((pick) => pick.isSelected);
   }
   
   /// Get trade offers for the current pick (mainly for UI purposes)
@@ -793,6 +793,7 @@ Player _selectBestPlayerAvailable(int pickNumber) {
 
   /// Get all available picks for a specific team
   List<DraftPick> getTeamPicks(String teamName) {
+    // Include ALL picks for trading, not just active ones
     return draftOrder.where((pick) => 
       pick.teamName == teamName && !pick.isSelected
     ).toList();
@@ -800,6 +801,7 @@ Player _selectBestPlayerAvailable(int pickNumber) {
 
   /// Get picks from all other teams
   List<DraftPick> getOtherTeamPicks(String excludeTeam) {
+    // Include ALL picks for trading, not just active ones
     return draftOrder.where((pick) => 
       pick.teamName != excludeTeam && !pick.isSelected
     ).toList();

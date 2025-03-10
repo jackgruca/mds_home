@@ -1,5 +1,9 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/team_selection_screen.dart';
+import 'utils/theme_config.dart';
+import 'utils/theme_manager.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -14,12 +18,29 @@ void main() {
   }
   
   runApp(
-    MaterialApp(
-      title: 'NFL Draft App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const TeamSelectionScreen(),
+    ChangeNotifierProvider(
+      create: (_) => ThemeManager(),
+      child: const MyApp(),
     ),
   );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeManager>(
+      builder: (context, themeManager, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'NFL Draft App',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeManager.themeMode,
+          home: const TeamSelectionScreen(),
+        );
+      },
+    );
+  }
 }
