@@ -278,6 +278,598 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
     );
   }
   
+  Widget _buildDraftStrategyInsights() {
+  // Calculate offense vs defense balance for each team
+  Map<String, Map<String, int>> teamPositionTypes = {};
+  
+  // Position type classification
+  final Map<String, String> positionTypes = {
+    'QB': 'Offense',
+    'RB': 'Offense',
+    'WR': 'Offense',
+    'TE': 'Offense',
+    'OT': 'Offense',
+    'IOL': 'Offense',
+    'OL': 'Offense',
+    'G': 'Offense',
+    'C': 'Offense',
+    'FB': 'Offense',
+    'EDGE': 'Defense',
+    'DL': 'Defense',
+    'IDL': 'Defense',
+    'DT': 'Defense',
+    'DE': 'Defense',
+    'LB': 'Defense',
+    'ILB': 'Defense',
+    'OLB': 'Defense',
+    'CB': 'Defense',
+    'S': 'Defense',
+    'FS': 'Defense',
+    'SS': 'Defense',
+    'K': 'Special Teams',
+    'P': 'Special Teams',
+    'LS': 'Special Teams',
+  };
+  
+  // Analyze team draft strategies
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      final team = pick.teamName;
+      final position = pick.selectedPlayer!.position;
+      final type = positionTypes[position] ?? 'Other';
+      
+      // Initialize team data if needed
+      teamPositionTypes.putIfAbsent(team, () => {'Offense': 0, 'Defense': 0, 'Special Teams': 0, 'Other': 0});
+      
+      // Increment count for this type
+      teamPositionTypes[team]![type] = (teamPositionTypes[team]![type] ?? 0) + 1;
+    }
+  }
+  
+  // Convert to a list and sort by offense-defense ratio for interesting insights
+  List<MapEntry<String, Map<String, int>>> teamPositionsList = teamPositionTypes.entries.toList();
+  teamPositionsList.sort((a, b) {
+    final aOffenseRatio = a.value['Offense']! / (a.value['Offense']! + a.value['Defense']! + 0.01);
+    final bOffenseRatio = b.value['Offense']! / (b.value['Offense']! + b.value['Defense']! + 0.01);
+    return bOffenseRatio.compareTo(aOffenseRatio); // Sort high to low offense ratio
+  });
+  
+  // Display strategy insights
+  return Column(
+    children: [
+      const Text('Teams sorted by offensive focus in draft:',
+        style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic)),
+      const SizedBox(height: 8),
+      
+      // Team strategies
+      ...teamPositionsList.map((entry) {
+        final team = entry.key;
+        final data = entry.value;
+        final offenseCount = data['Offense'] ?? 0;
+        final defenseCount = data['Defense'] ?? 0;
+        final totalCount = offenseCount + defenseCount + (data['Special Teams'] ?? 0) + (data['Other'] ?? 0);
+        
+        // Skip teams with no picks
+        if (totalCount == 0) return const SizedBox.shrink();
+        
+        final offensePct = (offenseCount / totalCount * 100).toInt();
+        final defensePct = (defenseCount / totalCount * 100).toInt();
+        
+        // Determine team strategy
+        String strategy;
+        Color strategyColor;
+        
+        if (offensePct > 75) {
+          strategy = "Offense-heavy";
+          strategyColor = Colors.red;
+        } else if (offensePct > 60) {
+          strategy = "Offense-focused";
+          strategyColor = Colors.orange;
+        } else if (defensePct > 75) {
+          strategy = "Defense-heavy";
+          strategyColor = Colors.blue;
+        } else if (defensePct > 60) {
+          strategy = "Defense-focused";
+          strategyColor = Colors.lightBlue;
+        } else {
+          strategy = "Balanced";
+          strategyColor = Colors.green;
+        }
+        
+        // Highlight user team
+        final isUserTeam = team == widget.userTeam;
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Row(
+            children: [
+              // Team name
+              SizedBox(
+                width: 60,
+                child: Text(
+                  team,
+                  style: TextStyle(
+                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                    color: isUserTeam ? Colors.blue : null,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              
+              // Offense-Defense ratio bar
+              Expanded(
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 20,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.grey.shade200,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        // Offense part
+                        Container(
+                          height: 20,
+                          width: (offenseCount / totalCount) * 100,
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(4),
+                              bottomLeft: Radius.circular(4),
+                            ),
+                            color: Colors.red,
+                          ),
+                          alignment: Alignment.center,
+                          child: offenseCount > 0 ? const Text(
+                            'O',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ) : null,
+                        ),
+                        // Defense part
+                        Container(
+                          height: 20,
+                          width: (defenseCount / totalCount) * 100,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topRight: offenseCount + defenseCount == totalCount ? const Radius.circular(4) : Radius.zero,
+                              bottomRight: offenseCount + defenseCount == totalCount ? const Radius.circular(4) : Radius.zero,
+                            ),
+                            color: Colors.blue,
+                          ),
+                          alignment: Alignment.center,
+                          child: defenseCount > 0 ? const Text(
+                            'D',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ) : null,
+                        ),
+                        // Special Teams part (if any)
+                        if ((data['Special Teams'] ?? 0) > 0)
+                          Container(
+                            height: 20,
+                            width: ((data['Special Teams'] ?? 0) / totalCount) * 100,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.only(
+                                topRight: offenseCount + defenseCount + (data['Special Teams'] ?? 0) == totalCount ? const Radius.circular(4) : Radius.zero,
+                                bottomRight: offenseCount + defenseCount + (data['Special Teams'] ?? 0) == totalCount ? const Radius.circular(4) : Radius.zero,
+                              ),
+                              color: Colors.green,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Strategy label
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: strategyColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: strategyColor),
+                ),
+                child: Text(
+                  strategy,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: strategyColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    ],
+  );
+}
+
+Widget _buildDraftSuccessTab() {
+  // Calculate predictive metrics for each team's picks
+  Map<String, List<Map<String, dynamic>>> teamDraftGrades = {};
+  
+  // Process completed picks
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      final team = pick.teamName;
+      final player = pick.selectedPlayer!;
+      
+      // Calculate metrics
+      final pickQuality = _calculatePickQuality(player.rank, pick.pickNumber);
+      final positionValue = _getPositionValueCoefficient(player.position);
+      final roundFactor = _getRoundSuccessFactor(pick.round);
+      
+      // Calculate overall success score (0-100)
+      final successScore = (pickQuality * 0.5 + positionValue * 0.3 + roundFactor * 0.2) * 100;
+      
+      // Initialize team data if needed
+      teamDraftGrades.putIfAbsent(team, () => []);
+      
+      // Add pick data
+      teamDraftGrades[team]!.add({
+        'player': player.name,
+        'position': player.position,
+        'pickNumber': pick.pickNumber,
+        'rank': player.rank,
+        'successScore': successScore,
+      });
+    }
+  }
+  
+  // Calculate team average success scores
+  Map<String, double> teamAverageScores = {};
+  for (var entry in teamDraftGrades.entries) {
+    final team = entry.key;
+    final picks = entry.value;
+    
+    if (picks.isNotEmpty) {
+      double totalScore = 0;
+      for (var pick in picks) {
+        totalScore += pick['successScore'];
+      }
+      teamAverageScores[team] = totalScore / picks.length;
+    }
+  }
+  
+  // Sort teams by average success score
+  List<MapEntry<String, double>> sortedTeams = teamAverageScores.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Draft Success Prediction',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Based on historical data patterns of successful NFL picks',
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Team success ratings
+        Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Team Draft Success Ratings',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Team ratings
+                ...sortedTeams.map((entry) {
+                  final team = entry.key;
+                  final score = entry.value;
+                  final isUserTeam = team == widget.userTeam;
+                  
+                  // Get letter grade
+                  String grade;
+                  Color gradeColor;
+                  
+                  if (score >= 90) {
+                    grade = 'A+';
+                    gradeColor = Colors.green.shade800;
+                  } else if (score >= 85) {
+                    grade = 'A';
+                    gradeColor = Colors.green.shade700;
+                  } else if (score >= 80) {
+                    grade = 'A-';
+                    gradeColor = Colors.green.shade600;
+                  } else if (score >= 75) {
+                    grade = 'B+';
+                    gradeColor = Colors.green.shade500;
+                  } else if (score >= 70) {
+                    grade = 'B';
+                    gradeColor = Colors.green.shade400;
+                  } else if (score >= 65) {
+                    grade = 'B-';
+                    gradeColor = Colors.blue.shade600;
+                  } else if (score >= 60) {
+                    grade = 'C+';
+                    gradeColor = Colors.blue.shade500;
+                  } else if (score >= 55) {
+                    grade = 'C';
+                    gradeColor = Colors.orange.shade700;
+                  } else if (score >= 50) {
+                    grade = 'C-';
+                    gradeColor = Colors.orange.shade600;
+                  } else if (score >= 45) {
+                    grade = 'D+';
+                    gradeColor = Colors.orange.shade500;
+                  } else if (score >= 40) {
+                    grade = 'D';
+                    gradeColor = Colors.red.shade600;
+                  } else {
+                    grade = 'F';
+                    gradeColor = Colors.red.shade700;
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      children: [
+                        // Team name
+                        SizedBox(
+                          width: 60,
+                          child: Text(
+                            team,
+                            style: TextStyle(
+                              fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                              color: isUserTeam ? Colors.blue : null,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        
+                        // Success score bar
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Container(
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: Colors.grey.shade200,
+                                ),
+                              ),
+                              Container(
+                                height: 20,
+                                width: (score / 100) * 300, // Scale to fit
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      gradeColor.withOpacity(0.7),
+                                      gradeColor,
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Grade and score
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: gradeColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: gradeColor),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                grade,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: gradeColor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                score.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: gradeColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Best value picks
+        _buildBestValuePicksSection(),
+      ],
+    ),
+  );
+}
+
+Widget _buildBestValuePicksSection() {
+  // Gather all picks with their value differential
+  List<Map<String, dynamic>> valuePicks = [];
+  
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      final valueGap = pick.pickNumber - pick.selectedPlayer!.rank;
+      
+      if (valueGap > 0) {
+        valuePicks.add({
+          'team': pick.teamName,
+          'player': pick.selectedPlayer!.name,
+          'position': pick.selectedPlayer!.position,
+          'pickNumber': pick.pickNumber,
+          'rank': pick.selectedPlayer!.rank,
+          'valueGap': valueGap,
+        });
+      }
+    }
+  }
+  
+  // Sort by value gap (highest first)
+  valuePicks.sort((a, b) => b['valueGap'].compareTo(a['valueGap']));
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Best Value Picks',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Top 5 value picks
+          ...valuePicks.take(5).map((pick) {
+            final isUserTeam = pick['team'] == widget.userTeam;
+            
+            return ListTile(
+              dense: true,
+              title: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style,
+                  children: [
+                    TextSpan(
+                      text: '${pick['player']} ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isUserTeam ? Colors.blue : null,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '(${pick['position']})',
+                      style: const TextStyle(
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              subtitle: Text('${pick['team']} - Pick #${pick['pickNumber']} (Rank #${pick['rank']})'),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.green.shade700),
+                ),
+                child: Text(
+                  '+${pick['valueGap']}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ),
+            );
+          }),
+          
+          if (valuePicks.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'No value picks found yet',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Helper functions for draft success predictions
+double _calculatePickQuality(int rank, int pickNumber) {
+  final valueDifference = pickNumber - rank;
+  
+  // Scale to 0.0-1.0 range
+  if (valueDifference >= 30) return 1.0; // Great value
+  if (valueDifference <= -30) return 0.0; // Terrible value
+  
+  // Linear scale between -30 and 30
+  return (valueDifference + 30) / 60.0;
+}
+
+double _getPositionValueCoefficient(String position) {
+  // Premium positions tend to have higher success rates
+  if (['QB', 'OT', 'EDGE', 'CB'].contains(position)) {
+    return 0.9; // Premium positions
+  } else if (['WR', 'DE', 'S', 'TE', 'IDL'].contains(position)) {
+    return 0.7; // Above average value
+  } else if (['RB', 'IOL', 'G', 'C', 'LB'].contains(position)) {
+    return 0.5; // Average value
+  } else {
+    return 0.3; // Below average value
+  }
+}
+
+double _getRoundSuccessFactor(String round) {
+  // Earlier rounds have historically better success rates
+  int roundNum = int.tryParse(round) ?? 7;
+  
+  switch (roundNum) {
+    case 1: return 0.9;
+    case 2: return 0.75;
+    case 3: return 0.6;
+    case 4: return 0.45;
+    case 5: return 0.3;
+    case 6: return 0.2;
+    case 7: return 0.1;
+    default: return 0.1;
+  }
+}
+
   Widget _buildPositionsTab() {
     // Sort positions by counts
     List<MapEntry<String, int>> sortedPositions = _positionCounts.entries.toList()
