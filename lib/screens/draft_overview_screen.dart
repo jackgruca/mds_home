@@ -21,6 +21,7 @@ import '../widgets/draft/draft_history_widget.dart';
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
 import 'available_players_tab.dart';
+import 'draft_summary_screen.dart';
 import 'team_needs_tab.dart';
 import 'draft_order_tab.dart';
 import 'team_selection_screen.dart';
@@ -614,6 +615,40 @@ void _openDraftHistory() {
     }
   }
 
+  void _showDraftSummary() {
+  if (_draftService == null) return;
+  
+  // Show a full-screen dialog with the draft summary
+  showDialog(
+    context: context,
+    builder: (context) => DraftSummaryScreen(
+      completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+      draftedPlayers: _players.where((player) => 
+        _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+      executedTrades: _executedTrades,
+      userTeam: widget.selectedTeam,
+    ),
+  );
+}
+
+// Add a check to show the summary when draft is complete
+@override
+void didUpdateWidget(DraftApp oldWidget) {
+  super.didUpdateWidget(oldWidget);
+  
+  // Check if draft just completed
+  if (_draftService != null && 
+      _draftService!.isDraftComplete() && 
+      !_isDraftRunning && 
+      _isDataLoaded &&
+      widget.showAnalytics) {
+    // Wait a moment before showing the summary
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _showDraftSummary();
+    });
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     if (!_isDataLoaded) {
@@ -639,6 +674,7 @@ void _openDraftHistory() {
           hasTradeOffers = _draftService!.hasOffersForPick(nextPick.pickNumber);
         }
     }
+    
 
     return Scaffold(
       appBar: AppBar(
