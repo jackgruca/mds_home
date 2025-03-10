@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
-import '../../models/team_need.dart';
 import '../../utils/constants.dart';
 
 class AnimatedDraftPickCard extends StatefulWidget {
@@ -266,7 +265,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                     
                     const SizedBox(width: 4.0),
                     
-                    // Player rank (instead of showing pick number)
+                    // Player rank clearly labeled
                     if (widget.draftPick.selectedPlayer != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -277,22 +276,34 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                           ).withOpacity(isDarkMode ? 0.4 : 0.2),
                           borderRadius: BorderRadius.circular(3.0),
                         ),
-                        child: Text(
-                          '#${widget.draftPick.selectedPlayer!.rank}',
-                          style: TextStyle(
-                            color: isDarkMode ? 
-                                Colors.white : 
-                                _getRankColor(
-                                  widget.draftPick.selectedPlayer!.rank,
-                                  widget.draftPick.pickNumber,
-                                ),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11.0,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Rank: ',
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.white : Colors.black87,
+                                fontSize: 10.0,
+                              ),
+                            ),
+                            Text(
+                              '#${widget.draftPick.selectedPlayer!.rank}',
+                              style: TextStyle(
+                                color: isDarkMode ? 
+                                    Colors.white : 
+                                    _getRankColor(
+                                      widget.draftPick.selectedPlayer!.rank,
+                                      widget.draftPick.pickNumber,
+                                    ),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.0,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
-                ),
+                )
               ],
             ),
           ),

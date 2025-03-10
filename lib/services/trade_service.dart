@@ -10,7 +10,7 @@ import '../models/trade_offer.dart';
 import '../models/future_pick.dart';
 import 'draft_value_service.dart';
 
-/// Service responsible for generating and evaluating trade offers
+/// Service responsible for generating and evaluating trade offers with improved realism
 class TradeService {
   final List<DraftPick> draftOrder;
   final List<TeamNeed> teamNeeds;
@@ -21,10 +21,44 @@ class TradeService {
   // Configurable parameters
   final bool enableUserTradeConfirmation;
   final double tradeRandomnessFactor;
+  final bool enableQBPremium;
+  
+  // Team-specific trading tendencies
+  final Map<String, TradingTendency> _teamTendencies = {
+    'NE': TradingTendency(tradeDownBias: 0.7, valueSeeker: 0.9), // Patriots love trading down for value
+    'PHI': TradingTendency(tradeUpBias: 0.7, aggressiveness: 0.7), // Eagles often trade up
+    'LV': TradingTendency(tradeUpBias: 0.6, aggressiveness: 0.8), // Raiders aggressive with trades
+    'BAL': TradingTendency(tradeDownBias: 0.6, valueSeeker: 0.7), // Ravens collect picks
+    'SF': TradingTendency(tradeUpBias: 0.7, aggressiveness: 0.6), // 49ers target specific players
+    'SEA': TradingTendency(tradeDownBias: 0.7, valueSeeker: 0.6), // Seahawks trade down often
+    'GB': TradingTendency(tradeDownBias: 0.7, valueSeeker: 0.7), // Packers prefer more picks
+    'KC': TradingTendency(tradeUpBias: 0.6, aggressiveness: 0.6), // Chiefs target specific talent
+    'BUF': TradingTendency(tradeUpBias: 0.6, aggressiveness: 0.6), // Bills can be aggressive
+    'MIA': TradingTendency(tradeUpBias: 0.7, aggressiveness: 0.7), // Dolphins historically aggressive
+    'MIN': TradingTendency(tradeActivityLevel: 0.7), // Vikings active traders
+    'DAL': TradingTendency(tradeActivityLevel: 0.6), // Cowboys moderate activity
+    // Add more teams with specific tendencies as needed
+  };
+  
+  // Position market volatility - tracks "runs" on positions
+  final Map<String, double> _positionMarketVolatility = {};
+  
+  // Recent selections to detect position runs
+  final List<Player> _recentSelections = [];
   
   // Team-specific data for realistic behavior
   final Map<String, Map<int, double>> _teamSpecificGrades = {};
   final Map<String, int> _teamCurrentPickPosition = {};
+  
+  // Premium positions that are valued more highly
+  final Set<String> _premiumPositions = {
+    'QB', 'OT', 'EDGE', 'CB', 'WR'
+  };
+  
+  // Secondary value positions
+  final Set<String> _secondaryPositions = {
+    'DT', 'S', 'TE', 'IOL', 'LB'
+  };
   
   TradeService({
     required this.draftOrder,
@@ -33,20 +67,58 @@ class TradeService {
     this.userTeam,
     this.enableUserTradeConfirmation = true,
     this.tradeRandomnessFactor = 0.5,
+    this.enableQBPremium = true,
   }) {
-    // Initialize team-specific grades
-    _initializeTeamGrades();
+    // Initialize team-specific data
+    _initializeTeamData();
   }
   
-  // Method to initialize team grades and positions
-  void _initializeTeamGrades() {
+  // Method to initialize team data for trade evaluation
+  void _initializeTeamData() {
     _generateTeamSpecificGrades();
     _updateTeamPickPositions();
   }
   
+  // Keep track of player selection to detect position runs
+  void recordPlayerSelection(Player player) {
+    _recentSelections.add(player);
+    
+    // Keep only most recent 15 selections
+    if (_recentSelections.length > 15) {
+      _recentSelections.removeAt(0);
+    }
+    
+    // Update position market volatility
+    _updatePositionMarketVolatility();
+  }
+  
+  // Update position market volatility based on recent selections
+  void _updatePositionMarketVolatility() {
+    // Reset volatility (will decay over time)
+    for (var key in _positionMarketVolatility.keys) {
+      _positionMarketVolatility[key] = (_positionMarketVolatility[key] ?? 0) * 0.7;
+    }
+    
+    // Count positions in recent selections
+    Map<String, int> recentPositionCounts = {};
+    for (var player in _recentSelections.take(10)) {
+      recentPositionCounts[player.position] = (recentPositionCounts[player.position] ?? 0) + 1;
+    }
+    
+    // Update volatility based on recent selection patterns
+    for (var entry in recentPositionCounts.entries) {
+      // A position run increases volatility
+      if (entry.value >= 2) {
+        double volatilityIncrease = entry.value * 0.15; // Each pick increases volatility by 15%
+        _positionMarketVolatility[entry.key] = (_positionMarketVolatility[entry.key] ?? 0) + volatilityIncrease;
+      }
+    }
+  }
+  
   // Method to update each team's current pick position
   void _updateTeamPickPositions() {
-    for (var teamName in teamNeeds.map((tn) => tn.teamName).toSet()) {
+    for (var teamNeed in teamNeeds) {
+      final teamName = teamNeed.teamName;
       final teamPicks = draftOrder
           .where((p) => p.teamName == teamName && !p.isSelected)
           .toList();
@@ -58,7 +130,7 @@ class TradeService {
     }
   }  
   
-  /// Generate team-specific player grades that slightly differ from consensus rankings
+  // Generate team-specific grades for player evaluations
   void _generateTeamSpecificGrades() {
     for (var teamNeed in teamNeeds) {
       final teamName = teamNeed.teamName;
@@ -69,120 +141,42 @@ class TradeService {
         double baseGrade = 100.0 - player.rank;
         if (baseGrade < 0) baseGrade = 0;
         
-        // Teams value their need positions more (up to +15%)
+        // Teams value their need positions more (up to +20%)
         int needIndex = teamNeed.needs.indexOf(player.position);
-        double needBonus = (needIndex != -1) ? (0.15 * (10 - min(needIndex, 9))) : 0;
+        double needBonus = (needIndex != -1) ? (0.2 * (10 - min(needIndex, 9))) : 0;
         
-        // Team-specific randomness (±10%)
-        double randomFactor = 0.9 + (_random.nextDouble() * 0.2);
+        // Premium positions get additional value
+        double positionBonus = 0.0;
+        if (_premiumPositions.contains(player.position)) {
+          positionBonus = 0.15; // 15% premium for elite positions
+        } else if (_secondaryPositions.contains(player.position)) {
+          positionBonus = 0.05; // 5% premium for secondary positions
+        }
+        
+        // QB-specific adjustment
+        if (player.position == 'QB' && enableQBPremium) {
+          positionBonus += 0.2; // Additional 20% premium for QBs
+          
+          // Extra value for top QBs
+          if (player.rank <= 15) {
+            positionBonus += 0.15; // Another 15% for top QBs
+          }
+        }
+        
+        // Team-specific randomness (±15%)
+        double randomFactor = 0.85 + (_random.nextDouble() * 0.3);
         
         // Final team-specific grade
-        grades[player.id] = baseGrade * (1 + needBonus) * randomFactor;
+        grades[player.id] = baseGrade * (1 + needBonus + positionBonus) * randomFactor;
       }
       
       _teamSpecificGrades[teamName] = grades;
     }
   }
   
-  /// Get a team's grade for a specific player
-  double _getTeamGradeForPlayer(String teamName, Player player) {
-    if (!_teamSpecificGrades.containsKey(teamName)) {
-      return 100.0 - player.rank; // Default to consensus ranking if no team grade exists
-    }
-    
-    return _teamSpecificGrades[teamName]?[player.id] ?? (100.0 - player.rank);
-  }
-  
-  /// Detect if there's a run on a specific position
-  bool _isPositionRunHappening(String position) {
-    // Check last 5 picks
-    int recentSelections = 0;
-    int positionCount = 0;
-    
-    final selectedPicks = draftOrder.where((p) => p.isSelected).toList();
-    
-    // Sort by pick number to analyze in order
-    selectedPicks.sort((a, b) => b.pickNumber.compareTo(a.pickNumber));
-    
-    for (var pick in selectedPicks) {
-      if (recentSelections >= 5) break;
-      recentSelections++;
-      
-      if (pick.selectedPlayer?.position == position) {
-        positionCount++;
-      }
-    }
-    
-    // If 2+ of the last 5 picks were the same position, it's a run
-    return positionCount >= 2;
-  }
-  
-  /// Calculate remaining talent at a position
-  int _remainingTalentAtPosition(String position, int thresholdRank) {
-    return availablePlayers
-      .where((p) => p.position == position && p.rank <= thresholdRank)
-      .length;
-  }
-  
-  /// Check if teams ahead might take the player
-  bool _competitorsMightTakePlayer(Player player, int currentPick, int targetPick) {
-    // Look at each team between current and target
-    for (int pickNum = currentPick + 1; pickNum < targetPick; pickNum++) {
-      final teamWithPick = draftOrder.firstWhere(
-        (p) => p.pickNumber == pickNum && !p.isSelected,
-        orElse: () => throw Exception("Pick not found")
-      );
-      
-      // Get team needs
-      final needs = _getTeamNeeds(teamWithPick.teamName);
-      if (needs == null) continue;
-      
-      // If this position is in their top 3 needs, they might take the player
-      if (needs.needs.take(3).contains(player.position)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  
-  /// Determine if a player is valuable enough to trade up for
-  bool _isPlayerWorthTradingFor(Player player, TeamNeed teamNeed, int currentPickNumber) {
-    // Priority based on team needs
-    int needPriority = teamNeed.needs.indexOf(player.position);
-    if (needPriority == -1) needPriority = 100; // Not in needs
-    
-    // Basic value: How much higher is player ranked than current pick
-    double valueGap = (currentPickNumber - player.rank).toDouble();
-    
-    // Value threshold varies by need priority
-    double valueThreshold;
-    if (needPriority < 2) {
-      // Top 2 needs - willing to move for smaller value gaps
-      valueThreshold = 3 + (_random.nextDouble() * 5); // 3-8 spots
-    } else if (needPriority < 5) {
-      // Medium needs - require more value
-      valueThreshold = 7 + (_random.nextDouble() * 7); // 7-14 spots
-    } else {
-      // Low or no need - require significant value
-      valueThreshold = 12 + (_random.nextDouble() * 10); // 12-22 spots
-    }
-    
-    // Teams value higher-ranked positions more (QB, LT, EDGE, etc.)
-    if (["QB", "OT", "EDGE", "WR", "CB"].contains(player.position)) {
-      valueThreshold *= 0.8; // 20% lower threshold for premium positions
-    }
-    
-    // QB-specific logic: Teams highly value QBs especially early
-    if (player.position == "QB" && player.rank <= 20) {
-      valueThreshold *= 0.7; // Even more aggressive for top QBs
-    }
-    
-    return valueGap > valueThreshold;
-  }
-  
   /// Generate trade offers for a specific pick with realistic behavior
   TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
-    // Update team pick positions (as they may have changed)
+    // Update team pick positions as they may have changed
     _updateTeamPickPositions();
     
     // Get the current pick
@@ -190,160 +184,335 @@ class TradeService {
       (pick) => pick.pickNumber == pickNumber,
       orElse: () => throw Exception('Pick number $pickNumber not found in draft order'),
     );
-    final bool isUserPick = currentPick.teamName == userTeam;
-
-    // Skip if this is a user team's pick and we're not forcing trade offers
-    if (currentPick.teamName == userTeam && !qbSpecific) {
+    
+    // Check if this involves the user team
+    final bool isUsersPick = currentPick.teamName == userTeam;
+    
+    // IMPORTANT: We now generate trade offers even for user team picks
+    // Instead of returning an empty list as before
+    
+    // Step 1: Identify valuable players available at this pick
+    List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, qbSpecific);
+    
+    if (valuablePlayers.isEmpty) {
       return TradeOffer(
         packages: [],
         pickNumber: pickNumber,
-        isUserInvolved: true,
+        isUserInvolved: isUsersPick,
       );
     }
     
-    // Check if the team with the pick has a valuable player available
-    // Step 1: Identify valuable players
-    List<Player> valuablePlayers = [];
+    // Step 2: Determine if the current team sees value at this pick
+    bool currentTeamWantsToStay = _currentTeamWantsToStay(currentPick, valuablePlayers);
     
-    // For QB-specific logic, focus on QBs
-    if (qbSpecific) {
-      valuablePlayers = availablePlayers
-          .where((p) => p.position == "QB" && p.rank <= pickNumber + 10)
-          .toList();
-    } else {
-      // For general trades, look at all positions
-      // Threshold varies depending on pick position
-      int thresholdAdjustment;
-      if (pickNumber <= 10) thresholdAdjustment = 12;
-      else if (pickNumber <= 32) thresholdAdjustment = 15;
-      else if (pickNumber <= 100) thresholdAdjustment = 18;
-      else thresholdAdjustment = 20;
-      
-      valuablePlayers = availablePlayers
-          .where((p) => p.rank <= pickNumber + thresholdAdjustment)
-          .toList();
+    // Even if the team wants to stay, allow trades with some probability
+    // This probability is higher for user team picks to ensure user gets offers
+    double tradeAnywayProb = isUsersPick ? 0.9 : 0.3;
+    bool allowTradeAnyway = _random.nextDouble() < tradeAnywayProb;
+    
+    if (currentTeamWantsToStay && !allowTradeAnyway && !isUsersPick) {
+      // Team wants to make their pick
+      return TradeOffer(
+        packages: [],
+        pickNumber: pickNumber,
+        isUserInvolved: isUsersPick,
+      );
     }
     
-    if (valuablePlayers.isEmpty) {
-      return TradeOffer(packages: [], pickNumber: pickNumber);
-    }
-    
-    // Check if current team would want any of these valuable players
-    final currentTeamNeeds = _getTeamNeeds(currentPick.teamName);
-    bool hasValueForCurrentTeam = false;
-    
-    if (currentTeamNeeds != null) {
-      for (var player in valuablePlayers.take(5)) {
-        // Check if any top available player is at a position of need
-        if (currentTeamNeeds.needs.take(3).contains(player.position)) {
-          hasValueForCurrentTeam = true;
-          break;
-        }
-      }
-    }
-    
-    // If current team sees value, they're less likely to trade down
-    // Still allow some trades (teams sometimes trade down even with good players available)
-    if (hasValueForCurrentTeam && _random.nextDouble() > 0.2) {
-      return TradeOffer(packages: [], pickNumber: pickNumber);
-    }
-    
-    // Step 2: Find teams that might be interested in trading up
-    final interestedTeams = <String>[];
-    
-    for (var teamNeed in teamNeeds) {
-      final teamName = teamNeed.teamName;
-      
-      // Skip if team has no picks
-      if (!_teamCurrentPickPosition.containsKey(teamName)) continue;
-      
-      // Skip if team's next pick is before current pick (they wouldn't trade up)
-      final teamNextPick = _teamCurrentPickPosition[teamName] ?? 999;
-      if (teamNextPick <= pickNumber) continue;
-      
-      // Skip user team if appropriate
-      if (userTeam != null && teamName == userTeam && !enableUserTradeConfirmation) {
-        continue;
-      }
-      
-      // Check each valuable player to see if this team would trade up for them
-      for (var player in valuablePlayers) {
-        // Skip if player doesn't fill a need for this team
-        if (!teamNeed.needs.contains(player.position)) continue;
-        
-        // Calculate probability of trading up for this player
-        double tradeUpProb = 0.0;
-        
-        // 1. Check if player fills a significant need
-        int needPriority = teamNeed.needs.indexOf(player.position);
-        bool isTopNeed = needPriority >= 0 && needPriority < 3;
-        if (isTopNeed) tradeUpProb += 0.3;
-        
-        // 2. Check if player offers good value
-        bool isGoodValue = _isPlayerWorthTradingFor(player, teamNeed, pickNumber);
-        if (isGoodValue) tradeUpProb += 0.3;
-        
-        // 3. Check if there's a position run happening
-        bool isPositionRun = _isPositionRunHappening(player.position);
-        if (isPositionRun) tradeUpProb += 0.2;
-        
-        // 4. Check positional scarcity
-        int remainingTalent = _remainingTalentAtPosition(player.position, pickNumber + 15);
-        bool isPositionScarce = remainingTalent < 3;
-        if (isPositionScarce) tradeUpProb += 0.2;
-        
-        // 5. Check if competitors might take the player
-        bool competitorsAhead = false;
-        if (teamNextPick > pickNumber) {
-          competitorsAhead = _competitorsMightTakePlayer(player, pickNumber, teamNextPick);
-        }
-        if (competitorsAhead) tradeUpProb += 0.2;
-        
-        // Adjust for premium positions
-        if (["QB", "OT", "EDGE", "CB"].contains(player.position)) {
-          tradeUpProb += 0.1;
-        }
-        
-        // Add randomness (±0.15)
-        tradeUpProb += (_random.nextDouble() * 0.3) - 0.15;
-        
-        // Cap probability at 90%
-        tradeUpProb = min(0.9, max(0.0, tradeUpProb));
-        
-        // Decide if team wants to trade up
-        if (_random.nextDouble() < tradeUpProb) {
-          interestedTeams.add(teamName);
-          break; // Found a player worth trading up for
-        }
-      }
-    }
+    // Step 3: Find teams that might want to trade up
+    List<TradeInterest> interestedTeams = _findTeamsInterestedInTradingUp(pickNumber, valuablePlayers, qbSpecific);
     
     if (interestedTeams.isEmpty) {
-      return TradeOffer(packages: [], pickNumber: pickNumber);
+      return TradeOffer(
+        packages: [],
+        pickNumber: pickNumber,
+        isUserInvolved: isUsersPick,
+      );
     }
     
-    // Step 3: Create trade packages from interested teams
-    final packages = _createRealisticTradePackages(
-      interestedTeams, 
-      currentPick, 
+    // Step 4: Generate trade packages from interested teams
+    final packages = _generateTradePackages(
+      interestedTeams,
+      currentPick,
       DraftValueService.getValueForPick(pickNumber),
       qbSpecific
     );
     
-    // Check if the user is involved in any packages
-    final isUserInvolved = currentPick.teamName == userTeam || 
-                          packages.any((p) => p.teamOffering == userTeam);
-    
     return TradeOffer(
       packages: packages,
       pickNumber: pickNumber,
-      isUserInvolved: isUserPick || packages.any((p) => p.teamOffering == userTeam),
+      isUserInvolved: isUsersPick || packages.any((p) => p.teamOffering == userTeam),
     );
   }
   
-  /// Create realistic trade packages that match actual NFL trading patterns
-  List<TradePackage> _createRealisticTradePackages(
-    List<String> interestedTeams,
+  // Identify valuable players available at this pick
+  List<Player> _identifyValuablePlayers(int pickNumber, bool qbSpecific) {
+    if (qbSpecific) {
+      // Focus specifically on QB prospects
+      return availablePlayers
+          .where((p) => p.position == "QB" && p.rank <= pickNumber + 15)
+          .toList();
+    } else {
+      // Calculate threshold based on pick position
+      int thresholdAdjustment;
+      if (pickNumber <= 10) thresholdAdjustment = 15;         // Top 10 pick
+      else if (pickNumber <= 32) thresholdAdjustment = 20;    // 1st round
+      else if (pickNumber <= 64) thresholdAdjustment = 25;    // 2nd round
+      else if (pickNumber <= 100) thresholdAdjustment = 30;   // 3rd round
+      else thresholdAdjustment = 35;                         // Later rounds
+      
+      return availablePlayers
+          .where((p) => p.rank <= pickNumber + thresholdAdjustment)
+          .toList();
+    }
+  }
+  
+  // Determine if the current team sees value in staying at their pick
+  bool _currentTeamWantsToStay(DraftPick currentPick, List<Player> valuablePlayers) {
+  // Get the team's needs
+  final currentTeamNeeds = _getTeamNeeds(currentPick.teamName);
+  if (currentTeamNeeds == null) return false;
+  
+  // Check for QB-specific logic first (highest priority)
+  bool hasQBNeed = currentTeamNeeds.needs.take(3).contains("QB");
+  
+  if (hasQBNeed) {
+    // Check for valuable QB available
+    for (var player in valuablePlayers) {
+      if (player.position == "QB" && player.rank <= currentPick.pickNumber + 10) {
+        // Early pick with QB need and valuable QB available = almost never trade out
+        if (currentPick.pickNumber <= 15) {
+          return _random.nextDouble() < 0.98; // 98% chance to stay
+        } else if (currentPick.pickNumber <= 32) {
+          return _random.nextDouble() < 0.95; // 95% chance to stay
+        } else {
+          return _random.nextDouble() < 0.9; // 90% chance to stay
+        }
+      }
+    }
+  }
+  
+  // Check for high-value players at other premium positions of need
+  for (var player in valuablePlayers.take(3)) {
+    // Top 3 available players at position of need = high value
+    if (currentTeamNeeds.needs.take(3).contains(player.position)) {
+      // Stronger desire to stay for premium positions
+      if (_premiumPositions.contains(player.position)) {
+        // For premium positions with top pick, very unlikely to trade out
+        if (currentPick.pickNumber <= 15) {
+          return _random.nextDouble() < 0.9; // 90% chance to stay
+        } else {
+          return _random.nextDouble() < 0.8; // 80% chance to stay
+        }
+      } else if (_secondaryPositions.contains(player.position)) {
+        return _random.nextDouble() < 0.7; // 70% chance to stay
+      } else {
+        return _random.nextDouble() < 0.6; // 60% chance to stay
+      }
+    }
+  }
+  
+  // Check if team is the user's team - allow more trade offers
+  if (currentPick.teamName == userTeam) {
+    return false; // Generate offers for user regardless
+  }
+    
+    // Default moderate chance to stay
+    return _random.nextDouble() < 0.4;
+  }
+  
+  // Find teams interested in trading up
+  List<TradeInterest> _findTeamsInterestedInTradingUp(int pickNumber, List<Player> valuablePlayers, bool qbSpecific) {
+    List<TradeInterest> interestedTeams = [];
+    
+    // Loop through all teams looking for trade interest
+    for (var teamNeed in teamNeeds) {
+      final teamName = teamNeed.teamName;
+      
+      // Skip if team has no picks or its next pick is before current pick
+      if (!_teamCurrentPickPosition.containsKey(teamName)) continue;
+      final teamNextPick = _teamCurrentPickPosition[teamName] ?? 999;
+      if (teamNextPick <= pickNumber) continue;
+      
+      // Get team's trade tendencies
+      final tendency = _getTeamTradingTendency(teamName);
+      
+      // Base trade activity level - can be adjusted by team tendencies
+      double tradeActivityBase = 0.3;  // Base 30% chance of considering trading
+      
+      // Adjust by team's activity level
+      tradeActivityBase *= tendency.tradeActivityLevel;
+      
+      // Early round adjustments (more activity)
+      int round = DraftValueService.getRoundForPick(pickNumber);
+      if (round == 1) tradeActivityBase *= 1.5;      // 50% more trades in 1st round
+      else if (round == 2) tradeActivityBase *= 1.3; // 30% more trades in 2nd round
+      
+      // Adjust for trade-up tendencies if team has it
+      if (tendency.tradeUpBias > 0.5) {
+        tradeActivityBase *= tendency.tradeUpBias * 1.3;
+      }
+      
+      // Check if team will consider trading at all
+      if (_random.nextDouble() > tradeActivityBase) continue;
+      
+      // Evaluate each valuable player to see if team would trade up
+      for (var player in valuablePlayers) {
+        double playerGrade = _getTeamPlayerGrade(teamName, player);
+        
+        // Calculate interest factors
+        double interestLevel = _calculateTradeUpInterest(
+          teamName, 
+          teamNeed, 
+          player, 
+          pickNumber, 
+          teamNextPick,
+          playerGrade,
+          qbSpecific
+        );
+        
+        // Teams must have significant interest to trade up
+        if (interestLevel > 0.6) {
+          interestedTeams.add(
+            TradeInterest(
+              teamName: teamName,
+              targetPlayer: player,
+              nextPickNumber: teamNextPick,
+              interestLevel: interestLevel
+            )
+          );
+          break; // Team found a player they want, no need to check others
+        }
+      }
+    }
+    
+    return interestedTeams;
+  }
+  
+  // Calculate a team's interest in trading up for a specific player
+  double _calculateTradeUpInterest(
+    String teamName,
+    TeamNeed teamNeed, 
+    Player player,
+    int targetPickNumber,
+    int teamNextPick,
+    double playerGrade,
+    bool qbSpecific
+  ) {
+    double interestLevel = 0.0;
+    
+    // 1. Need-based interest: Higher interest for positions of need
+    int needIndex = teamNeed.needs.indexOf(player.position);
+    if (needIndex != -1) {
+      // Greater boost for top needs
+      interestLevel += 0.7 - (needIndex * 0.1);
+    } else {
+      // Some small base interest even for non-needs
+      interestLevel += 0.1;
+    }
+    
+    // 2. Value-based interest: Higher interest for players that would fall to this pick
+    double valueGap = player.rank / targetPickNumber;
+    if (valueGap <= 0.7) {  // Player ranked 30% better than pick position
+      interestLevel += 0.4;
+    } else if (valueGap <= 0.9) {  // Player ranked 10-30% better
+      interestLevel += 0.25;
+    } else if (valueGap <= 1.1) {  // Player ranked around this pick
+      interestLevel += 0.15;
+    }
+    
+    // 3. Position scarcity/market volatility: Teams trade up when positions are going quickly
+    double volatility = _positionMarketVolatility[player.position] ?? 0.0;
+    interestLevel += volatility * 0.5; // Market volatility increases interest
+    
+    // 4. Position premium: Higher interest for premium positions
+    if (_premiumPositions.contains(player.position)) {
+      interestLevel += 0.15;
+    } else if (_secondaryPositions.contains(player.position)) {
+      interestLevel += 0.05;
+    }
+    
+    // 5. QB specific adjustments: Teams highly value QBs
+    if (player.position == "QB") {
+      // Even higher premium for QB-specific trades
+      if (qbSpecific) {
+        interestLevel += 0.5; // Increased from 0.3
+      } else {
+        interestLevel += 0.3; // Increased from 0.2
+      }
+      
+      // Top QBs are even more valuable
+      if (player.rank <= 15) {
+        interestLevel += 0.25; // Increased from 0.15
+      }
+    }
+    
+    // 6. Pick gap: Trading up is more compelling if team has to wait a long time
+    int pickGap = teamNextPick - targetPickNumber;
+    interestLevel += min(0.3, pickGap / 100.0); // Up to 0.3 boost for large gaps
+    
+    // 7. Competition risk: Higher interest if valuable player might not last
+    if (_competitorsWantSamePosition(player.position, targetPickNumber, teamNextPick)) {
+      interestLevel += 0.2;
+    }
+    
+    // 8. Team-specific tendencies
+    final tendency = _getTeamTradingTendency(teamName);
+    if (tendency.tradeUpBias > 0.5) {
+      interestLevel += 0.1 * (tendency.tradeUpBias - 0.5) * 2; // Up to 0.1 boost
+    }
+    
+    // 9. Round-specific adjustments
+    int round = DraftValueService.getRoundForPick(targetPickNumber);
+    if (round == 1) {
+      interestLevel += 0.1;  // More trades in round 1
+    } else if (round >= 5) {
+      interestLevel -= 0.2;  // Fewer trades in late rounds
+    }
+    
+    // 10. Randomness factor (simulate real-world unpredictability)
+    interestLevel += (_random.nextDouble() * 0.3) - 0.15; // ±15% randomness
+    
+    // Cap interest level between 0 and 1
+    return max(0.0, min(1.0, interestLevel));
+  }
+  
+  // Check if other teams between current pick and team's next pick want same position
+  bool _competitorsWantSamePosition(String position, int currentPick, int teamNextPick) {
+    int competitorCount = 0;
+    
+    for (int pickNum = currentPick + 1; pickNum < teamNextPick; pickNum++) {
+      try {
+        // Find the team with this pick
+        final competitor = draftOrder.firstWhere(
+          (pick) => pick.pickNumber == pickNum && !pick.isSelected,
+          orElse: () => throw Exception('Pick not found')
+        );
+        
+        // Get team needs
+        final needs = _getTeamNeeds(competitor.teamName);
+        if (needs == null) continue;
+        
+        // Check if this position is a top need
+        if (needs.needs.take(3).contains(position)) {
+          competitorCount++;
+          
+          // If multiple competitors want this position, it's a clear threat
+          if (competitorCount >= 2) return true;
+        }
+      } catch (e) {
+        // Skip if pick not found
+        continue;
+      }
+    }
+    
+    // Return true if at least one competitor wants the position
+    return competitorCount > 0;
+  }
+  
+  // Generate realistic trade packages for interested teams
+  List<TradePackage> _generateTradePackages(
+    List<TradeInterest> interestedTeams,
     DraftPick targetPick,
     double targetValue,
     bool isQBTrade
@@ -351,336 +520,808 @@ class TradeService {
     final packages = <TradePackage>[];
     final int targetPickNum = targetPick.pickNumber;
     
-    for (final team in interestedTeams) {
-      // Skip if this is the same team
-      if (team == targetPick.teamName) continue;
-      
-      // Get available picks from this team
-      final availablePicks = draftOrder
+    for (final interest in interestedTeams) {
+      // Get team name and their picks
+      final team = interest.teamName;
+      final teamPicksOriginal = draftOrder
           .where((pick) => pick.teamName == team && !pick.isSelected && pick.pickNumber != targetPick.pickNumber)
           .toList();
       
-      if (availablePicks.isEmpty) continue;
+      if (teamPicksOriginal.isEmpty) continue;
       
-      // Sort by pick number (ascending)
-      availablePicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+      // Sort picks by pick number (ascending)
+      final teamPicks = List<DraftPick>.from(teamPicksOriginal)
+        ..sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
       
-      // Get the earliest (best) available pick
-      final bestPick = availablePicks.first;
+      // Get the earliest (best) pick
+      final bestPick = teamPicks.first;
       final bestPickValue = DraftValueService.getValueForPick(bestPick.pickNumber);
       
-      // Track the team's strategies for this trade
-      List<TradePackage> teamStrategies = [];
+      // Get team's trade tendency
+      final tendency = _getTeamTradingTendency(team);
       
-      // Different strategies based on target pick position
+      // Determine trade strategy based on pick position and team tendencies
+      List<TradePackage> potentialPackages = [];
       
-      // ----- TOP 10 PICK STRATEGIES -----
-      if (targetPickNum <= 10) {
-        // Strategy 1: First round pick + future first
-        if (bestPick.pickNumber <= 32) {
-          // Calculate the future pick value (first round)
-          final teamStrength = _estimateTeamStrength(team);
-          final futurePick = FuturePick.estimate(team, teamStrength);
-          
-          // Determine if value is enough
-          if (bestPickValue + futurePick.value >= targetValue * 0.85) {
-            teamStrategies.add(TradePackage(
-              teamOffering: team,
-              teamReceiving: targetPick.teamName,
-              picksOffered: [bestPick],
-              targetPick: targetPick,
-              totalValueOffered: bestPickValue + futurePick.value,
-              targetPickValue: targetValue,
-              includesFuturePick: true,
-              futurePickDescription: futurePick.description,
-              futurePickValue: futurePick.value,
-            ));
-          }
-        }
-        
-        // Strategy 2: Multiple picks package (most common for top 10)
-        if (availablePicks.length >= 2) {
-          // Try different pick combinations (preferring earlier picks)
-          for (int i = 0; i < min(availablePicks.length - 1, 3); i++) {
-            final firstPick = availablePicks[i];
-            final firstValue = DraftValueService.getValueForPick(firstPick.pickNumber);
-            
-            // Try paired with each subsequent pick
-            for (int j = i + 1; j < min(availablePicks.length, i + 5); j++) {
-              final secondPick = availablePicks[j];
-              final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
-              final combinedValue = firstValue + secondValue;
-              
-              // If we have enough value, create the package
-              if (combinedValue >= targetValue * 0.85) {
-                teamStrategies.add(TradePackage(
-                  teamOffering: team,
-                  teamReceiving: targetPick.teamName,
-                  picksOffered: [firstPick, secondPick],
-                  targetPick: targetPick,
-                  totalValueOffered: combinedValue,
-                  targetPickValue: targetValue,
-                ));
-              }
-              // If not enough value, try adding a third pick
-              else if (availablePicks.length > j + 1) {
-                for (int k = j + 1; k < min(availablePicks.length, j + 5); k++) {
-                  final thirdPick = availablePicks[k];
-                  final thirdValue = DraftValueService.getValueForPick(thirdPick.pickNumber);
-                  final threePickValue = combinedValue + thirdValue;
-                  
-                  if (threePickValue >= targetValue * 0.85) {
-                    teamStrategies.add(TradePackage(
-                      teamOffering: team,
-                      teamReceiving: targetPick.teamName,
-                      picksOffered: [firstPick, secondPick, thirdPick],
-                      targetPick: targetPick,
-                      totalValueOffered: threePickValue,
-                      targetPickValue: targetValue,
-                    ));
-                    break; // Found a good three-pick package
-                  }
-                }
-              }
-            }
-          }
-        }
+      // FIRST ROUND STRATEGIES (Pick 1-32)
+      if (targetPickNum <= 32) {
+        potentialPackages.addAll(_generateFirstRoundPackages(
+          team,
+          teamPicks,
+          targetPick,
+          targetValue,
+          bestPick,
+          bestPickValue,
+          interest,
+          tendency
+        ));
       }
-      
-      // ----- FIRST ROUND (11-32) STRATEGIES -----
-      else if (targetPickNum <= 32) {
-        // Strategy 1: Pick + Future pick
-        final teamStrength = _estimateTeamStrength(team);
-        // Teams often trade future 1st rounders for mid-1st, future 2nd for late 1st
-        final futureRound = targetPickNum <= 20 ? 1 : 2;
-        final futurePick = futureRound == 1
-            ? FuturePick.estimate(team, teamStrength)
-            : FuturePick.forRound(team, 2);
-        
-        if (bestPickValue + futurePick.value >= targetValue * 0.85) {
-          teamStrategies.add(TradePackage(
-            teamOffering: team,
-            teamReceiving: targetPick.teamName,
-            picksOffered: [bestPick],
-            targetPick: targetPick,
-            totalValueOffered: bestPickValue + futurePick.value,
-            targetPickValue: targetValue,
-            includesFuturePick: true,
-            futurePickDescription: futurePick.description,
-            futurePickValue: futurePick.value,
-          ));
-        }
-        
-        // Strategy 2: Current pick + additional pick(s)
-        if (availablePicks.length >= 2) {
-          // Try to make packages with 2 picks (most common)
-          for (int i = 1; i < min(availablePicks.length, 5); i++) {
-            final secondPick = availablePicks[i];
-            final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
-            final combinedValue = bestPickValue + secondValue;
-            
-            if (combinedValue >= targetValue * 0.85) {
-              teamStrategies.add(TradePackage(
-                teamOffering: team,
-                teamReceiving: targetPick.teamName,
-                picksOffered: [bestPick, secondPick],
-                targetPick: targetPick,
-                totalValueOffered: combinedValue,
-                targetPickValue: targetValue,
-              ));
-            }
-          }
-          
-          // Try 3-pick packages for certain value ranges
-          if (teamStrategies.isEmpty && availablePicks.length >= 3) {
-            final secondPick = availablePicks[1];
-            final thirdPick = availablePicks[2];
-            final combinedValue = bestPickValue + 
-                                DraftValueService.getValueForPick(secondPick.pickNumber) +
-                                DraftValueService.getValueForPick(thirdPick.pickNumber);
-            
-            if (combinedValue >= targetValue * 0.85) {
-              teamStrategies.add(TradePackage(
-                teamOffering: team,
-                teamReceiving: targetPick.teamName,
-                picksOffered: [bestPick, secondPick, thirdPick],
-                targetPick: targetPick,
-                totalValueOffered: combinedValue,
-                targetPickValue: targetValue,
-              ));
-            }
-          }
-        }
+      // SECOND ROUND STRATEGIES (Pick 33-64)
+      else if (targetPickNum <= 64) {
+        potentialPackages.addAll(_generateSecondRoundPackages(
+          team,
+          teamPicks,
+          targetPick,
+          targetValue,
+          bestPick,
+          bestPickValue,
+          interest,
+          tendency
+        ));
       }
-      
-      // ----- DAY 2 (33-100) STRATEGIES -----
-      else if (targetPickNum <= 100) {
-        // Day 2 trades are typically simpler - usually a team's current pick 
-        // plus a mid-to-late round pick to balance value
-        
-        if (availablePicks.length >= 2) {
-          // Try simple 2-pick packages (most common for day 2)
-          for (int i = 1; i < min(availablePicks.length, 4); i++) {
-            final secondPick = availablePicks[i];
-            final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
-            final combinedValue = bestPickValue + secondValue;
-            
-            if (combinedValue >= targetValue * 0.85 && combinedValue <= targetValue * 1.2) {
-              teamStrategies.add(TradePackage(
-                teamOffering: team,
-                teamReceiving: targetPick.teamName,
-                picksOffered: [bestPick, secondPick],
-                targetPick: targetPick,
-                totalValueOffered: combinedValue,
-                targetPickValue: targetValue,
-              ));
-            }
-          }
-        }
-        
-        // Sometimes teams just swap picks when close in value
-        if (bestPickValue >= targetValue) {
-          teamStrategies.add(TradePackage(
-            teamOffering: team,
-            teamReceiving: targetPick.teamName,
-            picksOffered: [bestPick],
-            targetPick: targetPick,
-            totalValueOffered: bestPickValue,
-            targetPickValue: targetValue,
-          ));
-        }
-        
-        // Occasionally future picks are involved (usually 4th round or later)
-        if (teamStrategies.isEmpty && bestPickValue >= targetValue * 0.8) {
-          final futureRound = _random.nextInt(3) + 4; // Future 4th-6th
-          final futurePick = FuturePick.forRound(team, futureRound);
-          
-          teamStrategies.add(TradePackage(
-            teamOffering: team,
-            teamReceiving: targetPick.teamName,
-            picksOffered: [bestPick],
-            targetPick: targetPick,
-            totalValueOffered: bestPickValue + futurePick.value,
-            targetPickValue: targetValue,
-            includesFuturePick: true,
-            futurePickDescription: futurePick.description,
-            futurePickValue: futurePick.value,
-          ));
-        }
-      }
-      
-      // ----- DAY 3 (101+) STRATEGIES -----
+      // DAY 3 STRATEGIES (Pick 65+)
       else {
-        // Very simple trades in later rounds
-        // Usually just pick swaps with minimal additional value
-        
-        if (bestPickValue >= targetValue) {
-          teamStrategies.add(TradePackage(
-            teamOffering: team,
-            teamReceiving: targetPick.teamName,
-            picksOffered: [bestPick],
-            targetPick: targetPick,
-            totalValueOffered: bestPickValue,
-            targetPickValue: targetValue,
-          ));
-        }
-        
-        // Sometimes simple 2-pick combinations
-        if (availablePicks.length >= 2 && bestPickValue < targetValue) {
-          final secondPick = availablePicks[1];
-          final combinedValue = bestPickValue + DraftValueService.getValueForPick(secondPick.pickNumber);
-          
-          if (combinedValue >= targetValue * 0.9) {
-            teamStrategies.add(TradePackage(
-              teamOffering: team,
-              teamReceiving: targetPick.teamName,
-              picksOffered: [bestPick, secondPick],
-              targetPick: targetPick,
-              totalValueOffered: combinedValue,
-              targetPickValue: targetValue,
-            ));
-          }
-        }
+        potentialPackages.addAll(_generateDayThreePackages(
+          team,
+          teamPicks,
+          targetPick,
+          targetValue,
+          bestPick,
+          bestPickValue,
+          interest,
+          tendency
+        ));
       }
       
-      // Apply QB premium for QB-specific trades
-      if (isQBTrade && teamStrategies.isNotEmpty) {
-        // QB trades often have "overpayment" due to position importance
-        // Historical data shows 10-25% premium
-        final qbPremium = 1.0 + (_random.nextDouble() * 0.15 + 0.1); // 1.1 to 1.25
+      // Apply QB premium if applicable
+      if (isQBTrade && potentialPackages.isNotEmpty && enableQBPremium) {
+        // QB trades historically have a higher premium
+        double qbPremiumFactor = 1.2 + (_random.nextDouble() * 0.3); // 1.2 to 1.5 (increased)
         
-        // Apply premium to all strategies
-        teamStrategies = teamStrategies.map((package) {
-          return TradePackage(
+        // Apply the premium to each package's offered value
+        for (var i = 0; i < potentialPackages.length; i++) {
+          final package = potentialPackages[i];
+          potentialPackages[i] = TradePackage(
             teamOffering: package.teamOffering,
             teamReceiving: package.teamReceiving,
             picksOffered: package.picksOffered,
             targetPick: package.targetPick,
-            totalValueOffered: package.totalValueOffered * qbPremium,
+            additionalTargetPicks: package.additionalTargetPicks,
+            totalValueOffered: package.totalValueOffered * qbPremiumFactor,
             targetPickValue: package.targetPickValue,
             includesFuturePick: package.includesFuturePick,
             futurePickDescription: package.futurePickDescription,
             futurePickValue: package.futurePickValue,
+            targetReceivedFuturePicks: package.targetReceivedFuturePicks,
           );
-        }).toList();
-      }
+        }
+      }   
+      // Filter packages based on value considerations
+      potentialPackages = _filterPackagesByValue(potentialPackages, targetValue, tendency);
       
-      // Select the best strategy for this team to offer
-      if (teamStrategies.isNotEmpty) {
-        // Sort strategies by quality
-        if (isQBTrade) {
-          // For QB trades, prioritize highest total value
-          teamStrategies.sort((a, b) => 
-            b.totalValueOffered.compareTo(a.totalValueOffered)
-          );
-        } else {
-          // For regular trades, prioritize closest to fair value
-          teamStrategies.sort((a, b) => 
-            (a.totalValueOffered - targetValue).abs().compareTo(
-              (b.totalValueOffered - targetValue).abs()
-            )
+      // Add the best package to our return list if we have any
+      if (potentialPackages.isNotEmpty) {
+        potentialPackages.sort((a, b) => b.valueDifferential.compareTo(a.valueDifferential));
+        
+        // Value-seeking teams care more about getting fair deals
+        if (tendency.valueSeeker > 0.5) {
+          // Find the most balanced trade (closest to fair value)
+          potentialPackages.sort((a, b) => 
+            (a.valueDifferential.abs()).compareTo(b.valueDifferential.abs())
           );
         }
         
-        // Add the best strategy to the packages
-        packages.add(teamStrategies.first);
+        packages.add(potentialPackages.first);
       }
     }
     
     return packages;
   }
   
-  /// Get the team needs for a team
+  // Generate first round trade packages (picks 1-32)
+  List<TradePackage> _generateFirstRoundPackages(
+    String team,
+    List<DraftPick> teamPicks,
+    DraftPick targetPick,
+    double targetValue,
+    DraftPick bestPick,
+    double bestPickValue,
+    TradeInterest interest,
+    TradingTendency tendency
+  ) {
+    List<TradePackage> packages = [];
+    
+    // In the top half of Round 1, teams often trade current + future 1st
+    if (targetPick.pickNumber <= 16) {
+      // For top-10 picks, teams often include future picks
+      if (targetPick.pickNumber <= 10) {
+        // Strategy 1: Future 1st round pick package
+        final futurePick = FuturePick.forRound(team, 1);
+        
+        if (bestPickValue + futurePick.value >= targetValue * 0.8) {
+          packages.add(TradePackage(
+            teamOffering: team,
+            teamReceiving: targetPick.teamName,
+            picksOffered: [bestPick],
+            targetPick: targetPick,
+            totalValueOffered: bestPickValue + futurePick.value,
+            targetPickValue: targetValue,
+            includesFuturePick: true,
+            futurePickDescription: futurePick.description,
+            futurePickValue: futurePick.value,
+          ));
+        }
+      }
+      
+      // Strategy 2: Multiple current year picks (most common for first round)
+      if (teamPicks.length >= 2) {
+        // Try at least the first 3 combinations of picks
+        for (int i = 0; i < min(teamPicks.length - 1, 3); i++) {
+          final firstPick = teamPicks[i];
+          final firstValue = DraftValueService.getValueForPick(firstPick.pickNumber);
+          
+          for (int j = i + 1; j < min(teamPicks.length, i + 4); j++) {
+            final secondPick = teamPicks[j];
+            final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+            final combinedValue = firstValue + secondValue;
+            
+            // Teams commonly slightly overpay for first round picks
+            if (combinedValue >= targetValue * 0.85) {
+              packages.add(TradePackage(
+                teamOffering: team,
+                teamReceiving: targetPick.teamName,
+                picksOffered: [firstPick, secondPick],
+                targetPick: targetPick,
+                totalValueOffered: combinedValue,
+                targetPickValue: targetValue,
+              ));
+            }
+            // If not enough value, try adding a third pick
+            else if (teamPicks.length > j + 1) {
+              for (int k = j + 1; k < min(teamPicks.length, j + 3); k++) {
+                final thirdPick = teamPicks[k];
+                final thirdValue = DraftValueService.getValueForPick(thirdPick.pickNumber);
+                final threePickValue = combinedValue + thirdValue;
+                
+                if (threePickValue >= targetValue * 0.85) {
+                  packages.add(TradePackage(
+                    teamOffering: team,
+                    teamReceiving: targetPick.teamName,
+                    picksOffered: [firstPick, secondPick, thirdPick],
+                    targetPick: targetPick,
+                    totalValueOffered: threePickValue,
+                    targetPickValue: targetValue,
+                  ));
+                  break;  // Found a good three-pick package
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    // In the bottom half of Round 1, slightly different strategies
+    else {
+      // Strategy 1: Current year first round pick + mid-round pick
+      if (teamPicks.length >= 2) {
+        for (int i = 0; i < min(teamPicks.length - 1, 2); i++) {
+          final firstPick = teamPicks[i];
+          final firstValue = DraftValueService.getValueForPick(firstPick.pickNumber);
+          
+          for (int j = i + 1; j < min(teamPicks.length, i + 5); j++) {
+            final secondPick = teamPicks[j];
+            final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+            final combinedValue = firstValue + secondValue;
+            
+            if (combinedValue >= targetValue * 0.85) {
+              packages.add(TradePackage(
+                teamOffering: team,
+                teamReceiving: targetPick.teamName,
+                picksOffered: [firstPick, secondPick],
+                targetPick: targetPick,
+                totalValueOffered: combinedValue,
+                targetPickValue: targetValue,
+              ));
+              break;  // Found a good package
+            }
+          }
+        }
+      }
+      
+      // Strategy 2: Future round pick strategy
+      final futurePick = FuturePick.forRound(team, 2);  // Future 2nd rounder
+      
+      if (bestPickValue + futurePick.value >= targetValue * 0.85) {
+        packages.add(TradePackage(
+          teamOffering: team,
+          teamReceiving: targetPick.teamName,
+          picksOffered: [bestPick],
+          targetPick: targetPick,
+          totalValueOffered: bestPickValue + futurePick.value,
+          targetPickValue: targetValue,
+          includesFuturePick: true,
+          futurePickDescription: futurePick.description,
+          futurePickValue: futurePick.value,
+        ));
+      }
+    }
+    
+    return packages;
+  }
+  
+  // Generate second round trade packages (picks 33-64)
+  List<TradePackage> _generateSecondRoundPackages(
+    String team,
+    List<DraftPick> teamPicks,
+    DraftPick targetPick,
+    double targetValue,
+    DraftPick bestPick,
+    double bestPickValue,
+    TradeInterest interest,
+    TradingTendency tendency
+  ) {
+    List<TradePackage> packages = [];
+    
+    // Strategy 1: Two-pick package (most common for 2nd round)
+    if (teamPicks.length >= 2) {
+      // Try with first pick + one additional pick
+      final firstPick = teamPicks[0];
+      final firstValue = DraftValueService.getValueForPick(firstPick.pickNumber);
+      
+      for (int i = 1; i < min(teamPicks.length, 5); i++) {
+        final secondPick = teamPicks[i];
+        final secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+        final combinedValue = firstValue + secondValue;
+        
+        if (combinedValue >= targetValue * 0.85) {
+          packages.add(TradePackage(
+            teamOffering: team,
+            teamReceiving: targetPick.teamName,
+            picksOffered: [firstPick, secondPick],
+            targetPick: targetPick,
+            totalValueOffered: combinedValue,
+            targetPickValue: targetValue,
+          ));
+          break;  // Found a good package
+        }
+      }
+    }
+    
+    // Strategy 2: Pick + Future pick
+    final futureRound = _random.nextInt(2) + 3;  // Future 3rd or 4th round pick
+    final futurePick = FuturePick.forRound(team, futureRound);
+    
+    if (bestPickValue + futurePick.value >= targetValue * 0.85) {
+      packages.add(TradePackage(
+        teamOffering: team,
+        teamReceiving: targetPick.teamName,
+        picksOffered: [bestPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue + futurePick.value,
+        targetPickValue: targetValue,
+        includesFuturePick: true,
+        futurePickDescription: futurePick.description,
+        futurePickValue: futurePick.value,
+      ));
+    }
+    
+    // Strategy 3: Single pick if close in value (often happens in 2nd round)
+    if (bestPickValue >= targetValue * 0.95) {
+      packages.add(TradePackage(
+        teamOffering: team,
+        teamReceiving: targetPick.teamName,
+        picksOffered: [bestPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue,
+        targetPickValue: targetValue,
+      ));
+    }
+    
+    return packages;
+  }
+  
+  // Generate Day 3 trade packages (picks 65+)
+  List<TradePackage> _generateDayThreePackages(
+    String team,
+    List<DraftPick> teamPicks,
+    DraftPick targetPick,
+    double targetValue,
+    DraftPick bestPick,
+    double bestPickValue,
+    TradeInterest interest,
+    TradingTendency tendency
+  ) {
+    List<TradePackage> packages = [];
+    
+    // Strategy 1: Simple pick swap (common in later rounds)
+    if (bestPickValue >= targetValue * 0.9) {
+      packages.add(TradePackage(
+        teamOffering: team,
+        teamReceiving: targetPick.teamName,
+        picksOffered: [bestPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue,
+        targetPickValue: targetValue,
+      ));
+    }
+    
+    // Strategy 2: Two-pick package (also common)
+    if (teamPicks.length >= 2) {
+      final secondPick = teamPicks[1];
+      final combinedValue = bestPickValue + 
+                            DraftValueService.getValueForPick(secondPick.pickNumber);
+      
+      if (combinedValue >= targetValue * 0.85) {
+        packages.add(TradePackage(
+          teamOffering: team,
+          teamReceiving: targetPick.teamName,
+          picksOffered: [bestPick, secondPick],
+          targetPick: targetPick,
+          totalValueOffered: combinedValue,
+          targetPickValue: targetValue,
+        ));
+      }
+    }
+    
+    return packages;
+  }
+  
+  // Filter packages based on value considerations
+  List<TradePackage> _filterPackagesByValue(
+    List<TradePackage> packages,
+    double targetValue,
+    TradingTendency tendency
+  ) {
+    // Define acceptable value ranges based on team tendencies
+    double minValueThreshold;
+    double maxValueThreshold;
+    
+    if (tendency.valueSeeker > 0.7) {
+      // Value seekers want very fair trades
+      minValueThreshold = 0.95;
+      maxValueThreshold = 1.1;
+    } else if (tendency.valueSeeker > 0.5) {
+      // Moderate value seekers
+      minValueThreshold = 0.9;
+      maxValueThreshold = 1.2;
+    } else if (tendency.aggressiveness > 0.7) {
+      // Aggressive teams willing to overpay
+      minValueThreshold = 0.85;
+      maxValueThreshold = 1.3;
+    } else {
+      // Default behavior
+      minValueThreshold = 0.85;
+      maxValueThreshold = 1.25;
+    }
+    
+    // Return packages within acceptable value range
+    return packages.where((package) {
+      double valueRatio = package.totalValueOffered / targetValue;
+      return valueRatio >= minValueThreshold && valueRatio <= maxValueThreshold;
+    }).toList();
+  }
+  
+  /// Process a proposed trade with realistic acceptance criteria
+  bool evaluateTradeProposal(TradePackage proposal) {
+    // Get team tendencies
+    final tendency = _getTeamTradingTendency(proposal.teamReceiving);
+    
+    // Core decision factors
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    final pickNumber = proposal.targetPick.pickNumber;
+    
+    // 1. Value-based acceptance probability
+    double acceptanceProbability = _calculateBaseAcceptanceProbability(valueRatio);
+    
+    // 2. Adjust for pick position premium
+    acceptanceProbability = _adjustForPickPositionPremium(acceptanceProbability, pickNumber);
+    
+    // 3. Adjust for team needs
+    acceptanceProbability = _adjustForTeamNeeds(
+      acceptanceProbability, 
+      proposal.teamReceiving, 
+      proposal.targetPick.pickNumber
+    );
+    
+    // 4. Adjust for package composition
+    acceptanceProbability = _adjustForPackageComposition(
+      acceptanceProbability, 
+      proposal, 
+      tendency
+    );
+    
+    // 5. QB-specific adjustments
+    final qbNeedLevel = _getQBNeedLevel(proposal.teamReceiving);
+    if (qbNeedLevel > 0) {
+      // Teams with QB needs have different values for picks
+      acceptanceProbability = _adjustForQBNeeds(
+        acceptanceProbability, 
+        proposal,
+        qbNeedLevel
+      );
+    }
+    
+    // 6. Adjust for team-specific tendencies
+    acceptanceProbability = _adjustForTeamTendencies(
+      acceptanceProbability,
+      proposal,
+      tendency
+    );
+    
+    // 7. Apply round-based modifiers (fewer trades in later rounds)
+    int round = DraftValueService.getRoundForPick(proposal.targetPick.pickNumber);
+    if (round >= 4) {
+      // Reduce trade probability in later rounds
+      double roundPenalty = (round - 3) * 0.07; // 7% reduction per round after 3
+      acceptanceProbability -= roundPenalty;
+    }
+    
+    // 8. Add randomness
+    final randomFactor = (_random.nextDouble() * tradeRandomnessFactor) - (tradeRandomnessFactor / 2);
+    acceptanceProbability += randomFactor;
+    
+    // Ensure probability is within 0-1 range
+    acceptanceProbability = max(0.05, min(0.95, acceptanceProbability));
+    
+    // Make final decision
+    return _random.nextDouble() < acceptanceProbability;
+  }
+  
+  // Get base acceptance probability based on value ratio
+  double _calculateBaseAcceptanceProbability(double valueRatio) {
+    if (valueRatio >= 1.2) {
+      return 0.9;  // Excellent value (90% acceptance)
+    } else if (valueRatio >= 1.1) {
+      return 0.8;  // Very good value (80% acceptance)
+    } else if (valueRatio >= 1.05) {
+      return 0.7;  // Good value (70% acceptance)
+    } else if (valueRatio >= 1.0) {
+      return 0.6;  // Fair value (60% acceptance)
+    } else if (valueRatio >= 0.95) {
+      return 0.5;  // Slightly below value (50% acceptance)
+    } else if (valueRatio >= 0.9) {
+      return 0.3;  // Below value (30% acceptance)
+    } else if (valueRatio >= 0.85) {
+      return 0.15; // Poor value (15% acceptance)
+    } else {
+      return 0.05; // Very poor value (5% acceptance)
+    }
+  }
+  
+  // Adjust acceptance probability based on pick position
+  double _adjustForPickPositionPremium(double probability, int pickNumber) {
+    if (pickNumber <= 5) {
+      return probability - 0.2;  // Top 5 picks have premium
+    } else if (pickNumber <= 10) {
+      return probability - 0.15; // Top 10 picks have significant premium
+    } else if (pickNumber <= 15) {
+      return probability - 0.1;  // Top half of 1st round has moderate premium
+    } else if (pickNumber <= 32) {
+      return probability - 0.05; // 1st round picks have slight premium
+    }
+    return probability;
+  }
+  
+  // Adjust for team needs - less likely to trade if good player available
+  double _adjustForTeamNeeds(double probability, String teamName, int pickNumber) {
+    final teamNeeds = _getTeamNeeds(teamName);
+    if (teamNeeds == null) return probability;
+    
+    // Check top available players to see if they match needs
+    final topPlayers = availablePlayers.take(3).toList();
+    bool topNeedPlayerAvailable = false;
+    
+    for (var player in topPlayers) {
+      if (teamNeeds.needs.take(3).contains(player.position)) {
+        topNeedPlayerAvailable = true;
+        
+        // Even stronger effect for premium positions
+        if (_premiumPositions.contains(player.position)) {
+          return probability - 0.25; // Major reduction
+        }
+        
+        break;
+      }
+    }
+    
+    return topNeedPlayerAvailable ? probability - 0.15 : probability;
+  }
+  
+  // Adjust based on package composition
+  double _adjustForPackageComposition(
+    double probability, 
+    TradePackage proposal,
+    TradingTendency tendency
+  ) {
+    // Check if team is rebuilding (more likely to want multiple picks)
+    bool isRebuildingTeam = _isTeamRebuilding(proposal.teamReceiving);
+    
+    // Multiple picks packages more attractive to rebuilding teams
+    if (isRebuildingTeam && proposal.picksOffered.length > 1) {
+      probability += 0.1;
+    }
+    
+    // Future pick preferences
+    if (proposal.includesFuturePick) {
+      // Rebuilding teams like future picks
+      if (isRebuildingTeam) {
+        probability += 0.1;
+      } else {
+        // Win-now teams less interested in future picks
+        probability -= 0.05;
+      }
+    }
+    
+    return probability;
+  }
+  
+  // Adjust for QB needs (quarterback-needy teams value related picks differently)
+  double _adjustForQBNeeds(double probability, TradePackage proposal, double qbNeedLevel) {
+    // Check if any top QBs are available
+    bool topQBAvailable = availablePlayers
+        .where((p) => p.position == "QB" && p.rank <= 15)
+        .isNotEmpty;
+    
+    // If top QB available and team has QB need, they're less likely to trade down
+    if (topQBAvailable && proposal.teamOffering == proposal.targetPick.teamName) {
+      // Trading down with top QB available - less likely
+      return probability - (0.2 * qbNeedLevel);
+    }
+    
+    return probability;
+  }
+  
+  // Adjust for team trading tendencies
+  double _adjustForTeamTendencies(
+    double probability,
+    TradePackage proposal,
+    TradingTendency tendency
+  ) {
+    // Is team trading up or down?
+    bool isTradingDown = proposal.teamReceiving == proposal.targetPick.teamName;
+    
+    if (isTradingDown) {
+      // Team is trading down - apply trade-down bias
+      if (tendency.tradeDownBias > 0.5) {
+        probability += (tendency.tradeDownBias - 0.5) * 0.3; // Up to +15% more likely
+      } else if (tendency.tradeDownBias < 0.5) {
+        probability -= (0.5 - tendency.tradeDownBias) * 0.3; // Up to -15% less likely
+      }
+    } else {
+      // Team is trading up - apply trade-up bias
+      if (tendency.tradeUpBias > 0.5) {
+        probability += (tendency.tradeUpBias - 0.5) * 0.3; // Up to +15% more likely
+      } else if (tendency.tradeUpBias < 0.5) {
+        probability -= (0.5 - tendency.tradeUpBias) * 0.3; // Up to -15% less likely
+      }
+    }
+    
+    // Value-seeking teams are more sensitive to value disparities
+    if (tendency.valueSeeker > 0.5) {
+      double valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+      if (valueRatio < 0.95) {
+        // Value seekers strongly dislike unfavorable trades
+        probability -= (tendency.valueSeeker - 0.5) * 0.4 * (0.95 - valueRatio) * 20;
+      } else if (valueRatio > 1.05) {
+        // Value seekers love favorable trades
+        probability += (tendency.valueSeeker - 0.5) * 0.4 * (valueRatio - 1.05) * 10;
+      }
+    }
+    
+    // Aggressive teams more likely to make trades in general
+    if (tendency.aggressiveness > 0.5) {
+      probability += (tendency.aggressiveness - 0.5) * 0.2; // Up to +10% more likely
+    }
+    
+    return probability;
+  }
+  
+  // Get team-specific player grade
+  double _getTeamPlayerGrade(String teamName, Player player) {
+    return _teamSpecificGrades[teamName]?[player.id] ?? 100.0 - player.rank;
+  }
+  
+  // Get team needs
   TeamNeed? _getTeamNeeds(String teamName) {
     try {
       return teamNeeds.firstWhere((need) => need.teamName == teamName);
     } catch (e) {
-      debugPrint('No team needs found for $teamName');
       return null;
     }
   }
   
-  /// Estimate team strength for future pick valuation (1-32 scale)
-  /// 1 = strongest team, 32 = weakest team
-  int _estimateTeamStrength(String teamName) {
-    // This is a simplified estimate - could be enhanced with real team data
-    // For now, base it on draft position (earlier pickers are weaker teams)
-    final teamPicks = draftOrder.where((pick) => 
-      pick.teamName == teamName && pick.round == "1"
-    ).toList();
-    
-    if (teamPicks.isEmpty) return 16; // Middle of the pack
-    
-    // Lower pick number = weaker team
-    return min(32, max(1, teamPicks.first.pickNumber));
+  // Check if team is in rebuilding mode
+  bool _isTeamRebuilding(String teamName) {
+    // Very simple heuristic - teams with many needs are rebuilding
+    final needs = _getTeamNeeds(teamName);
+    return needs != null && needs.needs.length >= 5;
   }
   
-  // Randomization helper functions
-  double _getRandomAddValue() {
-    return _random.nextDouble() * 10 - 4; // Range from -4 to 6
+  // Get QB need level (0.0 to 1.0)
+  double _getQBNeedLevel(String teamName) {
+    final needs = _getTeamNeeds(teamName);
+    if (needs == null) return 0.0;
+    
+    // Check position in needs list
+    int qbNeedIndex = needs.needs.indexOf('QB');
+    if (qbNeedIndex == -1) return 0.0;
+    
+    // Higher need if QB is at top of need list
+    return 1.0 - (qbNeedIndex * 0.2);
   }
   
-  double _getRandomMultValue() {
-    return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
+  // Get team trading tendency (with defaults if not specified)
+  TradingTendency _getTeamTradingTendency(String teamName) {
+    // Try exact match first
+    if (_teamTendencies.containsKey(teamName)) {
+      return _teamTendencies[teamName]!;
+    }
+    
+    // Try to match team abbreviation
+    for (var entry in _teamTendencies.entries) {
+      if (teamName.contains(entry.key) || entry.key.contains(teamName)) {
+        return entry.value;
+      }
+    }
+    
+    // Return default tendency if not found
+    return TradingTendency();
   }
+  
+  /// Generate potential rejection reason for a trade
+  String getTradeRejectionReason(TradePackage proposal) {
+    final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+    final teamNeed = _getTeamNeeds(proposal.teamReceiving);
+    
+    // 1. Value-based rejections
+    if (valueRatio < 0.85) {
+      final options = [
+        "The offer doesn't provide sufficient draft value.",
+        "We need more compensation to move down from this position.",
+        "That offer falls short of our valuation of this pick.",
+        "We're looking for significantly more value to make this move.",
+        "Our draft value models show this proposal undervalues our pick.",
+        "The value gap is too significant for us to consider this deal."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 2. Slightly below market value
+    else if (valueRatio < 0.95) {
+      final options = [
+        "We're close, but we need a bit more value to make this deal work.",
+        "The offer is slightly below what we're looking for.",
+        "We'd need a little more compensation to justify moving back.",
+        "Interesting offer, but not quite enough value for us.",
+        "Our analytics team suggests we need slightly better compensation.",
+        "The trade offers good value, but we're looking for a bit more in return."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 3. Need-based rejections (when value is fair but team has needs)
+    else if (teamNeed != null && teamNeed.needs.isNotEmpty) {
+      // Check if there are players available that match team needs
+      final topPlayers = availablePlayers.take(5).toList();
+      bool hasNeedMatch = false;
+      String matchedPosition = "";
+      
+      for (var player in topPlayers) {
+        if (teamNeed.needs.take(3).contains(player.position)) {
+          hasNeedMatch = true;
+          matchedPosition = player.position;
+          break;
+        }
+      }
+      
+      if (hasNeedMatch) {
+        final options = [
+          "We have our eye on a specific player at this position.",
+          "We believe we can address a key roster need with this selection.",
+          "Our scouts are high on a player that should be available here.",
+          "We have immediate needs that we're planning to address with this pick.",
+          "Our draft board has fallen favorably, and we're targeting a player at this spot."
+        ];
+        
+        // Sometimes mention the position specifically
+        if (_random.nextBool() && matchedPosition.isNotEmpty) {
+          options.add("We're looking to add a $matchedPosition with this selection.");
+          options.add("Our team has identified $matchedPosition as a priority in this draft.");
+        }
+        
+        return options[_random.nextInt(options.length)];
+      }
+    }
+    
+    // 4. Position-specific concerns
+    final pickNumber = proposal.targetPick.pickNumber;
+    if (pickNumber <= 15) {
+      // Early picks often involve premium positions
+      final premiumPositionOptions = [
+        "We're targeting a blue-chip talent at a premium position with this pick.",
+        "Our front office values the opportunity to select a game-changing player here.",
+        "We believe there's a franchise cornerstone available at this position.",
+        "Our draft strategy is built around making this selection.",
+        "The player we're targeting has too much potential for us to move down."
+      ];
+      return premiumPositionOptions[_random.nextInt(premiumPositionOptions.length)];
+    }
+    
+    // 5. Future pick preferences (when teams want current picks)
+    else if (proposal.includesFuturePick) {
+      final options = [
+        "We're focused on building our roster now rather than acquiring future assets.",
+        "We prefer more immediate draft capital over future picks.",
+        "Our preference is for picks in this year's draft.",
+        "We're not looking to add future draft capital at this time.",
+        "Our team is in win-now mode and we need immediate contributors."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+    
+    // 6. Generic rejections for when value is fair but team still declines
+    else {
+      final options = [
+        "After careful consideration, we've decided to stay put and make our selection.",
+        "We've received several offers and are going in a different direction.",
+        "We're comfortable with our draft position and plan to make our pick.",
+        "Our draft board has fallen favorably, so we're keeping the pick.",
+        "We don't see enough value in moving back from this position.",
+        "The timing isn't right for us on this deal.",
+        "We've decided to pass on this opportunity."
+      ];
+      return options[_random.nextInt(options.length)];
+    }
+  }
+}
+
+/// Trading tendency for teams to create realistic behavior
+class TradingTendency {
+  // How likely the team is to trade down (1.0 = very likely, 0.0 = very unlikely)
+  final double tradeDownBias;
+  
+  // How likely the team is to trade up (1.0 = very likely, 0.0 = very unlikely)
+  final double tradeUpBias;
+  
+  // How much the team values getting fair value (1.0 = strict value followers, 0.0 = ignores charts)
+  final double valueSeeker;
+  
+  // How aggressive the team is in making trades (1.0 = very aggressive, 0.0 = very conservative)
+  final double aggressiveness;
+  
+  // Overall level of trade activity (1.0 = very active, 0.0 = very inactive)
+  final double tradeActivityLevel;
+  
+  TradingTendency({
+    this.tradeDownBias = 0.5,
+    this.tradeUpBias = 0.5,
+    this.valueSeeker = 0.5,
+    this.aggressiveness = 0.5,
+    this.tradeActivityLevel = 0.5,
+  });
+}
+
+/// Class to track a team's interest in trading up
+class TradeInterest {
+  final String teamName;
+  final Player targetPlayer;
+  final int nextPickNumber;
+  final double interestLevel;
+  
+  TradeInterest({
+    required this.teamName,
+    required this.targetPlayer,
+    required this.nextPickNumber,
+    required this.interestLevel,
+  });
 }

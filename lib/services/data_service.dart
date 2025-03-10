@@ -1,5 +1,4 @@
 // lib/services/data_service.dart
-import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +55,8 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
   }
 }
 
+// Updated part of the loadAvailablePlayers method in DataService
+
 static Future<List<Player>> loadAvailablePlayers({required int year}) async {
   try {
     final data = await rootBundle.loadString('assets/$year/available_players.csv');
@@ -77,18 +78,107 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
       columnIndices[headers[i]] = i;
     }
     
+    // Debug the headers to see what's available
     debugPrint("Available players CSV headers: $headers");
+    
+    // Explicitly look for "COMBINED_RANK" or similar column
+    int rankIndex = -1;
+    for (String key in columnIndices.keys) {
+      if (key.contains("COMBINED_RANK") || key.contains("COMBINED") || key.contains("RANK_COMBINED")) {
+        rankIndex = columnIndices[key]!;
+        debugPrint("Found Combined Rank column: $key at index $rankIndex");
+        break;
+      }
+    }
+    
+    // If not found, try to find any rank column
+    if (rankIndex == -1) {
+      for (String key in columnIndices.keys) {
+        if (key.contains("RANK")) {
+          rankIndex = columnIndices[key]!;
+          debugPrint("Using Rank column: $key at index $rankIndex");
+          break;
+        }
+      }
+    }
+    
+    // If still not found, default to the last column
+    if (rankIndex == -1) {
+      rankIndex = headers.length - 1;
+      debugPrint("No rank column found. Defaulting to last column at index $rankIndex");
+    }
     
     // Skip the header row (index 0)
     List<Player> players = [];
     for (int i = 1; i < csvTable.length; i++) {
       try {
-        Player player = Player.fromCsvRowWithHeaders(csvTable[i], columnIndices);
-        players.add(player);
+        // Get the row data
+        var row = csvTable[i];
+        
+        // Make sure we have enough data
+        if (row.length <= columnIndices['NAME']!) {
+          debugPrint("Row $i has insufficient columns: $row");
+          continue;
+        }
+        
+        // Get player ID
+        int id = 0;
+        if (columnIndices.containsKey('ID') && columnIndices['ID']! < row.length) {
+          id = int.tryParse(row[columnIndices['ID']!].toString()) ?? i; // Use row index as fallback
+        } else {
+          id = i; // Use row index as ID
+        }
+        
+        // Get player name
+        String name = "";
+        if (columnIndices.containsKey('NAME') && columnIndices['NAME']! < row.length) {
+          name = row[columnIndices['NAME']!].toString();
+        } else if (row.length > 1) {
+          name = row[1].toString(); // Fallback to second column
+        }
+        
+        // Get player position
+        String position = "";
+        if (columnIndices.containsKey('POSITION') && columnIndices['POSITION']! < row.length) {
+          position = row[columnIndices['POSITION']!].toString();
+        } else if (row.length > 2) {
+          position = row[2].toString(); // Fallback to third column
+        }
+        
+        // Get player rank with proper error handling
+        int rank = 999;
+        if (rankIndex < row.length) {
+          String rankStr = row[rankIndex].toString().trim();
+          if (rankStr.isNotEmpty) {
+            rank = int.tryParse(rankStr) ?? 999;
+          }
+        }
+        
+        // Get school info if available
+        String school = "";
+        if (columnIndices.containsKey('SCHOOL') && columnIndices['SCHOOL']! < row.length) {
+          school = row[columnIndices['SCHOOL']!].toString();
+        } else if (row.length > 3) {
+          school = row[3].toString(); // Fallback to fourth column
+        }
+        
+        // Create player and add to list
+        if (name.isNotEmpty && position.isNotEmpty) {
+          players.add(Player(
+            id: id,
+            name: name,
+            position: position,
+            rank: rank,
+            school: school,
+          ));
+        }
       } catch (e) {
         debugPrint("Error parsing player at row $i: $e");
       }
     }
+    
+    // Sort players by rank to ensure consistent ordering
+    players.sort((a, b) => a.rank.compareTo(b.rank));
     
     debugPrint("Successfully loaded ${players.length} players");
     return players;

@@ -95,7 +95,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NFL Draft Setup'),
+        title: const Text('NFL Draft Simulator'),  // Updated title
         actions: [
           // Theme toggle button
           Consumer<ThemeManager>(

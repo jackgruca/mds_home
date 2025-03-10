@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../models/player.dart';
-import '../models/draft_pick.dart';
 import '../models/team_need.dart';
 
 /// Enhanced player selection logic that incorporates more realistic draft behavior

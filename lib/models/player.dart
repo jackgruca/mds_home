@@ -90,9 +90,22 @@ factory Player.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> columnI
     int notesIndex = columnIndices['NOTES'] ?? columnIndices.entries
         .firstWhere((entry) => entry.key.contains('NOTES'), orElse: () => const MapEntry('', -1))
         .value;
-    int rankIndex = columnIndices['RANK'] ?? columnIndices.entries
-        .firstWhere((entry) => entry.key.contains('RANK'), orElse: () => MapEntry('', row.length - 1))
-        .value;
+    
+    // Find rank index - specifically look for combined_rank
+    int rankIndex = -1;
+    for (var entry in columnIndices.entries) {
+      if (entry.key.contains('COMBINED_RANK') || entry.key.contains('RANK_COMBINED')) {
+        rankIndex = entry.value;
+        break;
+      }
+    }
+    
+    // If no combined rank found, try any rank column
+    if (rankIndex == -1) {
+      rankIndex = columnIndices.entries
+          .firstWhere((entry) => entry.key.contains('RANK'), orElse: () => MapEntry('', row.length - 1))
+          .value;
+    }
     
     // Parse values safely
     int id = idIndex >= 0 && idIndex < row.length
@@ -107,9 +120,13 @@ factory Player.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> columnI
         ? row[positionIndex].toString()
         : "UNK";
     
-    int rank = rankIndex >= 0 && rankIndex < row.length
-        ? int.tryParse(row[rankIndex].toString()) ?? 999
-        : 999;
+    int rank = 999;
+    if (rankIndex >= 0 && rankIndex < row.length) {
+      String rankStr = row[rankIndex].toString().trim();
+      if (rankStr.isNotEmpty) {
+        rank = int.tryParse(rankStr) ?? 999;
+      }
+    }
     
     String school = schoolIndex >= 0 && schoolIndex < row.length
         ? row[schoolIndex].toString()

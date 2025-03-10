@@ -1,7 +1,6 @@
 // lib/utils/theme_manager.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'theme_config.dart';
 
 class ThemeManager with ChangeNotifier {
   static const String THEME_KEY = 'theme_mode';
