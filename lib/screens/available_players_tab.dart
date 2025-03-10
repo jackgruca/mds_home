@@ -260,6 +260,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
               itemCount: filteredPlayers.length,
               itemBuilder: (context, index) {
                 final player = filteredPlayers[index];
+                final isDarkMode = Theme.of(context).brightness == Brightness.dark;
                 
                 // Check if player is selected or position has been drafted
                 bool isSelected = _selectedPlayerIds.contains(player.id);
@@ -271,11 +272,15 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
                     side: BorderSide(
-                      color: isSelected || positionDrafted ? Colors.transparent : Colors.grey.shade300,
+                      color: isSelected || positionDrafted ? 
+                          Colors.transparent : 
+                          (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
                       width: 1.0,
                     ),
                   ),
-                  color: isSelected || positionDrafted ? Colors.grey.shade100 : Colors.white,
+                  color: isSelected || positionDrafted ? 
+                      (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100) : 
+                      (isDarkMode ? Colors.grey.shade800 : Colors.white),
                   child: InkWell(
                     onTap: isSelected || positionDrafted ? null : () {
                       if (widget.selectionEnabled && widget.onPlayerSelected != null) {
@@ -288,24 +293,25 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       child: Row(
                         children: [
                           // Rank number (like pick number in draft order)
-                          Container(
-                            width: 30.0,
-                            height: 30.0,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _getPositionColor(player.position).withOpacity(0.8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '#${player.rank}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.0,
-                                ),
+                         Container(
+                          width: 30.0,
+                          height: 30.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.blue.shade700, // Consistent blue color for all rankings
+                          ),
+                          child: Center(
+                            child: Text(
+                              '#${player.rank}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.0,
                               ),
                             ),
                           ),
+                        ),
+
                           const SizedBox(width: 8.0),
                           
                           // School logo placeholder (circular)

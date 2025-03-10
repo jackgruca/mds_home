@@ -46,6 +46,8 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       }
     }
     
+    Map<String, List<String>> teamNeedsMap = {};
+    
     // Get index for key columns
     int pickIndex = columnIndices['PICK'] ?? 0;
     int teamIndex = columnIndices['TEAM'] ?? 1;

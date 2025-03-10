@@ -9,12 +9,14 @@ class AnimatedDraftPickCard extends StatefulWidget {
   final DraftPick draftPick;
   final bool isUserTeam;
   final bool isRecentPick;
+  final List<String>? teamNeeds; // Add this parameter to pass team needs
   
   const AnimatedDraftPickCard({
     super.key,
     required this.draftPick,
     this.isUserTeam = false,
     this.isRecentPick = false,
+    this.teamNeeds,
   });
 
   @override
@@ -62,8 +64,12 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
 
   @override
   Widget build(BuildContext context) {
-    // Determine the card color - no yellow highlight
-    Color cardColor = widget.isUserTeam ? Colors.blue.shade50 : Colors.white;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    // Determine the card color with dark mode support
+    Color cardColor = widget.isUserTeam ? 
+        (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
+        (isDarkMode ? Colors.grey.shade800 : Colors.white);
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -71,17 +77,19 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
         scale: _scaleAnimation,
         child: Card(
           elevation: widget.isRecentPick ? 4.0 : 1.0,
-          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Reduced margins
+          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0), // Smaller border radius
+            borderRadius: BorderRadius.circular(8.0),
             side: BorderSide(
-              color: widget.isUserTeam ? Colors.blue : Colors.transparent,
+              color: widget.isUserTeam ? 
+                  (isDarkMode ? Colors.blue.shade300 : Colors.blue) : 
+                  Colors.transparent,
               width: widget.isUserTeam ? 2.0 : 0.0,
             ),
           ),
           color: cardColor,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0), // Reduced padding
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
             child: Row(
               children: [
                 // Pick number (smaller)
@@ -98,7 +106,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12.0, // Smaller font
+                        fontSize: 12.0,
                       ),
                     ),
                   ),
@@ -109,53 +117,105 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                 _buildTeamLogo(widget.draftPick.teamName),
                 const SizedBox(width: 8.0),
                 
-                // Player info
+                // Player info or Team Needs
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min, // Keep column tight
-                    children: [
-                      // Player name
-                      Text(
-                        widget.draftPick.selectedPlayer?.name ?? 'Pick pending',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14.0, // Smaller font
+                  child: widget.draftPick.selectedPlayer != null ? 
+                    // Show player info if a player is selected
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Player name
+                        Text(
+                          widget.draftPick.selectedPlayer!.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.0,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      // Position and team
-                      Row(
-                        children: [
-                          if (widget.draftPick.selectedPlayer != null)
+                        // Position and team
+                        Row(
+                          children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0), // Smaller padding
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
                               margin: const EdgeInsets.only(right: 4.0),
                               decoration: BoxDecoration(
                                 color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
-                                borderRadius: BorderRadius.circular(3.0), // Smaller radius
+                                borderRadius: BorderRadius.circular(3.0),
                               ),
                               child: Text(
                                 widget.draftPick.selectedPlayer!.position,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10.0, // Smaller font
+                                  fontSize: 10.0,
                                 ),
                               ),
                             ),
-                          Text(
-                            widget.draftPick.teamName,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 11.0, // Smaller font
+                            Text(
+                              widget.draftPick.teamName,
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                fontSize: 11.0,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                      ],
+                    ) :
+                    // Show team needs if no player selected
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Team name
+                        Text(
+                          widget.draftPick.teamName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.0,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        // Top 3 needs
+                        if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
+                          Wrap(
+                            spacing: 4.0,
+                            children: widget.teamNeeds!.take(3).map((need) => 
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                                decoration: BoxDecoration(
+                                  color: _getPositionColor(need).withOpacity(
+                                    isDarkMode ? 0.5 : 0.7
+                                  ),
+                                  borderRadius: BorderRadius.circular(3.0),
+                                ),
+                                child: Text(
+                                  need,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10.0,
+                                  ),
+                                ),
+                              )
+                            ).toList(),
+                          )
+                        else
+                          Text(
+                            'No team needs data',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                              fontSize: 11.0,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
                 ),
                 
                 // Right side widgets
@@ -169,7 +229,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                         child: Icon(
                           Icons.swap_horiz,
                           size: 16.0,
-                          color: Colors.orange[700],
+                          color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
                         ),
                       ),
                       
@@ -182,7 +242,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                         icon: Icon(
                           Icons.info_outline,
                           size: 16.0,
-                          color: Colors.grey[600],
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
                         onPressed: () => _showAnalysisDialog(context),
                       ),
@@ -192,23 +252,25 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                     // Player rank (instead of showing pick number)
                     if (widget.draftPick.selectedPlayer != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Smaller padding
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
                         decoration: BoxDecoration(
                           color: _getRankColor(
                             widget.draftPick.selectedPlayer!.rank,
                             widget.draftPick.pickNumber,
-                          ).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(3.0), // Smaller radius
+                          ).withOpacity(isDarkMode ? 0.4 : 0.2),
+                          borderRadius: BorderRadius.circular(3.0),
                         ),
                         child: Text(
                           '#${widget.draftPick.selectedPlayer!.rank}',
                           style: TextStyle(
-                            color: _getRankColor(
-                              widget.draftPick.selectedPlayer!.rank,
-                              widget.draftPick.pickNumber,
-                            ),
+                            color: isDarkMode ? 
+                                Colors.white : 
+                                _getRankColor(
+                                  widget.draftPick.selectedPlayer!.rank,
+                                  widget.draftPick.pickNumber,
+                                ),
                             fontWeight: FontWeight.bold,
-                            fontSize: 11.0, // Smaller font
+                            fontSize: 11.0,
                           ),
                         ),
                       ),
@@ -223,41 +285,41 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   }
   
   Widget _buildTeamLogo(String teamName) {
-  // First try to find the abbreviation in the mapping
-  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-  
-  // If we can't find it in the mapping, check if it's already an abbreviation
-  if (abbr == null && teamName.length <= 3) {
-    abbr = teamName;
-  }
-  
-  // If we still don't have an abbreviation, create a placeholder
-  if (abbr == null) {
-    return _buildPlaceholderLogo(teamName);
-  }
-  
-  // Convert abbreviation to lowercase for URL
-  final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
-  
-  // Handle the image with error fallback
-  return Container(
-    width: 25.0,
-    height: 25.0,
-    decoration: const BoxDecoration(
-      shape: BoxShape.circle,
-    ),
-    child: ClipOval(
-      child: Image.network(
-        logoUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // On error, return the placeholder
-          return _buildPlaceholderLogo(teamName);
-        },
+    // First try to find the abbreviation in the mapping
+    String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+    
+    // If we can't find it in the mapping, check if it's already an abbreviation
+    if (abbr == null && teamName.length <= 3) {
+      abbr = teamName;
+    }
+    
+    // If we still don't have an abbreviation, create a placeholder
+    if (abbr == null) {
+      return _buildPlaceholderLogo(teamName);
+    }
+    
+    // Convert abbreviation to lowercase for URL
+    final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
+    
+    // Handle the image with error fallback
+    return Container(
+      width: 25.0,
+      height: 25.0,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
       ),
-    ),
-  );
-}
+      child: ClipOval(
+        child: Image.network(
+          logoUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            // On error, return the placeholder
+            return _buildPlaceholderLogo(teamName);
+          },
+        ),
+      ),
+    );
+  }
 
   Widget _buildPlaceholderLogo(String teamName) {
     final initials = teamName.split(' ')
@@ -266,8 +328,8 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
         .toUpperCase();
     
     return Container(
-      width: 25.0, // Smaller logo
-      height: 25.0, // Smaller logo
+      width: 25.0,
+      height: 25.0,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.blue.shade700,
@@ -278,7 +340,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 10.0, // Smaller font
+            fontSize: 10.0,
           ),
         ),
       ),
@@ -290,6 +352,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     
     // Get player
     Player player = widget.draftPick.selectedPlayer!;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Create simple analysis
     Map<String, dynamic> analysis = _analyzeSelectionSimple(
@@ -301,7 +364,13 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Analysis: ${player.name}'),
+        backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
+        title: Text(
+          'Analysis: ${player.name}',
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,22 +378,33 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             // Player details
             Text(
               '${player.position}${player.school.isNotEmpty ? ' - ${player.school}' : ''}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.black
+              ),
             ),
-            Text('Pick #${widget.draftPick.pickNumber} - Rank #${player.rank}'),
+            Text(
+              'Pick #${widget.draftPick.pickNumber} - Rank #${player.rank}',
+              style: TextStyle(
+                color: isDarkMode ? Colors.grey.shade300 : Colors.black87
+              ),
+            ),
             const SizedBox(height: 16),
             
             // Value assessment
-            const Text(
+            Text(
               'Value Assessment:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.black
+              ),
             ),
             const SizedBox(height: 4),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                color: _getAnalysisColor(analysis).withOpacity(0.2),
+                color: _getAnalysisColor(analysis).withOpacity(isDarkMode ? 0.3 : 0.2),
                 borderRadius: BorderRadius.circular(4.0),
                 border: Border.all(
                   color: _getAnalysisColor(analysis),
@@ -334,7 +414,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
               child: Text(
                 analysis['analysis'],
                 style: TextStyle(
-                  color: _getAnalysisColor(analysis),
+                  color: isDarkMode ? Colors.white : _getAnalysisColor(analysis),
                 ),
               ),
             ),
@@ -348,14 +428,17 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                 color: analysis['valueGap'] >= 0 ? Colors.green : Colors.red,
               ),
             ),
-            
-            // Additional analysis could go here
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: isDarkMode ? Colors.blue.shade300 : Colors.blue
+              ),
+            ),
           ),
         ],
       ),
@@ -363,76 +446,80 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   }
   
   Color _getPickNumberColor() {
-    // Different colors for each round
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // Different colors for each round with dark mode adjustments
     switch (widget.draftPick.round) {
       case '1':
-        return Colors.blue.shade700;
+        return isDarkMode ? Colors.blue.shade600 : Colors.blue.shade700;
       case '2':
-        return Colors.green.shade700;
+        return isDarkMode ? Colors.green.shade600 : Colors.green.shade700;
       case '3':
-        return Colors.orange.shade700;
+        return isDarkMode ? Colors.orange.shade600 : Colors.orange.shade700;
       case '4':
-        return Colors.purple.shade700;
+        return isDarkMode ? Colors.purple.shade600 : Colors.purple.shade700;
       case '5':
-        return Colors.red.shade700;
+        return isDarkMode ? Colors.red.shade600 : Colors.red.shade700;
       case '6':
-        return Colors.teal.shade700;
+        return isDarkMode ? Colors.teal.shade600 : Colors.teal.shade700;
       case '7':
-        return Colors.brown.shade700;
+        return isDarkMode ? Colors.brown.shade600 : Colors.brown.shade700;
       default:
-        return Colors.grey.shade700;
+        return isDarkMode ? Colors.grey.shade600 : Colors.grey.shade700;
     }
   }
   
   Color _getPositionColor(String position) {
-    // Different colors for different position groups
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // Different colors for different position groups with dark mode adjustments
     if (['QB', 'RB', 'WR', 'TE'].contains(position)) {
-      return Colors.blue.shade700; // Offensive skill positions
+      return isDarkMode ? Colors.blue.shade600 : Colors.blue.shade700; // Offensive skill positions
     } else if (['OT', 'IOL'].contains(position)) {
-      return Colors.green.shade700; // Offensive line
+      return isDarkMode ? Colors.green.shade600 : Colors.green.shade700; // Offensive line
     } else if (['EDGE', 'IDL', 'DT', 'DE'].contains(position)) {
-      return Colors.red.shade700; // Defensive line
+      return isDarkMode ? Colors.red.shade600 : Colors.red.shade700; // Defensive line
     } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-      return Colors.orange.shade700; // Linebackers
+      return isDarkMode ? Colors.orange.shade600 : Colors.orange.shade700; // Linebackers
     } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-      return Colors.purple.shade700; // Secondary
+      return isDarkMode ? Colors.purple.shade600 : Colors.purple.shade700; // Secondary
     } else {
-      return Colors.grey.shade700; // Special teams, etc.
+      return isDarkMode ? Colors.grey.shade600 : Colors.grey.shade700; // Special teams, etc.
     }
   }
   
   Color _getRankColor(int rank, int pickNumber) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     // Color based on difference between rank and pick number
     int diff = pickNumber - rank;
     
     if (diff >= 15) {
-      return Colors.green.shade800; // Excellent value
+      return isDarkMode ? Colors.green.shade400 : Colors.green.shade800; // Excellent value
     } else if (diff >= 5) {
-      return Colors.green.shade600; // Good value
+      return isDarkMode ? Colors.green.shade300 : Colors.green.shade600; // Good value
     } else if (diff >= -5) {
-      return Colors.blue.shade600; // Fair value
+      return isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600; // Fair value
     } else if (diff >= -15) {
-      return Colors.orange.shade600; // Slight reach
+      return isDarkMode ? Colors.orange.shade300 : Colors.orange.shade600; // Slight reach
     } else {
-      return Colors.red.shade600; // Significant reach
+      return isDarkMode ? Colors.red.shade300 : Colors.red.shade600; // Significant reach
     }
   }
   
   Color _getAnalysisColor(Map<String, dynamic> analysis) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     if (analysis['isSignificantValue'] && analysis['isNeed']) {
-      return Colors.green.shade800; // Perfect pick
+      return isDarkMode ? Colors.green.shade400 : Colors.green.shade800; // Perfect pick
     } else if (analysis['isSignificantValue']) {
-      return Colors.green.shade600; // Great value
+      return isDarkMode ? Colors.green.shade300 : Colors.green.shade600; // Great value
     } else if (analysis['isValue'] && analysis['isNeed']) {
-      return Colors.green.shade600; // Good pick
+      return isDarkMode ? Colors.green.shade300 : Colors.green.shade600; // Good pick
     } else if (analysis['isValue']) {
-      return Colors.blue.shade600; // Decent pick
+      return isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600; // Decent pick
     } else if (analysis['isNeed'] && !analysis['isReach']) {
-      return Colors.blue.shade600; // Addressing need
+      return isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600; // Addressing need
     } else if (analysis['isReach']) {
-      return Colors.red.shade600; // Reach pick
+      return isDarkMode ? Colors.red.shade300 : Colors.red.shade600; // Reach pick
     } else {
-      return Colors.grey.shade600; // Standard pick
+      return isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600; // Standard pick
     }
   }
   

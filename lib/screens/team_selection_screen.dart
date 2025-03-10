@@ -75,6 +75,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     final screenSize = MediaQuery.of(context).size;
     final bool isSmallScreen = screenSize.width < 600;
     final bool isVerySmallScreen = screenSize.width < 360;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Responsive values
     final double teamLogoSize = isSmallScreen ? 
@@ -83,9 +84,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
         (isVerySmallScreen ? 9.0 : 10.0) : 12.0;
     final double sectionPadding = isSmallScreen ? 6.0 : 12.0;
     
-    // Define theme colors
-    const Color afcColor = Color(0xFFD50A0A);  // Dark red
-    const Color nfcColor = Color(0xFF002244);  // Dark navy
+    // Define theme colors - adjusting for dark mode
+    final Color afcColor = isDarkMode ? const Color(0xFFFF6B6B) : const Color(0xFFD50A0A);  // Brighter red for dark mode
+    final Color nfcColor = isDarkMode ? const Color(0xFF4D90E8) : const Color(0xFF002244);  // Brighter blue for dark mode
+    
+    // Background and text colors based on theme
+    final Color cardBackground = isDarkMode ? Colors.grey[800]! : Colors.white;
+    final Color cardBorder = isDarkMode ? Colors.grey[600]! : Colors.grey[300]!;
+    final Color labelTextColor = isDarkMode ? Colors.white : Colors.black;
     
     return Scaffold(
       appBar: AppBar(
@@ -249,7 +255,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                       style: TextStyle(
                                         fontSize: fontSize,
                                         fontWeight: FontWeight.bold,
-                                        color: afcColor,
+                                        color: isDarkMode ? Colors.white : afcColor, // Ensure visibility in dark mode
                                       ),
                                     ),
                                   ),
@@ -448,8 +454,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 vertical: 8.0
               ),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
-                border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+                border: Border(top: BorderSide(color: isDarkMode ? Colors.grey[600]! : Colors.grey[300]!)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,13 +471,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         Row(
                           children: [
                             // Rounds label
-                            const SizedBox(
+                            SizedBox(
                               width: 50,
                               child: Text(
                                 'Rounds:',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0
+                                  fontSize: 12.0,
+                                  color: isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                             ),
