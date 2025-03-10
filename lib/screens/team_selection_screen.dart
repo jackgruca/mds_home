@@ -580,13 +580,22 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     );
   }
 
-  void _startDraft() {
+void _startDraft() {
   // Debug what's happening
+  debugPrint("Starting draft for year: $_selectedYear");
   debugPrint("Selected team (full name): $_selectedTeam");
-  String? teamAbbr = _selectedTeam != null 
-      ? NFLTeamMappings.fullNameToAbbreviation[_selectedTeam]
-      : null;
-  debugPrint("Selected team (abbreviation): $teamAbbr");
+  
+  // Determine the team identifier to use
+  String? teamIdentifier;
+  if (_selectedTeam != null) {
+    // If a full team name is selected, use its abbreviation if available
+    teamIdentifier = NFLTeamMappings.fullNameToAbbreviation[_selectedTeam];
+    
+    // If no abbreviation found, use the full name
+    teamIdentifier ??= _selectedTeam;
+    
+    debugPrint("Using team identifier: $teamIdentifier");
+  }
   
   Navigator.push(
     context,
@@ -595,8 +604,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
         randomnessFactor: _randomness,
         numberOfRounds: _numberOfRounds,
         speedFactor: _speed,
-        selectedTeam: teamAbbr,
-        draftYear: _selectedYear, // Add this line
+        selectedTeam: teamIdentifier,
+        draftYear: _selectedYear,
         enableTrading: _enableTrading,
         enableUserTradeProposals: _enableUserTradeProposals,
         enableQBPremium: _enableQBPremium,

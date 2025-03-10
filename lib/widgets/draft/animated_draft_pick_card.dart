@@ -223,36 +223,37 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   }
   
   Widget _buildTeamLogo(String teamName) {
-  // Check if the team name is already an abbreviation (typically 2-3 letters)
-  bool isAlreadyAbbreviation = teamName.length <= 3;
+  // First try to find the abbreviation in the mapping
+  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
   
-  String? abbr;
-  if (isAlreadyAbbreviation) {
-    // If it's already an abbreviation, use it directly
+  // If we can't find it in the mapping, check if it's already an abbreviation
+  if (abbr == null && teamName.length <= 3) {
     abbr = teamName;
-    print('Using abbreviation directly: $abbr'); // Debug info
-  } else {
-    // Otherwise, look up the abbreviation
-    abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-    print('Team: $teamName, Abbreviation: $abbr'); // Debug info
   }
   
-  // If still no abbreviation, return placeholder
+  // If we still don't have an abbreviation, create a placeholder
   if (abbr == null) {
     return _buildPlaceholderLogo(teamName);
   }
   
-  // Use EXACTLY the same URL format as your team selection screen
+  // Convert abbreviation to lowercase for URL
   final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
   
+  // Handle the image with error fallback
   return Container(
     width: 25.0,
     height: 25.0,
-    decoration: BoxDecoration(
+    decoration: const BoxDecoration(
       shape: BoxShape.circle,
-      image: DecorationImage(
-        image: NetworkImage(logoUrl),
+    ),
+    child: ClipOval(
+      child: Image.network(
+        logoUrl,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // On error, return the placeholder
+          return _buildPlaceholderLogo(teamName);
+        },
       ),
     ),
   );

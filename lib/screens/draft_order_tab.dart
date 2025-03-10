@@ -37,43 +37,54 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
   }
 
   Widget _buildDraftOrderCards() {
-  List<List<dynamic>> filteredDraftOrder = widget.draftOrder
-      .skip(1)
-      .where((row) =>
-          _searchQuery.isEmpty ||
-          row[1].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
-      .toList();
-      
-  // Convert dynamic rows to DraftPick objects
-  List<DraftPick> draftPicks = [];
-    for (var row in filteredDraftOrder) {
-      final pickNumber = int.tryParse(row[0].toString()) ?? 0;
-      final teamName = row[1].toString();
-      final selection = row[2].toString();
-      final position = row[3].toString();
-      final round = row[4].toString();
-      final tradeInfo = row[5].toString();
-      
-      // Create a basic DraftPick
-      final draftPick = DraftPick(
-        pickNumber: pickNumber,
-        teamName: teamName,
-        round: round,
-        tradeInfo: tradeInfo.isEmpty ? null : tradeInfo,
-      );
+
+    List<DraftPick> draftPicks = [];
+  
+  // Map column names to indices for the filtered draft order
+  Map<String, int> columnIndices = {};
+  if (widget.draftOrder.isNotEmpty) {
+    List<String> headers = widget.draftOrder[0].map<String>((dynamic col) => col.toString().toUpperCase()).toList();
+    for (int i = 0; i < headers.length; i++) {
+      columnIndices[headers[i]] = i;
+    }
+  }
+  
+  // Filter draft order rows
+  List<List<dynamic>> filteredRows = widget.draftOrder
+    .skip(1)
+    .where((row) {
+      int teamIndex = columnIndices['TEAM'] ?? 1; // Default to 1 if not found
+      String teamName = (teamIndex < row.length) ? row[teamIndex].toString() : "";
+      return _searchQuery.isEmpty || teamName.toLowerCase().contains(_searchQuery.toLowerCase());
+    })
+    .toList();
+  
+  // Convert to DraftPick objects
+  for (var row in filteredRows) {
+    try {
+      DraftPick pick = DraftPick.fromCsvRowWithHeaders(row, columnIndices);
       
       // Add selected player if there is one
-      if (selection.isNotEmpty) {
-        draftPick.selectedPlayer = Player(
-          id: pickNumber, // Using pick number as ID for simplicity
-          name: selection,
+      int selectionIndex = columnIndices['SELECTION'] ?? 2;
+      int positionIndex = columnIndices['POSITION'] ?? 3;
+      
+      if (selectionIndex < row.length && row[selectionIndex].toString().isNotEmpty) {
+        String playerName = row[selectionIndex].toString();
+        String position = (positionIndex < row.length) ? row[positionIndex].toString() : "";
+        
+        pick.selectedPlayer = Player(
+          id: pick.pickNumber,
+          name: playerName,
           position: position,
-          rank: pickNumber, // Default to pick number as rank if you don't have the actual rank
+          rank: pick.pickNumber,
         );
       }
       
-      draftPicks.add(draftPick);
+      draftPicks.add(pick);
+    } catch (e) {
+      debugPrint("Error processing draft row: $e");
     }
+  }
 
   return ListView.builder(
     controller: _scrollController,
