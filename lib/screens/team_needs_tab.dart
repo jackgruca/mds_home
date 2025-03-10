@@ -15,7 +15,7 @@ class TeamNeedsTab extends StatefulWidget {
 class _TeamNeedsTabState extends State<TeamNeedsTab> {
   final String _searchQuery = '';
 
-  @override
+@override
 Widget build(BuildContext context) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   List<List<dynamic>> filteredTeamNeeds = widget.teamNeeds
@@ -66,9 +66,9 @@ Widget build(BuildContext context) {
                 
                 // Team needs rows
                 Expanded(
-                   child: ListView.builder(
-                      itemCount: filteredTeamNeeds.length,
-                      itemBuilder: (context, i) {
+                  child: ListView.builder(
+                    itemCount: filteredTeamNeeds.length,
+                    itemBuilder: (context, i) {
                       var teamName = filteredTeamNeeds[i][1].toString();
                       var needsList = _getFormattedNeeds(filteredTeamNeeds[i]);
                       var selectedPositions = filteredTeamNeeds[i].length > 12 ? 
@@ -105,8 +105,9 @@ Widget build(BuildContext context) {
                                   Expanded(
                                     child: Text(
                                       teamName,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
+                                        color: isDarkMode ? Colors.white : Colors.black87,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -115,7 +116,7 @@ Widget build(BuildContext context) {
                               ),
                             ),
                             
-                            // Needs with selected positions crossed out
+                            // Needs with selected positions crossed out - improved for dark mode
                             Expanded(
                               flex: 5,
                               child: Wrap(
@@ -123,15 +124,20 @@ Widget build(BuildContext context) {
                                 runSpacing: 6.0,
                                 children: needsList.map((need) {
                                   bool isSelected = selectedPositionsList.contains(need);
+                                  Color positionColor = _getPositionColor(need);
+                                  
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: _getPositionColor(need).withOpacity(0.2),
+                                      color: isSelected 
+                                          ? (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200)
+                                          : positionColor.withOpacity(isDarkMode ? 0.3 : 0.2),
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
-                                        color: isSelected ? 
-                                            Colors.grey.withOpacity(0.5) : 
-                                            _getPositionColor(need).withOpacity(0.5),
+                                        color: isSelected 
+                                            ? (isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400)
+                                            : positionColor.withOpacity(isDarkMode ? 0.7 : 0.5),
+                                        width: 1.0,
                                       ),
                                     ),
                                     child: isSelected ? 
@@ -143,7 +149,7 @@ Widget build(BuildContext context) {
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
-                                              color: _getPositionColor(need).withOpacity(0.5),
+                                              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                                             ),
                                           ),
                                           Positioned(
@@ -151,7 +157,7 @@ Widget build(BuildContext context) {
                                             right: 0,
                                             child: Container(
                                               height: 1.5,
-                                              color: Colors.grey[700],
+                                              color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700,
                                             ),
                                           ),
                                         ],
@@ -161,7 +167,7 @@ Widget build(BuildContext context) {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: _getPositionColor(need),
+                                          color: isDarkMode ? Colors.white : positionColor,
                                         ),
                                       ),
                                   );
@@ -183,7 +189,7 @@ Widget build(BuildContext context) {
   );
 }
 
-// Add this method to TeamNeedsTab class
+// Improved team logo builder with more reliable logo loading
 Widget _buildTeamLogo(String teamName) {
   // Try to get the abbreviation
   String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
@@ -210,7 +216,10 @@ Widget _buildTeamLogo(String teamName) {
     );
   }
   
-  // Use the team logo with error handling
+  // Use ESPN logo URL pattern (more reliable)
+  final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
+  
+  // Use ClipOval for better circular clipping
   return Container(
     width: 30.0,
     height: 30.0,
@@ -219,7 +228,7 @@ Widget _buildTeamLogo(String teamName) {
     ),
     clipBehavior: Clip.antiAlias, // Add this for better clipping
     child: Image.network(
-      'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
+      logoUrl,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         // On error, return the placeholder
