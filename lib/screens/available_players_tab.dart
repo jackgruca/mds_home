@@ -1,19 +1,21 @@
-// lib/screens/available_players_tab.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:mds_home/models/player.dart';
 
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
   final bool selectionEnabled;
   final Function(int)? onPlayerSelected;
   final String? userTeam;
-  final List<String> selectedPositions; // Add this to track selected positions
+  final List<String> selectedPositions;
 
   const AvailablePlayersTab({
     required this.availablePlayers, 
     this.selectionEnabled = false,
     this.onPlayerSelected,
     this.userTeam,
-    this.selectedPositions = const [], // Default to empty list
+    this.selectedPositions = const [],
     super.key
   });
 
@@ -35,8 +37,6 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   @override
   void initState() {
     super.initState();
-    
-    // Initialize selected players from the draft picks
     _initializeSelectedPlayers();
   }
   
@@ -44,39 +44,70 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   void didUpdateWidget(AvailablePlayersTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    // Update if the selected positions list changed
     if (widget.selectedPositions != oldWidget.selectedPositions) {
       _initializeSelectedPlayers();
     }
   }
   
   void _initializeSelectedPlayers() {
-    // This would ideally come from your draft picks data
-    // For now we'll just use the selected positions list
     _selectedPlayerIds = {};
-    
-    // In a real implementation, you would load the selected player IDs
-    // from your drafting data structure
   }
 
   @override
   Widget build(BuildContext context) {
-    List<List<dynamic>> filteredPlayers = widget.availablePlayers.skip(1).where((player) {
-      // Normalize text for comparison
-      String playerName = player[1].toString().trim().toLowerCase();
-      String searchQuery = _searchQuery.trim().toLowerCase();
-      String playerPosition = player[2].toString().trim().toLowerCase();
-      
-      bool matchesSearch = searchQuery.isEmpty || playerName.contains(searchQuery);
-      bool matchesPosition = _selectedPosition.isEmpty || playerPosition == _selectedPosition.toLowerCase();
+    // Map column names to indices
+    Map<String, int> columnIndices = {};
+    if (widget.availablePlayers.isNotEmpty) {
+      List<String> headers = widget.availablePlayers[0].map<String>((dynamic col) => col.toString().toUpperCase()).toList();
+      for (int i = 0; i < headers.length; i++) {
+        columnIndices[headers[i]] = i;
+      }
+    }
+    
+    // Get column indices
+    int idIndex = columnIndices['ID'] ?? 0;
+    int nameIndex = columnIndices['NAME'] ?? 1;
+    int positionIndex = columnIndices['POSITION'] ?? 2;
+    int schoolIndex = columnIndices['SCHOOL'] ?? 3;
+    int rankIndex = columnIndices['RANK'] ?? widget.availablePlayers[0].length - 1;
 
-      return matchesSearch && matchesPosition;
-    }).toList();
+    // Filter players
+    List<Player> filteredPlayers = [];
+    for (var row in widget.availablePlayers.skip(1)) {
+      try {
+        // Skip if we don't have enough elements
+        if (row.length <= positionIndex) continue;
+        
+        // Extract data
+        int id = idIndex < row.length ? (int.tryParse(row[idIndex].toString()) ?? 0) : 0;
+        String name = nameIndex < row.length ? row[nameIndex].toString() : "Unknown";
+        String position = positionIndex < row.length ? row[positionIndex].toString() : "";
+        String school = schoolIndex < row.length && schoolIndex < row.length ? row[schoolIndex].toString() : "";
+        int rank = rankIndex < row.length ? (int.tryParse(row[rankIndex].toString()) ?? 999) : 999;
+        
+        // Filter by position and search
+        bool matchesPosition = _selectedPosition.isEmpty || position == _selectedPosition;
+        bool matchesSearch = _searchQuery.isEmpty || 
+                          name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                          school.toLowerCase().contains(_searchQuery.toLowerCase());
+        
+        if (matchesPosition && matchesSearch) {
+          filteredPlayers.add(Player(
+            id: id,
+            name: name,
+            position: position,
+            rank: rank,
+            school: school,
+          ));
+        }
+      } catch (e) {
+        debugPrint("Error processing player row: $e");
+      }
+    }
 
     // Get all available positions for filters
-    Set<String> availablePositions = widget.availablePlayers
-        .skip(1)
-        .map((player) => player[2].toString())
+    Set<String> availablePositions = filteredPlayers
+        .map((player) => player.position)
         .toSet();
     
     // Split into offensive and defensive positions that are actually available
@@ -93,19 +124,19 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     availableDefensive.sort();
 
     return Padding(
-      padding: const EdgeInsets.all(8.0), // Reduced padding
+      padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
           // Compact search and filter area
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Reduced padding
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: Colors.grey[300]!),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Keep this section as small as possible
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Row with search bar and player count
                 Row(
@@ -113,19 +144,19 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                     // Search bar - compact version
                     Expanded(
                       child: SizedBox(
-                        height: 36, // Smaller height
+                        height: 36,
                         child: TextField(
                           decoration: const InputDecoration(
                             hintText: 'Search Players',
                             prefixIcon: Icon(Icons.search, size: 18),
                             contentPadding: EdgeInsets.zero,
-                            isDense: true, // Important for reducing text field height
+                            isDense: true,
                             border: OutlineInputBorder(),
                           ),
                           style: const TextStyle(fontSize: 14),
                           onChanged: (value) {
                             setState(() {
-                              _searchQuery = value.trim().toLowerCase();
+                              _searchQuery = value;
                             });
                           },
                         ),
@@ -164,7 +195,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                   ],
                 ),
                 
-                const SizedBox(height: 4), // Very small gap
+                const SizedBox(height: 4),
                 
                 // Compact position filters
                 Row(
@@ -221,204 +252,188 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
             ),
           ),
           
-          const SizedBox(height: 6), // Small gap
+          const SizedBox(height: 6),
           
-          // Data Table with improved styling
+          // Player List with Card-based Layout (similar to Draft Order)
           Expanded(
-            child: Card(
-              elevation: 2,
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              child: Column(
-                children: [
-                  // Header row
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                        topRight: Radius.circular(8),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          flex: 4,
-                          child: Text("Player", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const Expanded(
-                          flex: 1,
-                          child: Text("Pos", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const Expanded(
-                          flex: 1,
-                          child: Text("Rank", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        if (widget.selectionEnabled)
-                          const SizedBox(width: 60, child: Text("Draft", style: TextStyle(fontWeight: FontWeight.bold))),
-                      ],
+            child: ListView.builder(
+              itemCount: filteredPlayers.length,
+              itemBuilder: (context, index) {
+                final player = filteredPlayers[index];
+                
+                // Check if player is selected or position has been drafted
+                bool isSelected = _selectedPlayerIds.contains(player.id);
+                bool positionDrafted = widget.selectedPositions.contains(player.position);
+                
+                return Card(
+                  elevation: 1.0,
+                  margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    side: BorderSide(
+                      color: isSelected || positionDrafted ? Colors.transparent : Colors.grey.shade300,
+                      width: 1.0,
                     ),
                   ),
-                  
-                  // Player rows
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredPlayers.length,
-                      itemBuilder: (context, i) {
-                        // Get player ID and check if it's selected
-                        int playerId = int.tryParse(filteredPlayers[i][0].toString()) ?? i;
-                        bool isSelected = _selectedPlayerIds.contains(playerId);
-                        
-                        // Check if position has been drafted by the team
-                        String position = filteredPlayers[i][2].toString();
-                        bool positionDrafted = widget.selectedPositions.contains(position);
-                        
-                        // Apply cross-out styling if applicable
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: i.isEven ? Colors.white : Colors.grey[50],
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey[200]!),
+                  color: isSelected || positionDrafted ? Colors.grey.shade100 : Colors.white,
+                  child: InkWell(
+                    onTap: isSelected || positionDrafted ? null : () {
+                      if (widget.selectionEnabled && widget.onPlayerSelected != null) {
+                        widget.onPlayerSelected!(player.id);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                      child: Row(
+                        children: [
+                          // Rank number (like pick number in draft order)
+                          Container(
+                            width: 30.0,
+                            height: 30.0,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _getPositionColor(player.position).withOpacity(0.8),
                             ),
-                          ),
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: InkWell(
-                              onTap: isSelected ? null : () {
-                                // If in draft mode, draft the player
-                                if (widget.selectionEnabled && widget.onPlayerSelected != null) {
-                                  widget.onPlayerSelected!(playerId);
-                                } else {
-                                  // Otherwise just toggle selection for visual indication
-                                  setState(() {
-                                    if (_selectedPlayerIds.contains(playerId)) {
-                                      _selectedPlayerIds.remove(playerId);
-                                    } else {
-                                      _selectedPlayerIds.add(playerId);
-                                    }
-                                  });
-                                }
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                                child: Row(
-                                  children: [
-                                    // Player name and school with cross-out effect if selected
-                                    Expanded(
-                                      flex: 4,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Stack(
-                                            alignment: Alignment.center,
-                                            children: [
-                                              Text(
-                                                filteredPlayers[i][1].toString(),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isSelected || positionDrafted ? Colors.grey : Colors.black,
-                                                ),
-                                              ),
-                                              if (isSelected || positionDrafted)
-                                                Positioned(
-                                                  left: 0,
-                                                  right: 0,
-                                                  child: Container(
-                                                    height: 1.5,
-                                                    color: Colors.grey[700],
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          if (filteredPlayers[i].length > 3 && filteredPlayers[i][3].toString().isNotEmpty)
-                                            Text(
-                                              filteredPlayers[i][3].toString(),
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isSelected || positionDrafted ? Colors.grey[400] : Colors.grey[600],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Position with color coding
-                                    Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: _getPositionColor(filteredPlayers[i][2].toString())
-                                              .withOpacity(isSelected || positionDrafted ? 0.1 : 0.2),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: positionDrafted ? Border.all(
-                                            color: Colors.grey[400]!,
-                                            width: 1,
-                                          ) : null,
-                                        ),
-                                        child: Text(
-                                          filteredPlayers[i][2].toString(),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: isSelected || positionDrafted ? 
-                                                Colors.grey : 
-                                                _getPositionColor(filteredPlayers[i][2].toString()),
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                    
-                                    // Rank
-                                    Expanded(
-                                      flex: 1,
-                                      child: Text(
-                                        '#${filteredPlayers[i].last}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isSelected || positionDrafted ? Colors.grey : Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                    
-                                    // Draft button
-                                    if (widget.selectionEnabled)
-                                      SizedBox(
-                                        width: 60,
-                                        child: ElevatedButton(
-                                          onPressed: isSelected || positionDrafted ? null : () {
-                                            if (widget.onPlayerSelected != null) {
-                                              widget.onPlayerSelected!(playerId);
-                                            }
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green,
-                                            disabledBackgroundColor: Colors.grey[300],
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                            minimumSize: const Size(0, 30),
-                                          ),
-                                          child: const Text(
-                                            'Draft',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                            child: Center(
+                              child: Text(
+                                '#${player.rank}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.0,
                                 ),
                               ),
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(width: 8.0),
+                          
+                          // School logo placeholder (circular)
+                          Container(
+                            width: 25.0,
+                            height: 25.0,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade300,
+                            ),
+                            child: Center(
+                              child: Text(
+                                _getSchoolInitials(player.school),
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.0,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          
+                          // Player info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Player name with strikethrough if selected/drafted
+                                Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Text(
+                                      player.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14.0,
+                                        color: isSelected || positionDrafted ? Colors.grey : Colors.black,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (isSelected || positionDrafted)
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: 1.5,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                // School and position
+                                Row(
+                                  children: [
+                                    if (player.school.isNotEmpty)
+                                      Text(
+                                        player.school,
+                                        style: TextStyle(
+                                          fontSize: 12.0,
+                                          color: isSelected || positionDrafted ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Position badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getPositionColor(player.position).withOpacity(isSelected || positionDrafted ? 0.1 : 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: isSelected || positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              player.position,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: isSelected || positionDrafted ? Colors.grey : _getPositionColor(player.position),
+                              ),
+                            ),
+                          ),
+                          
+                          // Draft button (if enabled)
+                          if (widget.selectionEnabled)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: SizedBox(
+                                width: 60,
+                                height: 30,
+                                child: ElevatedButton(
+                                  onPressed: isSelected || positionDrafted ? null : () {
+                                    if (widget.onPlayerSelected != null) {
+                                      widget.onPlayerSelected!(player.id);
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    disabledBackgroundColor: Colors.grey[300],
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    minimumSize: const Size(0, 28),
+                                  ),
+                                  child: const Text(
+                                    'Draft',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -472,6 +487,25 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
         ),
       ),
     );
+  }
+  
+  String _getSchoolInitials(String school) {
+    if (school.isEmpty) return "?";
+    
+    final words = school.split(' ');
+    if (words.length == 1) {
+      return words[0].isNotEmpty ? words[0][0].toUpperCase() : "?";
+    }
+    
+    // Get initials from first two words
+    String initials = "";
+    for (int i = 0; i < min(2, words.length); i++) {
+      if (words[i].isNotEmpty) {
+        initials += words[i][0].toUpperCase();
+      }
+    }
+    
+    return initials;
   }
   
   Color _getPositionColor(String position) {
