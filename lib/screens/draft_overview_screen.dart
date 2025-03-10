@@ -674,39 +674,66 @@ void _openDraftHistory() {
           // Status bar
           Container(
             padding: const EdgeInsets.all(8.0),
-            color: Colors.blue.shade100,
-            width: double.infinity,
-            child: Text(
-              _statusMessage,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: widget.selectedTeam != null 
+                  ? [Colors.blue.shade50, Colors.green.shade50]
+                  : [Colors.blue.shade50, Colors.blue.shade100],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          ),
-          
-          if (widget.selectedTeam != null)
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              color: Colors.green.shade50,
-              child: Row(
-                children: [
+            child: Row(
+              children: [
+                if (widget.selectedTeam != null) ...[
                   const Icon(Icons.sports_football, color: Colors.green),
                   const SizedBox(width: 8),
                   Text(
-                    'You are controlling: ${widget.selectedTeam}',
+                    '${widget.selectedTeam}:',  
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 14,
                       color: Colors.green,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
+                ],
+                
+                // Status message - always show this
+                Expanded(
+                  child: Text(
+                    _statusMessage,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    textAlign: widget.selectedTeam != null ? TextAlign.left : TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                
+                // Always show the propose trade button if user team selected
+                if (widget.selectedTeam != null)
                   OutlinedButton.icon(
                     onPressed: _initiateUserTradeProposal,
-                    icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Propose Trade'),
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('Trade'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
           // Tab content
           Expanded(
             child: TabBarView(

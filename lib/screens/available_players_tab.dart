@@ -25,7 +25,7 @@ class AvailablePlayersTab extends StatefulWidget {
 
 class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   String _searchQuery = '';
-  String _selectedPosition = '';
+  final Set<String> _selectedPositions = {};
   
   // Track selected (crossed out) players locally
   Set<int> _selectedPlayerIds = {};
@@ -86,7 +86,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
         int rank = rankIndex < row.length ? (int.tryParse(row[rankIndex].toString()) ?? 999) : 999;
         
         // Filter by position and search
-        bool matchesPosition = _selectedPosition.isEmpty || position == _selectedPosition;
+        bool matchesPosition = _selectedPositions.isEmpty || _selectedPositions.contains(position);
         bool matchesSearch = _searchQuery.isEmpty || 
                           name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                           school.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -179,19 +179,19 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       ),
                     ),
                     // Reset filter button
-                    if (_selectedPosition.isNotEmpty)
-                      IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () {
-                          setState(() {
-                            _selectedPosition = '';
-                          });
-                        },
-                        tooltip: 'Clear filter',
-                      ),
+                  if (_selectedPositions.isNotEmpty)  // Use the new Set
+                    IconButton(
+                      icon: const Icon(Icons.clear, size: 16),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        setState(() {
+                          _selectedPositions.clear();  // Clear the Set
+                        });
+                      },
+                      tooltip: 'Clear filter',
+                    ),
                   ],
                 ),
                 
@@ -206,12 +206,12 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         child: Row(
                           children: [
                             // All positions chip
-                            if (_selectedPosition.isEmpty)
+                            if (_selectedPositions.isEmpty)  // Use the new Set
                               _buildPositionChip('All', true, () {}),
-                            if (_selectedPosition.isNotEmpty)
+                            if (_selectedPositions.isNotEmpty)  // Use the new Set
                               _buildPositionChip('All', false, () {
                                 setState(() {
-                                  _selectedPosition = '';
+                                  _selectedPositions.clear();  // Clear the Set with parentheses
                                 });
                               }),
                               
@@ -219,10 +219,14 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                             ...availableOffensive.map((position) => 
                               _buildPositionChip(
                                 position, 
-                                _selectedPosition == position, 
+                                _selectedPositions.contains(position), 
                                 () {
                                   setState(() {
-                                    _selectedPosition = _selectedPosition == position ? '' : position;
+                                    if (_selectedPositions.contains(position)) {
+                                      _selectedPositions.remove(position);
+                                    } else {
+                                      _selectedPositions.add(position);
+                                    }
                                   });
                                 },
                                 isOffensive: true,
@@ -233,10 +237,14 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                             ...availableDefensive.map((position) => 
                               _buildPositionChip(
                                 position, 
-                                _selectedPosition == position, 
+                                _selectedPositions.contains(position), 
                                 () {
                                   setState(() {
-                                    _selectedPosition = _selectedPosition == position ? '' : position;
+                                    if (_selectedPositions.contains(position)) {
+                                      _selectedPositions.remove(position);
+                                    } else {
+                                      _selectedPositions.add(position);
+                                    }
                                   });
                                 },
                                 isOffensive: false,
@@ -447,53 +455,53 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     );
   }
   
-  Widget _buildPositionChip(String label, bool isSelected, VoidCallback onTap, {bool isOffensive = true}) {
-    bool isPositionDrafted = widget.selectedPositions.contains(label);
-    
-    return Container(
-      margin: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
+Widget _buildPositionChip(String label, bool isSelected, VoidCallback onTap, {bool isOffensive = true}) {
+  bool isPositionDrafted = widget.selectedPositions.contains(label);
+  
+  return Container(
+    margin: const EdgeInsets.only(right: 6),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? (isOffensive ? Colors.blue[100] : Colors.red[100])
+              : (isOffensive ? Colors.blue[50] : Colors.red[50]),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
             color: isSelected 
-                ? (isOffensive ? Colors.blue[100] : Colors.red[100])
-                : (isOffensive ? Colors.blue[50] : Colors.red[50]),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected 
-                  ? (isOffensive ? Colors.blue[700]! : Colors.red[700]!)
-                  : Colors.transparent,
-            ),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isOffensive ? Colors.blue[700] : Colors.red[700],
-                ),
-              ),
-              if (isPositionDrafted && label != 'All')
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 1.5,
-                    color: isOffensive ? Colors.blue[700]! : Colors.red[700]!,
-                  ),
-                ),
-            ],
+                ? (isOffensive ? Colors.blue[700]! : Colors.red[700]!)
+                : Colors.transparent,
           ),
         ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isOffensive ? Colors.blue[700] : Colors.red[700],
+              ),
+            ),
+            if (isPositionDrafted && label != 'All')
+              Positioned(
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 1.5,
+                  color: isOffensive ? Colors.blue[700]! : Colors.red[700]!,
+                ),
+              ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
   
   String _getSchoolInitials(String school) {
     if (school.isEmpty) return "?";
