@@ -138,89 +138,32 @@ Future<void> _loadData() async {
 
     // Load data using our DataService
     final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
-    final draftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
+    final allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
     final teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
     
-    // Check for empty data
-    if (players.isEmpty) {
-      setState(() {
-        _statusMessage = "Error: No players found for ${widget.draftYear}";
-      });
-      return;
-    }
-    
-    if (draftPicks.isEmpty) {
-      setState(() {
-        _statusMessage = "Error: No draft order found for ${widget.draftYear}";
-      });
-      return;
-    }
-    
-    if (teamNeeds.isEmpty) {
-      setState(() {
-        _statusMessage = "Error: No team needs found for ${widget.draftYear}";
-      });
-      return;
-    }
-    
-    // Filter draft picks based on the number of rounds selected
-    final filteredDraftPicks = draftPicks.where((pick) {
+    // Mark which picks are active in the current draft (based on selected rounds)
+    // but keep all picks for trading purposes
+    for (var pick in allDraftPicks) {
       int round = int.tryParse(pick.round) ?? 1;
-      return round <= widget.numberOfRounds;
-    }).toList();
+      pick.isActiveInDraft = round <= widget.numberOfRounds;
+    }
+    
+    // Filter display picks for draft order tab
+    final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
 
     // After loading draftPicks
-    debugPrint("Loading completed - Draft year: ${widget.draftYear}");
-    debugPrint("Players loaded: ${players.length}");
-    debugPrint("Draft picks loaded: ${filteredDraftPicks.length}");
-    debugPrint("Team needs loaded: ${teamNeeds.length}");
-    
     debugPrint("Teams in draft order:");
-    for (var pick in filteredDraftPicks.take(10)) {
+    for (var pick in displayDraftPicks.take(10)) {
       debugPrint("Pick #${pick.pickNumber}: Team '${pick.teamName}'");
     }
 
-    // If user team is specified, validate it exists in the loaded data
-    String? effectiveUserTeam = widget.selectedTeam;
-    if (widget.selectedTeam != null) {
-      bool teamFound = false;
-      
-      // Check if the team abbreviation exists directly in draft picks
-      teamFound = filteredDraftPicks.any((pick) => pick.teamName == widget.selectedTeam);
-      
-      // If team not found directly, try to find a matching team
-      if (!teamFound) {
-        debugPrint("Selected team abbreviation '${widget.selectedTeam}' not found directly in draft data");
-        
-        // Try to match with full team name mapping
-        String? fullTeamName;
-        NFLTeamMappings.fullNameToAbbreviation.forEach((full, abbr) {
-          if (abbr == widget.selectedTeam) {
-            fullTeamName = full;
-          }
-        });
-        
-        if (fullTeamName != null) {
-          teamFound = filteredDraftPicks.any((pick) => pick.teamName == fullTeamName);
-          if (teamFound) {
-            effectiveUserTeam = fullTeamName;
-            debugPrint("Matched abbreviation to full team name: $fullTeamName");
-          }
-        }
-      }
-      
-      if (!teamFound) {
-        debugPrint("WARNING: Selected team '${widget.selectedTeam}' not found in draft data");
-      }
-    }
-
-    // Create the draft service with the loaded data
+    // Create the draft service with ALL picks (not just filtered ones)
     final draftService = DraftService(
       availablePlayers: List.from(players),
-      draftOrder: filteredDraftPicks,
+      draftOrder: allDraftPicks,  // Use all picks for the draft service
       teamNeeds: teamNeeds,
       randomnessFactor: widget.randomnessFactor,
-      userTeam: effectiveUserTeam,
+      userTeam: widget.selectedTeam,
       numberRounds: widget.numberOfRounds,
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
@@ -228,13 +171,13 @@ Future<void> _loadData() async {
     );
 
     // Convert models to lists for the existing UI components
-    final draftOrderLists = DataService.draftPicksToLists(filteredDraftPicks);
+    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks); // Only filtered picks for display
     final availablePlayersLists = DataService.playersToLists(players);
     final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
 
     setState(() {
       _players = players;
-      _draftPicks = filteredDraftPicks;
+      _draftPicks = allDraftPicks;  // Store all picks
       _teamNeeds = teamNeeds;
       _draftService = draftService;
       
@@ -247,7 +190,7 @@ Future<void> _loadData() async {
       _teamNeedsLists = teamNeedsLists;
       
       _isDataLoaded = true;
-      _statusMessage = "Draft data loaded successfully for ${widget.draftYear}";
+      _statusMessage = "Draft data loaded successfully";
     });
   } catch (e) {
     setState(() {

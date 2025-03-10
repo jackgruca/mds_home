@@ -10,6 +10,7 @@ class DraftPick {
   final String round;
   final int? originalPickNumber;
   String? tradeInfo;
+  bool isActiveInDraft = true;  // New property
   
   DraftPick({
     required this.pickNumber,
@@ -18,6 +19,7 @@ class DraftPick {
     required this.round,
     this.originalPickNumber,
     this.tradeInfo,
+    this.isActiveInDraft = true,
   });
   
   // Create a DraftPick from CSV row data
