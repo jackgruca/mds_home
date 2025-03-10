@@ -181,41 +181,58 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        // Top 3 needs
-                        if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
-                          Wrap(
-                            spacing: 4.0,
-                            children: widget.teamNeeds!.take(3).map((need) => 
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                                decoration: BoxDecoration(
-                                  color: _getPositionColor(need).withOpacity(
-                                    isDarkMode ? 0.5 : 0.7
-                                  ),
-                                  borderRadius: BorderRadius.circular(3.0),
-                                ),
-                                child: Text(
-                                  need,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10.0,
-                                  ),
+                        // Team needs on a single row
+                        Row(
+                          children: [
+                            // "Team Needs:" label
+                            const Text(
+                              'Team Needs: ',
+                              style: TextStyle(
+                                fontSize: 11.0, 
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            // Display needs
+                            if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
+                              Expanded(
+                                child: Wrap(
+                                  spacing: 4.0,
+                                  runSpacing: 4.0, // Add some vertical spacing if wrapping occurs
+                                  children: widget.teamNeeds!.take(3).map((need) => 
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                                      decoration: BoxDecoration(
+                                        color: _getPositionColor(need).withOpacity(
+                                          isDarkMode ? 0.5 : 0.7
+                                        ),
+                                        borderRadius: BorderRadius.circular(3.0),
+                                      ),
+                                      child: Text(
+                                        need,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10.0,
+                                        ),
+                                      ),
+                                    )
+                                  ).toList(),
                                 ),
                               )
-                            ).toList(),
-                          )
-                        else
-                          Text(
-                            'No team needs data',
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                              fontSize: 11.0,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
+                            else
+                              Text(
+                                'No team needs data',
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  fontSize: 11.0,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
-                    ),
+                    )
                 ),
                 
                 // Right side widgets

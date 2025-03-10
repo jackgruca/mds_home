@@ -6,12 +6,14 @@ import '../widgets/draft/animated_draft_pick_card.dart';
 class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> draftOrder;
   final String? userTeam;
-  final ScrollController? scrollController; // Add this parameter
+  final ScrollController? scrollController;
+  final List<List<dynamic>> teamNeeds; // Add this parameter
   
   const DraftOrderTab({
     required this.draftOrder,
     this.userTeam,
-    this.scrollController, // Accept external scroll controller
+    this.scrollController,
+    required this.teamNeeds, // Add this parameter
     super.key,
   });
 
@@ -34,6 +36,25 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       _localScrollController.dispose();
     }
     super.dispose();
+  }
+
+  List<String> _getTeamNeeds(String teamName) {
+    // Find the team's needs in teamNeeds
+    for (var row in widget.teamNeeds.skip(1)) { // Skip header row
+      if (row.length > 1 && row[1].toString() == teamName) {
+        List<String> needs = [];
+        // Team needs start at index 2
+        for (int i = 2; i < row.length && i < 12; i++) { // Up to 10 needs (indices 2-11)
+          String need = row[i].toString();
+          if (need.isNotEmpty && need != '-' && need != 'null') {
+            needs.add(need);
+          }
+        }
+        // Return the top 3 needs
+        return needs.take(3).toList();
+      }
+    }
+    return [];
   }
 
   Widget _buildDraftOrderCards() {
@@ -131,6 +152,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
           draftPick: draftPicks[index],
           isUserTeam: isUserTeam,
           isRecentPick: isRecentPick,
+          teamNeeds: _getTeamNeeds(draftPicks[index].teamName), // Add this line
         );
       },
     );

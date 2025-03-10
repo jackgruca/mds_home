@@ -1,6 +1,7 @@
 // lib/screens/team_needs_tab.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/constants.dart';
+import '../utils/constants.dart'; // For NFLTeamMappings
 
 class TeamNeedsTab extends StatefulWidget {
   final List<List<dynamic>> teamNeeds;
@@ -190,8 +191,8 @@ Widget _buildTeamLogo(String teamName) {
   if (abbr == null) {
     // If no abbreviation, create a placeholder with team initials
     return Container(
-      width: 25.0,
-      height: 25.0,
+      width: 30.0,
+      height: 30.0,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.blue.shade700,
@@ -202,29 +203,50 @@ Widget _buildTeamLogo(String teamName) {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 10.0,
+            fontSize: 12.0,
           ),
         ),
       ),
     );
   }
   
-  // Use the team logo
+  // Use the team logo with error handling
   return Container(
-    width: 25.0,
-    height: 25.0,
-    decoration: BoxDecoration(
+    width: 30.0,
+    height: 30.0,
+    decoration: const BoxDecoration(
       shape: BoxShape.circle,
-      image: DecorationImage(
-        image: NetworkImage(
-          'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
-        ),
-        fit: BoxFit.cover,
-      ),
+    ),
+    clipBehavior: Clip.antiAlias, // Add this for better clipping
+    child: Image.network(
+      'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // On error, return the placeholder
+        return Container(
+          width: 30.0,
+          height: 30.0,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.blue.shade700,
+          ),
+          child: Center(
+            child: Text(
+              _getTeamInitials(teamName),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12.0,
+              ),
+            ),
+          ),
+        );
+      },
     ),
   );
 }
 
+// Helper method for team initials
 String _getTeamInitials(String teamName) {
   final initials = teamName.split(' ')
       .map((word) => word.isNotEmpty ? word[0] : '')

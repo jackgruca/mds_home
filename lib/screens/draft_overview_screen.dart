@@ -743,6 +743,7 @@ void _openDraftHistory() {
                   draftOrder: _draftOrderLists,
                   userTeam: widget.selectedTeam,
                   scrollController: _draftOrderScrollController, // Add this line instead of the key
+                  teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(
                 availablePlayers: _availablePlayersLists,
