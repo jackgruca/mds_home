@@ -389,93 +389,79 @@ class TradeService {
     return interestedTeams;
   }
   
-  // Calculate a team's interest in trading up for a specific player
-  double _calculateTradeUpInterest(
-    String teamName,
-    TeamNeed teamNeed, 
-    Player player,
-    int targetPickNumber,
-    int teamNextPick,
-    double playerGrade,
-    bool qbSpecific
-  ) {
-    double interestLevel = 0.0;
-    
-    // 1. Need-based interest: Higher interest for positions of need
-    int needIndex = teamNeed.needs.indexOf(player.position);
-    if (needIndex != -1) {
-      // Greater boost for top needs
-      interestLevel += 0.7 - (needIndex * 0.1);
-    } else {
-      // Some small base interest even for non-needs
-      interestLevel += 0.1;
+// Inside _calculateTradeUpInterest method
+double _calculateTradeUpInterest(
+  String teamName,
+  TeamNeed teamNeed, 
+  Player player,
+  int targetPickNumber,
+  int teamNextPick,
+  double playerGrade,
+  bool qbSpecific
+) {
+  double interestLevel = 0.0;
+  
+  // Calculate round for this team's pick - renamed to 'teamPickRound' to avoid conflict
+  int teamPickRound = DraftValueService.getRoundForPick(teamNextPick);
+  
+  // Get needs based on round (only consider round+3 needs)
+  int needsToConsider = min(teamPickRound + 3, teamNeed.needs.length);
+  
+  // Check if QB is within the needs to consider for this team
+  bool qbInConsideration = false;
+  int qbNeedIndex = -1;
+  for (int i = 0; i < needsToConsider; i++) {
+    if (i < teamNeed.needs.length && teamNeed.needs[i] == "QB") {
+      qbInConsideration = true;
+      qbNeedIndex = i;
+      break;
     }
-    
-    // 2. Value-based interest: Higher interest for players that would fall to this pick
-    double valueGap = player.rank / targetPickNumber;
-    if (valueGap <= 0.7) {  // Player ranked 30% better than pick position
-      interestLevel += 0.4;
-    } else if (valueGap <= 0.9) {  // Player ranked 10-30% better
-      interestLevel += 0.25;
-    } else if (valueGap <= 1.1) {  // Player ranked around this pick
-      interestLevel += 0.15;
-    }
-    
-    // 3. Position scarcity/market volatility: Teams trade up when positions are going quickly
-    double volatility = _positionMarketVolatility[player.position] ?? 0.0;
-    interestLevel += volatility * 0.5; // Market volatility increases interest
-    
-    // 4. Position premium: Higher interest for premium positions
-    if (_premiumPositions.contains(player.position)) {
-      interestLevel += 0.15;
-    } else if (_secondaryPositions.contains(player.position)) {
-      interestLevel += 0.05;
-    }
-    
-    // 5. QB specific adjustments: Teams highly value QBs
-    if (player.position == "QB") {
-      // Even higher premium for QB-specific trades
-      if (qbSpecific) {
-        interestLevel += 0.5; // Increased from 0.3
-      } else {
-        interestLevel += 0.3; // Increased from 0.2
-      }
-      
-      // Top QBs are even more valuable
-      if (player.rank <= 15) {
-        interestLevel += 0.25; // Increased from 0.15
-      }
-    }
-    
-    // 6. Pick gap: Trading up is more compelling if team has to wait a long time
-    int pickGap = teamNextPick - targetPickNumber;
-    interestLevel += min(0.3, pickGap / 100.0); // Up to 0.3 boost for large gaps
-    
-    // 7. Competition risk: Higher interest if valuable player might not last
-    if (_competitorsWantSamePosition(player.position, targetPickNumber, teamNextPick)) {
-      interestLevel += 0.2;
-    }
-    
-    // 8. Team-specific tendencies
-    final tendency = _getTeamTradingTendency(teamName);
-    if (tendency.tradeUpBias > 0.5) {
-      interestLevel += 0.1 * (tendency.tradeUpBias - 0.5) * 2; // Up to 0.1 boost
-    }
-    
-    // 9. Round-specific adjustments
-    int round = DraftValueService.getRoundForPick(targetPickNumber);
-    if (round == 1) {
-      interestLevel += 0.1;  // More trades in round 1
-    } else if (round >= 5) {
-      interestLevel -= 0.2;  // Fewer trades in late rounds
-    }
-    
-    // 10. Randomness factor (simulate real-world unpredictability)
-    interestLevel += (_random.nextDouble() * 0.3) - 0.15; // ±15% randomness
-    
-    // Cap interest level between 0 and 1
-    return max(0.0, min(1.0, interestLevel));
   }
+  
+  // 1. Need-based interest: Higher interest for positions of need
+  int needIndex = teamNeed.needs.indexOf(player.position);
+  if (needIndex != -1 && needIndex < needsToConsider) {
+    // Greater boost for top needs
+    interestLevel += 0.7 - (needIndex * 0.1);
+  } else {
+    // Some small base interest even for non-needs
+    interestLevel += 0.1;
+  }
+  
+  // Original code continues...
+  
+  // 5. QB specific adjustments: Teams highly value QBs
+  if (player.position == "QB" && qbInConsideration) {
+    // Even higher premium for QB-specific trades
+    if (qbSpecific) {
+      interestLevel += 0.5;
+    } else {
+      interestLevel += 0.3;
+    }
+    
+    // Top QBs are even more valuable
+    if (player.rank <= 15) {
+      interestLevel += 0.25;
+    }
+    
+    // Additional boost based on QB need priority
+    if (qbNeedIndex < 3) {
+      interestLevel += 0.2; // Extra boost for top-3 need
+    }
+  }
+  
+  // 9. Round-specific adjustments - using original round variable from method
+  int targetRound = DraftValueService.getRoundForPick(targetPickNumber);
+  if (targetRound == 1) {
+    interestLevel += 0.1;  // More trades in round 1
+  } else if (targetRound >= 5) {
+    interestLevel -= 0.2;  // Fewer trades in late rounds
+  }
+  
+  // Rest of method continues...
+  
+  return max(0.0, min(1.0, interestLevel));
+}
   
   // Check if other teams between current pick and team's next pick want same position
   bool _competitorsWantSamePosition(String position, int currentPick, int teamNextPick) {
