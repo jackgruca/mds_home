@@ -228,7 +228,7 @@ Future<void> _loadData() async {
           // Add this code to automatically switch to the Analytics tab
     if (widget.showAnalytics && !_summaryShown) {
       _summaryShown = true;
-      Future.delayed(const Duration(milliseconds: 1600), () {
+      Future.delayed(const Duration(milliseconds: 1200), () {
         // Switch to the Analytics tab - adjust the index to match your app
         _tabController.animateTo(3); // Adjust this index if your Analytics tab is at a different position
         
