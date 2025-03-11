@@ -191,69 +191,68 @@ Widget build(BuildContext context) {
 
 // Improved team logo builder with more reliable logo loading
 Widget _buildTeamLogo(String teamName) {
-  // Try to get the abbreviation
+  // Try to get the abbreviation from the mapping
   String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
   
-  if (abbr == null) {
-    // If no abbreviation, create a placeholder with team initials
-    return Container(
-      width: 30.0,
-      height: 30.0,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.blue.shade700,
-      ),
-      child: Center(
-        child: Text(
-          _getTeamInitials(teamName),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12.0,
-          ),
-        ),
-      ),
-    );
+  // If we can't find it in the mapping, check if it's already an abbreviation
+  if (abbr == null && teamName.length <= 3) {
+    abbr = teamName;
   }
   
-  // Use ESPN logo URL pattern (more reliable)
+  // If we still don't have an abbreviation, create a placeholder
+  if (abbr == null) {
+    return _buildPlaceholderLogo(teamName);
+  }
+  
+  // Convert abbreviation to lowercase for URL
   final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
   
-  // Use ClipOval for better circular clipping
+  // Handle the image with error fallback
   return Container(
     width: 30.0,
     height: 30.0,
     decoration: const BoxDecoration(
       shape: BoxShape.circle,
     ),
-    clipBehavior: Clip.antiAlias, // Add this for better clipping
-    child: Image.network(
-      logoUrl,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        // On error, return the placeholder
-        return Container(
-          width: 30.0,
-          height: 30.0,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.blue.shade700,
-          ),
-          child: Center(
-            child: Text(
-              _getTeamInitials(teamName),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12.0,
-              ),
-            ),
-          ),
-        );
-      },
+    child: ClipOval(
+      child: Image.network(
+        logoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // On error, return the placeholder
+          return _buildPlaceholderLogo(teamName);
+        },
+      ),
     ),
   );
 }
+
+Widget _buildPlaceholderLogo(String teamName) {
+  final initials = teamName.split(' ')
+      .map((word) => word.isNotEmpty ? word[0] : '')
+      .join('')
+      .toUpperCase();
+  
+  return Container(
+    width: 30.0,
+    height: 30.0,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.blue.shade700,
+    ),
+    child: Center(
+      child: Text(
+        initials.length > 2 ? initials.substring(0, 2) : initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12.0,
+        ),
+      ),
+    ),
+  );
+}
+
 
 // Helper method for team initials
 String _getTeamInitials(String teamName) {
