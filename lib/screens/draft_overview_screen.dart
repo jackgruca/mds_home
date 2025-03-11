@@ -252,6 +252,9 @@ Future<void> _loadData() async {
       
       // Check if this is the user's team and they should make a choice
       if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+        // Generate trade offers before pausing the draft
+        _draftService!.generateUserTradeOffers();
+        
         setState(() {
           _isDraftRunning = false; // Pause the draft
           _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
@@ -720,11 +723,15 @@ void didUpdateWidget(DraftApp oldWidget) {
 
      bool hasTradeOffers = false;
       if (_draftService != null && widget.selectedTeam != null) {
+        // Check if there are any pending offers for the user team
+        hasTradeOffers = _draftService!.pendingUserOffers.isNotEmpty;
+        
+        // Specifically check for the current pick
         DraftPick? nextPick = _draftService!.getNextPick();
         if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
-          hasTradeOffers = _draftService!.hasOffersForPick(nextPick.pickNumber);
+          hasTradeOffers = hasTradeOffers || _draftService!.hasOffersForPick(nextPick.pickNumber);
         }
-    }
+      }
     
 
     return Scaffold(
