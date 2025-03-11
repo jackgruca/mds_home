@@ -1,3 +1,5 @@
+// Enhance the DraftSummaryScreen in draft_summary_screen.dart
+// Make sure to import these if not already present:
 import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
@@ -84,18 +86,35 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
             const SizedBox(height: 24),
           ],
           
-          // View full analytics button
+          // Show Analytics button
           Center(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // Parent widget will handle showing analytics tab
-              },
-              icon: const Icon(Icons.analytics),
-              label: const Text('View Full Analytics Dashboard'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    // Parent widget will handle showing analytics tab
+                  },
+                  icon: const Icon(Icons.analytics),
+                  label: const Text('View Full Analytics'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Close Summary'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    backgroundColor: Colors.green,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -238,7 +257,6 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
     );
   }
           
-  
   Widget _buildUserPicksSection(List<Player> players) {
     if (players.isEmpty) {
       return const Card(
@@ -362,6 +380,14 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   }
   
   Widget _buildDraftClassBreakdown() {
+    if (widget.completedPicks.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No picks made yet.'),
+        ),
+      );
+    }
     // Get position counts
     Map<String, int> positionCounts = {};
     for (var pick in widget.completedPicks) {
@@ -427,8 +453,19 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
     };
     
     // Calculate total drafted players
-    final totalDrafted = categoryTotals.values.reduce((a, b) => a + b);
+    final totalDrafted = categoryTotals.values.fold(0, (a, b) => a + b);
+
+    // Make sure we have at least some drafted players
+    if (totalDrafted == 0) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('No position data available.'),
+        ),
+      );
+    }
     
+    // Return the actual widget
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -599,266 +636,269 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
     );
   }
   
-  Widget _buildTradesSummary(List<TradePackage> trades) {
-    if (trades.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Trade Summary',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+
+  // Continuation of methods for the Draft Summary Screen
+
+Widget _buildTradesSummary(List<TradePackage> trades) {
+  if (trades.isEmpty) {
+    return const SizedBox.shrink();
+  }
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Trade Summary',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
         ),
-        const SizedBox(height: 16),
-        
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Trade stats
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildTradeStatItem(
-                      'Total Trades',
-                      trades.length.toString(),
-                      Icons.swap_horiz,
-                      Colors.blue,
-                    ),
-                    _buildTradeStatItem(
-                      'Value Gained',
-                      _calculateNetTradingValue(trades),
-                      Icons.trending_up,
-                      Colors.green,
-                    ),
-                    _buildTradeStatItem(
-                      'Picks Moved',
-                      _calculatePicksTraded(trades).toString(),
-                      Icons.sync_alt,
-                      Colors.orange,
-                    ),
-                  ],
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Recent trades list
-                const Text(
-                  'Your Trades',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+      ),
+      const SizedBox(height: 16),
+      
+      Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Trade stats
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildTradeStatItem(
+                    'Total Trades',
+                    trades.length.toString(),
+                    Icons.swap_horiz,
+                    Colors.blue,
                   ),
+                  _buildTradeStatItem(
+                    'Value Gained',
+                    _calculateNetTradingValue(trades),
+                    Icons.trending_up,
+                    Colors.green,
+                  ),
+                  _buildTradeStatItem(
+                    'Picks Moved',
+                    _calculatePicksTraded(trades).toString(),
+                    Icons.sync_alt,
+                    Colors.orange,
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Recent trades list
+              const Text(
+                'Your Trades',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 8),
-                
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: trades.length,
-                  itemBuilder: (context, index) {
-                    final trade = trades[index];
-                    return Card(
-                      elevation: 1,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Trade header
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'Trade ${index + 1}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade800,
-                                    ),
-                                  ),
+              ),
+              const SizedBox(height: 8),
+              
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: trades.length,
+                itemBuilder: (context, index) {
+                  final trade = trades[index];
+                  return Card(
+                    elevation: 1,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Trade header
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: trade.isGreatTrade ? Colors.green.shade100 : Colors.orange.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    trade.isGreatTrade ? 'Great Value' : 'Fair Trade',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: trade.isGreatTrade ? Colors.green.shade800 : Colors.orange.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 8),
-                            
-                            // Trade description
-                            Text(trade.tradeDescription),
-                            
-                            const SizedBox(height: 8),
-                            
-                            // Trade value
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'Value: ${trade.valueSummary}',
+                                child: Text(
+                                  'Trade ${index + 1}',
                                   style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: trade.isGreatTrade ? Colors.green.shade100 : Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  trade.isGreatTrade ? 'Great Value' : 'Fair Trade',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: trade.isGreatTrade ? Colors.green.shade800 : Colors.orange.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 8),
+                          
+                          // Trade description
+                          Text(trade.tradeDescription),
+                          
+                          const SizedBox(height: 8),
+                          
+                          // Trade value
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Value: ${trade.valueSummary}',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
-      ],
-    );
+      ),
+    ],
+  );
+}
+
+Widget _buildTradeStatItem(String title, String value, IconData icon, Color color) {
+  return Column(
+    children: [
+      CircleAvatar(
+        radius: 20,
+        backgroundColor: color.withOpacity(0.2),
+        child: Icon(
+          icon,
+          color: color,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+      Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+        ),
+      ),
+    ],
+  );
+}
+
+// Helper functions
+Color _getPositionColor(String position) {
+  // Different colors for different position groups
+  if (['QB', 'RB', 'WR', 'TE'].contains(position)) {
+    return Colors.blue.shade700; // Offensive skill positions
+  } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
+    return Colors.green.shade700; // Offensive line
+  } else if (['EDGE', 'IDL', 'DT', 'DE', 'DL'].contains(position)) {
+    return Colors.red.shade700; // Defensive line
+  } else if (['LB', 'ILB', 'OLB'].contains(position)) {
+    return Colors.orange.shade700; // Linebackers
+  } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
+    return Colors.purple.shade700; // Secondary
+  } else {
+    return Colors.grey.shade700; // Special teams, etc.
   }
+}
+
+Color _getRankComparisonColor(int rank, int pickNumber) {
+  // Color based on difference between rank and pick number
+  int diff = pickNumber - rank;
   
-  Widget _buildTradeStatItem(String title, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: color.withOpacity(0.2),
-          child: Icon(
-            icon,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
+  if (diff >= 15) {
+    return Colors.green.shade800; // Excellent value
+  } else if (diff >= 5) {
+    return Colors.green.shade600; // Good value
+  } else if (diff >= -5) {
+    return Colors.blue.shade600; // Fair value
+  } else if (diff >= -15) {
+    return Colors.orange.shade600; // Slight reach
+  } else {
+    return Colors.red.shade600; // Significant reach
   }
+}
+
+String _getRankDifferenceText(int rank, int pickNumber) {
+  int diff = pickNumber - rank;
   
-  // Helper functions
-  Color _getPositionColor(String position) {
-    // Different colors for different position groups
-    if (['QB', 'RB', 'WR', 'TE'].contains(position)) {
-      return Colors.blue.shade700; // Offensive skill positions
-    } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
-      return Colors.green.shade700; // Offensive line
-    } else if (['EDGE', 'IDL', 'DT', 'DE', 'DL'].contains(position)) {
-      return Colors.red.shade700; // Defensive line
-    } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-      return Colors.orange.shade700; // Linebackers
-    } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-      return Colors.purple.shade700; // Secondary
-    } else {
-      return Colors.grey.shade700; // Special teams, etc.
+  if (diff > 0) {
+    return "+$diff";
+  } else if (diff < 0) {
+    return "$diff";
+  } else {
+    return "0";
+  }
+}
+
+String _calculateNetTradingValue(List<TradePackage> trades) {
+  if (trades.isEmpty) return "0";
+  
+  double netValue = 0;
+  for (var trade in trades) {
+    if (trade.teamOffering == widget.userTeam) {
+      // User team traded away picks
+      netValue -= trade.valueDifferential;
+    } else if (trade.teamReceiving == widget.userTeam) {
+      // User team received picks
+      netValue += trade.valueDifferential;
     }
   }
   
-  Color _getRankComparisonColor(int rank, int pickNumber) {
-    // Color based on difference between rank and pick number
-    int diff = pickNumber - rank;
+  String sign = netValue > 0 ? "+" : "";
+  return "$sign${netValue.toStringAsFixed(0)}";
+}
+
+int _calculatePicksTraded(List<TradePackage> trades) {
+  int count = 0;
+  for (var trade in trades) {
+    // Count picks offered
+    count += trade.picksOffered.length;
     
-    if (diff >= 15) {
-      return Colors.green.shade800; // Excellent value
-    } else if (diff >= 5) {
-      return Colors.green.shade600; // Good value
-    } else if (diff >= -5) {
-      return Colors.blue.shade600; // Fair value
-    } else if (diff >= -15) {
-      return Colors.orange.shade600; // Slight reach
-    } else {
-      return Colors.red.shade600; // Significant reach
-    }
-  }
-  
-  String _getRankDifferenceText(int rank, int pickNumber) {
-    int diff = pickNumber - rank;
+    // Count target pick and additional target picks
+    count += 1 + (trade.additionalTargetPicks.length);
     
-    if (diff > 0) {
-      return "+$diff";
-    } else if (diff < 0) {
-      return "$diff";
-    } else {
-      return "0";
-    }
-  }
-  
-  String _calculateNetTradingValue(List<TradePackage> trades) {
-    if (trades.isEmpty) return "0";
-    
-    double netValue = 0;
-    for (var trade in trades) {
-      if (trade.teamOffering == widget.userTeam) {
-        // User team traded away picks
-        netValue -= trade.valueDifferential;
-      } else if (trade.teamReceiving == widget.userTeam) {
-        // User team received picks
-        netValue += trade.valueDifferential;
+    // Count future picks if applicable
+    if (trade.includesFuturePick) {
+      count += 1; // At least one future pick
+      
+      // Try to get more accurate count from description
+      if (trade.futurePickDescription != null) {
+        // Count commas to estimate multiple future picks
+        count += trade.futurePickDescription!.split(',').length - 1;
       }
     }
-    
-    String sign = netValue > 0 ? "+" : "";
-    return "$sign${netValue.toStringAsFixed(0)}";
   }
-  
-  int _calculatePicksTraded(List<TradePackage> trades) {
-    int count = 0;
-    for (var trade in trades) {
-      // Count picks offered
-      count += trade.picksOffered.length;
-      
-      // Count target pick and additional target picks
-      count += 1 + (trade.additionalTargetPicks.length);
-      
-      // Count future picks if applicable
-      if (trade.includesFuturePick) {
-        count += 1; // At least one future pick
-        
-        // Try to get more accurate count from description
-        if (trade.futurePickDescription != null) {
-          // Count commas to estimate multiple future picks
-          count += trade.futurePickDescription!.split(',').length - 1;
-        }
-      }
-    }
-    return count;
-  }
+  return count;
+}
 }

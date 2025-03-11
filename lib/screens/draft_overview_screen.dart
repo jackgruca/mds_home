@@ -63,9 +63,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   DraftService? _draftService;
   bool _isUserPickMode = false;  // Tracks if we're waiting for user to pick
   DraftPick? _userNextPick;
-final ScrollController _draftOrderScrollController = ScrollController();
-
-
+  final ScrollController _draftOrderScrollController = ScrollController();
+  bool _summaryShown = false;
 
   // Tab controller for the additional trade history tab
   late TabController _tabController;
@@ -621,6 +620,7 @@ void _openDraftHistory() {
   // Show a full-screen dialog with the draft summary
   showDialog(
     context: context,
+    barrierDismissible: false, // Prevent dismissing by tapping outside
     builder: (context) => DraftSummaryScreen(
       completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
       draftedPlayers: _players.where((player) => 
@@ -631,17 +631,22 @@ void _openDraftHistory() {
   );
 }
 
+
 // Add a check to show the summary when draft is complete
 @override
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
-  // Check if draft just completed
+  // Check if draft just completed and summary hasn't been shown yet
   if (_draftService != null && 
       _draftService!.isDraftComplete() && 
       !_isDraftRunning && 
       _isDataLoaded &&
-      widget.showAnalytics) {
+      widget.showAnalytics &&
+      !_summaryShown) {
+    // Set flag to prevent showing summary multiple times
+    _summaryShown = true;
+    
     // Wait a moment before showing the summary
     Future.delayed(const Duration(milliseconds: 500), () {
       _showDraftSummary();
