@@ -225,6 +225,22 @@ Future<void> _loadData() async {
         _isDraftRunning = false;
         _statusMessage = "Draft complete!";
       });
+          // Add this code to automatically switch to the Analytics tab
+    if (widget.showAnalytics && !_summaryShown) {
+      _summaryShown = true;
+      Future.delayed(const Duration(milliseconds: 1600), () {
+        // Switch to the Analytics tab - adjust the index to match your app
+        _tabController.animateTo(3); // Adjust this index if your Analytics tab is at a different position
+        
+        // Show a notification
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Draft complete! View your draft summary and analytics.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      });
+    }
       return;
     }
 
@@ -474,6 +490,23 @@ void _openDraftHistory() {
   );
 }
 
+  void _showDraftSummary() {
+  if (_draftService == null) return;
+  
+  // Show a full-screen dialog with the draft summary
+  showDialog(
+    context: context,
+    barrierDismissible: false, // Prevent dismissing by tapping outside
+    builder: (context) => DraftSummaryScreen(
+      completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+      draftedPlayers: _players.where((player) => 
+        _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+      executedTrades: _executedTrades,
+      userTeam: widget.selectedTeam,
+    ),
+  );
+}
+
   void _showPlayerSelectionDialog(DraftPick pick) {
     if (_draftService == null) return;
     
@@ -614,29 +647,33 @@ void _openDraftHistory() {
     }
   }
 
-  void _showDraftSummary() {
-  if (_draftService == null) return;
-  
-  // Show a full-screen dialog with the draft summary
-  showDialog(
-    context: context,
-    barrierDismissible: false, // Prevent dismissing by tapping outside
-    builder: (context) => DraftSummaryScreen(
-      completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-      draftedPlayers: _players.where((player) => 
-        _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-      executedTrades: _executedTrades,
-      userTeam: widget.selectedTeam,
+// Add this method to the DraftAppState class
+void _testDraftSummary() {
+  // Force show the draft summary for testing
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Manually triggering draft summary'),
+      duration: Duration(seconds: 1),
     ),
   );
+  
+  // Show the summary after a brief delay
+  Future.delayed(const Duration(milliseconds: 500), () {
+    _showDraftSummary();
+  });
 }
-
 
 // Add a check to show the summary when draft is complete
 @override
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
+  print("Draft complete check: ${_draftService?.isDraftComplete()}");
+  print("Draft running: $_isDraftRunning");
+  print("Data loaded: $_isDataLoaded");
+  print("Show analytics: ${widget.showAnalytics}");
+  print("Summary already shown: $_summaryShown");
+
   // Check if draft just completed and summary hasn't been shown yet
   if (_draftService != null && 
       _draftService!.isDraftComplete() && 
@@ -647,9 +684,18 @@ void didUpdateWidget(DraftApp oldWidget) {
     // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment before showing the summary
+    // Wait a moment, then switch to the Analytics tab
     Future.delayed(const Duration(milliseconds: 500), () {
-      _showDraftSummary();
+      // Switch to the Analytics tab (assuming it's the 3rd tab, index 2)
+      _tabController.animateTo(3); // Adjust this index if needed
+      
+      // Show a notification to inform the user
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Draft complete! View your draft summary and analytics.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
     });
   }
 }
@@ -889,6 +935,5 @@ extension DraftServiceExtensions on DraftService {
     
     // Use the existing selection algorithm
   return selectPlayerRStyle(teamNeed, nextPick);  }
-
   
 }
