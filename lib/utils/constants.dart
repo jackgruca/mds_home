@@ -3,7 +3,7 @@
 /// Contains app-wide constants
 class AppConstants {
   // Draft simulation constants
-  static const int defaultDraftSpeed = 800; // milliseconds between picks
+  static const int defaultDraftSpeed = 700; // milliseconds between picks
   static const double defaultRandomnessFactor = 0.5; // 0.0 = no randomness, 1.0 = max randomness
   static const int maxRounds = 7; // Maximum number of rounds for NFL draft
   

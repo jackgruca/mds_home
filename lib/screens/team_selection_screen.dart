@@ -16,7 +16,7 @@ class TeamSelectionScreen extends StatefulWidget {
 
 class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
-  double _speed = 3.0;
+  double _speed = 2.0;
   double _randomness = 0.5;
   String? _selectedTeam;
   int _selectedYear = 2025;
