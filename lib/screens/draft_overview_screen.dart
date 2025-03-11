@@ -834,9 +834,9 @@ void didUpdateWidget(DraftApp oldWidget) {
               controller: _tabController,
               children: [
                 DraftOrderTab(
-                  draftOrder: _draftOrderLists,
+                  draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
                   userTeam: widget.selectedTeam,
-                  scrollController: _draftOrderScrollController, // Add this line instead of the key
+                  scrollController: _draftOrderScrollController,
                   teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(

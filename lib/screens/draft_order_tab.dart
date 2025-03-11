@@ -4,16 +4,17 @@ import '../models/player.dart';
 import '../widgets/draft/animated_draft_pick_card.dart';
 
 class DraftOrderTab extends StatefulWidget {
-  final List<List<dynamic>> draftOrder;
+  // Update this to accept a list of DraftPick objects instead of List<List<dynamic>>
+  final List<DraftPick> draftOrder; 
   final String? userTeam;
   final ScrollController? scrollController;
-  final List<List<dynamic>> teamNeeds; // Add this parameter
+  final List<List<dynamic>> teamNeeds; // Still need this for team needs
   
   const DraftOrderTab({
     required this.draftOrder,
     this.userTeam,
     this.scrollController,
-    required this.teamNeeds, // Add this parameter
+    required this.teamNeeds,
     super.key,
   });
 
@@ -58,99 +59,31 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
   }
 
   Widget _buildDraftOrderCards() {
-    // Map column names to indices for the filtered draft order
-    Map<String, int> columnIndices = {};
-    if (widget.draftOrder.isNotEmpty) {
-      List<String> headers = widget.draftOrder[0].map<String>((dynamic col) => col.toString().toUpperCase()).toList();
-      for (int i = 0; i < headers.length; i++) {
-        columnIndices[headers[i]] = i;
-      }
-    }
-    
-    // Get index for key columns
-    int pickIndex = columnIndices['PICK'] ?? 0;
-    int teamIndex = columnIndices['TEAM'] ?? 1;
-    int selectionIndex = columnIndices['SELECTION'] ?? 2;
-    int positionIndex = columnIndices['POSITION'] ?? 3;
-    int roundIndex = columnIndices['ROUND'] ?? 4;
-    int tradeIndex = columnIndices['TRADE'] ?? 5;
-
-    // Filter draft order rows
-    List<List<dynamic>> filteredRows = widget.draftOrder
-      .skip(1)  // Skip header row
-      .where((row) {
-        // Check if row has enough elements
-        if (row.length <= teamIndex) return false;
-        
+    // Filter draft order based on search
+    List<DraftPick> filteredPicks = widget.draftOrder
+      .where((pick) {
         // Filter by search query
-        String teamName = row[teamIndex].toString();
+        String teamName = pick.teamName;
         bool matchesSearch = _searchQuery.isEmpty || 
                            teamName.toLowerCase().contains(_searchQuery.toLowerCase());
         
         return matchesSearch;
       })
       .toList();
-  
-    // Convert to DraftPick objects
-    List<DraftPick> draftPicks = [];
-    for (var row in filteredRows) {
-      try {
-        // Parse pick number
-        int pickNumber = pickIndex < row.length ? 
-                       (int.tryParse(row[pickIndex].toString()) ?? 0) : 0;
-        
-        // Get team name
-        String teamName = teamIndex < row.length ? row[teamIndex].toString() : "Unknown";
-        
-        // Parse round
-        String round = roundIndex < row.length ? row[roundIndex].toString() : "1";
-        if (round.isEmpty) {
-          round = ((pickNumber - 1) / 32 + 1).floor().toString();
-        }
-        
-        // Get trade info if available
-        String? tradeInfo = (tradeIndex < row.length) ? row[tradeIndex].toString() : null;
-        if (tradeInfo?.isEmpty ?? true) tradeInfo = null;
-        
-        // Create the draft pick
-        final draftPick = DraftPick(
-          pickNumber: pickNumber,
-          teamName: teamName,
-          round: round,
-          tradeInfo: tradeInfo,
-        );
-        
-        // Add selected player if there is one
-        if (selectionIndex < row.length && row[selectionIndex].toString().isNotEmpty) {
-          String playerName = row[selectionIndex].toString();
-          String position = (positionIndex < row.length) ? row[positionIndex].toString() : "";
-          
-          draftPick.selectedPlayer = Player(
-            id: pickNumber, // Using pick number as ID for simplicity
-            name: playerName,
-            position: position,
-            rank: pickNumber, // Default to pick number as rank if you don't have the actual rank
-          );
-        }
-        
-        draftPicks.add(draftPick);
-      } catch (e) {
-        debugPrint("Error processing draft row: $e");
-      }
-    }
 
     return ListView.builder(
       controller: _scrollController,
-      itemCount: draftPicks.length,
+      itemCount: filteredPicks.length,
       itemBuilder: (context, index) {
-        final isUserTeam = draftPicks[index].teamName == widget.userTeam;
+        final DraftPick draftPick = filteredPicks[index];
+        final isUserTeam = draftPick.teamName == widget.userTeam;
         final isRecentPick = index < 3; // Consider the first 3 picks as "recent"
         
         return AnimatedDraftPickCard(
-          draftPick: draftPicks[index],
+          draftPick: draftPick,
           isUserTeam: isUserTeam,
           isRecentPick: isRecentPick,
-          teamNeeds: _getTeamNeeds(draftPicks[index].teamName), // Add this line
+          teamNeeds: _getTeamNeeds(draftPick.teamName),
         );
       },
     );
