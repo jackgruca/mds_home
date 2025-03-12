@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:mds_home/models/player.dart';
 
+import '../utils/team_logo_utils.dart';
+
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
   final bool selectionEnabled;
@@ -310,86 +312,61 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                           ),
                           child: Center(
                             child: Text(
-                              '#${player.rank}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.0,
-                              ),
-                            ),
-                          ),
-                        ),
+          '#${player.rank}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12.0,
+          ),
+        ),
+      ),
+    ),
 
-                          const SizedBox(width: 8.0),
-                          
-                          // School logo placeholder (circular)
-                          Container(
-                            width: 25.0,
-                            height: 25.0,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.grey.shade300,
-                            ),
-                            child: Center(
-                              child: Text(
-                                _getSchoolInitials(player.school),
-                                style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10.0,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          
-                          // Player info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Player name with strikethrough if selected/drafted
-                                Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Text(
-                                      player.name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14.0,
-                                        color: isSelected || positionDrafted ? Colors.grey : Colors.black,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (isSelected || positionDrafted)
-                                      Positioned(
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          height: 1.5,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                // School and position
-                                Row(
-                                  children: [
-                                    if (player.school.isNotEmpty)
-                                      Text(
-                                        player.school,
-                                        style: TextStyle(
-                                          fontSize: 12.0,
-                                          color: isSelected || positionDrafted ? Colors.grey.shade400 : Colors.grey.shade600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
+    const SizedBox(width: 8.0),
+    
+    // School logo - make sure this is visible and given enough space
+    player.school.isNotEmpty
+      ? TeamLogoUtils.buildCollegeTeamLogo(
+          player.school,
+          size: 30.0,  // Slightly larger for better visibility
+        )
+      : const SizedBox(width: 30, height: 30),  // Placeholder space to maintain alignment
+    
+    const SizedBox(width: 8.0),
+    
+    // Player info
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Player name
+          Text(
+            player.name,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14.0,
+              color: isSelected || positionDrafted ? Colors.grey : Colors.black,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          // School and position
+          Row(
+            children: [
+              if (player.school.isNotEmpty)
+                Text(
+                  player.school,
+                  style: TextStyle(
+                    fontSize: 12.0,
+                    color: isSelected || positionDrafted ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
                           
                           // Position badge
                           Container(
