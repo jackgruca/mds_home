@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../models/player.dart';
+import '../services/player_descriptions_service.dart';
 import '../utils/team_logo_utils.dart';
 import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
@@ -439,18 +440,42 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     );
   }
   
-  void _showPlayerDetails(BuildContext context, Player player) {
-    // Enrich the player data with mock information
-    Player enrichedPlayer = MockPlayerData.enrichPlayerData(player);
-    
-    // Show the dialog with enriched player data
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return PlayerDetailsDialog(player: enrichedPlayer);
-      },
+  void _showPlayerDetails(BuildContext context, Player player) async {
+  // Attempt to get additional player information from our description service
+  Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
+  
+  // Enrich the player data with any available information
+  Player enrichedPlayer = player;
+  
+  if (additionalInfo != null) {
+    // If we have additional info, use it for the player
+    enrichedPlayer = Player(
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      rank: player.rank,
+      school: player.school,
+      notes: player.notes,
+      height: player.height,
+      weight: player.weight,
+      rasScore: player.rasScore,
+      description: additionalInfo['description'] ?? player.description,
+      strengths: additionalInfo['strengths'] ?? player.strengths,
+      weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
     );
+  } else {
+    // Fall back to mock data for players without description
+    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
   }
+  
+  // Show the dialog with enriched player data
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return PlayerDetailsDialog(player: enrichedPlayer);
+    },
+  );
+}
 
   Widget _buildPositionChip(String label, bool isSelected, VoidCallback onTap, {bool isOffensive = true}) {
     bool isPositionDrafted = widget.selectedPositions.contains(label);

@@ -10,6 +10,7 @@ import '../models/trade_package.dart';
 import '../services/data_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
+import '../services/player_descriptions_service.dart';
 import '../utils/constants.dart';
 import '../widgets/trade/enhanced_trade_dialog.dart';
 import '../widgets/trade/user_trade_dialog.dart';
@@ -97,19 +98,22 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 }
 
   Future<void> _initializeServices() async {
-    try {
-      // Initialize the draft value service first
-      await DraftValueService.initialize();
-      
-      // Then load the draft data
-      await _loadData();
-    } catch (e) {
-      setState(() {
-        _statusMessage = "Error initializing services: $e";
-      });
-      debugPrint("Error initializing services: $e");
-    }
+  try {
+    // Initialize the draft value service first
+    await DraftValueService.initialize();
+    
+    // Initialize the player descriptions service
+    await PlayerDescriptionsService.initialize(year: widget.draftYear);
+    
+    // Then load the draft data
+    await _loadData();
+  } catch (e) {
+    setState(() {
+      _statusMessage = "Error initializing services: $e";
+    });
+    debugPrint("Error initializing services: $e");
   }
+}
 
   List<String> _getSelectedPositions() {
   // Extract positions that have been drafted
