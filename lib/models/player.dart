@@ -82,10 +82,10 @@ factory Player.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> columnI
   try {
     // Get column indices (with fallbacks)
     int idIndex = columnIndices['ID'] ?? 0;
-    int nameIndex = columnIndices['NAME'] ?? 1;
-    int positionIndex = columnIndices['POSITION'] ?? 2;
-    int schoolIndex = columnIndices['SCHOOL'] ?? columnIndices.entries
-        .firstWhere((entry) => entry.key.contains('SCHOOL'), orElse: () => const MapEntry('', 3))
+    int nameIndex = columnIndices['Name'] ?? 1;
+    int positionIndex = columnIndices['Position'] ?? 2;
+    int schoolIndex = columnIndices['School'] ?? columnIndices.entries
+        .firstWhere((entry) => entry.key.contains('School'), orElse: () => const MapEntry('', 3))
         .value;
     int notesIndex = columnIndices['NOTES'] ?? columnIndices.entries
         .firstWhere((entry) => entry.key.contains('NOTES'), orElse: () => const MapEntry('', -1))
