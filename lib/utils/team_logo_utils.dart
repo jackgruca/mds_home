@@ -52,141 +52,46 @@ class TeamLogoUtils {
     );
   }
 
-  // Fetch college team logo with improved handling
-  static Widget buildCollegeTeamLogo(
+    static Widget buildCollegeTeamLogo(
     String schoolName, {
     double size = 30.0,
     Widget Function(String)? placeholderBuilder,
   }) {
-    // Try to find the abbreviation in the mapping
-    String? abbr = CollegeTeamMappings.guessAbbreviation(schoolName);
+    // Try to find ESPN ID for this school
+    String? espnId = CollegeTeamESPNIds.findIdForSchool(schoolName);
     
-    // Log the mapping attempt for debugging
-    debugPrint("College logo lookup: '$schoolName' -> abbr: '$abbr'");
-    
-    // If we don't have an abbreviation, create a placeholder
-    if (abbr == null || abbr.isEmpty) {
-      return _buildPlaceholderLogo(
-        schoolName,
-        size: size,
-        color: Colors.green.shade700,
-        customBuilder: placeholderBuilder,
-      );
-    }
-    
-    // Try different ESPN URL patterns
-    // Pattern 1: Standard abbreviation
-    String logoUrl1 = 'https://a.espncdn.com/i/teamlogos/ncaa/500/${abbr.toLowerCase()}.png';
-    
-    // Pattern 2: Some schools use a different format
-    String logoUrl2 = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${abbr.toLowerCase()}.png';
-
-    // Try the first URL pattern with a FadeInImage for smooth loading
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: Image.network(
-          logoUrl1,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            // If first URL fails, try the second pattern
-            debugPrint("First college logo URL failed: $logoUrl1, trying alternative...");
-            return Image.network(
-              logoUrl2,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
-                // If both URLs fail, return the placeholder
-                debugPrint("Alternative college logo URL also failed: $logoUrl2");
-                return _buildPlaceholderLogo(
-                  schoolName,
-                  size: size,
-                  color: Colors.green.shade700,
-                  customBuilder: placeholderBuilder,
-                );
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-  // In lib/utils/team_logo_utils.dart, create a new method for college logos with fallbacks:
-
-  // Fetch college team logo with multiple fallback attempts
-  static Widget buildCollegeTeamLogoWithFallbacks(
-    String schoolName, {
-    double size = 30.0,
-    Widget Function(String)? placeholderBuilder,
-  }) {
-    // Try to find or guess the abbreviation
-    String? abbr = CollegeTeamMappings.guessAbbreviation(schoolName);
-    
-    // If we don't have an abbreviation, create a placeholder
-    if (abbr == null) {
-      debugPrint("No abbreviation found for: $schoolName");
-      return _buildPlaceholderLogo(
-        schoolName,
-        size: size,
-        color: Colors.green.shade700,
-        customBuilder: placeholderBuilder,
-      );
-    }
-    
-    // List of possible logo formats to try
-    List<String> logoFormats = [
-      // Standard format
-      '${abbr.toLowerCase()}.png',
-      // Alternative format (sometimes used)
-      '${abbr.toLowerCase()}-logo.png',
-      // Try different casing
-      '${abbr.toUpperCase()}.png',
-      // Try school name-based URL (sometimes works for well-known schools)
-      '${schoolName.toLowerCase().replaceAll(' ', '-')}.png',
-    ];
-    
-    // Create a StatefulBuilder to handle fallback attempts
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return FutureBuilder<int>(
-          future: _findWorkingLogo(abbr, logoFormats),
-          builder: (context, snapshot) {
-            // If we found a working format index
-            if (snapshot.hasData && snapshot.data! >= 0) {
-              final formatIndex = snapshot.data!;
-              final logoUrl = 'https://a.espncdn.com/i/teamlogos/ncaa/500/${logoFormats[formatIndex]}';
-              
-              return SizedBox(
-                width: size,
-                height: size,
-                child: ClipOval(
-                  child: Image.network(
-                    logoUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Fallback to placeholder if image still fails to load
-                      return _buildPlaceholderLogo(
-                        schoolName,
-                        size: size,
-                        color: Colors.green.shade700,
-                        customBuilder: placeholderBuilder,
-                      );
-                    },
-                  ),
-                ),
+    // If we found an ID, use it to build the URL
+    if (espnId != null) {
+      // Use numeric ID URL pattern
+      final logoUrl = 'https://a.espncdn.com/i/teamlogos/ncaa/500/$espnId.png';
+      
+      return SizedBox(
+        width: size,
+        height: size,
+        child: ClipOval(
+          child: Image.network(
+            logoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) {
+              // Fall back to placeholder if image fails to load
+              return _buildPlaceholderLogo(
+                schoolName, 
+                size: size,
+                color: Colors.green.shade700,
+                customBuilder: placeholderBuilder,
               );
-            }
-            
-            // Return placeholder while checking or if no working format found
-            return _buildPlaceholderLogo(
-              schoolName,
-              size: size,
-              color: Colors.green.shade700,
-              customBuilder: placeholderBuilder,
-            );
-          },
-        );
-      },
+            },
+          ),
+        ),
+      );
+    }
+    
+    // If no ESPN ID found, just use placeholder
+    return _buildPlaceholderLogo(
+      schoolName,
+      size: size,
+      color: Colors.green.shade700,
+      customBuilder: placeholderBuilder,
     );
   }
   
