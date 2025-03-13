@@ -880,8 +880,9 @@ void didUpdateWidget(DraftApp oldWidget) {
                     draftedPlayers: _players.where((player) => 
                       _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
                     executedTrades: _executedTrades,
+                    teamNeeds: _teamNeeds, // Add this parameter
                     userTeam: widget.selectedTeam,
-                  ),
+                  )
                 ],
             ),
           ),
