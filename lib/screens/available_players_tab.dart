@@ -441,10 +441,24 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   }
   
   void _showPlayerDetails(BuildContext context, Player player) async {
+  // Add debug output
+  debugPrint("=======================");
+  debugPrint("Showing details for player: ${player.name}");
+  
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
-  // Enrich the player data with any available information
+  // Debug output to check matching results
+  if (additionalInfo != null) {
+    debugPrint("✅ MATCH FOUND for ${player.name}");
+    debugPrint("Description: ${additionalInfo['description']?.substring(0, min(50, additionalInfo['description']?.length ?? 0))}...");
+  } else {
+    debugPrint("❌ NO MATCH FOUND for ${player.name}");
+    // Dump a few sample names from the CSV for comparison
+    PlayerDescriptionsService.debugPrintAllPlayerNames();
+  }
+  
+  // Rest of your code...
   Player enrichedPlayer = player;
   
   if (additionalInfo != null) {
