@@ -303,12 +303,12 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                             ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
                                                             : Colors.transparent,
                                                           boxShadow: isSelected ? [
-  const BoxShadow(
-    color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
-    blurRadius: 6,
-    spreadRadius: 2
-  )
-] : null,
+                                                            const BoxShadow(
+                                                              color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
+                                                              blurRadius: 6,
+                                                              spreadRadius: 2
+                                                            )
+                                                          ] : null,
 
                                                         ),
                                                         child: Padding(
@@ -492,12 +492,12 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                             ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
                                                             : Colors.transparent,
                                                           boxShadow: isSelected ? [
-  const BoxShadow(
-    color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
-    blurRadius: 6,
-    spreadRadius: 2
-  )
-] : null,
+                                                            const BoxShadow(
+                                                              color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
+                                                              blurRadius: 6,
+                                                              spreadRadius: 2
+                                                            )
+                                                          ] : null,
 
                                                         ),
                                                         child: Padding(

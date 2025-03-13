@@ -6,11 +6,14 @@ import '../../models/draft_pick.dart';
 import '../../models/player.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
+import '../../models/team_need.dart';
+
 
 class DraftAnalyticsDashboard extends StatefulWidget {
   final List<DraftPick> completedPicks;
   final List<Player> draftedPlayers;
   final List<TradePackage> executedTrades;
+  final List<TeamNeed> teamNeeds; // Add this property
   final String? userTeam;
 
   const DraftAnalyticsDashboard({
@@ -18,6 +21,7 @@ class DraftAnalyticsDashboard extends StatefulWidget {
     required this.completedPicks,
     required this.draftedPlayers,
     required this.executedTrades,
+    required this.teamNeeds, // Add this required parameter
     this.userTeam,
   });
 
@@ -37,7 +41,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _calculateAnalytics();
   }
   
@@ -123,24 +127,51 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
 
     return Column(
       children: [
-        TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: 'Summary', icon: Icon(Icons.dashboard)),
-            Tab(text: 'Positions', icon: Icon(Icons.people)),
-            Tab(text: 'Teams', icon: Icon(Icons.groups)),
-            Tab(text: 'Trades', icon: Icon(Icons.swap_horiz)),
+        Row(
+          children: [
+            Expanded(
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.blue,
+                tabs: const [
+                  Tab(text: 'Your Draft', icon: Icon(Icons.person)),
+                  Tab(text: 'League Overview', icon: Icon(Icons.groups)),
+                  Tab(text: 'Draft Trends', icon: Icon(Icons.analytics)),
+                ],
+              ),
+            ),
+            // Add refresh button
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh Analytics',
+              onPressed: () {
+                setState(() {
+                  _calculateAnalytics();
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Analytics refreshed")),
+                );
+              },
+            ),
+            // Add share button
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share Analytics',
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Analytics sharing functionality would go here")),
+                );
+              },
+            ),
           ],
         ),
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildSummaryTab(),
-              _buildPositionsTab(),
-              _buildTeamsTab(),
-              _buildTradesTab(),
+              _buildYourDraftTab(),
+              _buildLeagueOverviewTab(),
+              _buildDraftTrendsTab(),
             ],
           ),
         ),
@@ -148,136 +179,2544 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
     );
   }
   
-  Widget _buildSummaryTab() {
-    // Get some simple stats
-    int picksMade = widget.completedPicks.length;
-    int tradesExecuted = widget.executedTrades.length;
-    
-    // Calculate average rank difference to see if teams are reaching or getting value
-    double avgRankDiff = 0;
-    int rankCount = 0;
-    for (var pick in widget.completedPicks) {
-      if (pick.selectedPlayer != null) {
-        avgRankDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-        rankCount++;
-      }
-    }
-    avgRankDiff = rankCount > 0 ? avgRankDiff / rankCount : 0;
-    
-    // Calculate user team stats if applicable
-    List<DraftPick> userPicks = [];
-    int userValueDiff = 0;
-    if (widget.userTeam != null) {
-      userPicks = widget.completedPicks
-          .where((pick) => pick.teamName == widget.userTeam && pick.selectedPlayer != null)
-          .toList();
-      
-      for (var pick in userPicks) {
-        userValueDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
-    }
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+  Widget _buildYourDraftTab() {
+  if (widget.userTeam == null) {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Main stats cards
-          Row(
-            children: [
-              _buildStatCard(
-                title: 'Picks Made',
-                value: '$picksMade',
-                icon: Icons.done,
-                color: Colors.blue,
-              ),
-              const SizedBox(width: 16),
-              _buildStatCard(
-                title: 'Trades Made',
-                value: '$tradesExecuted',
-                icon: Icons.swap_horiz,
-                color: Colors.orange,
-              ),
-            ],
-          ),
+          const Icon(Icons.person_off, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStatCard(
-                title: 'Avg. Value',
-                value: avgRankDiff.toStringAsFixed(1),
-                subtitle: avgRankDiff > 0 ? 'Teams getting value' : 'Teams reaching',
-                icon: avgRankDiff > 0 ? Icons.trending_up : Icons.trending_down,
-                color: avgRankDiff > 0 ? Colors.green : Colors.red,
-              ),
-              const SizedBox(width: 16),
-              if (widget.userTeam != null)
-                _buildStatCard(
-                  title: 'Your Picks',
-                  value: '${userPicks.length}',
-                  subtitle: userValueDiff > 0 ? 'Good value (+$userValueDiff)' : 'Reached ($userValueDiff)',
-                  icon: userValueDiff > 0 ? Icons.thumb_up : Icons.thumb_down,
-                  color: userValueDiff > 0 ? Colors.green : Colors.orange,
-                ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
           const Text(
-            'Position Breakdown',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            "No team selected",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
           const SizedBox(height: 8),
-          // Simple position breakdown bar
-          SizedBox(
-            height: 40,
-            child: _buildPositionBreakdownBar(),
-          ),
-          
-          const SizedBox(height: 24),
           const Text(
-            'Most Recent Picks',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            "Select a team to see your draft analysis",
+            style: TextStyle(color: Colors.grey),
           ),
-          const SizedBox(height: 8),
-          // Recent picks list
-          _buildRecentPicksList(),
-          
           const SizedBox(height: 24),
-          const Text(
-            'Trade Activity',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Trade activity chart
-          _buildTradeActivityChart(),
           
-          if (widget.userTeam != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              'Your ${widget.userTeam} Draft',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildUserTeamSummary(),
-          ],
+          // Add a navigation link to the League Overview tab
+          _buildNavigationLinks(links: ['League Overview:1']),
         ],
       ),
     );
   }
   
+  // Get user team picks
+  final userPicks = widget.completedPicks
+      .where((pick) => pick.teamName == widget.userTeam && pick.selectedPlayer != null)
+      .toList();
+      
+  // Get user trades
+  final userTrades = widget.executedTrades
+      .where((trade) => 
+        trade.teamOffering == widget.userTeam || 
+        trade.teamReceiving == widget.userTeam)
+      .toList();
+      
+  // Calculate draft value metrics
+  final draftMetrics = _calculateUserDraftMetrics(userPicks, userTrades);
+  
+  return RefreshIndicator(
+    onRefresh: () async {
+      // Simulated refresh
+      setState(() {
+        // Refresh analytics
+      });
+      return Future.delayed(const Duration(milliseconds: 500));
+    },
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Draft grade banner
+          _buildEnhancedDraftGradeBanner(draftMetrics),
+          
+          const SizedBox(height: 24),
+          
+          // Key metrics cards
+          _buildDraftMetricsCards(draftMetrics),
+          
+          const SizedBox(height: 24),
+          
+          // Draft picks by round
+          _buildSectionHeader("Draft Picks by Round", icon: Icons.format_list_numbered),
+          _buildContentCard(
+            child: _buildDraftPicksByRound(userPicks),
+            isHighlighted: true,
+          ),
+          
+          // Navigation links to related tabs
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildNavigationLinks(links: ['League Overview:1', 'Draft Trends:2']),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Trade summary
+          if (userTrades.isNotEmpty) ...[
+            _buildSectionHeader("Trade Summary", icon: Icons.swap_horiz),
+            _buildContentCard(
+              child: _buildUserTradesSummary(userTrades),
+            ),
+            const SizedBox(height: 24),
+          ],
+          
+          // Position breakdown for user picks
+          _buildSectionHeader("Position Breakdown", icon: Icons.pie_chart),
+          _buildContentCard(
+            child: _buildUserPositionBreakdown(userPicks),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+void _shareAnalytics() {
+  // In a real app, you'd implement proper sharing functionality
+  // For now, just show a snackbar
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Analytics sharing functionality would go here")),
+  );
+}
+
+// 1. Method to calculate metrics for the user's draft
+Map<String, dynamic> _calculateUserDraftMetrics(List<DraftPick> userPicks, List<TradePackage> userTrades) {
+  // Calculate total value differential for picks
+  double totalValueDiff = 0;
+  int totalPicks = userPicks.length;
+  List<DraftPick> valuePicks = [];
+  List<DraftPick> reachPicks = [];
+  
+  for (var pick in userPicks) {
+    int diff = pick.pickNumber - pick.selectedPlayer!.rank;
+    totalValueDiff += diff;
+    
+    if (diff >= 10) {
+      valuePicks.add(pick);
+    } else if (diff <= -10) {
+      reachPicks.add(pick);
+    }
+  }
+  
+  // Calculate average value differential
+  double avgValueDiff = totalPicks > 0 ? totalValueDiff / totalPicks : 0;
+  
+  // Calculate trade value added
+  double tradeValueAdded = 0;
+  for (var trade in userTrades) {
+    if (trade.teamOffering == widget.userTeam) {
+      // User traded away picks
+      tradeValueAdded -= trade.valueDifferential;
+    } else {
+      // User received picks
+      tradeValueAdded += trade.valueDifferential;
+    }
+  }
+  
+  // Determine draft grade
+  String grade = _calculateEnhancedDraftGrade(avgValueDiff, tradeValueAdded, totalPicks);
+  
+  return {
+    'totalPicks': totalPicks,
+    'totalValueDiff': totalValueDiff,
+    'avgValueDiff': avgValueDiff,
+    'valuePicks': valuePicks,
+    'reachPicks': reachPicks,
+    'tradeValueAdded': tradeValueAdded,
+    'totalTrades': userTrades.length,
+    'grade': grade,
+  };
+}
+
+// 2. Method to calculate draft grade
+String _calculateEnhancedDraftGrade(double avgValueDiff, double tradeValueAdded, int totalPicks) {
+  // Base grade on average value differential
+  String baseGrade;
+  if (avgValueDiff >= 15) baseGrade = "A+";
+  else if (avgValueDiff >= 10) baseGrade = "A";
+  else if (avgValueDiff >= 5) baseGrade = "B+";
+  else if (avgValueDiff >= 0) baseGrade = "B";
+  else if (avgValueDiff >= -5) baseGrade = "C+";
+  else if (avgValueDiff >= -10) baseGrade = "C";
+  else baseGrade = "D";
+  
+  // Adjust for trade value
+  if (tradeValueAdded > 200 && totalPicks >= 3) {
+    // Boost grade for excellent trade value
+    if (baseGrade == "B+") baseGrade = "A";
+    else if (baseGrade == "B") baseGrade = "B+";
+    else if (baseGrade == "C+") baseGrade = "B";
+    else if (baseGrade == "C") baseGrade = "C+";
+    else if (baseGrade == "D") baseGrade = "C";
+  } else if (tradeValueAdded < -200 && totalPicks >= 3) {
+    // Lower grade for poor trade value
+    if (baseGrade == "A") baseGrade = "B+";
+    else if (baseGrade == "B+") baseGrade = "B";
+    else if (baseGrade == "B") baseGrade = "C+";
+    else if (baseGrade == "C+") baseGrade = "C";
+    else if (baseGrade == "C") baseGrade = "D";
+  }
+  
+  return baseGrade;
+}
+
+// 3. Method to build enhanced draft grade banner
+Widget _buildEnhancedDraftGradeBanner(Map<String, dynamic> metrics) {
+  String grade = metrics['grade'];
+  double avgValueDiff = metrics['avgValueDiff'];
+  int totalPicks = metrics['totalPicks'];
+  
+  // Grade color based on letter grade
+  Color gradeColor;
+  String description;
+  
+  if (grade.startsWith("A")) {
+    gradeColor = Colors.green.shade700;
+    description = "Excellent draft with exceptional value";
+  } else if (grade.startsWith("B")) {
+    gradeColor = Colors.blue.shade700;
+    description = "Solid draft with good value picks";
+  } else if (grade.startsWith("C")) {
+    gradeColor = Colors.orange.shade700;
+    description = "Average draft with some reaches";
+  } else {
+    gradeColor = Colors.red.shade700;
+    description = "Below average draft with significant reaches";
+  }
+  
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            gradeColor.withOpacity(0.7),
+            gradeColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Grade circle
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 5,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                grade,
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: gradeColor,
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 20),
+          
+          // Draft summary text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${widget.userTeam} Draft Grade",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Average Value: ${avgValueDiff.toStringAsFixed(1)} points per pick",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+                Text(
+                  "Total Picks: $totalPicks",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Add this method to add consistent section headers throughout the dashboard
+Widget _buildSectionHeader(String title, {IconData? icon}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12.0),
+    child: Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Add this method for consistent card styling throughout
+Widget _buildContentCard({
+  required Widget child, 
+  bool isHighlighted = false, 
+  double elevation = 2.0,
+}) {
+  return Card(
+    elevation: elevation,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: isHighlighted ? BorderSide(color: Colors.blue.shade700, width: 1) : BorderSide.none,
+    ),
+    margin: const EdgeInsets.only(bottom: 16),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: child,
+    ),
+  );
+}
+// Add this method for cross-tab navigation links
+Widget _buildNavigationLinks({required List<String> links}) {
+  return Wrap(
+    spacing: 16,
+    runSpacing: 8,
+    children: links.map((link) {
+      return InkWell(
+        onTap: () {
+          // Extract tab index from link format "Tab Name:index"
+          final parts = link.split(':');
+          if (parts.length == 2) {
+            final tabIndex = int.tryParse(parts[1]);
+            if (tabIndex != null) {
+              _tabController.animateTo(tabIndex);
+            }
+          }
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_forward, size: 14, color: Colors.blue),
+            const SizedBox(width: 4),
+            Text(
+              link.split(':')[0],
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList(),
+  );
+}
+// Add this method to optimize how we build lists with many items
+Widget _buildOptimizedList<T>({
+  required List<T> items,
+  required Widget Function(T item, int index) itemBuilder,
+  Widget? emptyStateWidget,
+  int initialItemCount = 20, // Show only this many initially
+}) {
+  if (items.isEmpty) {
+    return emptyStateWidget ?? const Center(child: Text("No data available"));
+  }
+  
+  // For performance, initially show a smaller number of items with an option to show more
+  final displayCount = min(initialItemCount, items.length);
+  final hasMore = items.length > displayCount;
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ...List.generate(displayCount, (index) => itemBuilder(items[index], index)),
+      
+      if (hasMore)
+        TextButton.icon(
+          onPressed: () {
+            // In a StatefulWidget, you'd update the state to show more items
+            // For simplicity, we'll just show a message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("${items.length - displayCount} more items available")),
+            );
+          },
+          icon: const Icon(Icons.expand_more),
+          label: Text("Show ${items.length - displayCount} more"),
+        ),
+    ],
+  );
+}
+// Add this method to create a refresh button
+Widget _buildRefreshButton() {
+  return IconButton(
+    icon: const Icon(Icons.refresh),
+    tooltip: 'Refresh Analytics',
+    onPressed: () {
+      // Recalculate analytics
+      setState(() {
+        _calculateAnalytics();
+      });
+      
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Analytics refreshed")),
+      );
+    },
+  );
+}
+// Add this method for consistent tooltips
+Widget _buildInfoTooltip(String message) {
+  return Tooltip(
+    message: message,
+    child: const Icon(
+      Icons.info_outline,
+      size: 16,
+      color: Colors.grey,
+    ),
+  );
+}
+
+// 4. Method to build draft metrics cards
+Widget _buildDraftMetricsCards(Map<String, dynamic> metrics) {
+  return Row(
+    children: [
+      Expanded(
+        child: _buildMetricCard(
+          "Value Picks",
+          "${metrics['valuePicks'].length}",
+          Icons.thumb_up,
+          Colors.green.shade700,
+          "Picks with 10+ points of value",
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: _buildMetricCard(
+          "Reach Picks",
+          "${metrics['reachPicks'].length}",
+          Icons.thumb_down,
+          Colors.red.shade700,
+          "Picks that were 10+ point reaches",
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: _buildMetricCard(
+          "Trade Value",
+          "${metrics['tradeValueAdded'] > 0 ? '+' : ''}${metrics['tradeValueAdded'].toStringAsFixed(0)}",
+          Icons.swap_horiz,
+          metrics['tradeValueAdded'] >= 0 ? Colors.blue.shade700 : Colors.orange.shade700,
+          "Net value gained through trades",
+        ),
+      ),
+    ],
+  );
+}
+
+// 5. Helper method to build a metric card
+Widget _buildMetricCard(String title, String value, IconData icon, Color color, String tooltip) {
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// 6. Method to build draft picks by round
+Widget _buildDraftPicksByRound(List<DraftPick> userPicks) {
+  // Group picks by round
+  Map<String, List<DraftPick>> picksByRound = {};
+  
+  // Sort picks by round and pick number
+  userPicks.sort((a, b) {
+    int roundComparison = a.round.compareTo(b.round);
+    if (roundComparison != 0) return roundComparison;
+    return a.pickNumber.compareTo(b.pickNumber);
+  });
+  
+  // Group by round
+  for (var pick in userPicks) {
+    picksByRound.putIfAbsent(pick.round, () => []);
+    picksByRound[pick.round]!.add(pick);
+  }
+  
+  // Create a card for each round
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Draft Picks by Round",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 8),
+      
+      if (picksByRound.isEmpty)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text("No picks made yet"),
+          ),
+        )
+      else
+        ...picksByRound.entries.map((entry) {
+          String round = entry.key;
+          List<DraftPick> picks = entry.value;
+          
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              children: [
+                // Round header
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  width: double.infinity,
+                  color: _getRoundColor(round).withOpacity(0.1),
+                  child: Text(
+                    "Round $round",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getRoundColor(round),
+                    ),
+                  ),
+                ),
+                
+                // Picks in this round
+                ...picks.map((pick) => 
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: _getRoundColor(round),
+                      child: Text(
+                        "${pick.pickNumber}",
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                    title: Text(
+                      pick.selectedPlayer!.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "${pick.selectedPlayer!.position} - ${pick.selectedPlayer!.school}",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: _buildValueBadge(pick.pickNumber, pick.selectedPlayer!.rank),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+    ],
+  );
+}
+
+// 7. Method to build user trades summary
+Widget _buildUserTradesSummary(List<TradePackage> userTrades) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Trade Summary",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 8),
+      
+      // List of trades
+      ...userTrades.map((trade) {
+        bool isTrading = trade.teamOffering == widget.userTeam;
+        String otherTeam = isTrading ? trade.teamReceiving : trade.teamOffering;
+        double valueDiff = isTrading ? -trade.valueDifferential : trade.valueDifferential;
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Trade header
+                Row(
+                  children: [
+                    Icon(
+                      isTrading ? Icons.arrow_upward : Icons.arrow_downward,
+                      color: isTrading ? Colors.orange : Colors.green,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isTrading ? "Traded Up with $otherTeam" : "Traded Down with $otherTeam",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: valueDiff >= 0 ? Colors.green.shade100 : Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: valueDiff >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                        ),
+                      ),
+                      child: Text(
+                        "${valueDiff > 0 ? "+" : ""}${valueDiff.toStringAsFixed(0)} pts",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: valueDiff >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                // Trade details
+                const SizedBox(height: 8),
+                Text(trade.tradeDescription, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
+        );
+      }),
+    ],
+  );
+}
+
+// 8. Method to build user position breakdown
+Widget _buildUserPositionBreakdown(List<DraftPick> userPicks) {
+  // Group by position
+  Map<String, List<DraftPick>> picksByPosition = {};
+  for (var pick in userPicks) {
+    String position = pick.selectedPlayer!.position;
+    picksByPosition.putIfAbsent(position, () => []);
+    picksByPosition[position]!.add(pick);
+  }
+  
+  // Sort positions by count
+  List<MapEntry<String, List<DraftPick>>> sortedPositions = 
+    picksByPosition.entries.toList()
+      ..sort((a, b) => b.value.length.compareTo(a.value.length));
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Position Breakdown",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      if (sortedPositions.isEmpty)
+        const Text("No picks made yet")
+      else
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: sortedPositions.map((entry) {
+            String position = entry.key;
+            int count = entry.value.length;
+            Color posColor = _getPositionColor(position);
+            
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: posColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: posColor),
+              ),
+              child: Text(
+                "$position: $count",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: posColor,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+    ],
+  );
+}
+
+// 9. Helper method to build a value badge
+Widget _buildValueBadge(int pickNumber, int rank) {
+  int diff = pickNumber - rank;
+  Color color;
+  String label;
+  
+  if (diff >= 20) {
+    color = Colors.green.shade700;
+    label = "Steal";
+  } else if (diff >= 10) {
+    color = Colors.green.shade600;
+    label = "Value";
+  } else if (diff >= -10) {
+    color = Colors.blue.shade600;
+    label = "Fair";
+  } else if (diff >= -20) {
+    color = Colors.orange.shade700;
+    label = "Reach";
+  } else {
+    color = Colors.red.shade700;
+    label = "Big Reach";
+  }
+  
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: color),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+        ),
+        Text(
+          "${diff > 0 ? "+" : ""}$diff",
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// 10. Helper method to get round color
+Color _getRoundColor(String round) {
+  switch (round) {
+    case '1': return Colors.blue.shade700;
+    case '2': return Colors.green.shade700;
+    case '3': return Colors.orange.shade700;
+    case '4': return Colors.purple.shade700;
+    case '5': return Colors.red.shade700;
+    case '6': return Colors.teal.shade700;
+    case '7': return Colors.brown.shade700;
+    default: return Colors.grey.shade700;
+  }
+}
+
+Widget _buildDraftGradeBanner() {
+  // Simple placeholder for the draft grade banner
+  // Will be expanded in Phase 2
+  return Card(
+    elevation: 4,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          // Draft grade circle
+          Container(
+            width: 60,
+            height: 60,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blue,
+            ),
+            child: const Center(
+              child: Text(
+                "B+",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Text information
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${widget.userTeam} Draft Grade",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "Solid draft with good value picks",
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildUserPicksList() {
+  // Simple list of user picks - will be enhanced in Phase 2
+  final userPicks = widget.completedPicks.where(
+    (pick) => pick.teamName == widget.userTeam && pick.selectedPlayer != null
+  ).toList();
+  
+  if (userPicks.isEmpty) {
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Text("No picks made yet"),
+    );
+  }
+  
+  return ListView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: userPicks.length,
+    itemBuilder: (context, index) {
+      final pick = userPicks[index];
+      return ListTile(
+        leading: CircleAvatar(
+          child: Text("${pick.pickNumber}"),
+        ),
+        title: Text(pick.selectedPlayer!.name),
+        subtitle: Text("${pick.selectedPlayer!.position} - ${pick.selectedPlayer!.school}"),
+      );
+    },
+  );
+}
+
+Widget _buildLeagueOverviewTab() {
+  // Calculate team grades and metrics for all teams
+  final teamMetrics = _calculateAllTeamMetrics();
+  
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // League-wide draft grades
+        _buildLeagueDraftGradesSection(teamMetrics),
+        
+        const SizedBox(height: 24),
+        
+        // Value winners and losers
+        _buildValueWinnersAndLosersSection(teamMetrics),
+        
+        const SizedBox(height: 24),
+        
+        // League-wide trade activity
+        if (widget.executedTrades.isNotEmpty)
+          _buildLeagueTradeActivitySection(),
+          
+        const SizedBox(height: 24),
+        
+        // Team pick counts
+        _buildTeamPickCountsSection(teamMetrics),
+      ],
+    ),
+  );
+}
+
+// 1. Calculate metrics for all teams
+Map<String, Map<String, dynamic>> _calculateAllTeamMetrics() {
+  Map<String, Map<String, dynamic>> teamMetrics = {};
+  
+  // Get all team names from completed picks
+  Set<String> teamNames = widget.completedPicks
+      .map((pick) => pick.teamName)
+      .toSet();
+      
+  // Calculate metrics for each team
+  for (var teamName in teamNames) {
+    // Get team picks
+    final teamPicks = widget.completedPicks
+        .where((pick) => pick.teamName == teamName && pick.selectedPlayer != null)
+        .toList();
+        
+    if (teamPicks.isEmpty) continue;
+    
+    // Get team trades
+    final teamTrades = widget.executedTrades
+        .where((trade) => 
+          trade.teamOffering == teamName || 
+          trade.teamReceiving == teamName)
+        .toList();
+    
+    // Calculate basic metrics
+    double totalValueDiff = 0;
+    int totalPicks = teamPicks.length;
+    
+    for (var pick in teamPicks) {
+      int diff = pick.pickNumber - pick.selectedPlayer!.rank;
+      totalValueDiff += diff;
+    }
+    
+    // Calculate average value differential
+    double avgValueDiff = totalPicks > 0 ? totalValueDiff / totalPicks : 0;
+    
+    // Calculate trade value added
+    double tradeValueAdded = 0;
+    for (var trade in teamTrades) {
+      if (trade.teamOffering == teamName) {
+        // Team traded away picks
+        tradeValueAdded -= trade.valueDifferential;
+      } else {
+        // Team received picks
+        tradeValueAdded += trade.valueDifferential;
+      }
+    }
+    
+    // Determine draft grade (use existing method to be consistent)
+    String grade = _calculateEnhancedDraftGrade(avgValueDiff, tradeValueAdded, totalPicks);
+    
+    // Store team metrics
+    teamMetrics[teamName] = {
+      'totalPicks': totalPicks,
+      'totalValueDiff': totalValueDiff,
+      'avgValueDiff': avgValueDiff,
+      'tradeValueAdded': tradeValueAdded,
+      'totalTrades': teamTrades.length,
+      'grade': grade,
+    };
+  }
+  
+  return teamMetrics;
+}
+
+// 2. Build league draft grades section
+Widget _buildLeagueDraftGradesSection(Map<String, Map<String, dynamic>> teamMetrics) {
+  // Convert to list for sorting
+  List<MapEntry<String, Map<String, dynamic>>> teamEntries = teamMetrics.entries.toList();
+  
+  // Sort by grade (A+ first, then A, B+, etc.)
+  teamEntries.sort((a, b) {
+    String gradeA = a.value['grade'];
+    String gradeB = b.value['grade'];
+    
+    // Sort by first letter first
+    int letterCompare = gradeB[0].compareTo(gradeA[0]);
+    if (letterCompare != 0) return letterCompare;
+    
+    // If same letter, check for + symbol
+    bool hasPlus1 = gradeA.length > 1 && gradeA[1] == '+';
+    bool hasPlus2 = gradeB.length > 1 && gradeB[1] == '+';
+    
+    if (hasPlus1 && !hasPlus2) return -1;
+    if (!hasPlus1 && hasPlus2) return 1;
+    
+    return 0;
+  });
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "League Draft Grades",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header row
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text("Team", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text("Grade", 
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text("Value/Pick", 
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text("Picks", 
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Divider(),
+              
+              // Team rows
+              ...teamEntries.map((entry) {
+                final teamName = entry.key;
+                final metrics = entry.value;
+                final grade = metrics['grade'];
+                final avgValueDiff = metrics['avgValueDiff'].toDouble();
+                final totalPicks = metrics['totalPicks'];
+                
+                // Grade color based on letter
+                Color gradeColor = _getGradeColor(grade);
+                
+                // Highlight user team
+                bool isUserTeam = teamName == widget.userTeam;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      // Team name
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          teamName,
+                          style: TextStyle(
+                            fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                            color: isUserTeam ? Colors.blue : null,
+                          ),
+                        ),
+                      ),
+                      
+                      // Grade
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: gradeColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: gradeColor),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            grade,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: gradeColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Value per pick
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          "${avgValueDiff > 0 ? "+" : ""}${avgValueDiff.toStringAsFixed(1)}",
+                          style: TextStyle(
+                            color: avgValueDiff >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      // Total picks
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          "$totalPicks",
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 3. Build value winners and losers section
+Widget _buildValueWinnersAndLosersSection(Map<String, Map<String, dynamic>> teamMetrics) {
+  // Convert to list for sorting
+  List<MapEntry<String, Map<String, dynamic>>> teamEntries = teamMetrics.entries.toList();
+  
+  // Sort by average value differential (highest first)
+  teamEntries.sort((a, b) => 
+    b.value['avgValueDiff'].toDouble().compareTo(a.value['avgValueDiff'].toDouble()));
+  
+  // Get top 5 winners and bottom 5 losers
+  final winners = teamEntries.take(5).toList();
+  final losers = teamEntries.reversed.take(5).toList();
+  
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Value Winners
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Value Winners",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            Card(
+              child: Column(
+                children: winners.map((entry) {
+                  final teamName = entry.key;
+                  final avgValueDiff = entry.value['avgValueDiff'].toDouble();
+                  final isUserTeam = teamName == widget.userTeam;
+                  
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      teamName,
+                      style: TextStyle(
+                        fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                        color: isUserTeam ? Colors.blue : null,
+                      ),
+                    ),
+                    trailing: Text(
+                      "+${avgValueDiff.toStringAsFixed(1)}",
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      const SizedBox(width: 16),
+      
+      // Value Losers
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Value Losers",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            Card(
+              child: Column(
+                children: losers.map((entry) {
+                  final teamName = entry.key;
+                  final avgValueDiff = entry.value['avgValueDiff'].toDouble();
+                  final isUserTeam = teamName == widget.userTeam;
+                  
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      teamName,
+                      style: TextStyle(
+                        fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                        color: isUserTeam ? Colors.blue : null,
+                      ),
+                    ),
+                    trailing: Text(
+                      "${avgValueDiff.toStringAsFixed(1)}",
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+// 4. Build league trade activity section
+Widget _buildLeagueTradeActivitySection() {
+  // Count trades by team
+  Map<String, int> tradesByTeam = {};
+  
+  for (var trade in widget.executedTrades) {
+    tradesByTeam[trade.teamOffering] = (tradesByTeam[trade.teamOffering] ?? 0) + 1;
+    tradesByTeam[trade.teamReceiving] = (tradesByTeam[trade.teamReceiving] ?? 0) + 1;
+  }
+  
+  // Sort teams by trade count
+  List<MapEntry<String, int>> sortedTeams = tradesByTeam.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Trade Activity",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Trade activity chart
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Most Active Teams",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    ...sortedTeams.take(5).map((entry) {
+                      final teamName = entry.key;
+                      final tradeCount = entry.value;
+                      final isUserTeam = teamName == widget.userTeam;
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Text(
+                              teamName,
+                              style: TextStyle(
+                                fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                                color: isUserTeam ? Colors.blue : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: LinearProgressIndicator(
+                                value: tradeCount / (sortedTeams.first.value),
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isUserTeam ? Colors.blue : Colors.orange,
+                                ),
+                                minHeight: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "$tradeCount",
+                              style: TextStyle(
+                                fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Trade metrics
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Trade Summary",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Total trades
+                    _buildTradeMetricRow(
+                      "Total Trades",
+                      "${widget.executedTrades.length}",
+                      Icons.swap_horiz,
+                      Colors.blue,
+                    ),
+                    
+                    // Average value differential
+                    _buildTradeMetricRow(
+                      "Avg. Value Differential",
+                      "${_calculateAverageTradeValue().toStringAsFixed(1)} pts",
+                      Icons.analytics,
+                      Colors.purple,
+                    ),
+                    
+                    // Total picks traded
+                    _buildTradeMetricRow(
+                      "Picks Traded",
+                      "${_calculateTotalPicksTraded()}",
+                      Icons.compare_arrows,
+                      Colors.green,
+                    ),
+                    
+                    // Most common trade rounds
+                    _buildTradeMetricRow(
+                      "Most Common",
+                      _getMostCommonTradeRound(),
+                      Icons.star,
+                      Colors.amber,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      
+      const SizedBox(height: 16),
+      
+      // Recent trades list
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Recent Trades",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              
+              // Show last 3 trades
+              ...widget.executedTrades.reversed.take(3).map((trade) {
+                bool isUserInvolved = trade.teamOffering == widget.userTeam || 
+                                      trade.teamReceiving == widget.userTeam;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Trade header
+                      Row(
+                        children: [
+                          Text(
+                            "${trade.teamOffering} → ${trade.teamReceiving}",
+                            style: TextStyle(
+                              fontWeight: isUserInvolved ? FontWeight.bold : FontWeight.normal,
+                              color: isUserInvolved ? Colors.blue : null,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: trade.valueDifferential >= 0 ? 
+                                Colors.green.shade100 : Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "${trade.valueDifferential > 0 ? "+" : ""}${trade.valueDifferential.toStringAsFixed(0)} pts",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: trade.valueDifferential >= 0 ? 
+                                  Colors.green.shade800 : Colors.red.shade800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Trade description
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0, left: 8.0),
+                        child: Text(
+                          trade.tradeDescription,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      
+                      const Divider(),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 5. Build team pick counts section
+Widget _buildTeamPickCountsSection(Map<String, Map<String, dynamic>> teamMetrics) {
+  // Get all team picks
+  Map<String, int> pickCountsByTeam = {};
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      pickCountsByTeam[pick.teamName] = (pickCountsByTeam[pick.teamName] ?? 0) + 1;
+    }
+  }
+  
+  // Sort teams by pick count
+  List<MapEntry<String, int>> sortedTeams = pickCountsByTeam.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Team Pick Counts",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              ...sortedTeams.map((entry) {
+                final teamName = entry.key;
+                final pickCount = entry.value;
+                final isUserTeam = teamName == widget.userTeam;
+                
+                // Get metrics for this team if available
+                Map<String, dynamic>? metrics = teamMetrics[teamName];
+                String grade = metrics != null ? metrics['grade'] : 'N/A';
+                Color gradeColor = _getGradeColor(grade);
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      // Team name
+                      SizedBox(
+                        width: 140,
+                        child: Text(
+                          teamName,
+                          style: TextStyle(
+                            fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                            color: isUserTeam ? Colors.blue : null,
+                          ),
+                        ),
+                      ),
+                      
+                      // Pick count bar
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            // Background
+                            Container(
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            // Progress
+                            Container(
+                              height: 16,
+                              width: (pickCount / sortedTeams.first.value) * 
+                                    MediaQuery.of(context).size.width * 0.5,
+                              decoration: BoxDecoration(
+                                color: isUserTeam ? Colors.blue : Colors.orange,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Pick count
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          "$pickCount",
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      // Grade
+                      if (metrics != null)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: gradeColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: gradeColor),
+                          ),
+                          child: Text(
+                            grade,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: gradeColor,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 6. Helper method to build trade metric row
+Widget _buildTradeMetricRow(String label, String value, IconData icon, Color color) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12.0),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 8),
+        Text(label),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ],
+    ),
+  );
+}
+
+// 7. Helper method to get grade color
+Color _getGradeColor(String grade) {
+  if (grade.startsWith("A")) {
+    return Colors.green.shade700;
+  } else if (grade.startsWith("B")) {
+    return Colors.blue.shade700;
+  } else if (grade.startsWith("C")) {
+    return Colors.orange.shade700;
+  } else {
+    return Colors.red.shade700;
+  }
+}
+
+// 8. Helper method to calculate average trade value
+double _calculateAverageTradeValue() {
+  if (widget.executedTrades.isEmpty) return 0;
+  
+  double totalValue = 0;
+  for (var trade in widget.executedTrades) {
+    totalValue += trade.valueDifferential.abs();
+  }
+  
+  return totalValue / widget.executedTrades.length;
+}
+
+// 9. Helper method to calculate total picks traded
+int _calculateTotalPicksTraded() {
+  int count = 0;
+  for (var trade in widget.executedTrades) {
+    count += trade.picksOffered.length;
+    count += 1 + trade.additionalTargetPicks.length; // Target pick + additional picks
+  }
+  return count;
+}
+
+// 10. Helper method to get most common trade round
+String _getMostCommonTradeRound() {
+  Map<String, int> roundCounts = {};
+  
+  for (var trade in widget.executedTrades) {
+    String round = _getRoundFromPickNumber(trade.targetPick.pickNumber);
+    roundCounts[round] = (roundCounts[round] ?? 0) + 1;
+  }
+  
+  if (roundCounts.isEmpty) return "N/A";
+  
+  // Sort by count
+  List<MapEntry<String, int>> sortedRounds = roundCounts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+    
+  return "Round ${sortedRounds.first.key}";
+}
+
+// 11. Helper method to get round from pick number
+String _getRoundFromPickNumber(int pickNumber) {
+  return ((pickNumber - 1) ~/ 32 + 1).toString();
+}
+
+Widget _buildDraftTrendsTab() {
+  // Calculate position trends and analytics
+  final positionAnalytics = _calculatePositionAnalytics();
+  
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Overall position distribution
+        _buildPositionDistributionSection(positionAnalytics),
+        
+        const SizedBox(height: 24),
+        
+        // Position breakdown by round
+        _buildPositionByRoundSection(positionAnalytics),
+        
+        const SizedBox(height: 24),
+        
+        // Position runs analysis
+        _buildPositionRunsSection(positionAnalytics),
+        
+        const SizedBox(height: 24),
+        
+        // Value vs. need analysis
+        _buildValueVsNeedSection(),
+      ],
+    ),
+  );
+}
+
+// 1. Calculate position analytics
+Map<String, dynamic> _calculatePositionAnalytics() {
+  // Count positions drafted
+  Map<String, int> positionCounts = {};
+  // Count positions by round
+  Map<String, Map<String, int>> positionsByRound = {};
+  // Track position runs
+  Map<String, List<int>> positionRuns = {};
+  // Calculate position value metrics
+  Map<String, double> positionAvgValue = {};
+  Map<String, int> positionValueTotals = {};
+  
+  // Process each pick
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer == null) continue;
+    
+    String position = pick.selectedPlayer!.position;
+    String round = pick.round;
+    
+    // Update position counts
+    positionCounts[position] = (positionCounts[position] ?? 0) + 1;
+    
+    // Update positions by round
+    positionsByRound.putIfAbsent(round, () => {});
+    positionsByRound[round]![position] = (positionsByRound[round]![position] ?? 0) + 1;
+    
+    // Update position value metrics
+    int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
+    positionValueTotals[position] = (positionValueTotals[position] ?? 0) + valueDiff;
+    
+    // Track consecutive picks for position runs
+    positionRuns.putIfAbsent(position, () => []);
+    positionRuns[position]!.add(pick.pickNumber);
+  }
+  
+  // Calculate average value by position
+  for (var position in positionCounts.keys) {
+    positionAvgValue[position] = positionValueTotals[position]! / positionCounts[position]!;
+  }
+  
+  // Identify position runs (3+ picks of same position in short span)
+  Map<String, List<Map<String, dynamic>>> significantRuns = {};
+  for (var entry in positionRuns.entries) {
+    String position = entry.key;
+    List<int> pickNumbers = entry.value..sort();
+    
+    if (pickNumbers.length < 3) continue; // Need at least 3 picks to identify a run
+    
+    // Check for runs - 3+ picks within 10 picks of each other
+    List<Map<String, dynamic>> runs = [];
+    for (int i = 0; i < pickNumbers.length - 2; i++) {
+      if (pickNumbers[i+2] - pickNumbers[i] <= 10) {
+        // Found a run - get all picks in this run
+        List<int> runPicks = [];
+        int j = i;
+        while (j < pickNumbers.length - 1 && pickNumbers[j+1] - pickNumbers[j] <= 5) {
+          if (j == i) runPicks.add(pickNumbers[j]);
+          runPicks.add(pickNumbers[j+1]);
+          j++;
+        }
+        
+        if (runPicks.length >= 3) {
+          runs.add({
+            'startPick': runPicks.first,
+            'endPick': runPicks.last,
+            'length': runPicks.length,
+            'picks': runPicks,
+          });
+          
+          // Skip ahead to avoid overlapping runs
+          i = j;
+        }
+      }
+    }
+    
+    if (runs.isNotEmpty) {
+      significantRuns[position] = runs;
+    }
+  }
+  
+  return {
+    'positionCounts': positionCounts,
+    'positionsByRound': positionsByRound,
+    'positionAvgValue': positionAvgValue,
+    'significantRuns': significantRuns,
+  };
+}
+
+// 2. Build position distribution section
+Widget _buildPositionDistributionSection(Map<String, dynamic> analytics) {
+  final positionCounts = analytics['positionCounts'] as Map<String, int>;
+  
+  // Sort positions by count
+  List<MapEntry<String, int>> sortedPositions = positionCounts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  // Group positions into categories
+  Map<String, List<MapEntry<String, int>>> positionGroups = {
+    'QB': [],
+    'Offensive Skill': [],
+    'Offensive Line': [],
+    'Defensive Front': [],
+    'Secondary': [],
+    'Special Teams': [],
+  };
+  
+  for (var entry in sortedPositions) {
+    String position = entry.key;
+    
+    if (position == 'QB') {
+      positionGroups['QB']!.add(entry);
+    } else if (['RB', 'WR', 'TE', 'FB'].contains(position)) {
+      positionGroups['Offensive Skill']!.add(entry);
+    } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
+      positionGroups['Offensive Line']!.add(entry);
+    } else if (['EDGE', 'IDL', 'DL', 'DT', 'DE', 'LB', 'ILB', 'OLB'].contains(position)) {
+      positionGroups['Defensive Front']!.add(entry);
+    } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
+      positionGroups['Secondary']!.add(entry);
+    } else {
+      positionGroups['Special Teams']!.add(entry);
+    }
+  }
+  
+  // Group colors
+  final groupColors = {
+    'QB': Colors.red.shade700,
+    'Offensive Skill': Colors.orange.shade700,
+    'Offensive Line': Colors.amber.shade700,
+    'Defensive Front': Colors.blue.shade700,
+    'Secondary': Colors.indigo.shade700,
+    'Special Teams': Colors.green.shade700,
+  };
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Position Distribution",
+        style: TextStyle(
+          fontSize: 18, 
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      // Position distribution chart
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Total position breakdown
+              Row(
+                children: [
+                  // Bar chart
+                  Expanded(
+                    flex: 3,
+                    child: SizedBox(
+                      height: 250,
+                      child: _buildPositionBarChart(sortedPositions),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 24),
+                  
+                  // Legend and counts
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Position Counts",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // Position groups
+                        ...positionGroups.entries
+                            .where((entry) => entry.value.isNotEmpty)
+                            .map((entry) {
+                          String group = entry.key;
+                          List<MapEntry<String, int>> positions = entry.value;
+                          Color groupColor = groupColors[group]!;
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Group header
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      color: groupColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      group,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                
+                                // Positions in this group
+                                ...positions.map((pos) => 
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 20.0, bottom: 4.0),
+                                    child: Row(
+                                      children: [
+                                        Text(pos.key),
+                                        const Spacer(),
+                                        Text(
+                                          "${pos.value}",
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 3. Helper method to build position bar chart
+Widget _buildPositionBarChart(List<MapEntry<String, int>> sortedPositions) {
+  // Find max count for scaling
+  int maxCount = sortedPositions.isNotEmpty ? sortedPositions.first.value : 0;
+  if (maxCount == 0) return const Center(child: Text("No data available"));
+  
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final availableWidth = constraints.maxWidth;
+      final barWidth = min(30.0, availableWidth / (sortedPositions.length * 1.5));
+      final spacing = min(20.0, availableWidth / (sortedPositions.length * 4));
+      
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: sortedPositions.map((entry) {
+          final position = entry.key;
+          final count = entry.value;
+          final percent = count / maxCount;
+          
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: spacing / 2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Count label
+                Text(
+                  count.toString(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                
+                // Bar
+                Container(
+                  width: barWidth,
+                  height: 180 * percent,
+                  decoration: BoxDecoration(
+                    color: _getPositionColor(position),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(4),
+                    ),
+                  ),
+                ),
+                
+                // Position label
+                const SizedBox(height: 4),
+                Text(
+                  position,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+    },
+  );
+}
+
+// 4. Build position by round section
+Widget _buildPositionByRoundSection(Map<String, dynamic> analytics) {
+  final positionsByRound = analytics['positionsByRound'] as Map<String, Map<String, int>>;
+  
+  // Get rounds in order
+  List<String> rounds = positionsByRound.keys.toList()
+    ..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Position Breakdown by Round",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Round tabs
+              DefaultTabController(
+                length: rounds.length,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Round selector tabs
+                    TabBar(
+                      isScrollable: true,
+                      tabs: rounds.map((round) => 
+                        Tab(
+                          child: Text(
+                            "Round $round",
+                            style: TextStyle(color: _getRoundColor(round)),
+                          ),
+                        ),
+                      ).toList(),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Round content
+                    SizedBox(
+                      height: 250,
+                      child: TabBarView(
+                        children: rounds.map((round) {
+                          // Get positions for this round
+                          final positionCounts = positionsByRound[round]!;
+                          
+                          // Sort by count
+                          List<MapEntry<String, int>> sortedPositions = 
+                            positionCounts.entries.toList()
+                              ..sort((a, b) => b.value.compareTo(a.value));
+                          
+                          if (sortedPositions.isEmpty) {
+                            return const Center(child: Text("No picks in this round yet"));
+                          }
+                          
+                          return Row(
+                            children: [
+                              // Pie chart
+                              Expanded(
+                                child: _buildRoundPieChart(sortedPositions, round),
+                              ),
+                              
+                              // Legend
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ...sortedPositions.map((entry) {
+                                      String position = entry.key;
+                                      int count = entry.value;
+                                      Color color = _getPositionColor(position);
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 8.0),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 12,
+                                              height: 12,
+                                              color: color,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(position),
+                                            const Spacer(),
+                                            Text(
+                                              "$count",
+                                              style: const TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 5. Helper method to build round pie chart
+Widget _buildRoundPieChart(List<MapEntry<String, int>> positions, String round) {
+  // Simple pie chart made of stacked containers with rounded corners
+  int total = positions.fold(0, (sum, entry) => sum + entry.value);
+  
+  return SizedBox(
+    width: 200,
+    height: 200,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        // Pie segments
+        ...positions.map((entry) {
+          String position = entry.key;
+          int count = entry.value;
+          double percent = count / total;
+          Color color = _getPositionColor(position);
+          
+          return Center(
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+              ),
+              child: Center(
+                child: Text(
+                  "${(percent * 100).toInt()}%",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).take(1), // For now, just show the largest segment
+        
+        // Center circle
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _getRoundColor(round),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Round",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  round,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// 6. Build position runs section
+Widget _buildPositionRunsSection(Map<String, dynamic> analytics) {
+  final significantRuns = analytics['significantRuns'] as Map<String, List<Map<String, dynamic>>>;
+  
+  // Sort positions by biggest run
+  List<MapEntry<String, List<Map<String, dynamic>>>> sortedRuns = 
+    significantRuns.entries.toList()
+      ..sort((a, b) {
+        int maxA = a.value.isEmpty ? 0 : a.value.map((run) => run['length'] as int).reduce(max);
+        int maxB = b.value.isEmpty ? 0 : b.value.map((run) => run['length'] as int).reduce(max);
+        return maxB.compareTo(maxA);
+      });
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Position Run Analysis",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Significant position runs (3+ picks of same position in short span)",
+                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              
+              if (sortedRuns.isEmpty)
+                const Text("No significant position runs detected yet")
+              else
+                ...sortedRuns.map((entry) {
+                  String position = entry.key;
+                  List<Map<String, dynamic>> runs = entry.value;
+                  Color posColor = _getPositionColor(position);
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Position header
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: posColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                position,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "${runs.length} run${runs.length > 1 ? 's' : ''}",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Runs for this position
+                        ...runs.map((run) {
+                          int startPick = run['startPick'];
+                          int endPick = run['endPick'];
+                          int length = run['length'];
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.trending_up, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "$length picks between #$startPick and #$endPick",
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "(${endPick - startPick + 1} pick span)",
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 7. Build value vs need section
+Widget _buildValueVsNeedSection() {
+  // This is a more complex analysis and would need team needs data to be comprehensive
+  // Here we'll focus on finding where teams picked for need vs. value
+  List<Map<String, dynamic>> valuePicksByNeeds = [];
+  
+  // Process all picks
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer == null) continue;
+    
+    // Find team needs
+    final teamNeed = _findTeamNeed(pick.teamName);
+    if (teamNeed == null) continue;
+    
+    // Calculate value differential
+    int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
+    
+    // Determine if pick was for a need
+    bool wasNeedPick = teamNeed.needs.contains(pick.selectedPlayer!.position);
+    
+    valuePicksByNeeds.add({
+      'team': pick.teamName,
+      'pickNumber': pick.pickNumber,
+      'position': pick.selectedPlayer!.position,
+      'valueDiff': valueDiff,
+      'wasNeedPick': wasNeedPick,
+    });
+  }
+  
+  // Find best value need picks and best value BPA picks
+  valuePicksByNeeds.sort((a, b) => b['valueDiff'].compareTo(a['valueDiff']));
+  
+  final bestValueNeedPicks = valuePicksByNeeds
+      .where((pick) => pick['wasNeedPick'] && pick['valueDiff'] > 0)
+      .take(5)
+      .toList();
+      
+  final bestValueBPAPicks = valuePicksByNeeds
+      .where((pick) => !pick['wasNeedPick'] && pick['valueDiff'] > 0)
+      .take(5)
+      .toList();
+      
+  // Find biggest reaches for needs
+  valuePicksByNeeds.sort((a, b) => a['valueDiff'].compareTo(b['valueDiff']));
+  
+  final biggestReachesForNeeds = valuePicksByNeeds
+      .where((pick) => pick['wasNeedPick'] && pick['valueDiff'] < 0)
+      .take(5)
+      .toList();
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Value vs. Need Analysis",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Teams that got value while addressing needs",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              
+              if (bestValueNeedPicks.isEmpty)
+                const Text("No data available yet")
+              else
+                ...bestValueNeedPicks.map((pick) => 
+                  _buildValueNeedListItem(
+                    pick['team'], 
+                    pick['position'], 
+                    pick['pickNumber'], 
+                    pick['valueDiff'], 
+                    Colors.green.shade700
+                  ),
+                ),
+                
+              const SizedBox(height: 16),
+              
+              const Text(
+                "Teams that reached for needs",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              
+              if (biggestReachesForNeeds.isEmpty)
+                const Text("No data available yet")
+              else
+                ...biggestReachesForNeeds.map((pick) => 
+                  _buildValueNeedListItem(
+                    pick['team'], 
+                    pick['position'], 
+                    pick['pickNumber'], 
+                    pick['valueDiff'], 
+                    Colors.red.shade700
+                  ),
+                ),
+                
+              const SizedBox(height: 16),
+              
+              const Text(
+                "Best value regardless of need (BPA picks)",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              
+              if (bestValueBPAPicks.isEmpty)
+                const Text("No data available yet")
+              else
+                ...bestValueBPAPicks.map((pick) => 
+                  _buildValueNeedListItem(
+                    pick['team'], 
+                    pick['position'], 
+                    pick['pickNumber'], 
+                    pick['valueDiff'], 
+                    Colors.blue.shade700
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// 8. Helper method to build value/need list item
+Widget _buildValueNeedListItem(String team, String position, int pickNumber, int valueDiff, Color color) {
+  bool isUserTeam = team == widget.userTeam;
+  
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Row(
+      children: [
+        // Team name
+        SizedBox(
+          width: 120,
+          child: Text(
+            team,
+            style: TextStyle(
+              fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+              color: isUserTeam ? Colors.blue : null,
+            ),
+          ),
+        ),
+        
+        // Position
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: _getPositionColor(position).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            position,
+            style: TextStyle(
+              fontSize: 12,
+              color: _getPositionColor(position),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        
+        const SizedBox(width: 8),
+        
+        // Pick number
+        Text("Pick #$pickNumber"),
+        
+        const Spacer(),
+        
+        // Value difference
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: color),
+          ),
+          child: Text(
+            "${valueDiff > 0 ? "+" : ""}$valueDiff",
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// 9. Helper method to find team needs
+TeamNeed? _findTeamNeed(String teamName) {
+  try {
+    return widget.teamNeeds.firstWhere((need) => need.teamName == teamName);
+  } catch (e) {
+    return null;
+  }
+}
   Widget _buildDraftStrategyInsights() {
   // Calculate offense vs defense balance for each team
   Map<String, Map<String, int>> teamPositionTypes = {};
@@ -870,227 +3309,6 @@ double _getRoundSuccessFactor(String round) {
   }
 }
 
-  Widget _buildPositionsTab() {
-    // Sort positions by counts
-    List<MapEntry<String, int>> sortedPositions = _positionCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    // Calculate tiers
-    Map<String, List<String>> positionTiers = {
-      'Premium': ['QB', 'OT', 'EDGE', 'CB', 'WR'],
-      'Secondary': ['DT', 'S', 'TE', 'LB', 'IOL'],
-      'Tertiary': ['RB', 'G', 'C', 'FB', 'P', 'K', 'LS'],
-    };
-    
-    // Count positions by round
-    Map<String, Map<String, int>> positionsByRound = {};
-    for (var pick in widget.completedPicks) {
-      if (pick.selectedPlayer != null) {
-        String position = pick.selectedPlayer!.position;
-        String round = pick.round;
-        
-        positionsByRound.putIfAbsent(round, () => {});
-        positionsByRound[round]![position] = 
-          (positionsByRound[round]![position] ?? 0) + 1;
-      }
-    }
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Position counts bar chart
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Positions Drafted',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 200,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: sortedPositions.length,
-                      itemBuilder: (context, index) {
-                        final entry = sortedPositions[index];
-                        final position = entry.key;
-                        final count = entry.value;
-                        final maxCount = sortedPositions.first.value.toDouble();
-                        
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  width: 40,
-                                  alignment: Alignment.bottomCenter,
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.easeOutCubic,
-                                    width: 40,
-                                    height: (count / maxCount) * 150,
-                                    decoration: BoxDecoration(
-                                      color: _getPositionColor(position),
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(4),
-                                      ),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      count.toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                position,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Position tiers analysis
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Position Tiers Analysis',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  for (var tier in positionTiers.entries) ...[
-                    Text(
-                      '${tier.key} Positions',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (var position in tier.value)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getPositionColor(position).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: _getPositionColor(position),
-                              ),
-                            ),
-                            child: Text(
-                              '$position: ${_positionCounts[position] ?? 0}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _getPositionColor(position),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Positions by round
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Positions by Round',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  for (var i = 1; i <= 7; i++) ...[
-                    if (positionsByRound.containsKey(i.toString())) ...[
-                      Text(
-                        'Round $i',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (var entry in positionsByRound[i.toString()]!.entries)
-                            Chip(
-                              label: Text('${entry.key}: ${entry.value}'),
-                              backgroundColor: _getPositionColor(entry.key).withOpacity(0.2),
-                              side: BorderSide(
-                                color: _getPositionColor(entry.key),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   Widget _buildTeamDropdown() {
   // Get all teams with picks
   final List<String> availableTeams = _teamPicks.keys.toList();
@@ -1125,263 +3343,6 @@ double _getRoundSuccessFactor(String round) {
     }).toList(),
   );
 }
-
-  Widget _buildTeamsTab() {
-    // Sort teams by pick value
-    List<MapEntry<String, double>> sortedTeamValues = _valueByTeam.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    // Sort teams by rank differential (value gained in draft)
-    List<MapEntry<String, int>> sortedRankDiffs = _rankDifferentials.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Team draft value chart
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Team Draft Capital',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 300,
-                    child: ListView.builder(
-                      itemCount: sortedTeamValues.length,
-                      itemBuilder: (context, index) {
-                        final entry = sortedTeamValues[index];
-                        final team = entry.key;
-                        final value = entry.value;
-                        final maxValue = sortedTeamValues.first.value;
-                        final progress = value / maxValue;
-                        
-                        // Highlight user team
-                        final isUserTeam = team == widget.userTeam;
-                        
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  team,
-                                  style: TextStyle(
-                                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                                    color: isUserTeam ? Colors.blue : null,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  backgroundColor: Colors.grey.withOpacity(0.2),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    isUserTeam ? Colors.blue : Colors.green,
-                                  ),
-                                  minHeight: 16,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  value.toStringAsFixed(0),
-                                  textAlign: TextAlign.end,
-                                  style: TextStyle(
-                                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                                    color: isUserTeam ? Colors.blue : null,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Team value gained chart
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Value Gained From Picks',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 300,
-                    child: ListView.builder(
-                      itemCount: sortedRankDiffs.length,
-                      itemBuilder: (context, index) {
-                        final entry = sortedRankDiffs[index];
-                        final team = entry.key;
-                        final diff = entry.value;
-                        
-                        // Highlight user team
-                        final isUserTeam = team == widget.userTeam;
-                        
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  team,
-                                  style: TextStyle(
-                                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                                    color: isUserTeam ? Colors.blue : null,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Container(
-                                  height: 16,
-                                  alignment: diff < 0 ? Alignment.centerRight : Alignment.centerLeft,
-                                  child: Container(
-                                    width: (diff.abs() / 50.0 * 200).clamp(20, 200),
-                                    decoration: BoxDecoration(
-                                      color: diff >= 0 ? Colors.green : Colors.red,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  diff > 0 ? '+$diff' : '$diff',
-                                  textAlign: TextAlign.end,
-                                  style: TextStyle(
-                                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                                    color: diff >= 0 ? Colors.green : Colors.red,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Team pick details
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Team Selections Detail',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Team selector
-                  _buildTeamDropdown(),
-
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Selected team's picks
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _teamPicks[widget.userTeam ?? sortedTeamValues.first.key]?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      final pick = _teamPicks[widget.userTeam ?? sortedTeamValues.first.key]![index];
-                      
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          child: Text('${pick.pickNumber}'),
-                        ),
-                        title: Text(
-                          pick.selectedPlayer?.name ?? 'Not selected',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          pick.selectedPlayer?.position ?? 'N/A',
-                        ),
-                        trailing: pick.selectedPlayer != null
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: pick.pickNumber <= pick.selectedPlayer!.rank
-                                      ? Colors.red.withOpacity(0.2)
-                                      : Colors.green.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  pick.pickNumber <= pick.selectedPlayer!.rank
-                                      ? '-${pick.selectedPlayer!.rank - pick.pickNumber}'
-                                      : '+${pick.pickNumber - pick.selectedPlayer!.rank}',
-                                  style: TextStyle(
-                                    color: pick.pickNumber <= pick.selectedPlayer!.rank
-                                        ? Colors.red
-                                        : Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   
   Widget _buildTradesTab() {
     if (widget.executedTrades.isEmpty) {
