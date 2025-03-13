@@ -303,12 +303,13 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                             ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
                                                             : Colors.transparent,
                                                           boxShadow: isSelected ? [
-                                                            BoxShadow(
-                                                              color: Colors.blue.withOpacity(0.3),
-                                                              blurRadius: 4,
-                                                              spreadRadius: 1
-                                                            )
-                                                          ] : null,
+  const BoxShadow(
+    color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
+    blurRadius: 6,
+    spreadRadius: 2
+  )
+] : null,
+
                                                         ),
                                                         child: Padding(
                                                           padding: const EdgeInsets.all(1.0),
@@ -491,12 +492,13 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                                             ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
                                                             : Colors.transparent,
                                                           boxShadow: isSelected ? [
-                                                            BoxShadow(
-                                                              color: Colors.blue.withOpacity(0.3),
-                                                              blurRadius: 4,
-                                                              spreadRadius: 1
-                                                            )
-                                                          ] : null,
+  const BoxShadow(
+    color: Color(0x668bb5d9),  // Changed from Colors.amber.withOpacity(0.4)
+    blurRadius: 6,
+    spreadRadius: 2
+  )
+] : null,
+
                                                         ),
                                                         child: Padding(
                                                           padding: const EdgeInsets.all(1.0),
