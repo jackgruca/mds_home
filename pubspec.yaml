@@ -31,5 +31,6 @@ flutter:
     - assets/2025/available_players.csv
     - assets/2025/draft_order.csv
     - assets/2025/team_needs.csv
+    - assets/2025/player_descriptions.csv
 
 
