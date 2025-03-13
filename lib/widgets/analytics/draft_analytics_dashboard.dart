@@ -149,134 +149,326 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
   }
   
   Widget _buildSummaryTab() {
-    // Get some simple stats
-    int picksMade = widget.completedPicks.length;
-    int tradesExecuted = widget.executedTrades.length;
-    
-    // Calculate average rank difference to see if teams are reaching or getting value
-    double avgRankDiff = 0;
-    int rankCount = 0;
-    for (var pick in widget.completedPicks) {
-      if (pick.selectedPlayer != null) {
-        avgRankDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-        rankCount++;
-      }
+  // Get some simple stats
+  int picksMade = widget.completedPicks.length;
+  int tradesExecuted = widget.executedTrades.length;
+  
+  // Calculate average rank difference to see if teams are reaching or getting value
+  double avgRankDiff = 0;
+  int rankCount = 0;
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      avgRankDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
+      rankCount++;
     }
-    avgRankDiff = rankCount > 0 ? avgRankDiff / rankCount : 0;
+  }
+  avgRankDiff = rankCount > 0 ? avgRankDiff / rankCount : 0;
+  
+  // Calculate user team stats if applicable
+  List<DraftPick> userPicks = [];
+  int userValueDiff = 0;
+  if (widget.userTeam != null) {
+    userPicks = widget.completedPicks
+        .where((pick) => pick.teamName == widget.userTeam && pick.selectedPlayer != null)
+        .toList();
     
-    // Calculate user team stats if applicable
-    List<DraftPick> userPicks = [];
-    int userValueDiff = 0;
-    if (widget.userTeam != null) {
-      userPicks = widget.completedPicks
-          .where((pick) => pick.teamName == widget.userTeam && pick.selectedPlayer != null)
-          .toList();
-      
-      for (var pick in userPicks) {
-        userValueDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
+    for (var pick in userPicks) {
+      userValueDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
     }
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Main stats cards
-          Row(
-            children: [
-              _buildStatCard(
-                title: 'Picks Made',
-                value: '$picksMade',
-                icon: Icons.done,
-                color: Colors.blue,
-              ),
-              const SizedBox(width: 16),
-              _buildStatCard(
-                title: 'Trades Made',
-                value: '$tradesExecuted',
-                icon: Icons.swap_horiz,
-                color: Colors.orange,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStatCard(
-                title: 'Avg. Value',
-                value: avgRankDiff.toStringAsFixed(1),
-                subtitle: avgRankDiff > 0 ? 'Teams getting value' : 'Teams reaching',
-                icon: avgRankDiff > 0 ? Icons.trending_up : Icons.trending_down,
-                color: avgRankDiff > 0 ? Colors.green : Colors.red,
-              ),
-              const SizedBox(width: 16),
-              if (widget.userTeam != null)
-                _buildStatCard(
-                  title: 'Your Picks',
-                  value: '${userPicks.length}',
-                  subtitle: userValueDiff > 0 ? 'Good value (+$userValueDiff)' : 'Reached ($userValueDiff)',
-                  icon: userValueDiff > 0 ? Icons.thumb_up : Icons.thumb_down,
-                  color: userValueDiff > 0 ? Colors.green : Colors.orange,
-                ),
-            ],
-          ),
-          
+  }
+  
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // User picks section - MOVED TO TOP
+        if (widget.userTeam != null) ...[
+          _buildUserPicksSection(userPicks),
           const SizedBox(height: 24),
-          const Text(
-            'Position Breakdown',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+        ],
+        
+        // Main stats cards
+        Row(
+          children: [
+            _buildStatCard(
+              title: 'Picks Made',
+              value: '$picksMade',
+              icon: Icons.done,
+              color: Colors.blue,
             ),
-          ),
-          const SizedBox(height: 8),
-          // Simple position breakdown bar
-          SizedBox(
-            height: 40,
-            child: _buildPositionBreakdownBar(),
-          ),
-          
-          const SizedBox(height: 24),
-          const Text(
-            'Most Recent Picks',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 16),
+            _buildStatCard(
+              title: 'Trades Made',
+              value: '$tradesExecuted',
+              icon: Icons.swap_horiz,
+              color: Colors.orange,
             ),
-          ),
-          const SizedBox(height: 8),
-          // Recent picks list
-          _buildRecentPicksList(),
-          
-          const SizedBox(height: 24),
-          const Text(
-            'Trade Activity',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _buildStatCard(
+              title: 'Avg. Value',
+              value: avgRankDiff.toStringAsFixed(1),
+              subtitle: avgRankDiff > 0 ? 'Teams getting value' : 'Teams reaching',
+              icon: avgRankDiff > 0 ? Icons.trending_up : Icons.trending_down,
+              color: avgRankDiff > 0 ? Colors.green : Colors.red,
             ),
+            const SizedBox(width: 16),
+            if (widget.userTeam != null)
+              _buildStatCard(
+                title: 'Your Picks',
+                value: '${userPicks.length}',
+                subtitle: userValueDiff > 0 ? 'Good value (+$userValueDiff)' : 'Reached ($userValueDiff)',
+                icon: userValueDiff > 0 ? Icons.thumb_up : Icons.thumb_down,
+                color: userValueDiff > 0 ? Colors.green : Colors.orange,
+              ),
+          ],
+        ),
+        
+        const SizedBox(height: 24),
+        const Text(
+          'Position Breakdown',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 8),
-          // Trade activity chart
-          _buildTradeActivityChart(),
-          
-          if (widget.userTeam != null) ...[
-            const SizedBox(height: 24),
+        ),
+        const SizedBox(height: 8),
+        // Simple position breakdown bar
+        SizedBox(
+          height: 40,
+          child: _buildPositionBreakdownBar(),
+        ),
+        
+        const SizedBox(height: 24),
+        const Text(
+          'Most Recent Picks',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Recent picks list
+        _buildRecentPicksList(),
+        
+        const SizedBox(height: 24),
+        const Text(
+          'Trade Activity',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Trade activity chart
+        _buildTradeActivityChart(),
+        
+        // Draft strategy insights section
+        const SizedBox(height: 24),
+        const Text(
+          'Draft Strategy Insights',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildDraftStrategyInsights(),
+      ],
+    ),
+  );
+}
+
+// Helper method to build user picks section
+Widget _buildUserPicksSection(List<DraftPick> userPicks) {
+  // Handle case with no user picks
+  if (userPicks.isEmpty) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
             Text(
-              'Your ${widget.userTeam} Draft',
+              '${widget.userTeam} Draft Class',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
-            _buildUserTeamSummary(),
+            const SizedBox(height: 16),
+            const Text('No picks made yet.'),
           ],
-        ],
+        ),
       ),
     );
   }
+  
+  // Group players by position
+  Map<String, List<DraftPick>> positionGroups = {};
+  for (var pick in userPicks) {
+    final position = pick.selectedPlayer!.position;
+    positionGroups.putIfAbsent(position, () => []);
+    positionGroups[position]!.add(pick);
+  }
+  
+  // Sort positions by count
+  List<MapEntry<String, List<DraftPick>>> sortedGroups = positionGroups.entries.toList()
+    ..sort((a, b) => b.value.length.compareTo(a.value.length));
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${widget.userTeam} Draft Class',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Position breakdown
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var entry in sortedGroups)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getPositionColor(entry.key).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _getPositionColor(entry.key),
+                    ),
+                  ),
+                  child: Text(
+                    '${entry.key}: ${entry.value.length}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getPositionColor(entry.key),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // List of drafted players
+          for (var group in sortedGroups) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getPositionColor(group.key).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    group.key,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getPositionColor(group.key),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Divider(color: _getPositionColor(group.key).withOpacity(0.5)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            
+            // Player list for this position
+            ...group.value.map((pick) => 
+              ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                leading: CircleAvatar(
+                  backgroundColor: _getPickNumberColor(pick.round),
+                  child: Text(
+                    '#${pick.pickNumber}',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+                title: Text(
+                  pick.selectedPlayer!.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  pick.selectedPlayer!.school,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getRankComparisonColor(pick.selectedPlayer!.rank, pick.pickNumber).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: _getRankComparisonColor(pick.selectedPlayer!.rank, pick.pickNumber),
+                    ),
+                  ),
+                  child: Text(
+                    _getRankDifferenceText(pick.selectedPlayer!.rank, pick.pickNumber),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: _getRankComparisonColor(pick.selectedPlayer!.rank, pick.pickNumber),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+Color _getRankComparisonColor(int rank, int pickNumber) {
+  // Color based on difference between rank and pick number
+  int diff = pickNumber - rank;
+  
+  if (diff >= 15) {
+    return Colors.green.shade800; // Excellent value
+  } else if (diff >= 5) {
+    return Colors.green.shade600; // Good value
+  } else if (diff >= -5) {
+    return Colors.blue.shade600; // Fair value
+  } else if (diff >= -15) {
+    return Colors.orange.shade600; // Slight reach
+  } else {
+    return Colors.red.shade600; // Significant reach
+  }
+}
+
+// Helper method to get text for rank difference
+String _getRankDifferenceText(int rank, int pickNumber) {
+  int diff = pickNumber - rank;
+  
+  if (diff > 0) {
+    return "+$diff";
+  } else if (diff < 0) {
+    return "$diff";
+  } else {
+    return "0";
+  }
+}
   
   Widget _buildDraftStrategyInsights() {
   // Calculate offense vs defense balance for each team
