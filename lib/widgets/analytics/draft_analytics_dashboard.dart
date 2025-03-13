@@ -127,13 +127,42 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
 
     return Column(
       children: [
-        TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: 'Your Draft', icon: Icon(Icons.person)),
-            Tab(text: 'League Overview', icon: Icon(Icons.groups)),
-            Tab(text: 'Draft Trends', icon: Icon(Icons.analytics)),
+        Row(
+          children: [
+            Expanded(
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.blue,
+                tabs: const [
+                  Tab(text: 'Your Draft', icon: Icon(Icons.person)),
+                  Tab(text: 'League Overview', icon: Icon(Icons.groups)),
+                  Tab(text: 'Draft Trends', icon: Icon(Icons.analytics)),
+                ],
+              ),
+            ),
+            // Add refresh button
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh Analytics',
+              onPressed: () {
+                setState(() {
+                  _calculateAnalytics();
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Analytics refreshed")),
+                );
+              },
+            ),
+            // Add share button
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share Analytics',
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Analytics sharing functionality would go here")),
+                );
+              },
+            ),
           ],
         ),
         Expanded(
@@ -152,21 +181,25 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
   
   Widget _buildYourDraftTab() {
   if (widget.userTeam == null) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person_off, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
+          const Icon(Icons.person_off, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
             "No team selected",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             "Select a team to see your draft analysis",
             style: TextStyle(color: Colors.grey),
           ),
+          const SizedBox(height: 24),
+          
+          // Add a navigation link to the League Overview tab
+          _buildNavigationLinks(links: ['League Overview:1']),
         ],
       ),
     );
@@ -187,35 +220,68 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
   // Calculate draft value metrics
   final draftMetrics = _calculateUserDraftMetrics(userPicks, userTrades);
   
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Draft grade banner
-        _buildEnhancedDraftGradeBanner(draftMetrics),
-        
-        const SizedBox(height: 24),
-        
-        // Key metrics cards
-        _buildDraftMetricsCards(draftMetrics),
-        
-        const SizedBox(height: 24),
-        
-        // Draft picks by round
-        _buildDraftPicksByRound(userPicks),
-        
-        const SizedBox(height: 24),
-        
-        // Trade summary
-        if (userTrades.isNotEmpty)
-          _buildUserTradesSummary(userTrades),
-        
-        // Position breakdown for user picks
-        const SizedBox(height: 24),
-        _buildUserPositionBreakdown(userPicks),
-      ],
+  return RefreshIndicator(
+    onRefresh: () async {
+      // Simulated refresh
+      setState(() {
+        // Refresh analytics
+      });
+      return Future.delayed(const Duration(milliseconds: 500));
+    },
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Draft grade banner
+          _buildEnhancedDraftGradeBanner(draftMetrics),
+          
+          const SizedBox(height: 24),
+          
+          // Key metrics cards
+          _buildDraftMetricsCards(draftMetrics),
+          
+          const SizedBox(height: 24),
+          
+          // Draft picks by round
+          _buildSectionHeader("Draft Picks by Round", icon: Icons.format_list_numbered),
+          _buildContentCard(
+            child: _buildDraftPicksByRound(userPicks),
+            isHighlighted: true,
+          ),
+          
+          // Navigation links to related tabs
+          Align(
+            alignment: Alignment.centerRight,
+            child: _buildNavigationLinks(links: ['League Overview:1', 'Draft Trends:2']),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Trade summary
+          if (userTrades.isNotEmpty) ...[
+            _buildSectionHeader("Trade Summary", icon: Icons.swap_horiz),
+            _buildContentCard(
+              child: _buildUserTradesSummary(userTrades),
+            ),
+            const SizedBox(height: 24),
+          ],
+          
+          // Position breakdown for user picks
+          _buildSectionHeader("Position Breakdown", icon: Icons.pie_chart),
+          _buildContentCard(
+            child: _buildUserPositionBreakdown(userPicks),
+          ),
+        ],
+      ),
     ),
+  );
+}
+void _shareAnalytics() {
+  // In a real app, you'd implement proper sharing functionality
+  // For now, just show a snackbar
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Analytics sharing functionality would go here")),
   );
 }
 
@@ -414,6 +480,149 @@ Widget _buildEnhancedDraftGradeBanner(Map<String, dynamic> metrics) {
           ),
         ],
       ),
+    ),
+  );
+}
+
+// Add this method to add consistent section headers throughout the dashboard
+Widget _buildSectionHeader(String title, {IconData? icon}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12.0),
+    child: Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Add this method for consistent card styling throughout
+Widget _buildContentCard({
+  required Widget child, 
+  bool isHighlighted = false, 
+  double elevation = 2.0,
+}) {
+  return Card(
+    elevation: elevation,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: isHighlighted ? BorderSide(color: Colors.blue.shade700, width: 1) : BorderSide.none,
+    ),
+    margin: const EdgeInsets.only(bottom: 16),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: child,
+    ),
+  );
+}
+// Add this method for cross-tab navigation links
+Widget _buildNavigationLinks({required List<String> links}) {
+  return Wrap(
+    spacing: 16,
+    runSpacing: 8,
+    children: links.map((link) {
+      return InkWell(
+        onTap: () {
+          // Extract tab index from link format "Tab Name:index"
+          final parts = link.split(':');
+          if (parts.length == 2) {
+            final tabIndex = int.tryParse(parts[1]);
+            if (tabIndex != null) {
+              _tabController.animateTo(tabIndex);
+            }
+          }
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_forward, size: 14, color: Colors.blue),
+            const SizedBox(width: 4),
+            Text(
+              link.split(':')[0],
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList(),
+  );
+}
+// Add this method to optimize how we build lists with many items
+Widget _buildOptimizedList<T>({
+  required List<T> items,
+  required Widget Function(T item, int index) itemBuilder,
+  Widget? emptyStateWidget,
+  int initialItemCount = 20, // Show only this many initially
+}) {
+  if (items.isEmpty) {
+    return emptyStateWidget ?? const Center(child: Text("No data available"));
+  }
+  
+  // For performance, initially show a smaller number of items with an option to show more
+  final displayCount = min(initialItemCount, items.length);
+  final hasMore = items.length > displayCount;
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ...List.generate(displayCount, (index) => itemBuilder(items[index], index)),
+      
+      if (hasMore)
+        TextButton.icon(
+          onPressed: () {
+            // In a StatefulWidget, you'd update the state to show more items
+            // For simplicity, we'll just show a message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("${items.length - displayCount} more items available")),
+            );
+          },
+          icon: const Icon(Icons.expand_more),
+          label: Text("Show ${items.length - displayCount} more"),
+        ),
+    ],
+  );
+}
+// Add this method to create a refresh button
+Widget _buildRefreshButton() {
+  return IconButton(
+    icon: const Icon(Icons.refresh),
+    tooltip: 'Refresh Analytics',
+    onPressed: () {
+      // Recalculate analytics
+      setState(() {
+        _calculateAnalytics();
+      });
+      
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Analytics refreshed")),
+      );
+    },
+  );
+}
+// Add this method for consistent tooltips
+Widget _buildInfoTooltip(String message) {
+  return Tooltip(
+    message: message,
+    child: const Icon(
+      Icons.info_outline,
+      size: 16,
+      color: Colors.grey,
     ),
   );
 }
