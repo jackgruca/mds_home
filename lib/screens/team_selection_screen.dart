@@ -77,12 +77,13 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     final bool isVerySmallScreen = screenSize.width < 360;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    // Responsive values
+    // Responsive values - adjusted for better mobile and desktop view
     final double teamLogoSize = isSmallScreen ? 
-        (isVerySmallScreen ? 24.0 : 30.0) : 40.0;
+        (isVerySmallScreen ? 42.0 : 48.0) : 56.0; // Larger logo sizes for all screens
     final double fontSize = isSmallScreen ? 
-        (isVerySmallScreen ? 9.0 : 10.0) : 12.0;
-    final double sectionPadding = isSmallScreen ? 6.0 : 12.0;
+        (isVerySmallScreen ? 9.0 : 10.0) : 11.0;
+    final double sectionPadding = isSmallScreen ? 4.0 : 8.0; // Reduced padding for more space
+    const double teamButtonSpacing = 1.0; // Minimized spacing
     
     // Define theme colors - adjusting for dark mode
     final Color afcColor = isDarkMode ? const Color(0xFFFF6B6B) : const Color(0xFFD50A0A);  // Brighter red for dark mode
@@ -95,7 +96,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NFL Draft Simulator'),  // Updated title
+        title: const Text('NFL Draft Simulator'),
         actions: [
           // Theme toggle button
           Consumer<ThemeManager>(
@@ -209,238 +210,361 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 children: [
                   // AFC (left column)
                   Expanded(
-                    child: Column(
-                      children: [
-                        // AFC header
-                        Container(
-                          color: afcColor,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: sectionPadding, 
-                            vertical: 6.0
-                          ),
-                          width: double.infinity,
-                          child: const Text(
-                            'AFC',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(8),
                         ),
-                        
-                        // AFC divisions
-                        Expanded(
-                          child: ListView(
+                      ),
+                      child: Column(
+                        children: [
+                          // AFC header
+                          Container(
+                            color: afcColor,
                             padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding / 2,
-                              vertical: sectionPadding / 2
+                              horizontal: sectionPadding, 
+                              vertical: 6.0
                             ),
-                            children: _afcDivisions.entries.map((entry) {
-                              final String division = entry.key;
-                              final List<String> teams = entry.value;
-                              
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Division header
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4.0, 
-                                      vertical: 2.0
-                                    ),
-                                    child: Text(
-                                      division.substring(4), // Remove 'AFC ' prefix
-                                      style: TextStyle(
-                                        fontSize: fontSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode ? Colors.white : afcColor, // Ensure visibility in dark mode
+                            width: double.infinity,
+                            child: const Text(
+                              'AFC',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          
+                          // AFC divisions
+                          Expanded(
+                            child: ListView(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sectionPadding / 2,
+                                vertical: sectionPadding / 2
+                              ),
+                              children: _afcDivisions.entries.map((entry) {
+                                final String division = entry.key;
+                                final List<String> teams = entry.value;
+                                
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Division header
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4.0, 
+                                        vertical: 2.0
+                                      ),
+                                      child: Text(
+                                        division.substring(4), // Remove 'AFC ' prefix
+                                        style: TextStyle(
+                                          fontSize: fontSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDarkMode ? Colors.white : afcColor, // Ensure visibility in dark mode
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  
-                                  // Team row (all 4 teams in one row)
-                                  Row(
-                                    children: teams.map((team) {
-                                      final isSelected = _selectedTeam == team;
-                                      
-                                      return Expanded(
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedTeam = team;
-                                            });
-                                          },
-                                          child: Container(
-                                            margin: const EdgeInsets.all(2.0),
-                                            padding: const EdgeInsets.all(2.0),
-                                            decoration: BoxDecoration(
-                                              border: isSelected 
-                                                ? Border.all(color: Colors.blue, width: 3.0) 
-                                                : Border.all(color: Colors.grey[300]!),
-                                              borderRadius: BorderRadius.circular(8.0),
-                                            ),
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Container(
-                                                  width: teamLogoSize,
-                                                  height: teamLogoSize,
-                                                  decoration: BoxDecoration(
-                                                    image: DecorationImage(
-                                                      image: NetworkImage(
-                                                        'https://a.espncdn.com/i/teamlogos/nfl/500/${NFLTeamMappings.fullNameToAbbreviation[team]?.toLowerCase()}.png',
+                                    
+                                    // Team row (all 4 teams in one row)
+                                    Row(
+                                      children: teams.map((team) {
+                                        final isSelected = _selectedTeam == team;
+                                        final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
+                                        
+                                        return Expanded(
+                                          child: Center( // Center the content to maximize logo visibility
+                                            child: Container(
+                                              margin: const EdgeInsets.all(teamButtonSpacing),
+                                              padding: EdgeInsets.zero, // No internal padding
+                                              decoration: BoxDecoration(
+                                                border: isSelected 
+                                                  ? Border.all(color: Colors.blue, width: 2.0) 
+                                                  : Border.all(color: Colors.transparent), // Transparent border when not selected
+                                                borderRadius: BorderRadius.circular(isSelected ? 8.0 : 0),
+                                                color: Colors.transparent, // Transparent background
+                                              ),
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  // Main content
+                                                  Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      // Logo container - larger and with subtle background only when selected
+                                                      Container(
+                                                        width: teamLogoSize + (isSelected ? 6 : 0), // Slightly larger when selected
+                                                        height: teamLogoSize + (isSelected ? 6 : 0),
+                                                        decoration: BoxDecoration(
+                                                          shape: BoxShape.circle,
+                                                          color: isSelected 
+                                                            ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
+                                                            : Colors.transparent,
+                                                          boxShadow: isSelected ? [
+                                                            BoxShadow(
+                                                              color: Colors.blue.withOpacity(0.3),
+                                                              blurRadius: 4,
+                                                              spreadRadius: 1
+                                                            )
+                                                          ] : null,
+                                                        ),
+                                                        child: Padding(
+                                                          padding: const EdgeInsets.all(1.0),
+                                                          child: ClipOval(
+                                                            child: Image.network(
+                                                              'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
+                                                              fit: BoxFit.contain,
+                                                              errorBuilder: (context, error, stackTrace) => 
+                                                                Center(
+                                                                  child: Text(
+                                                                    abbr,
+                                                                    style: TextStyle(
+                                                                      fontWeight: FontWeight.bold,
+                                                                      fontSize: teamLogoSize / 3,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ),
-                                                      fit: BoxFit.contain,
+                                                      // Team abbreviation
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 2.0),
+                                                        child: Text(
+                                                          abbr,
+                                                          style: TextStyle(
+                                                            fontSize: fontSize,
+                                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                            color: isSelected ? Colors.blue : null,
+                                                          ),
+                                                          textAlign: TextAlign.center,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  
+                                                  // Ripple effect for better touch feedback - full size container
+                                                  Positioned.fill(
+                                                    child: Material(
+                                                      color: Colors.transparent,
+                                                      child: InkWell(
+                                                        borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
+                                                        onTap: () {
+                                                          setState(() {
+                                                            _selectedTeam = team;
+                                                          });
+                                                        },
+                                                        splashColor: Colors.blue.withOpacity(0.2),
+                                                        highlightColor: Colors.blue.withOpacity(0.1),
+                                                      ),
                                                     ),
-                                                    shape: BoxShape.circle,
                                                   ),
-                                                ),
-                                                const SizedBox(height: 2.0),
-                                                Text(
-                                                  NFLTeamMappings.fullNameToAbbreviation[team] ?? team,
-                                                  style: TextStyle(
-                                                    fontSize: fontSize,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                  SizedBox(height: isSmallScreen ? 4.0 : 8.0),
-                                ],
-                              );
-                            }).toList(),
+                                        );
+                                      }).toList(),
+                                    ),
+                                    SizedBox(height: isSmallScreen ? 4.0 : 8.0),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   
-                  // Divider between conferences
-                  const VerticalDivider(width: 1, thickness: 1),
+                  // Space between conferences
+                  SizedBox(
+                    width: 6, // Wider separator
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDarkMode 
+                            ? [Colors.grey.shade800, Colors.grey.shade900, Colors.grey.shade800] 
+                            : [Colors.grey.shade200, Colors.white, Colors.grey.shade200],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ),
                   
                   // NFC (right column)
                   Expanded(
-                    child: Column(
-                      children: [
-                        // NFC header
-                        Container(
-                          color: nfcColor,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: sectionPadding, 
-                            vertical: 6.0
-                          ),
-                          width: double.infinity,
-                          child: const Text(
-                            'NFC',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
+                        borderRadius: const BorderRadius.only(
+                          bottomRight: Radius.circular(8),
                         ),
-                        
-                        // NFC divisions
-                        Expanded(
-                          child: ListView(
+                      ),
+                      child: Column(
+                        children: [
+                          // NFC header
+                          Container(
+                            color: nfcColor,
                             padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding / 2,
-                              vertical: sectionPadding / 2
+                              horizontal: sectionPadding, 
+                              vertical: 6.0
                             ),
-                            children: _nfcDivisions.entries.map((entry) {
-                              final String division = entry.key;
-                              final List<String> teams = entry.value;
-                              
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Division header
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4.0, 
-                                      vertical: 2.0
-                                    ),
-                                    child: Text(
-                                      division.substring(4), // Remove 'NFC ' prefix
-                                      style: TextStyle(
-                                        fontSize: fontSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: nfcColor,
+                            width: double.infinity,
+                            child: const Text(
+                              'NFC',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          
+                          // NFC divisions
+                          Expanded(
+                            child: ListView(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sectionPadding / 2,
+                                vertical: sectionPadding / 2
+                              ),
+                              children: _nfcDivisions.entries.map((entry) {
+                                final String division = entry.key;
+                                final List<String> teams = entry.value;
+                                
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Division header
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4.0, 
+                                        vertical: 2.0
+                                      ),
+                                      child: Text(
+                                        division.substring(4), // Remove 'NFC ' prefix
+                                        style: TextStyle(
+                                          fontSize: fontSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDarkMode ? Colors.white : nfcColor,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  
-                                  // Team row (all 4 teams in one row)
-                                  Row(
-                                    children: teams.map((team) {
-                                      final isSelected = _selectedTeam == team;
-                                      
-                                      return Expanded(
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedTeam = team;
-                                            });
-                                          },
-                                          child: Container(
-                                            margin: const EdgeInsets.all(2.0),
-                                            padding: const EdgeInsets.all(2.0),
-                                            decoration: BoxDecoration(
-                                              border: isSelected 
-                                                ? Border.all(color: Colors.blue, width: 3.0) 
-                                                : Border.all(color: Colors.grey[300]!),
-                                              borderRadius: BorderRadius.circular(8.0),
-                                            ),
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Container(
-                                                  width: teamLogoSize,
-                                                  height: teamLogoSize,
-                                                  decoration: BoxDecoration(
-                                                    image: DecorationImage(
-                                                      image: NetworkImage(
-                                                        'https://a.espncdn.com/i/teamlogos/nfl/500/${NFLTeamMappings.fullNameToAbbreviation[team]?.toLowerCase()}.png',
+                                    
+                                    // Team row (all 4 teams in one row)
+                                    Row(
+                                      children: teams.map((team) {
+                                        final isSelected = _selectedTeam == team;
+                                        final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
+                                        
+                                        return Expanded(
+                                          child: Center( // Center the content to maximize logo visibility
+                                            child: Container(
+                                              margin: const EdgeInsets.all(teamButtonSpacing),
+                                              padding: EdgeInsets.zero, // No internal padding
+                                              decoration: BoxDecoration(
+                                                border: isSelected 
+                                                  ? Border.all(color: Colors.blue, width: 2.0) 
+                                                  : Border.all(color: Colors.transparent), // Transparent border when not selected
+                                                borderRadius: BorderRadius.circular(isSelected ? 8.0 : 0),
+                                                color: Colors.transparent, // Transparent background
+                                              ),
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  // Main content
+                                                  Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      // Logo container - larger and with subtle background only when selected
+                                                      Container(
+                                                        width: teamLogoSize + (isSelected ? 6 : 0), // Slightly larger when selected
+                                                        height: teamLogoSize + (isSelected ? 6 : 0),
+                                                        decoration: BoxDecoration(
+                                                          shape: BoxShape.circle,
+                                                          color: isSelected 
+                                                            ? (isDarkMode ? Colors.blue.withOpacity(0.15) : Colors.blue.withOpacity(0.05))
+                                                            : Colors.transparent,
+                                                          boxShadow: isSelected ? [
+                                                            BoxShadow(
+                                                              color: Colors.blue.withOpacity(0.3),
+                                                              blurRadius: 4,
+                                                              spreadRadius: 1
+                                                            )
+                                                          ] : null,
+                                                        ),
+                                                        child: Padding(
+                                                          padding: const EdgeInsets.all(1.0),
+                                                          child: ClipOval(
+                                                            child: Image.network(
+                                                              'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png',
+                                                              fit: BoxFit.contain,
+                                                              errorBuilder: (context, error, stackTrace) => 
+                                                                Center(
+                                                                  child: Text(
+                                                                    abbr,
+                                                                    style: TextStyle(
+                                                                      fontWeight: FontWeight.bold,
+                                                                      fontSize: teamLogoSize / 3,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ),
-                                                      fit: BoxFit.contain,
+                                                      // Team abbreviation
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(top: 2.0),
+                                                        child: Text(
+                                                          abbr,
+                                                          style: TextStyle(
+                                                            fontSize: fontSize,
+                                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                            color: isSelected ? Colors.blue : null,
+                                                          ),
+                                                          textAlign: TextAlign.center,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  
+                                                  // Ripple effect for better touch feedback - full size container
+                                                  Positioned.fill(
+                                                    child: Material(
+                                                      color: Colors.transparent,
+                                                      child: InkWell(
+                                                        borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
+                                                        onTap: () {
+                                                          setState(() {
+                                                            _selectedTeam = team;
+                                                          });
+                                                        },
+                                                        splashColor: Colors.blue.withOpacity(0.2),
+                                                        highlightColor: Colors.blue.withOpacity(0.1),
+                                                      ),
                                                     ),
-                                                    shape: BoxShape.circle,
                                                   ),
-                                                ),
-                                                const SizedBox(height: 2.0),
-                                                Text(
-                                                  NFLTeamMappings.fullNameToAbbreviation[team] ?? team,
-                                                  style: TextStyle(
-                                                    fontSize: fontSize,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                  SizedBox(height: isSmallScreen ? 4.0 : 8.0),
-                                ],
-                              );
-                            }).toList(),
+                                        );
+                                      }).toList(),
+                                    ),
+                                    SizedBox(height: isSmallScreen ? 4.0 : 8.0),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -494,7 +618,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                     return Padding(
                                       padding: const EdgeInsets.only(right: 4.0),
                                       child: Material(
-                                        color: isSelected ? Colors.blue : Colors.grey[200],
+                                        color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
                                         borderRadius: BorderRadius.circular(4.0),
                                         child: InkWell(
                                           onTap: () {
@@ -510,7 +634,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                             child: Text(
                                               '$roundNum',
                                               style: TextStyle(
-                                                color: isSelected ? Colors.white : Colors.black,
+                                                color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 12.0,
                                               ),
@@ -528,17 +652,18 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                         
                         const SizedBox(height: 8.0),
                         
-                        // Speed row
+                        // Speed row - more compact for mobile
                         Row(
                           children: [
                             // Speed label
-                            const SizedBox(
+                            SizedBox(
                               width: 50,
                               child: Text(
                                 'Speed:',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0
+                                  fontSize: 12.0,
+                                  color: isDarkMode ? Colors.white : Colors.black,
                                 ),
                               ),
                             ),
@@ -546,9 +671,9 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                             Expanded(
                               child: SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 4.0,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                                  trackHeight: 3.0, // Smaller track
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0), // Smaller thumb
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0), // Smaller overlay
                                 ),
                                 child: Slider(
                                   value: _speed,
@@ -591,7 +716,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(right: 4.0),
                               child: Material(
-                                color: isSelected ? Colors.blue : Colors.grey[200],
+                                color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
                                 borderRadius: BorderRadius.circular(4.0),
                                 child: InkWell(
                                   onTap: () {
@@ -607,7 +732,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                                     child: Text(
                                       '$roundNum',
                                       style: TextStyle(
-                                        color: isSelected ? Colors.white : Colors.black,
+                                        color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12.0,
                                       ),

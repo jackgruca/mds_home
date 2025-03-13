@@ -123,6 +123,7 @@ class CollegeTeamESPNIds {
     "Kentucky": "96",
     "South Carolina": "2579",
     "Ole Miss": "145",
+    "Mississippi": "145",
     "Mississippi State": "344",
     "Missouri": "142",
     "Arkansas": "8",
