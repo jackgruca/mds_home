@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
 import '../../utils/constants.dart';
+import '../../widgets/player/player_details_dialog.dart';
+import '../../utils/mock_player_data.dart';
+import '../../services/player_descriptions_service.dart';
 
 class AnimatedDraftPickCard extends StatefulWidget {
   final DraftPick draftPick;
@@ -87,228 +90,275 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             ),
           ),
           color: cardColor,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-            child: Row(
-              children: [
-                // Pick number (smaller)
-                Container(
-                  width: 30.0,
-                  height: 30.0,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _getPickNumberColor(),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${widget.draftPick.pickNumber}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12.0,
+          // Add InkWell wrap to make the card clickable when a player is selected
+          child: InkWell(
+            onTap: widget.draftPick.selectedPlayer != null 
+                ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
+                : null,
+            borderRadius: BorderRadius.circular(8.0),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+              child: Row(
+                children: [
+                  // Pick number (smaller)
+                  Container(
+                    width: 30.0,
+                    height: 30.0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _getPickNumberColor(),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${widget.draftPick.pickNumber}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.0,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8.0),
-                
-                // Team logo
-                _buildTeamLogo(widget.draftPick.teamName),
-                const SizedBox(width: 8.0),
-                
-                // Player info or Team Needs
-                Expanded(
-                  child: widget.draftPick.selectedPlayer != null ? 
-                    // Show player info if a player is selected
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Player name
-                        Text(
-                          widget.draftPick.selectedPlayer!.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.0,
-                            color: isDarkMode ? Colors.white : Colors.black,
+                  const SizedBox(width: 8.0),
+                  
+                  // Team logo
+                  _buildTeamLogo(widget.draftPick.teamName),
+                  const SizedBox(width: 8.0),
+                  
+                  // Player info or Team Needs
+                  Expanded(
+                    child: widget.draftPick.selectedPlayer != null ? 
+                      // Show player info if a player is selected
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Player name
+                          Text(
+                            widget.draftPick.selectedPlayer!.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.0,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        // Position and team
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                              margin: const EdgeInsets.only(right: 4.0),
-                              decoration: BoxDecoration(
-                                color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
-                                borderRadius: BorderRadius.circular(3.0),
-                              ),
-                              child: Text(
-                                widget.draftPick.selectedPlayer!.position,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10.0,
+                          // Position and team
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                                margin: const EdgeInsets.only(right: 4.0),
+                                decoration: BoxDecoration(
+                                  color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
+                                  borderRadius: BorderRadius.circular(3.0),
+                                ),
+                                child: Text(
+                                  widget.draftPick.selectedPlayer!.position,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10.0,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Text(
-                              widget.draftPick.teamName,
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                fontSize: 11.0,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ) :
-                    // Show team needs if no player selected
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Team name
-                        Text(
-                          widget.draftPick.teamName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.0,
-                            color: isDarkMode ? Colors.white : Colors.black,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        // Team needs on a single row
-                        Row(
-                          children: [
-                            // "Team Needs:" label
-                            const Text(
-                              'Team Needs: ',
-                              style: TextStyle(
-                                fontSize: 11.0, 
-                                fontStyle: FontStyle.italic,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            // Display needs
-                            if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
-                              Expanded(
-                                child: Wrap(
-                                  spacing: 4.0,
-                                  runSpacing: 4.0, // Add some vertical spacing if wrapping occurs
-                                  children: widget.teamNeeds!.take(3).map((need) => 
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                                      decoration: BoxDecoration(
-                                        color: _getPositionColor(need).withOpacity(
-                                          isDarkMode ? 0.5 : 0.7
-                                        ),
-                                        borderRadius: BorderRadius.circular(3.0),
-                                      ),
-                                      child: Text(
-                                        need,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10.0,
-                                        ),
-                                      ),
-                                    )
-                                  ).toList(),
-                                ),
-                              )
-                            else
                               Text(
-                                'No team needs data',
+                                widget.draftPick.teamName,
                                 style: TextStyle(
                                   color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                                   fontSize: 11.0,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ) :
+                      // Show team needs if no player selected
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Team name
+                          Text(
+                            widget.draftPick.teamName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.0,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          // Team needs on a single row
+                          Row(
+                            children: [
+                              // "Team Needs:" label
+                              const Text(
+                                'Team Needs: ',
+                                style: TextStyle(
+                                  fontSize: 11.0, 
                                   fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
                                 ),
                               ),
-                          ],
+                              // Display needs
+                              if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
+                                Expanded(
+                                  child: Wrap(
+                                    spacing: 4.0,
+                                    runSpacing: 4.0, // Add some vertical spacing if wrapping occurs
+                                    children: widget.teamNeeds!.take(3).map((need) => 
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                                        decoration: BoxDecoration(
+                                          color: _getPositionColor(need).withOpacity(
+                                            isDarkMode ? 0.5 : 0.7
+                                          ),
+                                          borderRadius: BorderRadius.circular(3.0),
+                                        ),
+                                        child: Text(
+                                          need,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 10.0,
+                                          ),
+                                        ),
+                                      )
+                                    ).toList(),
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'No team needs data',
+                                  style: TextStyle(
+                                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                    fontSize: 11.0,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      )
+                  ),
+                  
+                  // Right side widgets
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Trade icon if applicable (moved to the left)
+                      if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4.0),
+                          child: Icon(
+                            Icons.swap_horiz,
+                            size: 16.0,
+                            color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
+                          ),
                         ),
-                      ],
-                    )
-                ),
-                
-                // Right side widgets
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Trade icon if applicable (moved to the left)
-                    if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4.0),
-                        child: Icon(
-                          Icons.swap_horiz,
-                          size: 16.0,
-                          color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
+                        
+                      // Info icon for analysis
+                      if (widget.draftPick.selectedPlayer != null)
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            Icons.info_outline,
+                            size: 16.0,
+                            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                          onPressed: () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!),
                         ),
-                      ),
                       
-                    // Info icon for analysis
-                    if (widget.draftPick.selectedPlayer != null)
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          Icons.info_outline,
-                          size: 16.0,
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        onPressed: () => _showAnalysisDialog(context),
-                      ),
-                    
-                    const SizedBox(width: 4.0),
-                    
-                    // Player rank clearly labeled
-                    if (widget.draftPick.selectedPlayer != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                        decoration: BoxDecoration(
-                          color: _getRankColor(
-                            widget.draftPick.selectedPlayer!.rank,
-                            widget.draftPick.pickNumber,
-                          ).withOpacity(isDarkMode ? 0.4 : 0.2),
-                          borderRadius: BorderRadius.circular(3.0),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Rank: ',
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.white : Colors.black87,
-                                fontSize: 10.0,
+                      const SizedBox(width: 4.0),
+                      
+                      // Player rank clearly labeled
+                      if (widget.draftPick.selectedPlayer != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                          decoration: BoxDecoration(
+                            color: _getRankColor(
+                              widget.draftPick.selectedPlayer!.rank,
+                              widget.draftPick.pickNumber,
+                            ).withOpacity(isDarkMode ? 0.4 : 0.2),
+                            borderRadius: BorderRadius.circular(3.0),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Rank: ',
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                  fontSize: 10.0,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '#${widget.draftPick.selectedPlayer!.rank}',
-                              style: TextStyle(
-                                color: isDarkMode ? 
-                                    Colors.white : 
-                                    _getRankColor(
-                                      widget.draftPick.selectedPlayer!.rank,
-                                      widget.draftPick.pickNumber,
-                                    ),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11.0,
+                              Text(
+                                '#${widget.draftPick.selectedPlayer!.rank}',
+                                style: TextStyle(
+                                  color: isDarkMode ? 
+                                      Colors.white : 
+                                      _getRankColor(
+                                        widget.draftPick.selectedPlayer!.rank,
+                                        widget.draftPick.pickNumber,
+                                      ),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11.0,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                )
-              ],
+                    ],
+                  )
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+  
+  // Method to display player details
+  void _showPlayerDetails(BuildContext context, Player player) {
+    // Add debug output
+    debugPrint("Showing details for player: ${player.name}");
+    
+    // Attempt to get additional player information from our description service
+    Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
+    
+    Player enrichedPlayer;
+    
+    if (additionalInfo != null) {
+      // If we have additional info, use it for the player
+      enrichedPlayer = Player(
+        id: player.id,
+        name: player.name,
+        position: player.position,
+        rank: player.rank,
+        school: player.school,
+        notes: player.notes,
+        height: player.height,
+        weight: player.weight,
+        rasScore: player.rasScore,
+        description: additionalInfo['description'] ?? player.description,
+        strengths: additionalInfo['strengths'] ?? player.strengths,
+        weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
+      );
+    } else {
+      // Fall back to mock data for players without description
+      enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+    }
+    
+    // Show the dialog with enriched player data
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return PlayerDetailsDialog(player: enrichedPlayer);
+      },
     );
   }
   
