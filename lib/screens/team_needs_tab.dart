@@ -119,10 +119,12 @@ Widget build(BuildContext context) {
                             // Needs with selected positions crossed out - improved for dark mode
                             Expanded(
                               flex: 5,
-                              child: Wrap(
+                              child: 
+                              Wrap(
                                 spacing: 6.0,
                                 runSpacing: 6.0,
                                 children: needsList.map((need) {
+                                  // Check if this position is in the selectedPositions list
                                   bool isSelected = selectedPositionsList.contains(need);
                                   Color positionColor = _getPositionColor(need);
                                   
@@ -263,7 +265,8 @@ String _getTeamInitials(String teamName) {
   
   return initials.length > 2 ? initials.substring(0, 2) : initials;
 }
-  
+
+  // Inside the _getFormattedNeeds method, modify it to return both active needs and selected positions
   List<String> _getFormattedNeeds(List<dynamic> teamNeedRow) {
     // Get needs from columns 2-11 (indices 2-11)
     List<String> needs = [];
@@ -277,7 +280,24 @@ String _getTeamInitials(String teamName) {
       }
     }
     
-    return needs;
+    // Get selected positions from the last column
+    String selectedPositionsStr = teamNeedRow.length > 12 ? 
+                                teamNeedRow[12].toString() : "";
+    
+    List<String> selectedPositions = selectedPositionsStr.isNotEmpty ? 
+                                  selectedPositionsStr.split(", ") : [];
+    
+    // Combine both lists to show all positions (both active and selected)
+    List<String> allPositions = [...needs];
+    
+    // Add selected positions that aren't already in the needs list
+    for (String selected in selectedPositions) {
+      if (!allPositions.contains(selected)) {
+        allPositions.add(selected);
+      }
+    }
+    
+    return allPositions;
   }
   
   Color _getPositionColor(String position) {
