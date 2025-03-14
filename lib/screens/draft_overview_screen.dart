@@ -967,14 +967,15 @@ void didUpdateWidget(DraftApp oldWidget) {
             child: Row(
               children: [
                 if (widget.selectedTeam != null) ...[
-                  const Icon(Icons.sports_football, color: Colors.green),
+                  Icon(Icons.sports_football, 
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                   const SizedBox(width: 8),
                   Text(
                     '${widget.selectedTeam}:',  
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: Colors.green,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -984,11 +985,14 @@ void didUpdateWidget(DraftApp oldWidget) {
                 Expanded(
                   child: Text(
                     _statusMessage,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black87,
                     ),
-                    textAlign: widget.selectedTeam != null ? TextAlign.left : TextAlign.center,
+                    textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1002,7 +1006,19 @@ void didUpdateWidget(DraftApp oldWidget) {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       visualDensity: VisualDensity.compact,
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white24  // Semi-transparent white in dark mode
+                      : Colors.transparent,
+                  foregroundColor: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.blue.shade700,
+                  side: BorderSide(
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white70 
+                        : Colors.blue.shade300,
+                    width: 1.5,
                     ),
+                  ),
                   ),
               ],
             ),
