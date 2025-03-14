@@ -87,15 +87,54 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    
+    // Add listener to tab controller to handle tab changes
+    _tabController.addListener(_handleTabChange);
+    
     _initializeServices();
   }
-  
+
+  // Add this new method to handle tab changes
+  void _handleTabChange() {
+    // Check if we've switched to the draft order tab (index 0)
+    if (_tabController.index == 0 && _draftOrderScrollController.hasClients && _draftService != null) {
+      // Get the current pick
+      DraftPick? currentPick = _draftService!.getNextPick();
+      if (currentPick == null) return;
+      
+      // Find the index of the current pick in the list
+      int currentPickIndex = _draftPicks.indexWhere((pick) => 
+        pick.pickNumber == currentPick.pickNumber);
+      
+      if (currentPickIndex == -1) return; // Not found
+      
+      // Calculate position to scroll to (centered in viewport)
+      double itemHeight = 60.0; // Adjust based on your actual item height
+      double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+      double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+      
+      // Make sure we don't scroll beyond bounds
+      targetPosition = targetPosition.clamp(
+        0.0, 
+        _draftOrderScrollController.position.maxScrollExtent
+      );
+      
+      // Smooth scroll to position
+      _draftOrderScrollController.animateTo(
+        targetPosition,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   void dispose() {
-    _draftOrderScrollController.dispose();
+    _tabController.removeListener(_handleTabChange); // Remove listener
     _tabController.dispose();
+    _draftOrderScrollController.dispose();
     super.dispose();
-}
+  }
 
   Future<void> _initializeServices() async {
   try {
