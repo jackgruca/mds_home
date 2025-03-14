@@ -289,21 +289,32 @@ Future<void> _loadData() async {
 
        if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
           // Calculate position based on completed picks
-          double position = _draftService!.completedPicksCount * 50.0;
+          // Instead of just using the completed picks count, find the actual position
+          // of the current pick in the list view
           
-          // Ensure we don't scroll beyond content
-          if (position > _draftOrderScrollController.position.maxScrollExtent) {
-            position = _draftOrderScrollController.position.maxScrollExtent;
-          }
+          // Get index of current pick in the list
+          int currentPickIndex = _draftPicks.indexOf(updatedPick);
           
-          // Smooth scroll
+          // Get the height of each item (approximate)
+          double itemHeight = 70.0; // Adjust this value based on your actual item height
+          
+          // Calculate the position to scroll to (centered in viewport)
+          double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+          double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+          
+          // Make sure we don't scroll beyond bounds
+          targetPosition = targetPosition.clamp(
+            0.0, 
+            _draftOrderScrollController.position.maxScrollExtent
+          );
+          
+          // Smooth scroll to position
           _draftOrderScrollController.animateTo(
-            position,
+            targetPosition,
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
           );
         }
-
       });
 
       // Continue the draft loop with delay
