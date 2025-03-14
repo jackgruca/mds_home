@@ -302,7 +302,7 @@ Future<void> _loadData() async {
       _isDataLoaded = true;
       _statusMessage = "Draft data loaded successfully";
     });
-    
+
     if (_tabController.index == 0) {
       // Short delay to allow UI to update
       Future.delayed(const Duration(milliseconds: 200), () {
@@ -931,9 +931,13 @@ void didUpdateWidget(DraftApp oldWidget) {
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: widget.selectedTeam != null 
-                  ? [Colors.blue.shade50, Colors.green.shade50]
-                  : [Colors.blue.shade50, Colors.blue.shade100],
+                colors: Theme.of(context).brightness == Brightness.dark
+                  ? widget.selectedTeam != null 
+                    ? [Colors.blue.shade900, Colors.green.shade900]
+                    : [Colors.blue.shade900, Colors.blue.shade800]
+                  : widget.selectedTeam != null 
+                    ? [Colors.blue.shade50, Colors.green.shade50]
+                    : [Colors.blue.shade50, Colors.blue.shade100],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
               ),

@@ -77,7 +77,7 @@ class AppTheme {
       ),
     ),
     tabBarTheme: const TabBarTheme(
-      labelColor: Colors.black,
+      labelColor: Colors.white,
       unselectedLabelColor: silver,
       indicator: BoxDecoration(
         border: Border(
