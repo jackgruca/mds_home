@@ -46,12 +46,12 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Trade Center', style: TextStyle(fontSize: 20)),
+      //title: const Text('Trade Center', style: TextStyle(fontSize: 20)),
       contentPadding: EdgeInsets.zero, // Remove default padding
       insetPadding: const EdgeInsets.all(12), // Reduced inset padding
       content: SizedBox(
         width: double.maxFinite,
-        height: 520, // Give enough height but don't take too much
+        height: 580, // Give enough height but don't take too much
         child: Column(
           children: [
             // Compact tab bar
