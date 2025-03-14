@@ -1,5 +1,7 @@
 // lib/utils/constants.dart
 
+import 'package:flutter/material.dart';
+
 /// Contains app-wide constants
 class AppConstants {
   // Draft simulation constants
@@ -56,7 +58,6 @@ class NFLTeams {
   ];
 }
 
-// In lib/utils/constants.dart, add this map after your NFLTeams class
 class NFLTeamMappings {
   static const Map<String, String> fullNameToAbbreviation = {
     "Arizona Cardinals": "ARI",
@@ -92,6 +93,60 @@ class NFLTeamMappings {
     "Tennessee Titans": "TEN",
     "Washington Commanders": "WAS"
   };
+}
+
+class NFLTeamColors {
+  static List<Color> getTeamColors(String teamName) {
+    // Map abbreviations to colors
+    Map<String, List<Color>> colors = {
+      'ARI': [const Color(0xFF97233F), const Color(0xFF000000)], // Cardinals
+      'ATL': [const Color(0xFFA71930), const Color(0xFF000000)], // Falcons
+      'BAL': [const Color(0xFF241773), const Color(0xFF000000)], // Ravens
+      'BUF': [const Color(0xFF00338D), const Color(0xFFE31837)], // Bills
+      'CAR': [const Color(0xFF0085CA), const Color(0xFF101820)], // Panthers
+      'CHI': [const Color(0xFF0B162A), const Color(0xFFC83803)], // Bears
+      'CIN': [const Color(0xFFFB4F14), const Color(0xFF000000)], // Bengals
+      'CLE': [const Color(0xFF311D00), const Color(0xFFFF3C00)], // Browns
+      'DAL': [const Color(0xFF003594), const Color(0xFF041E42)], // Cowboys
+      'DEN': [const Color(0xFFFF3C00), const Color(0xFF002244)], // Broncos
+      'DET': [const Color(0xFF0076B6), const Color(0xFFB0B7BC)], // Lions
+      'GB': [const Color(0xFF203731), const Color(0xFFFFB612)], // Packers
+      'HOU': [const Color(0xFF03202F), const Color(0xFFA71930)], // Texans
+      'IND': [const Color(0xFF002C5F), const Color(0xFFFFFFFF)], // Colts
+      'JAX': [const Color(0xFF006778), const Color(0xFF101820)], // Jaguars
+      'KC': [const Color(0xFFE31837), const Color(0xFFFFB81C)], // Chiefs
+      'LV': [const Color(0xFF000000), const Color(0xFFA5ACAF)], // Raiders
+      'LAC': [const Color(0xFF0080C6), const Color(0xFFFFC20E)], // Chargers
+      'LAR': [const Color(0xFF003594), const Color(0xFFFFD100)], // Rams
+      'MIA': [const Color(0xFF008E97), const Color(0xFFFC4C02)], // Dolphins
+      'MIN': [const Color(0xFF4F2683), const Color(0xFFFFB612)], // Vikings
+      'NE': [const Color(0xFF002244), const Color(0xFFC60C30)], // Patriots
+      'NO': [const Color(0xFFD3BC8D), const Color(0xFF101820)], // Saints
+      'NYG': [const Color(0xFF0B2265), const Color(0xFFA71930)], // Giants
+      'NYJ': [const Color(0xFF125740), const Color(0xFF000000)], // Jets
+      'PHI': [const Color(0xFF004C54), const Color(0xFFA5ACAF)], // Eagles
+      'PIT': [const Color(0xFFFFB612), const Color(0xFF101820)], // Steelers
+      'SF': [const Color(0xFFAA0000), const Color(0xFFB3995D)], // 49ers
+      'SEA': [const Color(0xFF002244), const Color(0xFF69BE28)], // Seahawks
+      'TB': [const Color(0xFFD50A0A), const Color(0xFF0A0A08)], // Buccaneers
+      'TEN': [const Color(0xFF0C2340), const Color(0xFF4B92DB)], // Titans
+      'WAS': [const Color(0xFF773141), const Color(0xFFFFB612)], // Commanders
+    };
+    
+    // Try to get by abbreviation first
+    String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+    if (abbr != null && colors.containsKey(abbr)) {
+      return colors[abbr]!;
+    }
+    
+    // If team name is already an abbreviation
+    if (teamName.length <= 3 && colors.containsKey(teamName)) {
+      return colors[teamName]!;
+    }
+    
+    // Default colors if team not found
+    return [Colors.blue, Colors.green];
+  }
 }
 class CollegeTeamESPNIds {
   // This map contains known ESPN numeric IDs for college teams
@@ -287,6 +342,7 @@ class CollegeTeamESPNIds {
     "Villanova": "222",
     "Villanova Wildcats": "222",
   };
+
   
   // Helper method to find best match for a school name
   static String? findIdForSchool(String schoolName) {

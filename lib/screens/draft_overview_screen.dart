@@ -241,6 +241,22 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   return selectedPositions;
 }
 
+List<Color> _getTeamGradientColors(String teamName) {
+  // Get team colors
+  List<Color> teamColors = NFLTeamColors.getTeamColors(teamName);
+  
+  // For dark mode, use full colors
+  if (Theme.of(context).brightness == Brightness.dark) {
+    return teamColors;
+  }
+  
+  // For light mode, use lighter versions for better readability
+  return [
+    teamColors[0].withOpacity(0.2),
+    teamColors[1].withOpacity(0.2),
+  ];
+}
+
   // Modify the loadData method in DraftAppState
 Future<void> _loadData() async {
   try {
@@ -931,16 +947,14 @@ void didUpdateWidget(DraftApp oldWidget) {
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: Theme.of(context).brightness == Brightness.dark
-                  ? widget.selectedTeam != null 
-                    ? [Colors.blue.shade900, Colors.green.shade900]
-                    : [Colors.blue.shade900, Colors.blue.shade800]
-                  : widget.selectedTeam != null 
-                    ? [Colors.blue.shade50, Colors.green.shade50]
-                    : [Colors.blue.shade50, Colors.blue.shade100],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              colors: widget.selectedTeam != null 
+                ? _getTeamGradientColors(widget.selectedTeam!)
+                : Theme.of(context).brightness == Brightness.dark
+                  ? [Colors.blue.shade900, Colors.blue.shade800]
+                  : [Colors.blue.shade50, Colors.blue.shade100],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withOpacity(0.2),
