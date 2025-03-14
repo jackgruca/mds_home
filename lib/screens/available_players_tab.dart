@@ -440,29 +440,55 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     );
   }
   
-  void _showPlayerDetails(BuildContext context, Player player) async {
+  void _showPlayerDetails(BuildContext context, Player player) {
   // Add debug output
-  debugPrint("=======================");
   debugPrint("Showing details for player: ${player.name}");
   
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
-  // Debug output to check matching results
-  if (additionalInfo != null) {
-    debugPrint("✅ MATCH FOUND for ${player.name}");
-    debugPrint("Description: ${additionalInfo['description']?.substring(0, min(50, additionalInfo['description']?.length ?? 0))}...");
-  } else {
-    debugPrint("❌ NO MATCH FOUND for ${player.name}");
-    // Dump a few sample names from the CSV for comparison
-    PlayerDescriptionsService.debugPrintAllPlayerNames();
-  }
-  
-  // Rest of your code...
-  Player enrichedPlayer = player;
+  Player enrichedPlayer;
   
   if (additionalInfo != null) {
     // If we have additional info, use it for the player
+    // Attempt to parse height from string to double
+    double? height;
+    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      // Handle height in different formats
+      if (heightStr.contains("'")) {
+        // Format like 6'2"
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else {
+        // Assume it's in inches
+        height = double.tryParse(heightStr);
+      }
+    }
+    
+    // Attempt to parse weight from string to double
+    double? weight;
+    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      weight = double.tryParse(additionalInfo['weight']!);
+    }
+    
     enrichedPlayer = Player(
       id: player.id,
       name: player.name,
@@ -470,8 +496,8 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
       rank: player.rank,
       school: player.school,
       notes: player.notes,
-      height: player.height,
-      weight: player.weight,
+      height: height ?? player.height,
+      weight: weight ?? player.weight,
       rasScore: player.rasScore,
       description: additionalInfo['description'] ?? player.description,
       strengths: additionalInfo['strengths'] ?? player.strengths,
