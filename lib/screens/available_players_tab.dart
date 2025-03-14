@@ -147,14 +147,37 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       child: SizedBox(
                         height: 36,
                         child: TextField(
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Search Players',
-                            prefixIcon: Icon(Icons.search, size: 18),
+                            hintStyle: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.grey.shade400 
+                                : Colors.grey.shade600,
+                          ),
+                            prefixIcon: Icon(Icons.search, size: 18,
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey.shade400 
+                                  : Colors.grey.shade600,
+                            ),
                             contentPadding: EdgeInsets.zero,
                             isDense: true,
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.grey.shade700 
+                                        : Colors.grey.shade300,
+                            ),
                           ),
-                          style: const TextStyle(fontSize: 14),
+                              fillColor: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.grey.shade900 
+                                : Colors.white,
+                            filled: true,
+                          ),
+                          style: TextStyle(fontSize: 14,
+                              color: Theme.of(context).brightness == Brightness.dark 
+                              ? Colors.white 
+                              : Colors.black,
+                          ),
                           onChanged: (value) {
                             setState(() {
                               _searchQuery = value;
