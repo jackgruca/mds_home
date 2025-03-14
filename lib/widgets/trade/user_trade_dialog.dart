@@ -249,7 +249,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  '#${pick.round}',
+                                                  pick.round,
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold, 
                                                     fontSize: 11,
@@ -478,7 +478,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  '#${pick.round}',
+                                                  pick.round,
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.bold, 
                                                     fontSize: 11,
