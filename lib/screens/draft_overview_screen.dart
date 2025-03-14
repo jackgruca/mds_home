@@ -96,35 +96,66 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 
   // Add this new method to handle tab changes
   void _handleTabChange() {
-    // Check if we've switched to the draft order tab (index 0)
-    if (_tabController.index == 0 && _draftOrderScrollController.hasClients && _draftService != null) {
-      // Get the current pick
-      DraftPick? currentPick = _draftService!.getNextPick();
-      if (currentPick == null) return;
-      
-      // Find the index of the current pick in the list
-      int currentPickIndex = _draftPicks.indexWhere((pick) => 
-        pick.pickNumber == currentPick.pickNumber);
-      
-      if (currentPickIndex == -1) return; // Not found
-      
-      // Calculate position to scroll to (centered in viewport)
-      double itemHeight = 60.0; // Adjust based on your actual item height
-      double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-      double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-      
-      // Make sure we don't scroll beyond bounds
-      targetPosition = targetPosition.clamp(
-        0.0, 
-        _draftOrderScrollController.position.maxScrollExtent
-      );
-      
-      // Smooth scroll to position
-      _draftOrderScrollController.animateTo(
-        targetPosition,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+    // Only execute if switching to the draft order tab (index 0)
+    if (_tabController.index == 0 && _draftService != null) {
+      // Use a slightly longer delay to ensure the tab view is fully rendered
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (!_draftOrderScrollController.hasClients) return;
+        
+        // Get the current pick
+        DraftPick? currentPick = _draftService!.getNextPick();
+        if (currentPick == null) return;
+        
+        // Get the active (displayed) picks
+        final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
+        
+        // Find the index of the current pick in the displayed list
+        int currentPickIndex = displayedPicks.indexWhere(
+          (pick) => pick.pickNumber == currentPick.pickNumber
+        );
+        
+        if (currentPickIndex == -1) {
+          // If current pick not found, try to find the next available pick
+          currentPickIndex = displayedPicks.indexWhere(
+            (pick) => pick.pickNumber >= currentPick.pickNumber && !pick.isSelected
+          );
+          
+          // If still not found, use the last selected pick
+          if (currentPickIndex == -1) {
+            for (int i = displayedPicks.length - 1; i >= 0; i--) {
+              if (displayedPicks[i].isSelected) {
+                currentPickIndex = i + 1;
+                break;
+              }
+            }
+            
+            // If nothing found, default to the start
+            if (currentPickIndex == -1 || currentPickIndex >= displayedPicks.length) {
+              currentPickIndex = 0;
+            }
+          }
+        }
+        
+        // Calculate position to center the pick
+        const double itemHeight = 74.0;
+        final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+        
+        // Calculate position to center the current pick in the viewport
+        double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+        
+        // Ensure we don't scroll beyond bounds
+        targetPosition = targetPosition.clamp(
+          0.0, 
+          _draftOrderScrollController.position.maxScrollExtent
+        );
+        
+        // Smooth scroll with a longer duration for a better experience
+        _draftOrderScrollController.animateTo(
+          targetPosition,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOutCubic,
+        );
+      });
     }
   }
 
@@ -134,6 +165,42 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     _tabController.dispose();
     _draftOrderScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToCurrentPick() {
+    if (!_draftOrderScrollController.hasClients || _draftService == null) return;
+    
+    // Get the current pick
+    DraftPick? currentPick = _draftService!.getNextPick();
+    if (currentPick == null) return;
+    
+    // Get the active (displayed) picks
+    final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
+    
+    // Find the current pick's position
+    int currentPickIndex = displayedPicks.indexWhere(
+      (pick) => pick.pickNumber == currentPick.pickNumber
+    );
+    
+    if (currentPickIndex == -1) return; // Not found
+    
+    // Calculate position
+    const double itemHeight = 74.0;
+    double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+    double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+    
+    // Enforce bounds
+    targetPosition = targetPosition.clamp(
+      0.0, 
+      _draftOrderScrollController.position.maxScrollExtent
+    );
+    
+    // Animate to the position
+    _draftOrderScrollController.animateTo(
+      targetPosition,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _initializeServices() async {
@@ -235,6 +302,35 @@ Future<void> _loadData() async {
       _isDataLoaded = true;
       _statusMessage = "Draft data loaded successfully";
     });
+    
+    if (_tabController.index == 0) {
+      // Short delay to allow UI to update
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (_draftOrderScrollController.hasClients && _draftService != null) {
+          // Use the same scrolling logic as above to center the first pick
+          DraftPick? firstPick = _draftService!.getNextPick();
+          if (firstPick == null) return;
+          
+          final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
+          int firstPickIndex = displayedPicks.indexWhere((pick) => pick.pickNumber == firstPick.pickNumber);
+          
+          if (firstPickIndex == -1) return;
+          
+          const double itemHeight = 74.0;
+          final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+          double targetPosition = (firstPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+          
+          targetPosition = targetPosition.clamp(0.0, _draftOrderScrollController.position.maxScrollExtent);
+          
+          _draftOrderScrollController.animateTo(
+            targetPosition,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOutCubic,
+          );
+        }
+      });
+    }
+    
   } catch (e) {
     setState(() {
       _statusMessage = "Error loading draft data: $e";
@@ -319,42 +415,53 @@ Future<void> _loadData() async {
       
       // Update the UI with newly processed data
       setState(() {
-        // Refresh the list representations for UI
-        _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-        _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
-        _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
-        
-        _statusMessage = _draftService!.statusMessage;
+  // Refresh the list representations for UI
+  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+  _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+  _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+  
+  _statusMessage = _draftService!.statusMessage;
+});
 
-       if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
-          // Calculate position based on completed picks
-          // Instead of just using the completed picks count, find the actual position
-          // of the current pick in the list view
-          
-          // Get index of current pick in the list
-          int currentPickIndex = _draftPicks.indexOf(updatedPick);
-          
-          // Get the height of each item (approximate)
-          double itemHeight = 70.0; // Adjust this value based on your actual item height
-          
-          // Calculate the position to scroll to (centered in viewport)
-          double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-          double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-          
-          // Make sure we don't scroll beyond bounds
-          targetPosition = targetPosition.clamp(
-            0.0, 
-            _draftOrderScrollController.position.maxScrollExtent
-          );
-          
-          // Smooth scroll to position
-          _draftOrderScrollController.animateTo(
-            targetPosition,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
-        }
-      });
+// After updating state, scroll to current pick if in draft order tab
+if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
+  // Short delay to allow state to update
+  Future.delayed(const Duration(milliseconds: 100), () {
+    if (!_draftOrderScrollController.hasClients) return;
+    
+    // Get the newly processed pick
+    DraftPick? currentPick = _draftService!.getNextPick();
+    if (currentPick == null) return;
+    
+    // Get displayed picks
+    final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
+    
+    // Find current pick index
+    int currentPickIndex = displayedPicks.indexWhere(
+      (pick) => pick.pickNumber == currentPick.pickNumber
+    );
+    
+    if (currentPickIndex == -1) return; // Not found
+    
+    // Center the current pick
+    const double itemHeight = 74.0;
+    final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+    double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+    
+    // Enforce bounds
+    targetPosition = targetPosition.clamp(
+      0.0, 
+      _draftOrderScrollController.position.maxScrollExtent
+    );
+    
+    // Smooth scroll
+    _draftOrderScrollController.animateTo(
+      targetPosition,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+    );
+  });
+}
 
       // Continue the draft loop with delay
       if (_isDraftRunning) {

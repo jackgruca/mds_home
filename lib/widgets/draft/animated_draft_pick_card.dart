@@ -78,6 +78,8 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
       opacity: _fadeAnimation,
       child: ScaleTransition(
         scale: _scaleAnimation,
+        child: SizedBox(
+        height: 70.0,
         child: Card(
           elevation: widget.isRecentPick ? 4.0 : 1.0,
           margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -338,6 +340,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             ),
           ),
         ),
+      ),
       ),
     );
   }
