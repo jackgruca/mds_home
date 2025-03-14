@@ -1,4 +1,3 @@
-// lib/widgets/trade/user_trade_dialog.dart
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
@@ -31,10 +30,10 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
-  List<int> _selectedTargetFutureRounds = [];
+  final List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  List<int> _selectedFutureRounds = [];
+  final List<int> _selectedFutureRounds = [];
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   
   @override
@@ -112,78 +111,69 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Team selection dropdown (more compact)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Trade with:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          if (targetTeams.isNotEmpty)
-                            DropdownButton<String>(
-                              value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _targetTeam = newValue;
-                                    _selectedTargetPicks.clear();
-                                    _selectedTargetFutureRounds.clear();
-                                  });
-                                  _updateValues();
-                                }
-                              },
-                              items: targetTeams.map<DropdownMenuItem<String>>((String team) {
-                                return DropdownMenuItem<String>(
-                                  value: team,
-                                  child: Text(team, style: const TextStyle(fontSize: 12)),
-                                );
-                              }).toList(),
-                              style: const TextStyle(fontSize: 12),
+                      // Team selection dropdown (more visible header)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(color: Colors.blue.shade300),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.people, size: 16, color: Colors.blue),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Trade with:',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
                             ),
-                        ],
+                            if (targetTeams.isNotEmpty)
+                              DropdownButton<String>(
+                                value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _targetTeam = newValue;
+                                      _selectedTargetPicks.clear();
+                                      _selectedTargetFutureRounds.clear();
+                                    });
+                                    _updateValues();
+                                  }
+                                },
+                                items: targetTeams.map<DropdownMenuItem<String>>((String team) {
+                                  return DropdownMenuItem<String>(
+                                    value: team,
+                                    child: Text(team, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                underline: Container(height: 0),
+                              ),
+                          ],
+                        ),
                       ),
+                      
+                      const SizedBox(height: 8),
+                      
                       // Sub-header for their picks (more compact)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Their picks to receive:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              minimumSize: const Size(0, 22),
-                              visualDensity: VisualDensity.compact,
-                              side: BorderSide(color: Colors.blue.shade300),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                bool allSelected = _selectedTargetPicks.length == teamPicks.length &&
-                                    _selectedTargetFutureRounds.length == _availableFutureRounds.length;
-                                
-                                if (allSelected) {
-                                  // Unselect all
-                                  _selectedTargetPicks.clear();
-                                  _selectedTargetFutureRounds.clear();
-                                } else {
-                                  // Select all
-                                  _selectedTargetPicks = List.from(teamPicks);
-                                  _selectedTargetFutureRounds = List.from(_availableFutureRounds);
-                                }
-                                _updateValues();
-                              });
-                            },
-                            icon: Icon(
-                              _selectedTargetPicks.length == teamPicks.length ? 
-                                Icons.deselect : Icons.select_all,
-                              size: 12,
-                              color: Colors.blue.shade700,
-                            ),
-                            label: Text(
-                              _selectedTargetPicks.length == teamPicks.length ? 'Deselect All' : 'Select All',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.blue.shade700,
-                              )
-                            ),
-                          ),
-                        ],
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                        child: Text(
+                          'Their picks to receive:',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       
                       // Draft years header row
@@ -253,54 +243,40 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                       child: Container(
                                         height: 50, // Slightly smaller height
                                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        child: Row(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Selection indicator
-                                            SizedBox(
-                                              width: 20,
-                                              child: isSelected
-                                                ? const Icon(Icons.check_circle, size: 16, color: Colors.blue)
-                                                : const Icon(Icons.circle_outlined, size: 16, color: Colors.grey),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            // Compact pick info
-                                            Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                            // Round & Pick on same line
+                                            Row(
                                               children: [
-                                                // Round & Pick on same line
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      '[${pick.round}]',
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold, 
-                                                        fontSize: 11,
-                                                        color: isSelected ? Colors.blue.shade700 : null,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Pick #${pick.pickNumber}',
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold, 
-                                                        fontSize: 11,
-                                                        color: isSelected ? Colors.blue.shade700 : null,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                // Value underneath
                                                 Text(
-                                                  'Value: ${pickValue.toInt()}',
+                                                  '#${pick.round}',
                                                   style: TextStyle(
-                                                    fontSize: 10, 
-                                                    color: isSelected ? Colors.blue.shade400 : Colors.grey,
+                                                    fontWeight: FontWeight.bold, 
+                                                    fontSize: 11,
+                                                    color: isSelected ? Colors.blue.shade700 : null,
+                                                  ),
+                                                ),
+                                                const Text(' | ', style: TextStyle(color: Colors.grey)),
+                                                Text(
+                                                  'Pick #${pick.pickNumber}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold, 
+                                                    fontSize: 11,
+                                                    color: isSelected ? Colors.blue.shade700 : null,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                            const Spacer(),
+                                            // Value underneath
+                                            Text(
+                                              'Value: ${pickValue.toInt()}',
+                                              style: TextStyle(
+                                                fontSize: 10, 
+                                                color: isSelected ? Colors.blue.shade400 : Colors.grey,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -346,39 +322,25 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                       child: Container(
                                         height: 50, // Slightly smaller height
                                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        child: Row(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Selection indicator
-                                            SizedBox(
-                                              width: 20,
-                                              child: isSelected
-                                                ? const Icon(Icons.check_circle, size: 16, color: Colors.amber)
-                                                : const Icon(Icons.circle_outlined, size: 16, color: Colors.grey),
+                                            Text(
+                                              '${_getRoundText(round)} Round',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold, 
+                                                fontSize: 11,
+                                                color: isSelected ? Colors.amber.shade800 : null,
+                                              ),
                                             ),
-                                            const SizedBox(width: 4),
-                                            // Compact future pick info
-                                            Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  '${_getRoundText(round)} Round',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold, 
-                                                    fontSize: 11,
-                                                    color: isSelected ? Colors.amber.shade800 : null,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  'Est. Value: ${pickValue.toInt()}',
-                                                  style: TextStyle(
-                                                    fontSize: 9,
-                                                    color: isSelected ? Colors.amber.shade600 : Colors.grey,
-                                                  ),
-                                                ),
-                                              ],
+                                            Text(
+                                              'Est. Value: ${pickValue.toInt()}',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: isSelected ? Colors.amber.shade600 : Colors.grey,
+                                              ),
                                             ),
-                                            const Spacer(),
                                           ],
                                         ),
                                       ),
@@ -405,61 +367,41 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Team indicator with used capital (more compact)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Your team: ${widget.userTeam}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text(
-                            'Capital: ${_selectedUserPicks.length} picks',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(color: Colors.green.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person, size: 16, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Your team: ${widget.userTeam}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       
+                      const SizedBox(height: 8),
+                      
                       // Sub-header for your picks (more compact)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Your picks to offer:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              minimumSize: const Size(0, 22),
-                              visualDensity: VisualDensity.compact,
-                              side: BorderSide(color: Colors.green.shade300),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                bool allSelected = _selectedUserPicks.length == widget.userPicks.length &&
-                                    _selectedFutureRounds.length == _availableFutureRounds.length;
-                                
-                                if (allSelected) {
-                                  // Unselect all
-                                  _selectedUserPicks.clear();
-                                  _selectedFutureRounds.clear();
-                                } else {
-                                  // Select all
-                                  _selectedUserPicks = List.from(widget.userPicks);
-                                  _selectedFutureRounds = List.from(_availableFutureRounds);
-                                }
-                                _updateValues();
-                              });
-                            },
-                            icon: Icon(
-                              _selectedUserPicks.length == widget.userPicks.length ? 
-                                Icons.deselect : Icons.select_all,
-                              size: 12,
-                              color: Colors.green.shade700,
-                            ),
-                            label: Text(
-                              _selectedUserPicks.length == widget.userPicks.length ? 'Deselect All' : 'Select All',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green.shade700,
-                              )
-                            ),
-                          ),
-                        ],
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                        child: Text(
+                          'Your picks to offer:',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       
                       // Draft years header row (reuse the same compact header)
@@ -529,54 +471,40 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                       child: Container(
                                         height: 50, // Slightly smaller height
                                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        child: Row(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Selection indicator
-                                            SizedBox(
-                                              width: 20,
-                                              child: isSelected
-                                                ? const Icon(Icons.check_circle, size: 16, color: Colors.green)
-                                                : const Icon(Icons.circle_outlined, size: 16, color: Colors.grey),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            // Compact pick info
-                                            Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                            // Round & Pick on same line
+                                            Row(
                                               children: [
-                                                // Round & Pick on same line
-                                                Row(
-                                                  children: [
-                                                    Text(
-                                                      '[${pick.round}]',
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold, 
-                                                        fontSize: 11,
-                                                        color: isSelected ? Colors.green.shade700 : null,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Pick #${pick.pickNumber}',
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold, 
-                                                        fontSize: 11,
-                                                        color: isSelected ? Colors.green.shade700 : null,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                // Value underneath
                                                 Text(
-                                                  'Value: ${pickValue.toInt()}',
+                                                  '#${pick.round}',
                                                   style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: isSelected ? Colors.green.shade400 : Colors.grey,
+                                                    fontWeight: FontWeight.bold, 
+                                                    fontSize: 11,
+                                                    color: isSelected ? Colors.green.shade700 : null,
+                                                  ),
+                                                ),
+                                                const Text(' | ', style: TextStyle(color: Colors.grey)),
+                                                Text(
+                                                  'Pick #${pick.pickNumber}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold, 
+                                                    fontSize: 11,
+                                                    color: isSelected ? Colors.green.shade700 : null,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                            const Spacer(),
+                                            // Value underneath
+                                            Text(
+                                              'Value: ${pickValue.toInt()}',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isSelected ? Colors.green.shade400 : Colors.grey,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -622,39 +550,25 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                       child: Container(
                                         height: 50, // Slightly smaller height
                                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        child: Row(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Selection indicator
-                                            SizedBox(
-                                              width: 20,
-                                              child: isSelected
-                                                ? const Icon(Icons.check_circle, size: 16, color: Colors.orange)
-                                                : const Icon(Icons.circle_outlined, size: 16, color: Colors.grey),
+                                            Text(
+                                              '${_getRoundText(round)} Round',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold, 
+                                                fontSize: 11,
+                                                color: isSelected ? Colors.orange.shade700 : null,
+                                              ),
                                             ),
-                                            const SizedBox(width: 4),
-                                            // Compact future pick info
-                                            Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  '${_getRoundText(round)} Round',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold, 
-                                                    fontSize: 11,
-                                                    color: isSelected ? Colors.orange.shade700 : null,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  'Est. Value: ${pickValue.toInt()}',
-                                                  style: TextStyle(
-                                                    fontSize: 9,
-                                                    color: isSelected ? Colors.orange.shade600 : Colors.grey,
-                                                  ),
-                                                ),
-                                              ],
+                                            Text(
+                                              'Est. Value: ${pickValue.toInt()}',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: isSelected ? Colors.orange.shade600 : Colors.grey,
+                                              ),
                                             ),
-                                            const Spacer(),
                                           ],
                                         ),
                                       ),
@@ -673,7 +587,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             ],
           ),
         ),
-        // Trade value analysis + buttons as a compact footer
+        // Simplified trade value analysis + buttons footer
         Container(
           color: Colors.grey.shade100,
           padding: const EdgeInsets.all(8),
@@ -681,218 +595,82 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Value comparison section
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Simplified progress bar approach
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Header
-                      const Text(
-                        'Trade Value Comparison',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 12
-                        )
-                      ),
-                      
-                      // Difference chip
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _getTradeValueColor().withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _getTradeValueColor(),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _totalOfferedValue >= _targetPickValue ? 
-                                Icons.trending_up : Icons.trending_down,
-                              size: 12,
-                              color: _getTradeValueColor(),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _totalOfferedValue >= _targetPickValue ?
-                                '+${(_totalOfferedValue - _targetPickValue).toStringAsFixed(0)}' :
-                                (_totalOfferedValue - _targetPickValue).toStringAsFixed(0),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: _getTradeValueColor(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  // Label for 'Required Value'
+                  Text(
+                    'Required Value: ${_targetPickValue.toInt()}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
-                  
-                  const SizedBox(height: 6),
-                  
-                  // Value comparison bars
-                  Row(
-                    children: [
-                      // Your value label
-                      SizedBox(
-                        width: 36,
-                        child: Text(
-                          'You',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      ),
-                      
-                      // Your value bar
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 12,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade100,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: _targetPickValue > 0 ? 
-                                  (_totalOfferedValue / (_targetPickValue * 1.5)).clamp(0.05, 1.0) : 0.05,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Colors.green.shade400, Colors.green.shade600],
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Value: ${_totalOfferedValue.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 8),
-                      
-                      // Their value label
-                      SizedBox(
-                        width: 36,
-                        child: Text(
-                          'Them',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ),
-                      
-                      // Their value bar
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 12,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade100,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              alignment: Alignment.centerLeft,
-                              child: FractionallySizedBox(
-                                widthFactor: _totalOfferedValue > 0 ? 
-                                  (_targetPickValue / (_totalOfferedValue * 1.5)).clamp(0.05, 1.0) : 0.05,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Colors.blue.shade400, Colors.blue.shade600],
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Value: ${_targetPickValue.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const Spacer(),
+                  // Your offered value label
+                  Text(
+                    'Your Offer: ${_totalOfferedValue.toInt()}',
+                    style: TextStyle(
+                      fontSize: 11, 
+                      fontWeight: FontWeight.bold,
+                      color: _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.grey.shade700,
+                    ),
                   ),
                 ],
               ),
               
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               
-              // Trade advice card with icon
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getTradeAdviceColor().withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getTradeAdviceIcon(),
-                      size: 16,
-                      color: _getTradeAdviceColor(),
+              // Simple progress bar showing how close user is to meeting needed value
+              Stack(
+                children: [
+                  // Background bar (total needed)
+                  Container(
+                    height: 12,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _getTradeAdviceText(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11, 
-                          color: _getTradeAdviceColor()
+                  ),
+                  // Progress bar (value offered)
+                  Container(
+                    height: 12,
+                    width: _targetPickValue > 0 
+                        ? (MediaQuery.of(context).size.width - 32) * (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.0)
+                        : 0,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.blue,
+                          _totalOfferedValue >= _targetPickValue ? Colors.green.shade300 : Colors.blue.shade300,
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  // Marker for required value point
+                  if (_totalOfferedValue > _targetPickValue)
+                    Positioned(
+                      left: (MediaQuery.of(context).size.width - 32) * (_targetPickValue / _totalOfferedValue),
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Container(
+                          width: 2,
+                          height: 12,
+                          color: Colors.black,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
               
-              // Add button row at bottom
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              
+              // Propose button
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Propose button
                   SizedBox(
                     height: 38,
                     child: ElevatedButton.icon(
@@ -910,7 +688,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                       icon: Icon(
                         _totalOfferedValue >= _targetPickValue ? 
                           Icons.thumb_up_alt : Icons.swap_horiz,
-                        size: 16,
+                        size: 16,  // Fixed from A16
                       ),
                       label: const Text(
                         'Propose Trade',
@@ -937,7 +715,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     
     // Otherwise wrap in an AlertDialog
     return AlertDialog(
-      title: const Text('Propose a Trade', style: TextStyle(fontSize: 18)),
       contentPadding: EdgeInsets.zero,
       content: SizedBox(
         width: double.maxFinite,
@@ -947,22 +724,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     );
   }
   
-  // Add this helper method to the class
-  IconData _getTradeAdviceIcon() {
-    double valueRatio = _targetPickValue > 0 ? _totalOfferedValue / _targetPickValue : 0;
-    
-    if (valueRatio >= 1.2) {
-      return Icons.thumb_up;
-    } else if (valueRatio >= 1.0) {
-      return Icons.check_circle;
-    } else if (valueRatio >= 0.9) {
-      return Icons.info_outline;
-    } else {
-      return Icons.warning;
-    }
-  }
-  
-  // Your existing methods
   bool _canProposeTrade() {
     return (_selectedUserPicks.isNotEmpty || _selectedFutureRounds.isNotEmpty) && 
            (_selectedTargetPicks.isNotEmpty || _selectedTargetFutureRounds.isNotEmpty);
@@ -1026,47 +787,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     }
     
     widget.onPropose(package);
-  }
-  
-  String _getTradeAdviceText() {
-    if (_totalOfferedValue >= _targetPickValue * 1.2) {
-      return 'Great offer - they\'ll likely accept!';
-    } else if (_totalOfferedValue >= _targetPickValue) {
-      return 'Fair offer - they may accept.';
-    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
-      return 'Slightly below market value - but still possible.';
-    } else {
-      return 'Poor value - they\'ll likely reject.';
-    }
-  }
-  
-  Color _getTradeAdviceColor() {
-    if (_totalOfferedValue >= _targetPickValue * 1.2) {
-      return Colors.green;
-    } else if (_totalOfferedValue >= _targetPickValue) {
-      return Colors.blue;
-    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
-      return Colors.orange;
-    } else {
-      return Colors.red;
-    }
-  }
-  
-  Color _getTradeValueColor() {
-    double difference = _totalOfferedValue - _targetPickValue;
-    double ratio = _targetPickValue > 0 ? _totalOfferedValue / _targetPickValue : 0;
-    
-    if (ratio >= 1.2) {
-      return Colors.green.shade700; // Excellent value (120%+)
-    } else if (ratio >= 1.05) {
-      return Colors.green.shade500; // Good value (105-120%)
-    } else if (ratio >= 0.95) {
-      return Colors.blue.shade500; // Fair value (95-105%)
-    } else if (ratio >= 0.85) {
-      return Colors.orange.shade500; // Below value (85-95%)
-    } else {
-      return Colors.red.shade500; // Poor value (<85%)
-    }
   }
 
   String _getRoundText(int round) {
