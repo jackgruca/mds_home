@@ -111,8 +111,10 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Team selection dropdown (more visible header)
+                      // Team selection dropdown (made to match size on right)
                       Container(
+                        width: double.infinity,
+                        height: 36.0,
                         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
@@ -120,22 +122,18 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                           border: Border.all(color: Colors.blue.shade300),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.people, size: 16, color: Colors.blue),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Trade with:',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ],
+                            const Icon(Icons.people, size: 16, color: Colors.blue),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Trade with:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
                             ),
+                            const Spacer(),
                             if (targetTeams.isNotEmpty)
                               DropdownButton<String>(
                                 value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
@@ -368,6 +366,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     children: [
                       // Team indicator with used capital (more compact)
                       Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
@@ -667,12 +666,46 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
               
               const SizedBox(height: 8),
               
+              // Re-added trade likelihood comment
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _getTradeAdviceColor().withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getTradeAdviceIcon(),
+                      size: 16,
+                      color: _getTradeAdviceColor(),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _getTradeAdviceText(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11, 
+                          color: _getTradeAdviceColor(),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
               // Propose button
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   SizedBox(
-                    height: 38,
+                    height: 36,
                     child: ElevatedButton.icon(
                       onPressed: _canProposeTrade() ? _proposeTrade : null,
                       style: ElevatedButton.styleFrom(
@@ -688,7 +721,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                       icon: Icon(
                         _totalOfferedValue >= _targetPickValue ? 
                           Icons.thumb_up_alt : Icons.swap_horiz,
-                        size: 16,  // Fixed from A16
+                        size: 16,
                       ),
                       label: const Text(
                         'Propose Trade',
@@ -722,6 +755,45 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
         child: content,
       ),
     );
+  }
+  
+  // Re-added methods for trade advice
+  IconData _getTradeAdviceIcon() {
+    double valueRatio = _targetPickValue > 0 ? _totalOfferedValue / _targetPickValue : 0;
+    
+    if (valueRatio >= 1.2) {
+      return Icons.thumb_up;
+    } else if (valueRatio >= 1.0) {
+      return Icons.check_circle;
+    } else if (valueRatio >= 0.9) {
+      return Icons.info_outline;
+    } else {
+      return Icons.warning;
+    }
+  }
+  
+  String _getTradeAdviceText() {
+    if (_totalOfferedValue >= _targetPickValue * 1.2) {
+      return 'Great offer - they\'ll likely accept!';
+    } else if (_totalOfferedValue >= _targetPickValue) {
+      return 'Fair offer - they may accept.';
+    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
+      return 'Slightly below market value - but still possible.';
+    } else {
+      return 'Poor value - they\'ll likely reject.';
+    }
+  }
+  
+  Color _getTradeAdviceColor() {
+    if (_totalOfferedValue >= _targetPickValue * 1.2) {
+      return Colors.green;
+    } else if (_totalOfferedValue >= _targetPickValue) {
+      return Colors.blue;
+    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
+      return Colors.orange;
+    } else {
+      return Colors.red;
+    }
   }
   
   bool _canProposeTrade() {
