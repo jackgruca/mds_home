@@ -126,9 +126,15 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade800 
+                  : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.grey.shade700 
+                    : Colors.grey.shade300,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
