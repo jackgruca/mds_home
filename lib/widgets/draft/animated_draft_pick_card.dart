@@ -6,6 +6,7 @@ import '../../utils/constants.dart';
 import '../../widgets/player/player_details_dialog.dart';
 import '../../utils/mock_player_data.dart';
 import '../../services/player_descriptions_service.dart';
+import '../../utils/team_logo_utils.dart';
 
 class AnimatedDraftPickCard extends StatefulWidget {
   final DraftPick draftPick;
@@ -143,7 +144,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
-                          // Position and team
+                          // Position and College Logo
                           Row(
                             children: [
                               Container(
@@ -162,14 +163,33 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                   ),
                                 ),
                               ),
-                              Text(
-                                widget.draftPick.teamName,
-                                style: TextStyle(
-                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                  fontSize: 11.0,
+                              // Show college logo instead of NFL team name
+                              if (widget.draftPick.selectedPlayer!.school.isNotEmpty)
+                                SizedBox(
+                                  width: 20, // Smaller logo size
+                                  height: 20,
+                                  child: TeamLogoUtils.buildCollegeTeamLogo(
+                                    widget.draftPick.selectedPlayer!.school,
+                                    size: 20.0,
+                                    placeholderBuilder: (schoolName) => Text(
+                                      schoolName.split(' ').map((s) => s.isNotEmpty ? s[0] : '').join('').toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: isDarkMode ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'No School',
+                                  style: TextStyle(
+                                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                    fontSize: 10.0,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
                             ],
                           ),
                         ],
