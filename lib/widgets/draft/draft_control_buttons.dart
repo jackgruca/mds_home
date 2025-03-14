@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-// In draft_control_buttons.dart
 class DraftControlButtons extends StatelessWidget {
   final bool isDraftRunning;
-  final bool hasTradeOffers;  // Add this parameter
+  final bool hasTradeOffers;
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
@@ -14,7 +13,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onToggleDraft,
     required this.onRestartDraft,
     required this.onRequestTrade,
-    this.hasTradeOffers = false,  // Default to false
+    this.hasTradeOffers = false,
   });
 
   @override
@@ -24,41 +23,78 @@ class DraftControlButtons extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: FloatingActionButton(
-              onPressed: onRestartDraft,
-              tooltip: 'Restart Draft',
-              mini: true,
-              child: const Icon(Icons.refresh),
-            ),
-          ),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: FloatingActionButton(
-              onPressed: onToggleDraft,
-              tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
-              mini: true,
-              child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
-            ),
-          ),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: Badge(
-              isLabelVisible: hasTradeOffers,
-              label: const Text('!'),
-              child: FloatingActionButton(
-                onPressed: onRequestTrade,
-                tooltip: 'Trade Center',
-                mini: true,
-                child: const Icon(Icons.swap_horiz),
+          // Restart button with label
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: FloatingActionButton(
+                  onPressed: onRestartDraft,
+                  tooltip: 'Restart Draft',
+                  mini: true,
+                  child: const Icon(Icons.refresh),
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              const Text(
+                'Restart',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 24),
+          
+          // Start/Pause button with label
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: FloatingActionButton(
+                  onPressed: onToggleDraft,
+                  tooltip: isDraftRunning ? 'Pause Draft' : 'Start Draft',
+                  mini: true,
+                  child: Icon(isDraftRunning ? Icons.pause : Icons.play_arrow),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isDraftRunning ? 'Pause' : 'Start',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 24),
+          
+          // Trade button with label
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: Badge(
+                  isLabelVisible: hasTradeOffers,
+                  label: const Text('!'),
+                  child: FloatingActionButton(
+                    onPressed: onRequestTrade,
+                    tooltip: 'Trade Center',
+                    mini: true,
+                    child: const Icon(Icons.swap_horiz),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Trade',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
           ),
         ],
       ),
