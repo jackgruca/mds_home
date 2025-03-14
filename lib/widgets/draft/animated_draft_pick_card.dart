@@ -342,45 +342,83 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     );
   }
   
-  // Method to display player details
-  void _showPlayerDetails(BuildContext context, Player player) {
-    // Add debug output
-    debugPrint("Showing details for player: ${player.name}");
-    
-    // Attempt to get additional player information from our description service
-    Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
-    
-    Player enrichedPlayer;
-    
-    if (additionalInfo != null) {
-      // If we have additional info, use it for the player
-      enrichedPlayer = Player(
-        id: player.id,
-        name: player.name,
-        position: player.position,
-        rank: player.rank,
-        school: player.school,
-        notes: player.notes,
-        height: player.height,
-        weight: player.weight,
-        rasScore: player.rasScore,
-        description: additionalInfo['description'] ?? player.description,
-        strengths: additionalInfo['strengths'] ?? player.strengths,
-        weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
-      );
-    } else {
-      // Fall back to mock data for players without description
-      enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+// In lib/widgets/draft/animated_draft_pick_card.dart
+void _showPlayerDetails(BuildContext context, Player player) {
+  // Add debug output
+  debugPrint("Showing details for player: ${player.name}");
+  
+  // Attempt to get additional player information from our description service
+  Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
+  
+  Player enrichedPlayer;
+  
+  if (additionalInfo != null) {
+    // If we have additional info, use it for the player
+    // Attempt to parse height from string to double
+    double? height;
+    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      // Handle height in different formats
+      if (heightStr.contains("'")) {
+        // Format like 6'2"
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else {
+        // Assume it's in inches
+        height = double.tryParse(heightStr);
+      }
     }
     
-    // Show the dialog with enriched player data
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return PlayerDetailsDialog(player: enrichedPlayer);
-      },
+    // Attempt to parse weight from string to double
+    double? weight;
+    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      weight = double.tryParse(additionalInfo['weight']!);
+    }
+    
+    enrichedPlayer = Player(
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      rank: player.rank,
+      school: player.school,
+      notes: player.notes,
+      height: height ?? player.height,
+      weight: weight ?? player.weight,
+      rasScore: player.rasScore,
+      description: additionalInfo['description'] ?? player.description,
+      strengths: additionalInfo['strengths'] ?? player.strengths,
+      weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
     );
+  } else {
+    // Fall back to mock data for players without description
+    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
   }
+  
+  // Show the dialog with enriched player data
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return PlayerDetailsDialog(player: enrichedPlayer);
+    },
+  );
+}
   
   Widget _buildTeamLogo(String teamName) {
     // First try to find the abbreviation in the mapping

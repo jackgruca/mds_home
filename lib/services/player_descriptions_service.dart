@@ -10,120 +10,127 @@ class PlayerDescriptionsService {
   static bool _isInitialized = false;
   static List<String> _allPlayerNames = []; // Added to keep track of all names
 
-  /// Load the player descriptions from CSV
-  static Future<void> initialize({int year = 2025}) async {
-    if (_isInitialized) return;
+static Future<void> initialize({int year = 2025}) async {
+  if (_isInitialized) return;
+  
+  try {
+    final data = await rootBundle.loadString('assets/$year/player_descriptions.csv');
     
-    try {
-      final data = await rootBundle.loadString('assets/$year/player_descriptions.csv');
-      
-      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
-      debugPrint("CSV parsed with ${csvTable.length} rows");
-      
-      // Check if header exists
-      bool hasHeader = csvTable.isNotEmpty && 
-                      csvTable[0].length >= 2 && 
-                      csvTable[0][0].toString().toLowerCase() == "name";
-      
-      int startIdx = hasHeader ? 1 : 0;
-      
-      _playerDescriptions = {};
-      _allPlayerNames = []; // Clear existing names
-      
-      // Process each row
-      for (int i = startIdx; i < csvTable.length; i++) {
-        if (csvTable[i].length >= 4) {
-          String name = csvTable[i][0].toString().trim();
-          _allPlayerNames.add(name.toLowerCase());
-          
-          String description = csvTable[i][1].toString().trim();
-          String strengths = csvTable[i][2].toString().trim();
-          String weaknesses = csvTable[i][3].toString().trim();
-          
-          _playerDescriptions[name.toLowerCase()] = {
-            'description': description,
-            'strengths': strengths,
-            'weaknesses': weaknesses,
-          };
-        }
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    debugPrint("CSV parsed with ${csvTable.length} rows");
+    
+    // Check if header exists
+    bool hasHeader = csvTable.isNotEmpty && 
+                    csvTable[0].length >= 2 && 
+                    csvTable[0][0].toString().toLowerCase() == "name";
+    
+    int startIdx = hasHeader ? 1 : 0;
+    
+    _playerDescriptions = {};
+    _allPlayerNames = []; // Clear existing names
+    
+    // Process each row
+    for (int i = startIdx; i < csvTable.length; i++) {
+      if (csvTable[i].length >= 4) {
+        String name = csvTable[i][0].toString().trim();
+        _allPlayerNames.add(name.toLowerCase());
+        
+        String description = csvTable[i][1].toString().trim();
+        String strengths = csvTable[i][2].toString().trim();
+        String weaknesses = csvTable[i][3].toString().trim();
+        
+        // Get height and weight if available
+        String height = csvTable[i].length > 4 ? csvTable[i][4].toString().trim() : "";
+        String weight = csvTable[i].length > 5 ? csvTable[i][5].toString().trim() : "";
+        
+        _playerDescriptions[name.toLowerCase()] = {
+          'description': description,
+          'strengths': strengths,
+          'weaknesses': weaknesses,
+          'height': height,
+          'weight': weight,
+        };
       }
-      
-      debugPrint("Loaded descriptions for ${_playerDescriptions.length} players");
-      debugPrint("Sample of player names in CSV: ${_allPlayerNames.take(5).join(', ')}...");
-      _isInitialized = true;
-    } catch (e) {
-      debugPrint("Error loading player descriptions: $e");
-      _isInitialized = true; // Mark as initialized to avoid repeated attempts
+    }
+    
+    debugPrint("Loaded descriptions for ${_playerDescriptions.length} players");
+    debugPrint("Sample of player names in CSV: ${_allPlayerNames.take(5).join(', ')}...");
+    _isInitialized = true;
+  } catch (e) {
+    debugPrint("Error loading player descriptions: $e");
+    _isInitialized = true; // Mark as initialized to avoid repeated attempts
+  }
+}
+  
+// lib/services/player_descriptions_service.dart
+// Update the getPlayerDescription method to include height and weight
+
+static Map<String, String>? getPlayerDescription(String playerName) {
+  if (!_isInitialized) {
+    debugPrint("Warning: Player descriptions not initialized");
+    return null;
+  }
+  
+  if (playerName.isEmpty) {
+    return null;
+  }
+  
+  // Debug information
+  debugPrint("Looking for player: '$playerName'");
+  
+  // Normalize the player name for comparison
+  String normalizedName = _normalizeName(playerName);
+  
+  // Try exact match first
+  if (_playerDescriptions.containsKey(normalizedName)) {
+    debugPrint("Found exact match for: $playerName ($normalizedName)");
+    return _playerDescriptions[normalizedName];
+  }
+  
+  // Try without period in names like "J.J. Watt" -> "JJ Watt"
+  String noPeriodName = normalizedName.replaceAll(".", "");
+  for (var entry in _playerDescriptions.entries) {
+    String csvNameNoPeriod = entry.key.replaceAll(".", "");
+    if (csvNameNoPeriod == noPeriodName) {
+      debugPrint("Found match after removing periods: $playerName -> ${entry.key}");
+      return entry.value;
     }
   }
   
-  /// Get player description data by name with enhanced matching
-  static Map<String, String>? getPlayerDescription(String playerName) {
-    if (!_isInitialized) {
-      debugPrint("Warning: Player descriptions not initialized");
-      return null;
-    }
-    
-    if (playerName.isEmpty) {
-      return null;
-    }
-    
-    // Debug information
-    debugPrint("Looking for player: '$playerName'");
-    
-    // Normalize the player name for comparison
-    String normalizedName = _normalizeName(playerName);
-    
-    // Try exact match first
-    if (_playerDescriptions.containsKey(normalizedName)) {
-      debugPrint("Found exact match for: $playerName ($normalizedName)");
-      return _playerDescriptions[normalizedName];
-    }
-    
-    // Try without period in names like "J.J. Watt" -> "JJ Watt"
-    String noPeriodName = normalizedName.replaceAll(".", "");
-    for (var entry in _playerDescriptions.entries) {
-      String csvNameNoPeriod = entry.key.replaceAll(".", "");
-      if (csvNameNoPeriod == noPeriodName) {
-        debugPrint("Found match after removing periods: $playerName -> ${entry.key}");
-        return entry.value;
-      }
-    }
-    
-    // Try to find the most similar name
-    String? bestMatch = _findBestMatch(normalizedName, _allPlayerNames);
-    if (bestMatch != null) {
-      debugPrint("Found best match: $playerName -> $bestMatch (similarity: ${_calculateSimilarity(normalizedName, bestMatch)})");
-      return _playerDescriptions[bestMatch];
-    }
-    
-    // Try matching parts of the name (first name or last name)
-    for (var entry in _playerDescriptions.entries) {
-      List<String> playerNameParts = normalizedName.split(' ');
-      List<String> csvNameParts = entry.key.split(' ');
-      
-      // Check if last names match (usually more unique)
-      if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
-          playerNameParts.last == csvNameParts.last) {
-        debugPrint("Found match by last name: $playerName -> ${entry.key}");
-        return entry.value;
-      }
-      
-      // Check if first names match
-      if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
-          playerNameParts.first == csvNameParts.first) {
-        // Only use first name match if the names are otherwise similar
-        double similarity = _calculateSimilarity(normalizedName, entry.key);
-        if (similarity > 0.6) {
-          debugPrint("Found match by first name with high similarity: $playerName -> ${entry.key}");
-          return entry.value;
-        }
-      }
-    }
-    
-    debugPrint("No match found for player: $playerName");
-    return null;
+  // Try to find the most similar name
+  String? bestMatch = _findBestMatch(normalizedName, _allPlayerNames);
+  if (bestMatch != null) {
+    debugPrint("Found best match: $playerName -> $bestMatch (similarity: ${_calculateSimilarity(normalizedName, bestMatch)})");
+    return _playerDescriptions[bestMatch];
   }
+  
+  // Try matching parts of the name (first name or last name)
+  for (var entry in _playerDescriptions.entries) {
+    List<String> playerNameParts = normalizedName.split(' ');
+    List<String> csvNameParts = entry.key.split(' ');
+    
+    // Check if last names match (usually more unique)
+    if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
+        playerNameParts.last == csvNameParts.last) {
+      debugPrint("Found match by last name: $playerName -> ${entry.key}");
+      return entry.value;
+    }
+    
+    // Check if first names match
+    if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
+        playerNameParts.first == csvNameParts.first) {
+      // Only use first name match if the names are otherwise similar
+      double similarity = _calculateSimilarity(normalizedName, entry.key);
+      if (similarity > 0.6) {
+        debugPrint("Found match by first name with high similarity: $playerName -> ${entry.key}");
+        return entry.value;
+      }
+    }
+  }
+  
+  debugPrint("No match found for player: $playerName");
+  return null;
+}
   
   /// Normalize a name for better matching
   static String _normalizeName(String name) {
