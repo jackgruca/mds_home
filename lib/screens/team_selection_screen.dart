@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../utils/constants.dart';
+import '../widgets/common/user_feedback_banner.dart';
 import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   final bool _enableUserTradeProposals = true;
   final bool _enableQBPremium = true;
   final bool _showAnalytics = true;
+  bool _showFeedbackBanner = true;  // Define this in your state class
+
 
   // NFL divisions and conferences
   final Map<String, List<String>> _afcDivisions = {
@@ -122,7 +125,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
             // Year selector - prominent at the top
             Container(
               padding: EdgeInsets.symmetric(
-                vertical: 8.0, 
+                vertical: 4.0, 
                 horizontal: sectionPadding
               ),
               color: Colors.blue.shade700,
@@ -179,7 +182,15 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
                 ],
               ),
             ),
-            
+            if (_showFeedbackBanner)
+              UserFeedbackBanner(
+                onDismiss: () {
+                  setState(() {
+                    _showFeedbackBanner = false;
+                  });
+                },
+              ),
+
             // Team selection indicator if a team is selected
             if (_selectedTeam != null)
               Container(
