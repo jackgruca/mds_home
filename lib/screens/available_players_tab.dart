@@ -370,7 +370,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14.0,
-                                  color: isSelected || positionDrafted ? Colors.grey : Colors.black,
+                                  color: isSelected || positionDrafted 
+                                    ? Colors.grey 
+                                    : (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -382,7 +386,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                       player.school,
                                       style: TextStyle(
                                         fontSize: 12.0,
-                                        color: isSelected || positionDrafted ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        color: isSelected || positionDrafted 
+                                          ? Colors.grey.shade400 
+                                          : (Theme.of(context).brightness == Brightness.dark 
+                                              ? Colors.grey.shade300 
+                                              : Colors.grey.shade600),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
