@@ -126,9 +126,15 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade800 
+                  : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.grey.shade700 
+                    : Colors.grey.shade300,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -141,14 +147,37 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       child: SizedBox(
                         height: 36,
                         child: TextField(
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'Search Players',
-                            prefixIcon: Icon(Icons.search, size: 18),
+                            hintStyle: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.grey.shade400 
+                                : Colors.grey.shade600,
+                          ),
+                            prefixIcon: Icon(Icons.search, size: 18,
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey.shade400 
+                                  : Colors.grey.shade600,
+                            ),
                             contentPadding: EdgeInsets.zero,
                             isDense: true,
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.grey.shade700 
+                                        : Colors.grey.shade300,
+                            ),
                           ),
-                          style: const TextStyle(fontSize: 14),
+                              fillColor: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.grey.shade900 
+                                : Colors.white,
+                            filled: true,
+                          ),
+                          style: TextStyle(fontSize: 14,
+                              color: Theme.of(context).brightness == Brightness.dark 
+                              ? Colors.white 
+                              : Colors.black,
+                          ),
                           onChanged: (value) {
                             setState(() {
                               _searchQuery = value;
@@ -162,14 +191,18 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.grey.shade700 
+                            : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${filteredPlayers.length} players',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[800],
+                          color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.white 
+                            : Colors.grey.shade800,
                         ),
                       ),
                     ),
@@ -337,7 +370,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14.0,
-                                  color: isSelected || positionDrafted ? Colors.grey : Colors.black,
+                                  color: isSelected || positionDrafted 
+                                    ? Colors.grey 
+                                    : (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -349,7 +386,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                       player.school,
                                       style: TextStyle(
                                         fontSize: 12.0,
-                                        color: isSelected || positionDrafted ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        color: isSelected || positionDrafted 
+                                          ? Colors.grey.shade400 
+                                          : (Theme.of(context).brightness == Brightness.dark 
+                                              ? Colors.grey.shade300 
+                                              : Colors.grey.shade600),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -519,25 +560,44 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
 
   Widget _buildPositionChip(String label, bool isSelected, VoidCallback onTap, {bool isOffensive = true}) {
     bool isPositionDrafted = widget.selectedPositions.contains(label);
-    
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    Color getBgColor() {
+    if (isDarkMode) {
+      return isSelected 
+          ? (isOffensive ? Colors.blue.shade800 : Colors.red.shade800) 
+          : (isOffensive ? Colors.blue.shade900.withOpacity(0.3) : Colors.red.shade900.withOpacity(0.3));
+    } else {
+      return isSelected 
+          ? (isOffensive ? Colors.blue.shade100 : Colors.red.shade100)
+          : (isOffensive ? Colors.blue.shade50 : Colors.red.shade50);
+    }
+  }
+  
+  Color getTextColor() {
+    if (isDarkMode) {
+      return isOffensive ? Colors.blue.shade200 : Colors.red.shade200;
+    } else {
+      return isOffensive ? Colors.blue.shade700 : Colors.red.shade700;
+    }
+  }
+
     return Container(
       margin: const EdgeInsets.only(right: 6),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: getBgColor(),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
             color: isSelected 
-                ? (isOffensive ? Colors.blue[100] : Colors.red[100])
-                : (isOffensive ? Colors.blue[50] : Colors.red[50]),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected 
-                  ? (isOffensive ? Colors.blue[700]! : Colors.red[700]!)
-                  : Colors.transparent,
-            ),
+                ? getTextColor()
+                : Colors.transparent,
           ),
+        ),
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -546,7 +606,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isOffensive ? Colors.blue[700] : Colors.red[700],
+                color: getTextColor(),
                 ),
               ),
               if (isPositionDrafted && label != 'All')
@@ -554,8 +614,8 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 1.5,
-                    color: isOffensive ? Colors.blue[700]! : Colors.red[700]!,
+                  height: 1.5,
+                  color: getTextColor(),
                   ),
                 ),
             ],
