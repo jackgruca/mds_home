@@ -271,12 +271,18 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                     children: [
                       // Trade icon if applicable (moved to the left)
                       if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 4.0),
-                          child: Icon(
-                            Icons.swap_horiz,
-                            size: 16.0,
-                            color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
+                        InkWell(
+                          onTap: () {
+                            _showTradeInfoDialog(context, widget.draftPick);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.swap_horiz,
+                              size: 18.0,
+                              color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
+                            ),
                           ),
                         ),
                         
@@ -345,6 +351,239 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     );
   }
   
+// Added new method to show trade info dialog
+void _showTradeInfoDialog(BuildContext context, DraftPick pick) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Parse the trade info to extract both sides of the trade
+  String originTeam = "";
+  String? tradeInfo = pick.tradeInfo;
+  
+  if (tradeInfo != null && tradeInfo.startsWith("From ")) {
+    originTeam = tradeInfo.substring(5); // Extract team name after "From "
+  }
+  
+  // Try to extract the full trade details from the tradeInfo
+  String teamGiving = originTeam;
+  String teamReceiving = pick.teamName;
+  String tradeDetails = "";
+  
+  // Try to construct the most informative trade detail available
+  if (originTeam.isNotEmpty) {
+    tradeDetails = "$teamReceiving received Pick #${pick.pickNumber} from $teamGiving";
+    
+    // If player was selected with this pick, show that as well
+    if (pick.selectedPlayer != null) {
+      tradeDetails += "\n\n$teamReceiving selected ${pick.selectedPlayer!.name} (${pick.selectedPlayer!.position})";
+    }
+  }
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Row(
+        children: [
+          Icon(
+            Icons.swap_horiz,
+            color: isDarkMode ? Colors.orange[300] : Colors.orange[700],
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Trade Details',
+            style: TextStyle(
+              fontSize: 18,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Trade info
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Pick #${pick.pickNumber}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? 
+                            Colors.orange.shade800.withOpacity(0.3) : 
+                            Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        'TRADED',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Current team info
+                Row(
+                  children: [
+                    _buildTeamLogo(teamReceiving),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Current Team: $teamReceiving",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Original team info
+                if (originTeam.isNotEmpty) Row(
+                  children: [
+                    _buildTeamLogo(originTeam),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Original Team: $originTeam",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Divider
+                Divider(
+                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Trade details
+                Text(
+                  tradeDetails.isNotEmpty ? tradeDetails : (pick.tradeInfo ?? "No trade information available"),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                  ),
+                ),
+                
+                // If a player was selected, show their information
+                if (pick.selectedPlayer != null) const SizedBox(height: 12),
+                if (pick.selectedPlayer != null) Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey.shade900 : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Position badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getPositionColor(pick.selectedPlayer!.position),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          pick.selectedPlayer!.position,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Player name
+                      Expanded(
+                        child: Text(
+                          pick.selectedPlayer!.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                      // Player rank
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getRankColor(
+                            pick.selectedPlayer!.rank,
+                            pick.pickNumber,
+                          ).withOpacity(isDarkMode ? 0.3 : 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: _getRankColor(
+                              pick.selectedPlayer!.rank,
+                              pick.pickNumber,
+                            ).withOpacity(isDarkMode ? 0.5 : 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'Rank: #${pick.selectedPlayer!.rank}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? 
+                                _getRankColor(pick.selectedPlayer!.rank, pick.pickNumber).withOpacity(0.8) : 
+                                _getRankColor(pick.selectedPlayer!.rank, pick.pickNumber),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 // In lib/widgets/draft/animated_draft_pick_card.dart
 void _showPlayerDetails(BuildContext context, Player player) {
   // Add debug output

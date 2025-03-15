@@ -412,7 +412,7 @@ Future<void> _loadData() async {
         
         setState(() {
           _isDraftRunning = false; // Pause the draft
-          _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
+          _statusMessage = "YOUR PICK: Select from the Available Players tab";
           _isUserPickMode = true; // Add this flag to your class
           _userNextPick = nextPick; // Add this field to store the current pick
         });
