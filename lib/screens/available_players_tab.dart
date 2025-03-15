@@ -207,7 +207,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       ),
                     ),
                     // Reset filter button
-                  if (_selectedPositions.isNotEmpty)  // Use the new Set
+                  if (_selectedPositions.isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.clear, size: 16),
                       padding: EdgeInsets.zero,
@@ -215,7 +215,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
                         setState(() {
-                          _selectedPositions.clear();  // Clear the Set
+                          _selectedPositions.clear();
                         });
                       },
                       tooltip: 'Clear filter',
@@ -233,12 +233,12 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         child: Row(
                           children: [
                             // All positions chip
-                            if (_selectedPositions.isEmpty)  // Use the new Set
+                            if (_selectedPositions.isEmpty)
                               _buildPositionChip('All', true, () {}),
-                            if (_selectedPositions.isNotEmpty)  // Use the new Set
+                            if (_selectedPositions.isNotEmpty)
                               _buildPositionChip('All', false, () {
                                 setState(() {
-                                  _selectedPositions.clear();  // Clear the Set with parentheses
+                                  _selectedPositions.clear();
                                 });
                               }),
                               
@@ -307,18 +307,22 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
                     side: BorderSide(
-                      color: isSelected || positionDrafted ? 
+                      color: isSelected ? 
                           Colors.transparent : 
                           (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
                       width: 1.0,
                     ),
                   ),
-                  color: isSelected || positionDrafted ? 
+                  // We're still applying visual styling for previously drafted positions
+                  // but not disabling the card functionality
+                  color: isSelected ? 
                       (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100) : 
-                      (isDarkMode ? Colors.grey.shade800 : Colors.white),
+                      (positionDrafted ? 
+                        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
+                        (isDarkMode ? Colors.grey.shade800 : Colors.white)),
                   child: InkWell(
-                    onTap: isSelected || positionDrafted ? null : () {
-                      // Show the player details dialog when tapping on the card
+                    // Always allow tapping the card for player details
+                    onTap: () {
                       _showPlayerDetails(context, player);
                     },
                     borderRadius: BorderRadius.circular(8.0),
@@ -370,7 +374,8 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14.0,
-                                  color: isSelected || positionDrafted 
+                                  // Apply gray text for previously drafted positions
+                                  color: positionDrafted 
                                     ? Colors.grey 
                                     : (Theme.of(context).brightness == Brightness.dark 
                                         ? Colors.white 
@@ -386,7 +391,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                       player.school,
                                       style: TextStyle(
                                         fontSize: 12.0,
-                                        color: isSelected || positionDrafted 
+                                        color: positionDrafted 
                                           ? Colors.grey.shade400 
                                           : (Theme.of(context).brightness == Brightness.dark 
                                               ? Colors.grey.shade300 
@@ -404,10 +409,10 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getPositionColor(player.position).withOpacity(isSelected || positionDrafted ? 0.1 : 0.2),
+                            color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: isSelected || positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
+                              color: positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
                               width: 1,
                             ),
                           ),
@@ -416,27 +421,26 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
-                              color: isSelected || positionDrafted ? Colors.grey : _getPositionColor(player.position),
+                              color: positionDrafted ? Colors.grey : _getPositionColor(player.position),
                             ),
                           ),
                         ),
                         
                         // Info Button
-                        if (!isSelected && !positionDrafted)
-                          IconButton(
-                            onPressed: () {
-                              _showPlayerDetails(context, player);
-                            },
-                            icon: Icon(
-                              Icons.info_outline,
-                              size: 18,
-                              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(),
-                            tooltip: 'Player Details',
+                        IconButton(
+                          onPressed: () {
+                            _showPlayerDetails(context, player);
+                          },
+                          icon: Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
                           ),
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          tooltip: 'Player Details',
+                        ),
                         
                         // Draft button (if enabled)
                         if (widget.selectionEnabled)
@@ -446,20 +450,22 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                               width: 60,
                               height: 30,
                               child: ElevatedButton(
-                                onPressed: isSelected || positionDrafted ? null : () {
+                                // Always allow drafting, even if position was already drafted
+                                onPressed: () {
                                   if (widget.onPlayerSelected != null) {
                                     widget.onPlayerSelected!(player.id);
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  disabledBackgroundColor: Colors.grey[300],
+                                  // Visual indication of previously drafted position
+                                  backgroundColor: positionDrafted ? Colors.grey : Colors.green,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   minimumSize: const Size(0, 28),
                                 ),
-                                child: const Text(
-                                  'Draft',
-                                  style: TextStyle(
+                                child: Text(
+                                  // Change text to indicate if this is a duplicate position
+                                  positionDrafted ? 'Draft' : 'Draft',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
