@@ -1,7 +1,7 @@
 // lib/widgets/common/user_feedback_banner.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../utils/theme_config.dart';
+import 'contact_form_dialog.dart';
 
 class UserFeedbackBanner extends StatefulWidget {
   final VoidCallback? onDismiss;
@@ -18,10 +18,10 @@ class UserFeedbackBanner extends StatefulWidget {
 }
 
 class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
-  final _emailController = TextEditingController();
   bool _isSubscribed = false;
   bool _isValidEmail = false;
   bool _showEmailField = false;
+  final _emailController = TextEditingController();
   
   @override
   void dispose() {
@@ -36,18 +36,11 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
     });
   }
   
-  void _copyEmailToClipboard() async {
-    const email = 'sticktothemodel@gmail.com';
-    await Clipboard.setData(const ClipboardData(text: email));
-    
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email address copied to clipboard: sticktothemodel@gmail.com'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+  void _showContactForm() {
+    showDialog(
+      context: context,
+      builder: (context) => const ContactFormDialog(),
+    );
   }
   
   void _toggleSubscriptionField() {
@@ -156,11 +149,11 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Email feedback button
+                        // Contact form button (replacing email copy button)
                         OutlinedButton.icon(
-                          onPressed: _copyEmailToClipboard,
-                          icon: const Icon(Icons.email_outlined, size: 16),
-                          label: const Text('Copy Email'),
+                          onPressed: _showContactForm,
+                          icon: const Icon(Icons.contact_mail, size: 16),
+                          label: const Text('Contact Me'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
                             side: BorderSide(
@@ -242,9 +235,9 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
                     ),
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
-                      onPressed: _copyEmailToClipboard,
-                      icon: const Icon(Icons.email_outlined, size: 16),
-                      label: const Text('Copy Email'),
+                      onPressed: _showContactForm,
+                      icon: const Icon(Icons.contact_mail, size: 16),
+                      label: const Text('Contact Me'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
                         side: BorderSide(
