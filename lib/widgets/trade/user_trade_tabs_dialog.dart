@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
+import '../../utils/team_logo_utils.dart';
 import 'user_trade_dialog.dart';
 
 class UserTradeTabsDialog extends StatefulWidget {
@@ -43,10 +44,29 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
     super.dispose();
   }
   
+  // Helper method to determine the color based on trade value
+  Color _getOfferValueColor(TradePackage offer) {
+    final valueRatio = offer.totalValueOffered / offer.targetPickValue;
+    
+    if (valueRatio >= 1.2) return Colors.green;      // Great value (>20% surplus)
+    if (valueRatio >= 1.0) return Colors.blue;       // Fair value
+    if (valueRatio >= 0.9) return Colors.orange;     // Slightly below value
+    return Colors.red;                               // Poor value
+  }
+  
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      //title: const Text('Trade Center', style: TextStyle(fontSize: 20)),
+      title: Row(
+        children: [
+          const Icon(Icons.swap_horiz, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            'Trade Center: ${widget.userTeam}',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
       contentPadding: EdgeInsets.zero, // Remove default padding
       insetPadding: const EdgeInsets.all(12), // Reduced inset padding
       content: SizedBox(
@@ -65,7 +85,7 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                     label: Text(_getAllPendingOffers().length.toString()),
                     child: const Icon(Icons.call_received, size: 16),
                   ),
-                  text: 'Trade Offers',
+                  text: 'Trade Offers (${_getAllPendingOffers().length})',
                   iconMargin: const EdgeInsets.only(bottom: 2.0),
                 ),
                 const Tab(
@@ -128,30 +148,161 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Offer from ${offer.teamOffering}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                Text(offer.tradeDescription),
-                const SizedBox(height: 16),
+                // Team name with logo
                 Row(
                   children: [
+                    // Team logo
+                    TeamLogoUtils.buildNFLTeamLogo(
+                      offer.teamOffering,
+                      size: 32.0,
+                    ),
+                    const SizedBox(width: 12),
+                    // Team name
                     Expanded(
                       child: Text(
-                        'Value: ${offer.valueSummary}',
-                        style: TextStyle(
-                          color: offer.isFairTrade ? Colors.green : Colors.red,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        'Offer from ${offer.teamOffering}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
-                    ElevatedButton(
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Visual trade flow with team logos
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Trade flow visualization
+                      Row(
+                        children: [
+                          // Team receiving
+                          Expanded(
+                            child: Column(
+                              children: [
+                                TeamLogoUtils.buildNFLTeamLogo(
+                                  offer.teamReceiving,
+                                  size: 36.0,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  offer.teamReceiving,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Exchange arrows
+                          Column(
+                            children: [
+                              Icon(Icons.arrow_forward, color: Colors.green.shade700, size: 20),
+                              const SizedBox(height: 4),
+                              Icon(Icons.arrow_back, color: Colors.red.shade700, size: 20),
+                            ],
+                          ),
+                          
+                          // Team offering
+                          Expanded(
+                            child: Column(
+                              children: [
+                                TeamLogoUtils.buildNFLTeamLogo(
+                                  offer.teamOffering,
+                                  size: 36.0,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  offer.teamOffering,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Text description
+                      Text(
+                        offer.tradeDescription,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Value summary with improved visual indicators
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getOfferValueColor(offer).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _getOfferValueColor(offer).withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            offer.isGreatTrade ? Icons.thumb_up : (offer.isFairTrade ? Icons.check_circle : Icons.warning),
+                            color: _getOfferValueColor(offer),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            offer.isGreatTrade ? 'Great Value' : (offer.isFairTrade ? 'Fair Trade' : 'Below Value'),
+                            style: TextStyle(
+                              color: _getOfferValueColor(offer),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        offer.valueSummary,
+                        style: const TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Accept button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
                       onPressed: () => widget.onAcceptOffer(offer),
+                      icon: const Icon(Icons.check_circle, size: 16),
+                      label: const Text('Accept Offer'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
-                      child: const Text('Accept Offer'),
                     ),
                   ],
                 ),

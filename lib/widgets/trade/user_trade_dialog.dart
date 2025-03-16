@@ -3,6 +3,7 @@ import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/future_pick.dart';
+import '../../utils/team_logo_utils.dart';
 
 class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
@@ -150,7 +151,22 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                 items: targetTeams.map<DropdownMenuItem<String>>((String team) {
                                   return DropdownMenuItem<String>(
                                     value: team,
-                                    child: Text(team, style: const TextStyle(fontSize: 13)),
+                                    child: Row(
+                                      children: [
+                                        TeamLogoUtils.buildNFLTeamLogo(
+                                          team,
+                                          size: 24.0,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          team, 
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   );
                                 }).toList(),
                                 style: const TextStyle(
