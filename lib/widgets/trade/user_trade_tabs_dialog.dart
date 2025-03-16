@@ -197,10 +197,11 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                             Expanded(
                               child: Text(
                                 'Receives: $picksGained',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.green,
-                                ),
+                                  color: Theme.of(context).brightness == Brightness.dark ? 
+                                        Colors.white : Colors.black,
+                                      ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -210,10 +211,12 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                             Expanded(
                               child: Text(
                                 'Offers: $picksLost',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.red,
-                                ),
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).brightness == Brightness.dark ? 
+                                         Colors.white : Colors.black,
+                                      ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
