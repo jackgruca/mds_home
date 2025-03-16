@@ -261,6 +261,188 @@ class AuthService {
       return {};
     }
   }
+
+  // Generate and store a password reset token
+  static Future<String> generatePasswordResetToken(String email) async {
+    try {
+      // Get all users
+      final users = await _getAllUsers();
+      User? user;
+      String? password;
+      
+      // Find the user with matching email
+      for (var entry in users.entries) {
+        final userData = User.fromJson(jsonDecode(entry.key));
+        
+        if (userData.email.toLowerCase() == email.toLowerCase()) {
+          user = userData;
+          password = entry.value;
+          break;
+        }
+      }
+      
+      if (user == null) {
+        throw Exception('Email not found');
+      }
+      
+      // Generate a random token
+      final token = _generateResetToken();
+      final expiry = DateTime.now().add(const Duration(hours: 24)); // Token valid for 24 hours
+      
+      // Update the user with the token
+      final updatedUser = user.copyWith(
+        resetToken: token,
+        resetTokenExpiry: expiry,
+      );
+      
+      // Save the updated user
+      await _updateUser(updatedUser, password!);
+      
+      return token;
+    } catch (e) {
+      debugPrint('Error generating reset token: $e');
+      throw Exception('Failed to generate reset token: $e');
+    }
+  }
+
+  // Verify a password reset token
+  static Future<bool> verifyResetToken(String email, String token) async {
+    try {
+      // Get all users
+      final users = await _getAllUsers();
+      
+      // Find the user with matching email
+      for (var entry in users.entries) {
+        final userData = User.fromJson(jsonDecode(entry.key));
+        
+        if (userData.email.toLowerCase() == email.toLowerCase()) {
+          // Check if token is valid and not expired
+          if (userData.resetToken == token && 
+              userData.resetTokenExpiry != null && 
+              userData.resetTokenExpiry!.isAfter(DateTime.now())) {
+            return true;
+          }
+          break;
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Error verifying reset token: $e');
+      return false;
+    }
+  }
+
+  // Reset password using a token
+  static Future<bool> resetPassword(String email, String token, String newPassword) async {
+    try {
+      // Verify the token first
+      final isValid = await verifyResetToken(email, token);
+      
+      if (!isValid) {
+        throw Exception('Invalid or expired token');
+      }
+      
+      // Get all users
+      final users = await _getAllUsers();
+      User? user;
+      
+      // Find the user with matching email
+      for (var entry in users.entries) {
+        final userData = User.fromJson(jsonDecode(entry.key));
+        
+        if (userData.email.toLowerCase() == email.toLowerCase()) {
+          user = userData;
+          break;
+        }
+      }
+      
+      if (user == null) {
+        throw Exception('User not found');
+      }
+      
+      // Clear the reset token
+      final updatedUser = user.copyWith(
+        resetToken: null,
+        resetTokenExpiry: null,
+      );
+      
+      // Save the updated user with new password
+      await _updateUser(updatedUser, newPassword);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error resetting password: $e');
+      throw Exception('Failed to reset password: $e');
+    }
+  }
+
+  // Helper method to generate a reset token
+  static String _generateResetToken() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return String.fromCharCodes(
+      Iterable.generate(
+        32, 
+        (_) => chars.codeUnitAt(random.nextInt(chars.length))
+      )
+    );
+  }
+
+  // Add these methods to the User preferences section
+  static Future<User> updateFavoriteTeams(List<String> favoriteTeams) async {
+    if (_currentUser == null) {
+      throw Exception('No user logged in');
+    }
+    
+    try {
+      // Get the user's password
+      final password = await _getUserPassword(_currentUser!.id);
+      
+      // Update the user
+      final updatedUser = _currentUser!.copyWith(
+        favoriteTeams: favoriteTeams,
+      );
+      
+      // Save the updated user
+      await _updateUser(updatedUser, password);
+      
+      // Update current user
+      await _saveCurrentUser(updatedUser);
+      
+      return updatedUser;
+    } catch (e) {
+      debugPrint('Error updating favorite teams: $e');
+      throw Exception('Failed to update favorite teams: $e');
+    }
+  }
+
+  static Future<User> updateDraftPreferences(Map<String, dynamic> preferences) async {
+    if (_currentUser == null) {
+      throw Exception('No user logged in');
+    }
+    
+    try {
+      // Get the user's password
+      final password = await _getUserPassword(_currentUser!.id);
+      
+      // Update the user
+      final updatedUser = _currentUser!.copyWith(
+        draftPreferences: preferences,
+      );
+      
+      // Save the updated user
+      await _updateUser(updatedUser, password);
+      
+      // Update current user
+      await _saveCurrentUser(updatedUser);
+      
+      return updatedUser;
+    } catch (e) {
+      debugPrint('Error updating draft preferences: $e');
+      throw Exception('Failed to update draft preferences: $e');
+    }
+  }
   
   // Generate a unique user ID
   static String _generateUserId() {

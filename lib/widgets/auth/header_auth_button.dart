@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../screens/user_preferences_screen.dart';
 import '../../utils/theme_config.dart';
 import 'auth_dialog.dart';
 
@@ -116,6 +117,16 @@ class HeaderAuthButton extends StatelessWidget {
                   ],
                 ),
               ),
+              const PopupMenuItem(
+                value: 'preferences',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, size: 16),
+                    SizedBox(width: 8),
+                    Text('User Preferences'),
+                  ],
+                ),
+              ),
             ],
             onSelected: (value) {
               switch (value) {
@@ -124,6 +135,14 @@ class HeaderAuthButton extends StatelessWidget {
                   break;
                 case 'signout':
                   _handleSignOut(context);
+                  break;
+                case 'preferences':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserPreferencesScreen(),
+                    ),
+                  );
                   break;
               }
             },

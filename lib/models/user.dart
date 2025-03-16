@@ -6,6 +6,10 @@ class User {
   final bool isSubscribed;
   final DateTime createdAt;
   final DateTime lastLoginAt;
+  final String? resetToken;
+  final DateTime? resetTokenExpiry;
+  final List<String>? favoriteTeams;
+  final Map<String, dynamic>? draftPreferences;
 
   User({
     required this.id,
@@ -14,9 +18,13 @@ class User {
     this.isSubscribed = false,
     required this.createdAt,
     required this.lastLoginAt,
+    this.resetToken,
+    this.resetTokenExpiry,
+    this.favoriteTeams,
+    this.draftPreferences,
   });
 
-  // Factory constructor to create a User from a Map
+  // Update factory constructor
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
@@ -25,10 +33,18 @@ class User {
       isSubscribed: json['isSubscribed'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
       lastLoginAt: DateTime.parse(json['lastLoginAt']),
+      resetToken: json['resetToken'],
+      resetTokenExpiry: json['resetTokenExpiry'] != null 
+          ? DateTime.parse(json['resetTokenExpiry']) 
+          : null,
+      favoriteTeams: json['favoriteTeams'] != null
+          ? List<String>.from(json['favoriteTeams'])
+          : null,
+      draftPreferences: json['draftPreferences'],
     );
   }
 
-  // Convert User to a Map
+  // Update toJson method
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -37,10 +53,14 @@ class User {
       'isSubscribed': isSubscribed,
       'createdAt': createdAt.toIso8601String(),
       'lastLoginAt': lastLoginAt.toIso8601String(),
+      'resetToken': resetToken,
+      'resetTokenExpiry': resetTokenExpiry?.toIso8601String(),
+      'favoriteTeams': favoriteTeams,
+      'draftPreferences': draftPreferences,
     };
   }
 
-  // Create a copy of the user with some updated fields
+  // Update copyWith method
   User copyWith({
     String? id,
     String? name,
@@ -48,6 +68,10 @@ class User {
     bool? isSubscribed,
     DateTime? createdAt,
     DateTime? lastLoginAt,
+    String? resetToken,
+    DateTime? resetTokenExpiry,
+    List<String>? favoriteTeams,
+    Map<String, dynamic>? draftPreferences,
   }) {
     return User(
       id: id ?? this.id,
@@ -56,6 +80,10 @@ class User {
       isSubscribed: isSubscribed ?? this.isSubscribed,
       createdAt: createdAt ?? this.createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      resetToken: resetToken ?? this.resetToken,
+      resetTokenExpiry: resetTokenExpiry ?? this.resetTokenExpiry,
+      favoriteTeams: favoriteTeams ?? this.favoriteTeams,
+      draftPreferences: draftPreferences ?? this.draftPreferences,
     );
   }
 }
