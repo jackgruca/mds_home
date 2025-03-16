@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../utils/theme_config.dart';
 import '../../providers/auth_provider.dart';
+import 'forgot_password_dialog.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -242,6 +243,27 @@ class _AuthDialogState extends State<AuthDialog> {
                     return null;
                   },
                 ),
+
+                if (_authMode == AuthMode.signIn) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close current dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => const ForgotPasswordDialog(),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                      ),
+                      child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
                 
                 const SizedBox(height: 16),
                 
