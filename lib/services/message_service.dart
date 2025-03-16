@@ -2,15 +2,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'email_service.dart';
 
 /// Service to manage user feedback messages
 class MessageService {
   // Key for storing messages in SharedPreferences
   static const String _messagesKey = 'user_feedback_messages';
 
-  /// Save a user message to local storage
-  /// In a production app, this would likely send to a server
-  static Future<void> saveUserMessage({
+  /// Save a user message to local storage and send via email
+  static Future<bool> saveUserMessage({
     required String name,
     required String email,
     required String message,
@@ -45,11 +45,23 @@ class MessageService {
       // Save updated messages list
       await prefs.setString(_messagesKey, jsonEncode(messages));
 
-      // In a real app, you might also want to send this to a server
-      // This could be implemented later with Firebase, AWS, or your own backend
-      await _syncWithServer(messageData);
+      // Send email using EmailJS
+      final emailSent = await EmailService.sendContactFormEmail(
+        name: name,
+        email: email,
+        message: message,
+        feedbackType: feedbackType,
+      );
+
+      // If email sent successfully, update status
+      if (emailSent) {
+        await markMessageAsSent(messageData['timestamp']);
+      }
 
       debugPrint('Message saved successfully: ${messageData['timestamp']}');
+      debugPrint('Email sent successfully: $emailSent');
+      
+      return emailSent;
     } catch (e) {
       debugPrint('Error saving message: $e');
       throw Exception('Failed to save message: $e');
@@ -64,7 +76,16 @@ class MessageService {
       
       if (messagesJson != null) {
         final List<dynamic> parsed = jsonDecode(messagesJson);
-        return parsed.cast<Map<String, dynamic>>();
+        final messages = parsed.cast<Map<String, dynamic>>();
+        
+        // Sort by timestamp descending (newest first)
+        messages.sort((a, b) {
+          final aTime = DateTime.tryParse(a['timestamp'] ?? '') ?? DateTime(1970);
+          final bTime = DateTime.tryParse(b['timestamp'] ?? '') ?? DateTime(1970);
+          return bTime.compareTo(aTime);
+        });
+        
+        return messages;
       }
       
       return [];
@@ -84,35 +105,13 @@ class MessageService {
     }
   }
 
-  /// Mock function to simulate syncing with a server
-  /// This would be replaced with actual API calls in production
-  static Future<void> _syncWithServer(Map<String, dynamic> messageData) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    // For now, just log that we would send this to a server
-    debugPrint('Would send message to server: ${messageData['feedbackType']} from ${messageData['name']}');
-    
-    // Here you would implement actual server communication
-    // Example:
-    // final response = await http.post(
-    //   Uri.parse('https://your-api.com/messages'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode(messageData),
-    // );
-    // 
-    // if (response.statusCode != 200) {
-    //   throw Exception('Failed to sync message with server');
-    // }
-  }
-
   /// Get count of pending messages
   static Future<int> getPendingMessageCount() async {
     final messages = await getAllMessages();
     return messages.where((msg) => msg['status'] == 'pending').length;
   }
 
-  /// Mark a message as sent (would be called after successful server sync in production)
+  /// Mark a message as sent
   static Future<void> markMessageAsSent(String timestamp) async {
     try {
       final prefs = await SharedPreferences.getInstance();

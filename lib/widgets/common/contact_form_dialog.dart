@@ -19,6 +19,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
   bool _isSubmitting = false;
   bool _isSubmitted = false;
   bool _hasError = false;
+  String? _errorMessage;
   String _feedbackType = 'Feature Request';
 
   final List<String> _feedbackTypes = [
@@ -42,24 +43,34 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
       setState(() {
         _isSubmitting = true;
         _hasError = false;
+        _errorMessage = null;
       });
 
       try {
-        await MessageService.saveUserMessage(
+        final success = await MessageService.saveUserMessage(
           name: _nameController.text,
           email: _emailController.text,
           message: _messageController.text,
           feedbackType: _feedbackType,
         );
 
-        setState(() {
-          _isSubmitting = false;
-          _isSubmitted = true;
-        });
+        if (success) {
+          setState(() {
+            _isSubmitting = false;
+            _isSubmitted = true;
+          });
+        } else {
+          setState(() {
+            _isSubmitting = false;
+            _hasError = true;
+            _errorMessage = "The message was saved but couldn't be sent via email. We'll send it as soon as possible.";
+          });
+        }
       } catch (e) {
         setState(() {
           _isSubmitting = false;
           _hasError = true;
+          _errorMessage = "An error occurred: $e";
         });
       }
     }
@@ -88,7 +99,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Thank you for your message. We\'ll get back to you as soon as possible.',
+              'Thank you for your message. We\'ve received your feedback and will review it soon.',
               style: TextStyle(
                 color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
@@ -147,7 +158,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'An error occurred. Please try again later.',
+                            _errorMessage ?? 'An error occurred. Please try again later.',
                             style: TextStyle(color: Colors.red.shade700),
                           ),
                         ),
@@ -245,6 +256,9 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your message';
                     }
+                    if (value.length < 10) {
+                      return 'Message is too short (minimum 10 characters)';
+                    }
                     return null;
                   },
                 ),
@@ -252,7 +266,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
                 const SizedBox(height: 8),
                 
                 Text(
-                  'Your message will be stored securely and forwarded to the development team.',
+                  'Your message will be sent securely to our team and stored for reference.',
                   style: TextStyle(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
@@ -266,7 +280,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
           child: Text(
             'Cancel',
             style: TextStyle(
@@ -282,8 +296,8 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
           ),
           child: _isSubmitting
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
