@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../utils/constants.dart';
+import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
 import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
@@ -101,6 +102,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
       appBar: AppBar(
         title: const Text('NFL Draft Simulator'),
         actions: [
+          // Add the auth button here
+          const HeaderAuthButton(),
           // Theme toggle button
           Consumer<ThemeManager>(
             builder: (context, themeManager, _) => IconButton(
@@ -119,6 +122,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
           ),
         ],
       ),
+
       body: SafeArea(
         child: Column(
           children: [

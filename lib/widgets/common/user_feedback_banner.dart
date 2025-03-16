@@ -46,112 +46,61 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
+      elevation: 1, // Reduced elevation for subtlety
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: isDarkMode 
-                ? [AppTheme.darkNavy, Color.lerp(AppTheme.darkNavy, Colors.black, 0.3)!]
-                : [AppTheme.lightBackground, Color.lerp(AppTheme.brightBlue, Colors.white, 0.85)!],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: isDarkMode ? Colors.grey.shade800.withOpacity(0.6) : Colors.grey.shade50, // More subtle background
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header with optional dismiss
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.sports_football_outlined,
-                          color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'NFL Draft Simulator',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.white : AppTheme.darkNavy,
-                          ),
-                        ),
-                      ],
-                    ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // Text content
+              Expanded(
+                child: Text(
+                  'Create an account for betting analytics and fantasy forecasting coming soon!',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
                   ),
-                  if (widget.allowDismiss && widget.onDismiss != null)
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: isDarkMode ? Colors.white60 : Colors.black45,
-                      ),
-                      onPressed: widget.onDismiss,
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                ],
+                ),
               ),
-            ),
-            
-            // Main content - now more compact
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Text content
-                  Expanded(
-                    child: Text(
-                      'Create an account for betting analytics and fantasy forecasting coming soon!',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.white70 : Colors.black87,
-                      ),
-                    ),
+              
+              const SizedBox(width: 12),
+              
+              // Contact button only (remove the Auth button as it will be in header)
+              OutlinedButton(
+                onPressed: _showContactForm,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  side: BorderSide(
+                    color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
                   ),
-                  
-                  const SizedBox(width: 12),
-                  
-                  // Action Buttons - now just two buttons side by side
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Contact form button
-                      OutlinedButton(
-                        onPressed: _showContactForm,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                          side: BorderSide(
-                            color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          minimumSize: const Size(0, 32),
-                          textStyle: const TextStyle(fontSize: 12),
-                        ),
-                        child: const Text('Contact'),
-                      ),
-                      
-                      const SizedBox(width: 8),
-                      
-                      // Auth status/sign-in widget
-                      const AuthStatusWidget(),
-                    ],
-                  ),
-                ],
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 32),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: const Text('Contact Us'),
               ),
-            ),
-          ],
+              
+              if (widget.allowDismiss && widget.onDismiss != null)
+                IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: isDarkMode ? Colors.white60 : Colors.black45,
+                  ),
+                  onPressed: widget.onDismiss,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
+
 }
