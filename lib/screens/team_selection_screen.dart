@@ -1,6 +1,7 @@
 // lib/screens/team_selection_screen.dart
 import 'package:flutter/material.dart';
 import '../models/team.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
@@ -24,10 +25,10 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
 
-  final bool _enableTrading = true;
-  final bool _enableUserTradeProposals = true;
-  final bool _enableQBPremium = true;
-  final bool _showAnalytics = true;
+  bool _enableTrading = true;
+  bool _enableUserTradeProposals = true;
+  bool _enableQBPremium = true;
+  bool _showAnalytics = true;
   bool _showFeedbackBanner = true;  // Define this in your state class
 
 
@@ -45,6 +46,45 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
     'NFC South': ['Atlanta Falcons', 'Carolina Panthers', 'New Orleans Saints', 'Tampa Bay Buccaneers'],
     'NFC West': ['Arizona Cardinals', 'Los Angeles Rams', 'San Francisco 49ers', 'Seattle Seahawks'],
   };
+
+  // Inside TeamSelectionScreenState
+
+@override
+void initState() {
+  super.initState();
+  _loadUserPreferences();
+}
+
+Future<void> _loadUserPreferences() async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  if (!authProvider.isLoggedIn) return; // Only load for logged in users
+  
+  final user = authProvider.user;
+  if (user == null) return;
+  
+  // Load favorite teams if none selected yet
+  if (_selectedTeam == null && user.favoriteTeams != null && user.favoriteTeams!.isNotEmpty) {
+    setState(() {
+      // Set the first favorite team as the selected team
+      _selectedTeam = user.favoriteTeams!.first;
+    });
+  }
+  
+  // Load draft preferences
+  if (user.draftPreferences != null) {
+    final prefs = user.draftPreferences!;
+    setState(() {
+      _numberOfRounds = prefs['defaultRounds'] ?? _numberOfRounds;
+      _speed = prefs['defaultSpeed'] ?? _speed;
+      _randomness = prefs['defaultRandomness'] ?? _randomness;
+      _enableTrading = prefs['enableTrading'] ?? true;
+      _enableUserTradeProposals = prefs['enableUserTradeProposals'] ?? true;
+      _enableQBPremium = prefs['enableQBPremium'] ?? true;
+      _showAnalytics = prefs['showAnalytics'] ?? true;
+      _selectedYear = prefs['defaultYear'] ?? _selectedYear;
+    });
+  }
+}
 
   void _openDraftSettings() {
     Navigator.push(
