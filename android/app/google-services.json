@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "900728713837",
+    "project_id": "nfl-draft-simulator-9265f",
+    "storage_bucket": "nfl-draft-simulator-9265f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900728713837:android:3ceb03e23fb32d4b8f8564",
+        "android_client_info": {
+          "package_name": "com.example.mds_home"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDy4UWWODN0984SR5CmNrN--pHgVe0Z9o0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
