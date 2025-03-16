@@ -59,7 +59,7 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
               // Text content
               Expanded(
                 child: Text(
-                  'Create an account for betting analytics and fantasy forecasting coming soon!',
+                  "Help us improve by sharing any suggestions/feedback! Create an account for advanced features.",
                   style: TextStyle(
                     fontSize: 12,
                     color: isDarkMode ? Colors.white70 : Colors.black87,

@@ -249,7 +249,7 @@ class _AuthDialogState extends State<AuthDialog> {
                 if (_authMode == AuthMode.signUp)
                   CheckboxListTile(
                     title: Text(
-                      'Subscribe to draft updates, betting analytics, and fantasy forecasting',
+                      'Subscribe for draft updates, betting analytics, and fantasy forecasting',
                       style: TextStyle(
                         fontSize: 12,
                         color: isDarkMode ? Colors.white70 : Colors.black87,
