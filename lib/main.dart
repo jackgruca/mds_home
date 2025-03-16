@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/firebase_service.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
@@ -14,7 +15,7 @@ import 'widgets/admin/message_admin_panel.dart';
 int _secretTapCount = 0;
 DateTime? _lastTapTime;
 
-void main() {
+void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -27,6 +28,8 @@ void main() {
     };
   }
   
+  await FirebaseService.initialize();
+
   runApp(
     MultiProvider(
       providers: [

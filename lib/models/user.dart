@@ -1,61 +1,69 @@
 // lib/models/user.dart
 class User {
-  final String id;
+  final String uid;
   final String name;
   final String email;
   final bool isSubscribed;
+  final Map<String, dynamic>? preferences;
   final DateTime createdAt;
-  final DateTime lastLoginAt;
+  final DateTime? lastLoginAt;
+  final String? photoUrl;
 
   User({
-    required this.id,
+    required this.uid,
     required this.name,
     required this.email,
     this.isSubscribed = false,
+    this.preferences,
     required this.createdAt,
-    required this.lastLoginAt,
+    this.lastLoginAt,
+    this.photoUrl,
   });
 
-  // Factory constructor to create a User from a Map
-  factory User.fromJson(Map<String, dynamic> json) {
+  factory User.fromFirestore(Map<String, dynamic> data, String id) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      isSubscribed: json['isSubscribed'] ?? false,
-      createdAt: DateTime.parse(json['createdAt']),
-      lastLoginAt: DateTime.parse(json['lastLoginAt']),
+      uid: id,
+      name: data['name'] ?? '',
+      email: data['email'] ?? '',
+      isSubscribed: data['isSubscribed'] ?? false,
+      preferences: data['preferences'],
+      createdAt: data['createdAt']?.toDate() ?? DateTime.now(),
+      lastLoginAt: data['lastLoginAt']?.toDate(),
+      photoUrl: data['photoUrl'],
     );
   }
 
-  // Convert User to a Map
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'name': name,
       'email': email,
       'isSubscribed': isSubscribed,
-      'createdAt': createdAt.toIso8601String(),
-      'lastLoginAt': lastLoginAt.toIso8601String(),
+      'preferences': preferences ?? {},
+      'createdAt': createdAt,
+      'lastLoginAt': lastLoginAt,
+      'photoUrl': photoUrl,
     };
   }
 
-  // Create a copy of the user with some updated fields
   User copyWith({
-    String? id,
+    String? uid,
     String? name,
     String? email,
     bool? isSubscribed,
+    Map<String, dynamic>? preferences,
     DateTime? createdAt,
     DateTime? lastLoginAt,
+    String? photoUrl,
   }) {
     return User(
-      id: id ?? this.id,
+      uid: uid ?? this.uid,
       name: name ?? this.name,
       email: email ?? this.email,
       isSubscribed: isSubscribed ?? this.isSubscribed,
+      preferences: preferences ?? this.preferences,
       createdAt: createdAt ?? this.createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 }
