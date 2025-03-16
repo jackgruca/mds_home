@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../../utils/theme_config.dart';
 import 'contact_form_dialog.dart';
+import '../auth/auth_dialog.dart';
+import '../auth/auth_status_widget.dart';
 
 class UserFeedbackBanner extends StatefulWidget {
   final VoidCallback? onDismiss;
@@ -18,23 +20,7 @@ class UserFeedbackBanner extends StatefulWidget {
 }
 
 class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
-  bool _isSubscribed = false;
-  bool _isValidEmail = false;
-  bool _showEmailField = false;
-  final _emailController = TextEditingController();
-  
-  @override
-  void dispose() {
-    _emailController.dispose();
-    super.dispose();
-  }
-  
-  void _validateEmail(String value) {
-    setState(() {
-      // Simple email validation
-      _isValidEmail = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value);
-    });
-  }
+  final bool _isSubscribed = false;
   
   void _showContactForm() {
     showDialog(
@@ -43,31 +29,13 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
     );
   }
   
-  void _toggleSubscriptionField() {
-    setState(() {
-      _showEmailField = !_showEmailField;
-    });
-  }
-  
-  void _submitEmail() {
-    if (_isValidEmail) {
-      // Here you would typically send the email to your backend
-      // For now we'll just show a success message
-      setState(() {
-        _isSubscribed = true;
-        _showEmailField = false;
-      });
-      
-      // Show confirmation
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Thanks for subscribing! You\'ll receive updates soon.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+  void _showAuthDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const AuthDialog(
+        initialMode: AuthMode.signUp,
+      ),
+    );
   }
   
   @override
@@ -95,29 +63,34 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
           children: [
             // Header with optional dismiss
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.feedback_outlined,
-                    color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Help Us Improve',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : AppTheme.darkNavy,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.sports_football_outlined,
+                          color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'NFL Draft Simulator',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : AppTheme.darkNavy,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
                   if (widget.allowDismiss && widget.onDismiss != null)
                     IconButton(
                       icon: Icon(
                         Icons.close,
-                        size: 18,
+                        size: 16,
                         color: isDarkMode ? Colors.white60 : Colors.black45,
                       ),
                       onPressed: widget.onDismiss,
@@ -129,123 +102,50 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
               ),
             ),
             
-            // Main content
+            // Main content - now more compact
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (!_isSubscribed) ...[
-                    Text(
-                      'We\'re constantly improving our draft simulator. Share your suggestions or subscribe for updates on new features including betting analytics and fantasy forecasting.',
+                  // Text content
+                  Expanded(
+                    child: Text(
+                      'Create an account for betting analytics and fantasy forecasting coming soon!',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: isDarkMode ? Colors.white70 : Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    
-                    // Action Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Contact form button (replacing email copy button)
-                        OutlinedButton.icon(
-                          onPressed: _showContactForm,
-                          icon: const Icon(Icons.contact_mail, size: 16),
-                          label: const Text('Contact Me'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                            side: BorderSide(
-                              color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                            ),
+                  ),
+                  
+                  const SizedBox(width: 12),
+                  
+                  // Action Buttons - now just two buttons side by side
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Contact form button
+                      OutlinedButton(
+                        onPressed: _showContactForm,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                          side: BorderSide(
+                            color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
                           ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          minimumSize: const Size(0, 32),
+                          textStyle: const TextStyle(fontSize: 12),
                         ),
-                        
-                        // Subscribe button
-                        ElevatedButton.icon(
-                          onPressed: _toggleSubscriptionField,
-                          icon: const Icon(Icons.notifications_outlined, size: 16),
-                          label: Text(_showEmailField ? 'Cancel' : 'Get Updates'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    // Conditional email field
-                    if (_showEmailField) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your email',
-                                isDense: true,
-                                filled: true,
-                                fillColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                              ),
-                              onChanged: _validateEmail,
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: _isValidEmail ? _submitEmail : null,
-                            icon: const Icon(Icons.send),
-                            color: _isValidEmail
-                                ? (isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed)
-                                : Colors.grey,
-                            tooltip: 'Subscribe',
-                          ),
-                        ],
+                        child: const Text('Contact'),
                       ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Auth status/sign-in widget
+                      const AuthStatusWidget(),
                     ],
-                  ] else ...[
-                    // Thank you message after subscription
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline,
-                          color: Colors.green,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Thanks for subscribing! You\'ll receive updates on new features soon.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDarkMode ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: _showContactForm,
-                      icon: const Icon(Icons.contact_mail, size: 16),
-                      label: const Text('Contact Me'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                        side: BorderSide(
-                          color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),

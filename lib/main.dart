@@ -1,11 +1,11 @@
-// lib/main.dart - Update with dependencies
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/team_selection_screen.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
-import 'services/message_service.dart'; // Add this import
-
+import 'services/message_service.dart';
+import 'providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
 
 import 'widgets/admin/message_admin_panel.dart';
@@ -28,15 +28,32 @@ void main() {
   }
   
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeManager(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeManager()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
       child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize auth provider
+    Future.delayed(Duration.zero, () {
+      Provider.of<AuthProvider>(context, listen: false).initialize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
