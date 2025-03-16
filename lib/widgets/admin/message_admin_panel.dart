@@ -57,6 +57,151 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirmed) {
+      await MessageService.clearAllMessages();
+      await _loadMessages();
+    }
+  }
+
+  String _formatTimestamp(String timestamp) {
+    try {
+      final date = DateTime.parse(timestamp);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return timestamp;
+    }
+  }
+
+  Widget _buildMessageDetails(Map<String, dynamic> message) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.blue.shade900 : Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              message['feedbackType'] ?? 'Unknown Type',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.blue.shade800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'From: ${message['name']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Email: ${message['email']}',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Status: ${message['status'] ?? 'unknown'}',
+                    style: TextStyle(
+                      color: (message['status'] == 'pending')
+                          ? Colors.orange
+                          : (message['status'] == 'sent')
+                              ? Colors.green
+                              : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    _formatTimestamp(message['timestamp'] ?? ''),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          const Text(
+            'Message:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade700 : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
+              ),
+            ),
+            width: double.infinity,
+            child: Text(
+              message['message'] ?? 'No message content',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (message['status'] == 'pending')
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await MessageService.markMessageAsSent(message['timestamp']);
+                    _loadMessages();
+                  },
+                  icon: const Icon(Icons.send, size: 16),
+                  label: const Text('Mark as Sent'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -237,150 +382,5 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
                   ],
                 ),
     );
-  },
-          ElevatedButton(
-            onPressed = () => Navigator.of(context).pop(true),
-            style = ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child = const Text('Delete All'),
-          ),
-        ],
-      ),
-    ) ?? false;
-
-    if (confirmed) {
-      await MessageService.clearAllMessages();
-      await _loadMessages();
-    }
   }
-
-  String _formatTimestamp(String timestamp) {
-    try {
-      final date = DateTime.parse(timestamp);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return timestamp;
-    }
-  }
-
-  Widget _buildMessageDetails(Map<String, dynamic> message) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.blue.shade900 : Colors.blue.shade100,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              message['feedbackType'] ?? 'Unknown Type',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.blue.shade800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'From: ${message['name']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Email: ${message['email']}',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Status: ${message['status'] ?? 'unknown'}',
-                    style: TextStyle(
-                      color: (message['status'] == 'pending')
-                          ? Colors.orange
-                          : (message['status'] == 'sent')
-                              ? Colors.green
-                              : Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    _formatTimestamp(message['timestamp'] ?? ''),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          const Text(
-            'Message:',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade700 : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
-              ),
-            ),
-            width: double.infinity,
-            child: Text(
-              message['message'] ?? 'No message content',
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (message['status'] == 'pending')
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await MessageService.markMessageAsSent(message['timestamp']);
-                    _loadMessages();
-                  },
-                  icon: const Icon(Icons.send, size: 16),
-                  label: const Text('Mark as Sent'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-            ],
-          )
-          
+}
