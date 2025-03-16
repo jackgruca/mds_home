@@ -719,22 +719,32 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       return;
     }
     
-    // Find all user picks
-    final userPicks = draftOrder
-        .where((pick) => pick.teamName == userTeam && !pick.isSelected && pick.isActiveInDraft)
-        .toList();
+    // Find only the current active user pick that's next in the draft
+    DraftPick? nextUserPick;
     
-    // Generate offers for each pick
-    for (var pick in userPicks) {
-      final pickNum = pick.pickNumber;
-      // If there are already offers for this pick, skip
-      if (_pendingUserOffers.containsKey(pickNum)) continue;
-      
-      // Generate trade offers for this pick
-      TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
-      if (offers.packages.isNotEmpty) {
-        _pendingUserOffers[pickNum] = offers.packages;
-      }
+    // First find the next pick in the draft order
+    DraftPick? nextPick = _getNextPick();
+    if (nextPick == null) return;
+    
+    // Only generate offers if it's the user's current pick
+    if (nextPick.teamName == userTeam) {
+      nextUserPick = nextPick;
+    } else {
+      // Clear any existing offers since it's not the user's turn
+      _pendingUserOffers.clear();
+      return;
+    }
+    
+    // Generate offers only for the current pick
+    final pickNum = nextUserPick.pickNumber;
+    
+    // If there are already offers for this pick, don't regenerate
+    if (_pendingUserOffers.containsKey(pickNum)) return;
+    
+    // Generate trade offers for this pick
+    TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
+    if (offers.packages.isNotEmpty) {
+      _pendingUserOffers[pickNum] = offers.packages;
     }
   }
 
