@@ -141,119 +141,243 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
       itemCount: offers.length,
       itemBuilder: (context, index) {
         final offer = offers[index];
+        final valueRatio = offer.totalValueOffered / offer.targetPickValue;
+        final valueScore = (valueRatio * 100).toInt();
+        
+        // Extract key information from the trade description
+        String sentenceCase(String text) {
+          if (text.isEmpty) return text;
+          return text[0].toUpperCase() + text.substring(1);
+        }
+        
+        final picksGained = _getPicksSummary(offer.targetPick, offer.additionalTargetPicks);
+        final picksLost = _getPicksOfferedSummary(offer.picksOffered, offer.includesFuturePick ? offer.futurePickDescription : null);
+        
         return Card(
-          margin: const EdgeInsets.all(8.0),
+          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: _getOfferValueColor(offer).withOpacity(0.5),
+              width: 1.0,
+            ),
+          ),
+          elevation: 1,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => _showTradeDetails(context, offer),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  // Team logo
+                  TeamLogoUtils.buildNFLTeamLogo(
+                    offer.teamOffering,
+                    size: 32.0,
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Trade summary
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Team name
+                        Text(
+                          offer.teamOffering,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        
+                        // Trade terms (simplified)
+                        Row(
+                          children: [
+                            // Picks you gain
+                            Expanded(
+                              child: Text(
+                                'Receives: $picksGained',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            
+                            // Picks you lose
+                            Expanded(
+                              child: Text(
+                                'Offers: $picksLost',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Value score chip
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getOfferValueColor(offer).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getOfferValueColor(offer),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Text(
+                      '$valueScore%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: _getOfferValueColor(offer),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 8),
+                  
+                  // Accept button (smaller)
+                  SizedBox(
+                    height: 30,
+                    width: 30,
+                    child: IconButton(
+                      onPressed: () => widget.onAcceptOffer(offer),
+                      icon: const Icon(Icons.check_circle, size: 20),
+                      color: Colors.green,
+                      tooltip: 'Accept Offer',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  // Helper method to get a simple summary of picks gained
+  String _getPicksSummary(DraftPick targetPick, List<DraftPick> additionalPicks) {
+    String result = "#${targetPick.pickNumber}";
+    
+    if (additionalPicks.isNotEmpty) {
+      final additionalCount = additionalPicks.length;
+      result += " +$additionalCount more";
+    }
+    
+    return result;
+  }
+  
+  // Helper method to get a simple summary of picks offered
+  String _getPicksOfferedSummary(List<DraftPick> picksOffered, String? futureDesc) {
+    if (picksOffered.isEmpty && (futureDesc == null || futureDesc.isEmpty)) {
+      return "None";
+    }
+    
+    final mainPicks = picksOffered.map((p) => "#${p.pickNumber}").join(", ");
+    
+    if (futureDesc != null && futureDesc.isNotEmpty) {
+      if (mainPicks.isNotEmpty) {
+        return "$mainPicks + Future";
+      } else {
+        return "Future pick(s)";
+      }
+    }
+    
+    return mainPicks;
+  }
+  
+  // Show detailed trade info in a bottom sheet
+  void _showTradeDetails(BuildContext context, TradePackage offer) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Team name with logo
+                // Trade header with team names
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Team logo
                     TeamLogoUtils.buildNFLTeamLogo(
                       offer.teamOffering,
-                      size: 32.0,
+                      size: 40.0,
                     ),
                     const SizedBox(width: 12),
-                    // Team name
-                    Expanded(
-                      child: Text(
-                        'Offer from ${offer.teamOffering}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    Text(
+                      offer.teamOffering,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Icon(Icons.swap_horiz),
+                    ),
+                    Text(
+                      offer.teamReceiving,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    TeamLogoUtils.buildNFLTeamLogo(
+                      offer.teamReceiving,
+                      size: 40.0,
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const Divider(height: 24),
                 
-                // Visual trade flow with team logos
+                // Trade description
+                const Text(
+                  'Trade Details:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  offer.tradeDescription,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                
+                // Value analysis
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Trade flow visualization
-                      Row(
-                        children: [
-                          // Team receiving
-                          Expanded(
-                            child: Column(
-                              children: [
-                                TeamLogoUtils.buildNFLTeamLogo(
-                                  offer.teamReceiving,
-                                  size: 36.0,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  offer.teamReceiving,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          // Exchange arrows
-                          Column(
-                            children: [
-                              Icon(Icons.arrow_forward, color: Colors.green.shade700, size: 20),
-                              const SizedBox(height: 4),
-                              Icon(Icons.arrow_back, color: Colors.red.shade700, size: 20),
-                            ],
-                          ),
-                          
-                          // Team offering
-                          Expanded(
-                            child: Column(
-                              children: [
-                                TeamLogoUtils.buildNFLTeamLogo(
-                                  offer.teamOffering,
-                                  size: 36.0,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  offer.teamOffering,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 12),
-                      
-                      // Text description
-                      Text(
-                        offer.tradeDescription,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Value summary with improved visual indicators
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
                     color: _getOfferValueColor(offer).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _getOfferValueColor(offer).withOpacity(0.3)),
+                    border: Border.all(color: _getOfferValueColor(offer).withOpacity(0.5)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +387,7 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                           Icon(
                             offer.isGreatTrade ? Icons.thumb_up : (offer.isFairTrade ? Icons.check_circle : Icons.warning),
                             color: _getOfferValueColor(offer),
-                            size: 16,
+                            size: 20,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -271,46 +395,59 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                             style: TextStyle(
                               color: _getOfferValueColor(offer),
                               fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _getOfferValueColor(offer)),
+                            ),
+                            child: Text(
+                              '${((offer.totalValueOffered / offer.targetPickValue) * 100).toInt()}%',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getOfferValueColor(offer),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         offer.valueSummary,
-                        style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                          fontSize: 13,
-                          height: 1.4,
-                        ),
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ],
                   ),
                 ),
-                
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 
                 // Accept button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => widget.onAcceptOffer(offer),
-                      icon: const Icon(Icons.check_circle, size: 16),
-                      label: const Text('Accept Offer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context); // Close bottom sheet
+                      widget.onAcceptOffer(offer);
+                    },
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Accept Trade'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
