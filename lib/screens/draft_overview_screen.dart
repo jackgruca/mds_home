@@ -794,9 +794,9 @@ void didUpdateWidget(DraftApp oldWidget) {
     // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment before showing the summary directly
+    // Wait a moment before showing the summary
     Future.delayed(const Duration(milliseconds: 800), () {
-      // Show draft summary screen directly instead of switching to analytics tab
+      // Show draft summary screen directly
       _showDraftSummary();
       
       // Notify the user
@@ -996,11 +996,14 @@ void didUpdateWidget(DraftApp oldWidget) {
                 ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 if (widget.showAnalytics)
-                  // Replace with temporary placeholder
-                  const Center(
-                    child: Text('Draft Summary Coming Soon',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
+                  // Use the simplified analytics dashboard
+                  DraftAnalyticsDashboard(
+                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+                    draftedPlayers: _players.where((player) => 
+                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+                    executedTrades: _executedTrades,
+                    teamNeeds: _teamNeeds,
+                    userTeam: widget.selectedTeam,
                   )
                 ],
             ),
