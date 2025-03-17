@@ -182,52 +182,92 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
   }
   
   void _identifyPositionRuns() {
-    // Create list of picks in order
-    List<DraftPick> orderedPicks = List.from(widget.completedPicks)
-      ..sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  // Create list of picks in order
+  List<DraftPick> orderedPicks = List.from(widget.completedPicks)
+    ..sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  // Map of position to list of pick numbers
+  Map<String, List<int>> positionToPicks = {};
+  
+  // First collect all picks by position
+  for (var pick in orderedPicks) {
+    if (pick.selectedPlayer == null) continue;
     
-    // Look for runs of 3+ picks of same position
-    Map<String, List<int>> positionStreaks = {};
+    String position = pick.selectedPlayer!.position;
+    int pickNumber = pick.pickNumber;
     
-    for (int i = 0; i < orderedPicks.length; i++) {
-      if (orderedPicks[i].selectedPlayer == null) continue;
+    if (!positionToPicks.containsKey(position)) {
+      positionToPicks[position] = [];
+    }
+    
+    positionToPicks[position]!.add(pickNumber);
+  }
+  
+  // Now analyze each position for runs
+  for (var entry in positionToPicks.entries) {
+    String position = entry.key;
+    List<int> picks = entry.value..sort();
+    
+    // Need at least 3 picks to form a run
+    if (picks.length < 3) continue;
+    
+    // Sliding window to find runs
+    for (int i = 0; i <= picks.length - 3; i++) {
+      // Check if there's a run of 3+ picks with a reasonable span
+      int start = picks[i];
       
-      String position = orderedPicks[i].selectedPlayer!.position;
-      int pickNumber = orderedPicks[i].pickNumber;
+      // Try to find the longest run starting from this pick
+      int maxRunLength = 0;
+      int endIdx = i;
       
-      if (!positionStreaks.containsKey(position)) {
-        positionStreaks[position] = [];
+      for (int j = i + 1; j < picks.length; j++) {
+        int span = picks[j] - start + 1;
+        
+        // Consider runs with spans of up to 15 picks
+        if (span <= 15) {
+          maxRunLength = j - i + 1;
+          endIdx = j;
+        } else {
+          break; // Span too large, stop extending this run
+        }
       }
       
-      positionStreaks[position]!.add(pickNumber);
-      
-      // Check if the last 3 picks form a run (within 8 picks of each other)
-      if (positionStreaks[position]!.length >= 3) {
-        List<int> lastThree = positionStreaks[position]!.sublist(positionStreaks[position]!.length - 3);
+      // Only consider runs of 3 or more
+      if (maxRunLength >= 3) {
+        int end = picks[endIdx];
+        int span = end - start + 1;
         
-        if (lastThree.last - lastThree.first <= 8) {
-          // Found a position run
-          bool alreadyTracked = _positionRuns.any((run) => 
-            run['position'] == position && 
-            run['startPick'] <= lastThree.first && 
-            run['endPick'] >= lastThree.last
-          );
+        // Check if this run overlaps with any previously identified run
+        bool overlapsWithExisting = _positionRuns.any((run) => 
+          run['position'] == position && 
+          ((run['startPick'] <= start && run['endPick'] >= start) || 
+           (run['startPick'] <= end && run['endPick'] >= end) ||
+           (start <= run['startPick'] && end >= run['endPick']))
+        );
+        
+        // If this is a new non-overlapping run, add it
+        if (!overlapsWithExisting) {
+          _positionRuns.add({
+            'position': position,
+            'startPick': start,
+            'endPick': end,
+            'count': maxRunLength,
+          });
           
-          if (!alreadyTracked) {
-            _positionRuns.add({
-              'position': position,
-              'startPick': lastThree.first,
-              'endPick': lastThree.last,
-              'count': 3,
-            });
-          }
+          // Skip ahead to avoid detecting sub-runs
+          i = endIdx - 1;
         }
       }
     }
-    
-    // Sort position runs by start pick
-    _positionRuns.sort((a, b) => a['startPick'].compareTo(b['startPick']));
   }
+  
+  // Sort position runs by position, then by start pick
+  _positionRuns.sort((a, b) {
+    int posCompare = a['position'].compareTo(b['position']);
+    if (posCompare != 0) return posCompare;
+    return a['startPick'].compareTo(b['startPick']);
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -543,55 +583,135 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
   }
   
   Widget _buildPositionRunsList() {
-    // If no position runs, show empty message
-    if (_positionRuns.isEmpty) {
-      return const Card(
-        elevation: 2,
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              'No significant position runs detected',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return Card(
+  // If no position runs, show empty message
+  if (_positionRuns.isEmpty) {
+    return const Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            ..._positionRuns.map((run) {
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: _getPositionColor(run['position']),
-                  child: Text(
-                    run['position'].substring(0, min<int>(2, run['position'].length)),
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-                title: Text(
-                  '${run['position']} Run',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  '${run['count']} picks between #${run['startPick']} and #${run['endPick']}',
-                ),
-                trailing: Text(
-                  '${run['endPick'] - run['startPick'] + 1} pick span',
-                  style: const TextStyle(fontStyle: FontStyle.italic),
-                ),
-              );
-            }),
-          ],
+        padding: EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            'No significant position runs detected',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
         ),
       ),
     );
   }
+  
+  // Group position runs by position
+  Map<String, List<Map<String, dynamic>>> positionRunsByPosition = {};
+  
+  for (var run in _positionRuns) {
+    String position = run['position'];
+    if (!positionRunsByPosition.containsKey(position)) {
+      positionRunsByPosition[position] = [];
+    }
+    positionRunsByPosition[position]!.add(run);
+  }
+  
+  return Card(
+    elevation: 2,
+    color: Theme.of(context).brightness == Brightness.dark ? 
+        const Color(0xFF1e1e2f) : null,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Significant position runs (3+ picks of same position in short span)",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white70 
+                : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...positionRunsByPosition.entries.map((entry) {
+            String position = entry.key;
+            List<Map<String, dynamic>> runs = entry.value;
+            int runCount = runs.length;
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Position header with run count
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _getPositionColor(position),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        position,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      "$runCount ${runCount == 1 ? 'run' : 'runs'}",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Individual runs for this position
+                ...runs.map((run) {
+                  int pickSpan = run['endPick'] - run['startPick'] + 1;
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.trending_up,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "${run['count']} picks between #${run['startPick']} and #${run['endPick']}",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "($pickSpan pick span)",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                
+                const Divider(height: 24),
+              ],
+            );
+          }),
+        ],
+      ),
+    ),
+  );
+}
   
   Widget _buildPositionDistribution() {
     // Sort positions by count
