@@ -12,6 +12,13 @@ import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
 
+extension SetExtensions<T> on Set<T> {
+  void removeAll(Iterable<T> elements) {
+    for (var element in elements) {
+      remove(element);
+    }
+  }
+}
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
 
@@ -204,25 +211,28 @@ Future<void> _loadUserPreferences() async {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.sports_football, 
-                            color: isDarkMode ? Colors.green.shade300 : Colors.green, 
-                            size: 16.0),
+                        const Icon(Icons.sports_football, 
+                                  color: Colors.green, size: 16.0),
                         const SizedBox(width: 8.0),
                         Text(
-                          _selectedTeams.length > 1
-                              ? 'Controlling ${_selectedTeams.length} teams'
-                              : 'You are controlling: ${_selectedTeams.first}',
+                          _selectedTeams.length == NFLTeams.allTeams.length
+                              ? 'Controlling all teams'
+                              : _selectedTeams.length > 1
+                                  ? 'Controlling ${_selectedTeams.length} teams'
+                                  : 'You are controlling: ${_selectedTeams.first}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: isDarkMode ? Colors.green.shade300 : Colors.green,
+                            color: isDarkMode ? Colors.green.shade300 : Colors.green.shade800,
                             fontSize: 14.0,
                           ),
                         ),
                       ],
                     ),
                     
-                    // Show team chips if not too many
-                    if (_selectedTeams.length > 1 && _selectedTeams.length <= 8)
+                    // Only show chip list if not too many teams and not all teams
+                    if (_selectedTeams.length > 1 && 
+                        _selectedTeams.length <= 8 && 
+                        _selectedTeams.length < NFLTeams.allTeams.length)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
                         child: Wrap(
@@ -259,7 +269,64 @@ Future<void> _loadUserPreferences() async {
                   ],
                 ),
               ),
-                        
+              // Select All button
+Container(
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+  color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      OutlinedButton.icon(
+        onPressed: () {
+          setState(() {
+            // If some teams are already selected, clear the selection
+            // Otherwise, select all teams
+            if (_selectedTeams.isNotEmpty) {
+              _selectedTeams.clear();
+            } else {
+              // Add all NFL teams to selected teams
+              _selectedTeams.addAll(NFLTeams.allTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _selectedTeams.length == NFLTeams.allTeams.length
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 16,
+        ),
+        label: Text(
+          _selectedTeams.length == NFLTeams.allTeams.length
+              ? 'Deselect All'
+              : 'Select All',
+          style: const TextStyle(fontSize: 12),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+      const SizedBox(width: 8),
+      // Show current selection count
+      if (_selectedTeams.isNotEmpty)
+        Chip(
+          label: Text(
+            '${_selectedTeams.length}/${NFLTeams.allTeams.length}',
+            style: TextStyle(
+              fontSize: 11,
+              color: isDarkMode ? Colors.blue.shade200 : Colors.blue.shade800,
+            ),
+          ),
+          backgroundColor: isDarkMode
+              ? Colors.blue.shade900.withOpacity(0.4)
+              : Colors.blue.shade50,
+          visualDensity: VisualDensity.compact,
+        ),
+    ],
+  ),
+),          
             // Team selection area (expanded)
             Expanded(
               child: Row(
@@ -276,24 +343,67 @@ Future<void> _loadUserPreferences() async {
                       ),
                       child: Column(
                         children: [
-                          // AFC header
-                          Container(
-                            color: afcColor,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding, 
-                              vertical: 6.0
-                            ),
-                            width: double.infinity,
-                            child: const Text(
-                              'AFC',
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                          // Modify the AFC header to include a select all button
+Container(
+  color: afcColor,
+  padding: EdgeInsets.symmetric(
+    horizontal: sectionPadding,
+    vertical: 6.0
+  ),
+  width: double.infinity,
+  child: Row(
+    children: [
+      const Text(
+        'AFC',
+        style: TextStyle(
+          fontSize: 16.0,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      const Spacer(),
+      // Add this button
+      TextButton.icon(
+        onPressed: () {
+          setState(() {
+            // Get all AFC teams
+            List<String> afcTeams = _afcDivisions.values.expand((teams) => teams).toList();
+            
+            // If all AFC teams are already selected, deselect them
+            // Otherwise, select all AFC teams
+            bool allAfcSelected = afcTeams.every((team) => _selectedTeams.contains(team));
+            
+            if (allAfcSelected) {
+              _selectedTeams.removeAll(afcTeams);
+            } else {
+              _selectedTeams.addAll(afcTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _afcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 14,
+          color: Colors.white,
+        ),
+        label: Text(
+          _afcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? 'Deselect AFC'
+              : 'Select AFC',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+      ),
+    ],
+  ),
+),
                           
                           // AFC divisions
                           Expanded(
@@ -469,24 +579,67 @@ Future<void> _loadUserPreferences() async {
                       ),
                       child: Column(
                         children: [
-                          // NFC header
-                          Container(
-                            color: nfcColor,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding, 
-                              vertical: 6.0
-                            ),
-                            width: double.infinity,
-                            child: const Text(
-                              'NFC',
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                          // Modify the NFC header to include a select all button
+Container(
+  color: nfcColor,
+  padding: EdgeInsets.symmetric(
+    horizontal: sectionPadding,
+    vertical: 6.0
+  ),
+  width: double.infinity,
+  child: Row(
+    children: [
+      const Text(
+        'NFC',
+        style: TextStyle(
+          fontSize: 16.0,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      const Spacer(),
+      // Add this button
+      TextButton.icon(
+        onPressed: () {
+          setState(() {
+            // Get all NFC teams
+            List<String> nfcTeams = _nfcDivisions.values.expand((teams) => teams).toList();
+            
+            // If all NFC teams are already selected, deselect them
+            // Otherwise, select all NFC teams
+            bool allNfcSelected = nfcTeams.every((team) => _selectedTeams.contains(team));
+            
+            if (allNfcSelected) {
+              _selectedTeams.removeAll(nfcTeams);
+            } else {
+              _selectedTeams.addAll(nfcTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _nfcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 14,
+          color: Colors.white,
+        ),
+        label: Text(
+          _nfcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? 'Deselect NFC'
+              : 'Select NFC',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+      ),
+    ],
+  ),
+),
                           
                           // NFC divisions
                           Expanded(
@@ -761,46 +914,6 @@ Future<void> _loadUserPreferences() async {
                         
                         const SizedBox(height: 8.0),
                         
-                        // Speed row (unchanged)
-                        Row(
-                          children: [
-                            // Speed label
-                            SizedBox(
-                              width: 50,
-                              child: Text(
-                                'Speed:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                            // Speed slider
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3.0,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
-                                ),
-                                child: Slider(
-                                  value: _speed,
-                                  min: 1.0,
-                                  max: 5.0,
-                                  divisions: 4,
-                                  activeColor: Colors.green[700],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _speed = value;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
-                          ],
-                        ),
                       ],
                     )
                   :
