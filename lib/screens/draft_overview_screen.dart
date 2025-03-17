@@ -843,84 +843,93 @@ void didUpdateWidget(DraftApp oldWidget) {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-        'NFL Draft',
-        style: TextStyle(
-          fontSize: 18, // Reduced from default 20
-        ),
+  title: const Text(
+    'NFL Draft',
+    style: TextStyle(fontSize: 18),
+  ),
+  toolbarHeight: 44,
+  centerTitle: true,
+  titleSpacing: 8,
+  elevation: 0,
+  actions: [
+    IconButton(
+      icon: Icon(
+        Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+            ? Icons.dark_mode
+            : Icons.light_mode,
+        size: 20,
       ),
-      toolbarHeight: 48, // Reduced from default 56
-      actions: [
-        // Theme toggle button
-        IconButton(
-          icon: Icon(
-            Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
-                ? Icons.dark_mode
-                : Icons.light_mode,
-            size: 20, // Reduced icon size
-          ),
-          padding: EdgeInsets.zero, // Remove padding
-          tooltip: 'Toggle Theme',
-          onPressed: () {
-            Provider.of<ThemeManager>(context, listen: false).toggleTheme();
-          },
-        ),
-    // Other app bar actions...
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(
+        minWidth: 40,
+        minHeight: 40,
+      ),
+      onPressed: () {
+        Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+      },
+    ),
   ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 10.0), // Slightly reduced padding
-          indicatorSize: TabBarIndicatorSize.label, // Make indicator match label width only
-          indicatorWeight: 2.0, // Slightly thinner indicator
-          tabs: [
-            const Tab(
-              height: 40, // Slightly reduced height
-              child: Row(
-                mainAxisSize: MainAxisSize.min, // Ensures the row takes minimum space
-                children: [
-                  Icon(Icons.list, size: 18), // Slightly smaller icon
-                  SizedBox(width: 4), // Reduced spacing
-                  Text('Draft Order'), // Maintain original text size
-                ],
-              ),
-            ),
-            const Tab(
-              height: 40,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.people, size: 18),
-                  SizedBox(width: 4),
-                  Text('Players'), // Simplified text but original size
-                ],
-              ),
-            ),
-            const Tab(
-              height: 40,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.assignment, size: 18),
-                  SizedBox(width: 4),
-                  Text('Needs'), // Simplified text but original size
-                ],
-              ),
-            ),
-            if (widget.showAnalytics)
-              const Tab(
-                height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.analytics, size: 18),
-                    SizedBox(width: 4),
-                    Text('Stats'), // Simplified text but original size
-                  ],
-                ),
-              ),
-          ],
+  bottom: PreferredSize(
+    preferredSize: const Size.fromHeight(34),
+    child: TabBar(
+      controller: _tabController,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      indicatorPadding: EdgeInsets.zero,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+      indicatorWeight: 2,
+      labelStyle: const TextStyle(fontSize: 12), // Reduced font size to fit icons
+      tabs: [
+        // Add icons to tabs in a space-efficient layout
+        const Tab(
+          height: 34,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.list, size: 16),
+              SizedBox(width: 4),
+              Text('Draft'),
+            ],
+          ),
         ),
-      ),
+        const Tab(
+          height: 34,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.people, size: 16),
+              SizedBox(width: 4),
+              Text('Players'),
+            ],
+          ),
+        ),
+        const Tab(
+          height: 34,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.assignment, size: 16),
+              SizedBox(width: 4),
+              Text('Needs'),
+            ],
+          ),
+        ),
+        if (widget.showAnalytics)
+          const Tab(
+            height: 34,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.analytics, size: 16),
+                SizedBox(width: 4),
+                Text('Stats'),
+              ],
+            ),
+          ),
+      ],
+    ),
+  ),
+),
       body: Column(
         children: [
           // Status bar
