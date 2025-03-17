@@ -13,6 +13,10 @@ class DraftSettingsScreen extends StatefulWidget {
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
   final bool showAnalytics;
+  
+  // Add these parameters
+  final int selectedYear;
+  final List<int> availableYears;
 
   // Callback when settings are saved
   final Function(Map<String, dynamic>) onSettingsSaved;
@@ -28,6 +32,8 @@ class DraftSettingsScreen extends StatefulWidget {
     this.enableQBPremium = true,
     this.showAnalytics = true,
     required this.onSettingsSaved,
+    required this.selectedYear,
+    required this.availableYears,
   });
 
   @override
@@ -42,7 +48,8 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
   late bool _enableUserTradeProposals;
   late bool _enableQBPremium;
   late bool _showAnalytics;
-
+  late int _selectedYear; // Add this
+  
   @override
   void initState() {
     super.initState();
@@ -55,8 +62,9 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
     _enableUserTradeProposals = widget.enableUserTradeProposals;
     _enableQBPremium = widget.enableQBPremium;
     _showAnalytics = widget.showAnalytics;
+    _selectedYear = widget.selectedYear; // Initialize year
   }
-
+  
   void _saveSettings() {
     // Collect all settings in a map
     final settings = {
@@ -67,6 +75,7 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
       'enableUserTradeProposals': _enableUserTradeProposals,
       'enableQBPremium': _enableQBPremium,
       'showAnalytics': _showAnalytics,
+      'selectedYear': _selectedYear, // Add year to settings
     };
     
     // Call the callback
@@ -103,26 +112,67 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
             _buildSectionHeader('Basic Settings', Icons.settings),
             const SizedBox(height: 16.0),
             
-            // Number of rounds
+            // Number of rounds and draft year in same row
             _buildSettingItem(
               'Number of Rounds',
               'How many rounds of the draft to simulate',
-              child: DropdownButton<int>(
-                value: _numberOfRounds,
-                onChanged: (int? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _numberOfRounds = newValue;
-                    });
-                  }
-                },
-                items: List.generate(AppConstants.maxRounds, (index) => index + 1)
-                    .map<DropdownMenuItem<int>>((int value) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Text('$value ${value == 1 ? 'Round' : 'Rounds'}'),
-                  );
-                }).toList(),
+              child: Row(
+                children: [
+                  // Rounds dropdown
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButton<int>(
+                      value: _numberOfRounds,
+                      onChanged: (int? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _numberOfRounds = newValue;
+                          });
+                        }
+                      },
+                      items: List.generate(AppConstants.maxRounds, (index) => index + 1)
+                          .map<DropdownMenuItem<int>>((int value) {
+                        return DropdownMenuItem<int>(
+                          value: value,
+                          child: Text('$value ${value == 1 ? 'Round' : 'Rounds'}'),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Draft Year section
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Draft Year:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        DropdownButton<int>(
+                          value: _selectedYear,
+                          onChanged: (int? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedYear = newValue;
+                              });
+                            }
+                          },
+                          items: widget.availableYears.map<DropdownMenuItem<int>>((int year) {
+                            return DropdownMenuItem<int>(
+                              value: year,
+                              child: Text(year.toString()),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             

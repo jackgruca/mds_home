@@ -87,32 +87,39 @@ Future<void> _loadUserPreferences() async {
 }
 
   void _openDraftSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DraftSettingsScreen(
-          numberOfRounds: _numberOfRounds,
-          randomnessFactor: _randomness,
-          draftSpeed: _speed,
-          userTeam: _selectedTeam,
-          // Default values for new settings
-          enableTrading: true,
-          enableUserTradeProposals: true,
-          enableQBPremium: true,
-          showAnalytics: true,
-          onSettingsSaved: (settings) {
-            // Update settings when saved
-            setState(() {
-              _numberOfRounds = settings['numberOfRounds'];
-              _randomness = settings['randomnessFactor'];
-              _speed = settings['draftSpeed'];
-              // Store the other settings to be passed to the draft screen
-            });
-          },
-        ),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftSettingsScreen(
+        numberOfRounds: _numberOfRounds,
+        randomnessFactor: _randomness,
+        draftSpeed: _speed,
+        userTeam: _selectedTeam,
+        // Default values for new settings
+        enableTrading: _enableTrading,
+        enableUserTradeProposals: _enableUserTradeProposals,
+        enableQBPremium: _enableQBPremium,
+        showAnalytics: _showAnalytics,
+        // Pass year settings
+        selectedYear: _selectedYear,
+        availableYears: _availableYears,
+        onSettingsSaved: (settings) {
+          // Update settings when saved
+          setState(() {
+            _numberOfRounds = settings['numberOfRounds'];
+            _randomness = settings['randomnessFactor'];
+            _speed = settings['draftSpeed'];
+            _enableTrading = settings['enableTrading'];
+            _enableUserTradeProposals = settings['enableUserTradeProposals'];
+            _enableQBPremium = settings['enableQBPremium'];
+            _showAnalytics = settings['showAnalytics'];
+            _selectedYear = settings['selectedYear']; // Update selectedYear
+          });
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -165,67 +172,7 @@ Future<void> _loadUserPreferences() async {
 
       body: SafeArea(
         child: Column(
-          children: [
-            // Year selector - prominent at the top
-            Container(
-              padding: EdgeInsets.symmetric(
-                vertical: 4.0, 
-                horizontal: sectionPadding
-              ),
-              color: Colors.blue.shade700,
-              child: Row(
-                children: [
-                  const Text(
-                    'Draft Year:',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: _availableYears.map((year) {
-                        final isSelected = year == _selectedYear;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedYear = year;
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isSelected 
-                                  ? Colors.white 
-                                  : Colors.blue.shade600,
-                              foregroundColor: isSelected 
-                                  ? Colors.blue.shade800 
-                                  : Colors.white,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isSmallScreen ? 12.0 : 16.0,
-                                vertical: 8.0
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4.0),
-                              ),
-                            ),
-                            child: Text(
-                              year.toString(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: isSmallScreen ? 14.0 : 16.0,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          children: [            
             if (_showFeedbackBanner)
               UserFeedbackBanner(
                 onDismiss: () {
