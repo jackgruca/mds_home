@@ -979,9 +979,9 @@ Container(
       // Trade button
       if (widget.selectedTeam != null)
         OutlinedButton.icon(
-          onPressed: _initiateUserTradeProposal,
-          icon: const Icon(Icons.swap_horiz, size: 14),
-          label: const Text('Trade', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+          onPressed: _showDraftSummary,
+          icon: const Icon(Icons.summarize, size: 14),
+          label: const Text('Summary', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             visualDensity: VisualDensity.compact,
@@ -1048,22 +1048,6 @@ Container(
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_draftService != null && _draftService!.completedPicksCount > 0)
-                OutlinedButton.icon(
-                  onPressed: _showDraftSummary,
-                  icon: const Icon(Icons.summarize),
-                  label: const Text('Draft Summary'),
-                ),
-            ],
-          ),
-        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
