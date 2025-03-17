@@ -174,76 +174,81 @@ class TradeService {
     }
   }
   
-  /// Generate trade offers for a specific pick with realistic behavior
-  TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
-    // Update team pick positions as they may have changed
-    _updateTeamPickPositions();
-    
-    // Get the current pick
-    final currentPick = draftOrder.firstWhere(
-      (pick) => pick.pickNumber == pickNumber,
-      orElse: () => throw Exception('Pick number $pickNumber not found in draft order'),
-    );
-    
-    // Check if this involves the user team
-    final bool isUsersPick = currentPick.teamName == userTeams;
-    
-    // IMPORTANT: We now generate trade offers even for user team picks
-    // Instead of returning an empty list as before
-    
-    // Step 1: Identify valuable players available at this pick
-    List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, qbSpecific);
-    
-    if (valuablePlayers.isEmpty) {
-      return TradeOffer(
-        packages: [],
-        pickNumber: pickNumber,
-        isUserInvolved: isUsersPick,
-      );
-    }
-    
-    // Step 2: Determine if the current team sees value at this pick
-    bool currentTeamWantsToStay = _currentTeamWantsToStay(currentPick, valuablePlayers);
-    
-    // Even if the team wants to stay, allow trades with some probability
-    // This probability is higher for user team picks to ensure user gets offers
-    double tradeAnywayProb = isUsersPick ? 0.9 : 0.3;
-    bool allowTradeAnyway = _random.nextDouble() < tradeAnywayProb;
-    
-    if (currentTeamWantsToStay && !allowTradeAnyway && !isUsersPick) {
-      // Team wants to make their pick
-      return TradeOffer(
-        packages: [],
-        pickNumber: pickNumber,
-        isUserInvolved: isUsersPick,
-      );
-    }
-    
-    // Step 3: Find teams that might want to trade up
-    List<TradeInterest> interestedTeams = _findTeamsInterestedInTradingUp(pickNumber, valuablePlayers, qbSpecific);
-    
-    if (interestedTeams.isEmpty) {
-      return TradeOffer(
-        packages: [],
-        pickNumber: pickNumber,
-        isUserInvolved: isUsersPick,
-      );
-    }
-    
-    // Step 4: Generate trade packages from interested teams
-    final packages = _generateTradePackages(
-      interestedTeams,
-      currentPick,
-      DraftValueService.getValueForPick(pickNumber),
-      qbSpecific
-    );
-    
+ // Add this to TradeService class
+bool isUserTeam(String teamName) {
+  return userTeams.contains(teamName);
+}
+
+/// Generate trade offers for a specific pick with realistic behavior
+TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
+  // Update team pick positions as they may have changed
+  _updateTeamPickPositions();
+  
+  // Get the current pick
+  final currentPick = draftOrder.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => throw Exception('Pick number $pickNumber not found in draft order'),
+  );
+  
+  // Check if this involves the user team
+  final bool isUsersPick = isUserTeam(currentPick.teamName);
+  
+  // Step 1: Identify valuable players available at this pick
+  List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, qbSpecific);
+  
+  if (valuablePlayers.isEmpty) {
     return TradeOffer(
-      packages: packages,
+      packages: [],
       pickNumber: pickNumber,
-      isUserInvolved: isUsersPick || packages.any((p) => p.teamOffering == userTeams),
+      isUserInvolved: isUsersPick,
     );
   }
+  
+  // Step 2: Determine if the current team sees value at this pick
+  bool currentTeamWantsToStay = _currentTeamWantsToStay(currentPick, valuablePlayers);
+  
+  // Even if the team wants to stay, allow trades with some probability
+  // This probability is higher for user team picks to ensure user gets offers
+  double tradeAnywayProb = isUsersPick ? 0.9 : 0.3;
+  bool allowTradeAnyway = _random.nextDouble() < tradeAnywayProb;
+  
+  if (currentTeamWantsToStay && !allowTradeAnyway && !isUsersPick) {
+    // Team wants to make their pick
+    return TradeOffer(
+      packages: [],
+      pickNumber: pickNumber,
+      isUserInvolved: isUsersPick,
+    );
+  }
+  
+  // Step 3: Find teams that might want to trade up
+  List<TradeInterest> interestedTeams = _findTeamsInterestedInTradingUp(pickNumber, valuablePlayers, qbSpecific);
+  
+  if (interestedTeams.isEmpty) {
+    return TradeOffer(
+      packages: [],
+      pickNumber: pickNumber,
+      isUserInvolved: isUsersPick,
+    );
+  }
+  
+  // Step 4: Generate trade packages from interested teams
+  final packages = _generateTradePackages(
+    interestedTeams,
+    currentPick,
+    DraftValueService.getValueForPick(pickNumber),
+    qbSpecific
+  );
+  
+  // Mark if any of the packages involve a user team
+  bool userInvolved = isUsersPick || packages.any((p) => isUserTeam(p.teamOffering));
+  
+  return TradeOffer(
+    packages: packages,
+    pickNumber: pickNumber,
+    isUserInvolved: userInvolved,
+  );
+}
   
   // Identify valuable players available at this pick
   List<Player> _identifyValuablePlayers(int pickNumber, bool qbSpecific) {
@@ -329,6 +334,11 @@ class TradeService {
     for (var teamNeed in teamNeeds) {
       final teamName = teamNeed.teamName;
       
+      // Skip if team is a user team - they make their own trades
+      if (userTeams.contains(teamName)) {
+        continue;
+      }
+
       // Skip if team has no picks or its next pick is before current pick
       if (!_teamCurrentPickPosition.containsKey(teamName)) continue;
       final teamNextPick = _teamCurrentPickPosition[teamName] ?? 999;
@@ -509,6 +519,12 @@ double _calculateTradeUpInterest(
     for (final interest in interestedTeams) {
       // Get team name and their picks
       final team = interest.teamName;
+
+      // Skip if this is a user team
+      if (userTeams.contains(team)) {
+        continue;
+      }
+
       final teamPicksOriginal = draftOrder
           .where((pick) => pick.teamName == team && !pick.isSelected && pick.pickNumber != targetPick.pickNumber)
           .toList();
