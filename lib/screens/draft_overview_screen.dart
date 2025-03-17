@@ -981,7 +981,7 @@ Container(
         OutlinedButton.icon(
           onPressed: _showDraftSummary,
           icon: const Icon(Icons.summarize, size: 14),
-          label: const Text('Summary', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+          label: const Text('Draft Recap', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             visualDensity: VisualDensity.compact,
