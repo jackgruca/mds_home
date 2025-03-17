@@ -740,12 +740,48 @@ void _initiateUserTradeProposal() {
   }
 
   void _restartDraft() {
-  // Navigate back to team selection screen instead of reloading data
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const TeamSelectionScreen(),
-      ),
+    // Show confirmation dialog before restarting
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+        
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.refresh, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700),
+              const SizedBox(width: 8),
+              const Text('Restart Draft?'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to restart the draft? All progress will be lost.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Close dialog
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                // Navigate back to team selection screen
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TeamSelectionScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.red.shade600,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Restart'),
+            ),
+          ],
+        );
+      },
     );
   }
 
