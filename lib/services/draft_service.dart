@@ -1,6 +1,7 @@
 // lib/services/draft_service.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:mds_home/screens/draft_overview_screen.dart';
 
 import '../models/draft_pick.dart';
 import '../models/player.dart';
@@ -83,60 +84,6 @@ class DraftService {
     );
   }
   
-  /// Process a single draft pick with improved trade evaluation
-  DraftPick processDraftPick() {
-    // Find the next pick in the draft order
-    DraftPick? nextPick = _getNextPick();
-    
-    if (nextPick == null) {
-      throw Exception('No more picks available in the draft');
-    }
-    
-    _currentPick = nextPick.pickNumber;
-    _tradeUp = false;
-    _qbTrade = false;
-      
-    // Check if this is a user team pick
-    if (userTeam != null && nextPick.teamName == userTeam) {
-      // Generate trade offers for the user to consider
-      _generateUserTradeOffers(nextPick);
-      
-      // Return without making a selection - user will choose
-      _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
-      return nextPick;
-    }
-    
-    // If trading is disabled, skip trade evaluation
-    if (!enableTrading) {
-      // Select player using algorithm
-      Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
-      nextPick.selectedPlayer = selectedPlayer;
-      
-      // Update simulation state
-      _updateAfterSelection(nextPick, selectedPlayer);
-      return nextPick;
-    }
-    
-    // Evaluate potential trades with calibrated frequency
-    TradePackage? executedTrade = _evaluateTrades(nextPick);
-    
-    // If a trade was executed, return the updated pick
-    if (executedTrade != null) {
-      _tradeUp = true;
-      _statusMessage = "Trade executed: ${executedTrade.tradeDescription}";
-      return nextPick;
-    }
-    
-    // No trade - select a player
-    Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
-    nextPick.selectedPlayer = selectedPlayer;
-    
-    // Update simulation state
-    _updateAfterSelection(nextPick, selectedPlayer);
-    
-    return nextPick;
-  }
-  
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
     // Update team needs by removing the position that was just filled
@@ -169,6 +116,111 @@ class DraftService {
     } else {
       _pendingUserOffers.remove(userPick.pickNumber);
     }
+  }
+
+  /// Clean up stale trade offers for picks that have already been handled
+  void cleanupTradeOffers() {
+    // Get all selected picks
+    final selectedPickNumbers = draftOrder
+        .where((pick) => pick.isSelected || !pick.isActiveInDraft)
+        .map((pick) => pick.pickNumber)
+        .toSet();
+    
+    // Remove any pending offers for picks that have already been handled
+    _pendingUserOffers.removeWhere((pickNumber, _) => 
+      selectedPickNumbers.contains(pickNumber)
+    );
+
+    debugPrint('Cleaned up trade offers: ${_pendingUserOffers.length} offers remaining');
+  }
+
+  /// Add this helper to check for offers for the current pick
+  bool hasOffersForCurrentPick() {
+    DraftPick? nextPick = getNextPick();
+    if (nextPick == null) {
+      return false;
+    }
+    
+    return hasOffersForPick(nextPick.pickNumber);
+  }
+
+  // Modify the getTradeOffersForCurrentPick method to filter out invalid offers
+  TradeOffer getTradeOffersForCurrentPick() {
+    DraftPick? nextPick = _getNextPick();
+    if (nextPick == null) {
+      return const TradeOffer(packages: [], pickNumber: 0);
+    }
+    
+    // First clean up any stale offers
+    cleanupTradeOffers();
+    
+    // Then generate new trade offers
+    return _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+  }
+
+  // Modify the processDraftPick method to clean up offers after a pick
+  DraftPick processDraftPick() {
+    // Find the next pick in the draft order
+    DraftPick? nextPick = _getNextPick();
+    
+    if (nextPick == null) {
+      throw Exception('No more picks available in the draft');
+    }
+    
+    _currentPick = nextPick.pickNumber;
+    _tradeUp = false;
+    _qbTrade = false;
+      
+    // Check if this is a user team pick
+    if (userTeam != null && nextPick.teamName == userTeam) {
+      // Generate trade offers for the user to consider
+      _generateUserTradeOffers(nextPick);
+      
+      // Return without making a selection - user will choose
+      _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
+      return nextPick;
+    }
+    
+    // If trading is disabled, skip trade evaluation
+    if (!enableTrading) {
+      // Select player using algorithm
+      Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
+      nextPick.selectedPlayer = selectedPlayer;
+      
+      // Update simulation state
+      _updateAfterSelection(nextPick, selectedPlayer);
+      
+      // Clean up any stale trade offers
+      cleanupTradeOffers();
+      
+      return nextPick;
+    }
+    
+    // Evaluate potential trades with calibrated frequency
+    TradePackage? executedTrade = _evaluateTrades(nextPick);
+    
+    // If a trade was executed, return the updated pick
+    if (executedTrade != null) {
+      _tradeUp = true;
+      _statusMessage = "Trade executed: ${executedTrade.tradeDescription}";
+      
+      // Clean up any stale trade offers
+      cleanupTradeOffers();
+      
+      return nextPick;
+    }
+    
+    // No trade - select a player
+    Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
+    nextPick.selectedPlayer = selectedPlayer;
+    
+    // Update simulation state
+    _updateAfterSelection(nextPick, selectedPlayer);
+    
+    // Clean up any stale trade offers
+    cleanupTradeOffers();
+    
+    return nextPick;
   }
   
   /// Evaluate potential trades for the current pick with realistic behavior
@@ -667,33 +719,34 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       return;
     }
     
-    // Find all user picks
-    final userPicks = draftOrder
-        .where((pick) => pick.teamName == userTeam && !pick.isSelected && pick.isActiveInDraft)
-        .toList();
+    // Find only the current active user pick that's next in the draft
+    DraftPick? nextUserPick;
     
-    // Generate offers for each pick
-    for (var pick in userPicks) {
-      final pickNum = pick.pickNumber;
-      // If there are already offers for this pick, skip
-      if (_pendingUserOffers.containsKey(pickNum)) continue;
-      
-      // Generate trade offers for this pick
-      TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
-      if (offers.packages.isNotEmpty) {
-        _pendingUserOffers[pickNum] = offers.packages;
-      }
+    // First find the next pick in the draft order
+    DraftPick? nextPick = _getNextPick();
+    if (nextPick == null) return;
+    
+    // Only generate offers if it's the user's current pick
+    if (nextPick.teamName == userTeam) {
+      nextUserPick = nextPick;
+    } else {
+      // Clear any existing offers since it's not the user's turn
+      _pendingUserOffers.clear();
+      return;
+    }
+    
+    // Generate offers only for the current pick
+    final pickNum = nextUserPick.pickNumber;
+    
+    // If there are already offers for this pick, don't regenerate
+    if (_pendingUserOffers.containsKey(pickNum)) return;
+    
+    // Generate trade offers for this pick
+    TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
+    if (offers.packages.isNotEmpty) {
+      _pendingUserOffers[pickNum] = offers.packages;
     }
   }
-
-  TradeOffer getTradeOffersForCurrentPick() {
-  DraftPick? nextPick = _getNextPick();
-  if (nextPick == null) {
-    return const TradeOffer(packages: [], pickNumber: 0);
-  }
-  
-  return _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
-}
 
 /// Method alias for backward compatibility
 void generateUserPickOffers() {

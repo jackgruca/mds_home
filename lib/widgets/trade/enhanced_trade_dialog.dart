@@ -1,14 +1,16 @@
-// lib/widgets/trade/enhanced_trade_dialog.dart
+// Updated EnhancedTradeDialog with team logos, reject+counter buttons
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/trade_package.dart';
 import '../../models/trade_offer.dart';
 import '../../services/draft_value_service.dart';
-import 'package:flutter/services.dart';
+import '../../utils/team_logo_utils.dart';
 
 class EnhancedTradeDialog extends StatefulWidget {
   final TradeOffer tradeOffer;
   final Function(TradePackage) onAccept;
   final VoidCallback onReject;
+  final Function(TradePackage)? onCounter; // New callback for counter offer
   final bool showAnalytics;
 
   const EnhancedTradeDialog({
@@ -16,6 +18,7 @@ class EnhancedTradeDialog extends StatefulWidget {
     required this.tradeOffer,
     required this.onAccept,
     required this.onReject,
+    this.onCounter, // New optional parameter
     this.showAnalytics = true,
   });
 
@@ -108,7 +111,7 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
             
             if (_showDetails) ...[
               const Divider(),
-              // Team selector tabs with animation
+              // Team selector tabs with animation and logos
               AnimatedOpacity(
                 opacity: _showDetails ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 400),
@@ -148,18 +151,40 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      OutlinedButton(
+                      // Reject button
+                      OutlinedButton.icon(
                         onPressed: widget.onReject,
+                        icon: const Icon(Icons.close),
+                        label: const Text('Reject'),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+                          foregroundColor: Colors.red,
                         ),
-                        child: const Text('Reject'),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+                      
+                      // Counter offer button (if enabled)
+                      if (widget.onCounter != null)
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            if (widget.onCounter != null) {
+                              widget.onCounter!(widget.tradeOffer.packages[_selectedIndex]);
+                            }
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Counter'),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300),
+                            foregroundColor: Colors.blue,
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      
+                      // Accept button
                       ValueListenableBuilder<bool>(
                         valueListenable: _animationComplete,
                         builder: (context, isComplete, child) {
-                          return ElevatedButton(
+                          return ElevatedButton.icon(
                             onPressed: isComplete 
                               ? () {
                                   // Add haptic feedback
@@ -167,11 +192,12 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
                                   widget.onAccept(widget.tradeOffer.packages[_selectedIndex]);
                                 }
                               : null,
+                            icon: const Icon(Icons.check),
+                            label: const Text('Accept Trade'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _getValueColor(),
                               foregroundColor: Colors.white,
                             ),
-                            child: const Text('Accept Trade'),
                           );
                         },
                       ),
@@ -192,12 +218,14 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: SizedBox(
-        height: 40,
+        height: 60, // Increased height to accommodate logo
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           itemCount: offeringTeams.length,
           itemBuilder: (context, index) {
             final isSelected = _selectedIndex == index;
+            final teamName = offeringTeams[index];
+            
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4.0),
               child: AnimatedContainer(
@@ -222,13 +250,24 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
                   },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Text(
-                      offeringTeams[index],
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? _getValueColor() : null,
-                      ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Row(
+                      children: [
+                        // Team logo
+                        TeamLogoUtils.buildNFLTeamLogo(
+                          teamName,
+                          size: 28.0,
+                        ),
+                        const SizedBox(width: 8),
+                        // Team name
+                        Text(
+                          teamName,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? _getValueColor() : null,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -248,13 +287,16 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Trade summary
+          // Trade summary with team logos
           const Text(
             'Trade Summary:',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 8),
-          Text(package.tradeDescription),
+          
+          // Visual trade summary with team logos
+          _buildVisualTradeSummary(package),
+          
           const SizedBox(height: 16),
           
           // Trade value
@@ -337,6 +379,78 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
           
           // Updated pick table
           _buildEnhancedPicksTable(package),
+        ],
+      ),
+    );
+  }
+
+  // New method to build visual trade summary with team logos
+  Widget _buildVisualTradeSummary(TradePackage package) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          // Team offering
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TeamLogoUtils.buildNFLTeamLogo(
+                  package.teamOffering,
+                  size: 40.0,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  package.teamOffering,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          
+          // Trade flow arrows
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_forward, color: Colors.green.shade700),
+                const SizedBox(height: 4),
+                Icon(Icons.arrow_back, color: Colors.red.shade700),
+              ],
+            ),
+          ),
+          
+          // Team receiving
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TeamLogoUtils.buildNFLTeamLogo(
+                  package.teamReceiving,
+                  size: 40.0,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  package.teamReceiving,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -614,9 +728,27 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              teamName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            child: Row(
+              children: [
+                // Add team logo
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: TeamLogoUtils.buildNFLTeamLogo(
+                    teamName,
+                    size: 20.0,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Team name
+                Expanded(
+                  child: Text(
+                    teamName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
@@ -679,9 +811,27 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  teamName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    // Add team logo
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: TeamLogoUtils.buildNFLTeamLogo(
+                        teamName,
+                        size: 16.0,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Team name
+                    Expanded(
+                      child: Text(
+                        teamName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   description,
