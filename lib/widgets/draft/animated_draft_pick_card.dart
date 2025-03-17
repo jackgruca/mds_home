@@ -817,12 +817,35 @@ void _showPlayerDetails(BuildContext context, Player player) {
   );
 }
   
-  Widget _buildTeamLogo(String teamName) {
-    return TeamLogoUtils.buildNFLTeamLogo(
-      teamName,
-      size: 30.0,
-    );
-  }
+  // In lib/widgets/draft/animated_draft_pick_card.dart
+Widget _buildTeamLogo(String teamName) {
+  // Ensure a reasonable size for mobile
+  const double logoSize = 30.0;
+
+  return TeamLogoUtils.buildNFLTeamLogo(
+    teamName,
+    size: logoSize,
+    placeholderBuilder: (team) => Container(
+      width: logoSize,
+      height: logoSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.grey.shade300,
+      ),
+      child: Center(
+        child: Text(
+          // Get initials for placeholder
+          team.split(' ').map((word) => word.isNotEmpty ? word[0] : '').join('').toUpperCase(),
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.bold,
+            fontSize: logoSize * 0.4,
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
   Color _getPickNumberColor() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;

@@ -5,52 +5,65 @@ import 'constants.dart';
 class TeamLogoUtils {
   // Fetch NFL team logo
   static Widget buildNFLTeamLogo(
-    String teamName, {
-    double size = 30.0,
-    Widget Function(String)? placeholderBuilder,
-  }) {
-    // Try to find the abbreviation in the mapping
-    String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-    
-    // If we can't find it in the mapping, check if it's already an abbreviation
-    if (abbr == null && teamName.length <= 3) {
-      abbr = teamName;
-    }
-    
-    // If we still don't have an abbreviation, create a placeholder
-    if (abbr == null) {
-      return _buildPlaceholderLogo(
-        teamName,
-        size: size,
-        color: Colors.blue.shade700,
-        customBuilder: placeholderBuilder,
-      );
-    }
-    
-    // Convert abbreviation to lowercase for URL
-    final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
-    
-    // Handle the image with error fallback
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: Image.network(
-          logoUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            // On error, return the placeholder
-            return _buildPlaceholderLogo(
-              teamName,
-              size: size,
-              color: Colors.blue.shade700,
-              customBuilder: placeholderBuilder,
-            );
-          },
-        ),
-      ),
+  String teamName, {
+  double size = 30.0,
+  Widget Function(String)? placeholderBuilder,
+}) {
+  // Try to find the abbreviation in the mapping
+  String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
+  
+  // If we can't find it in the mapping, check if it's already an abbreviation
+  if (abbr == null && teamName.length <= 3) {
+    abbr = teamName;
+  }
+  
+  // If we still don't have an abbreviation, create a placeholder
+  if (abbr == null) {
+    return _buildPlaceholderLogo(
+      teamName,
+      size: size,
+      color: Colors.blue.shade700,
+      customBuilder: placeholderBuilder,
     );
   }
+  
+  // Convert abbreviation to lowercase for URL
+  final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
+  
+  // Handle the image with better error handling
+  return SizedBox(
+    width: size,
+    height: size,
+    child: ClipOval(
+      child: Image.network(
+        logoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // On error, return the placeholder
+          return _buildPlaceholderLogo(
+            teamName,
+            size: size,
+            color: Colors.blue.shade700,
+            customBuilder: placeholderBuilder,
+          );
+        },
+        // Add loading builder and caching for better mobile experience
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _buildPlaceholderLogo(
+            teamName,
+            size: size,
+            color: Colors.blue.shade700,
+            customBuilder: placeholderBuilder,
+            isLoading: true,
+          );
+        },
+        cacheWidth: size.toInt() * 2, // Better sizing for mobile
+        cacheHeight: size.toInt() * 2,
+      ),
+    ),
+  );
+}
 
     static Widget buildCollegeTeamLogo(
     String schoolName, {
@@ -107,38 +120,48 @@ class TeamLogoUtils {
   
   // Helper method to build a placeholder logo
   static Widget _buildPlaceholderLogo(
-    String name, {
-    required double size,
-    required Color color,
-    Widget Function(String)? customBuilder,
-  }) {
-    // If a custom builder is provided, use it
-    if (customBuilder != null) {
-      return customBuilder(name);
-    }
-    
-    // Default placeholder with initials
-    final initials = _getTeamInitials(name);
-    
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: size * 0.4, // Scale font size with container
-          ),
-        ),
-      ),
-    );
+  String name, {
+  required double size,
+  required Color color,
+  Widget Function(String)? customBuilder,
+  bool isLoading = false,
+}) {
+  // If a custom builder is provided, use it
+  if (customBuilder != null) {
+    return customBuilder(name);
   }
+  
+  // Get initials for the placeholder
+  final initials = _getTeamInitials(name);
+  
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color,
+    ),
+    child: Center(
+      child: isLoading 
+        ? SizedBox(
+            width: size * 0.6,
+            height: size * 0.6,
+            child: const CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          )
+        : Text(
+            initials,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: size * 0.4, // Scale font size with container
+            ),
+          ),
+    ),
+  );
+}
   
   // Helper method for team initials
   static String _getTeamInitials(String teamName) {
