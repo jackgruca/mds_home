@@ -66,63 +66,61 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // Determine the card color with dark mode support
-    Color cardColor = widget.isUserTeam ? 
-        (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
-        (isDarkMode ? Colors.grey.shade800 : Colors.white);
-    
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: SizedBox(
-        height: 70.0,
-        child: Card(
-          elevation: widget.isRecentPick ? 4.0 : 1.0,
-          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            side: BorderSide(
-              color: widget.isUserTeam ? 
-                  (isDarkMode ? Colors.blue.shade300 : Colors.blue) : 
-                  Colors.transparent,
-              width: widget.isUserTeam ? 2.0 : 0.0,
-            ),
+Widget build(BuildContext context) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Determine the card color with dark mode support
+  Color cardColor = widget.isUserTeam ? 
+      (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
+      (isDarkMode ? Colors.grey.shade800 : Colors.white);
+  
+  return FadeTransition(
+    opacity: _fadeAnimation,
+    child: ScaleTransition(
+      scale: _scaleAnimation,
+      child: Card(
+        elevation: widget.isRecentPick ? 2.0 : 1.0, // Reduced elevation
+        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), // Adjusted margins
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          side: BorderSide(
+            color: widget.isUserTeam ? 
+                (isDarkMode ? Colors.blue.shade300 : Colors.blue) : 
+                Colors.transparent,
+            width: widget.isUserTeam ? 1.5 : 0.0, // Thinner border
           ),
-          color: cardColor,
-          // Add InkWell wrap to make the card clickable when a player is selected
-          child: InkWell(
-            onTap: widget.draftPick.selectedPlayer != null 
-                ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
-                : null,
-            borderRadius: BorderRadius.circular(8.0),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-              child: Row(
-                children: [
-                  // Pick number (smaller)
-                  Container(
-                    width: 30.0,
-                    height: 30.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _getPickNumberColor(),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${widget.draftPick.pickNumber}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
-                        ),
+        ),
+        color: cardColor,
+        // Add InkWell wrap to make the card clickable when a player is selected
+        child: InkWell(
+          onTap: widget.draftPick.selectedPlayer != null 
+              ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
+              : null,
+          borderRadius: BorderRadius.circular(8.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0), // Adjusted padding
+            child: Row(
+              children: [
+                // Pick number (make circle smaller)
+                Container(
+                  width: 28.0, // Smaller size
+                  height: 28.0, // Smaller size
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _getPickNumberColor(),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.draftPick.pickNumber}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.0, // Smaller font
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8.0),
+                ),
+                const SizedBox(width: 8.0),
                   
                   // Team logo
                   _buildTeamLogo(widget.draftPick.teamName),
@@ -340,7 +338,6 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             ),
           ),
         ),
-      ),
       ),
     );
   }
