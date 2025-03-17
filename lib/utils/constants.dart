@@ -20,6 +20,17 @@ class AppConstants {
   static const String espnTeamsApi = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams";
 }
 
+class TextConstants {
+  // App-wide text sizing constants
+  static const double kAppBarTitleSize = 20.0;
+  static const double kTabLabelSize = 14.0;
+  static const double kSearchBarTextSize = 16.0;
+  static const double kCardTitleSize = 16.0;
+  static const double kCardSubtitleSize = 14.0;
+  static const double kCardDetailsSize = 12.0;
+  static const double kButtonTextSize = 14.0;
+}
+
 /// Collection of NFL teams
 class NFLTeams {
   static const List<String> allTeams = [
