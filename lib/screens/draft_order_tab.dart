@@ -73,6 +73,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
 
     return ListView.builder(
       controller: _scrollController,
+      padding: const EdgeInsets.symmetric(vertical: 4),
       itemCount: filteredPicks.length,
       itemBuilder: (context, index) {
         final DraftPick draftPick = filteredPicks[index];
@@ -91,26 +92,83 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
-          // Search Bar
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Search by Team',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+          // Search Bar - Styled to match the design in AvailablePlayersTab
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
             ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
+            child: Row(
+              children: [
+                // Search field
+                Expanded(
+                  child: SizedBox(
+                    height: 36,
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search by Team',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                
+                // Pick count
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${widget.draftOrder.length} picks',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.white : Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+                
+                // Clear search button when search is active
+                if (_searchQuery.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                    tooltip: 'Clear search',
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
-          // Draft Order Table
+          // Draft Order List
           Expanded(
             child: _buildDraftOrderCards(),
           ),
