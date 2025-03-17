@@ -603,8 +603,10 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
           ),
         ),
         // Simplified trade value analysis + buttons footer
+        // Simplified trade value analysis + buttons footer
         Container(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).brightness == Brightness.dark ? 
+                 Colors.grey.shade800 : Colors.grey.shade100,
           padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,7 +618,12 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   // Label for 'Required Value'
                   Text(
                     'Required Value: ${_targetPickValue.toInt()}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 11, 
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).brightness == Brightness.dark ? 
+                             Colors.white : Colors.black,
+                    ),
                   ),
                   const Spacer(),
                   // Your offered value label
@@ -625,7 +632,10 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     style: TextStyle(
                       fontSize: 11, 
                       fontWeight: FontWeight.bold,
-                      color: _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.grey.shade700,
+                      color: _totalOfferedValue >= _targetPickValue ? 
+                            Colors.green : 
+                            (Theme.of(context).brightness == Brightness.dark ? 
+                             Colors.grey.shade300 : Colors.grey.shade700),
                     ),
                   ),
                 ],
@@ -641,7 +651,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     height: 12,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: Theme.of(context).brightness == Brightness.dark ? 
+                             Colors.grey.shade700 : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -673,7 +684,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                         child: Container(
                           width: 2,
                           height: 12,
-                          color: Colors.black,
+                          color: Theme.of(context).brightness == Brightness.dark ? 
+                                 Colors.white : Colors.black,
                         ),
                       ),
                     ),
@@ -686,7 +698,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getTradeAdviceColor().withOpacity(0.1),
+                  color: Theme.of(context).brightness == Brightness.dark ? 
+                         _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
                 ),
