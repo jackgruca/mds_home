@@ -17,7 +17,6 @@ import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
 import '../widgets/analytics/draft_analytics_dashboard.dart';
-import '../widgets/draft/draft_history_widget.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
@@ -95,69 +94,9 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     _initializeServices();
   }
 
-  // Add this new method to handle tab changes
+  // Add this method
   void _handleTabChange() {
-    // Only execute if switching to the draft order tab (index 0)
-    if (_tabController.index == 0 && _draftService != null) {
-      // Use a slightly longer delay to ensure the tab view is fully rendered
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (!_draftOrderScrollController.hasClients) return;
-        
-        // Get the current pick
-        DraftPick? currentPick = _draftService!.getNextPick();
-        if (currentPick == null) return;
-        
-        // Get the active (displayed) picks
-        final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
-        
-        // Find the index of the current pick in the displayed list
-        int currentPickIndex = displayedPicks.indexWhere(
-          (pick) => pick.pickNumber == currentPick.pickNumber
-        );
-        
-        if (currentPickIndex == -1) {
-          // If current pick not found, try to find the next available pick
-          currentPickIndex = displayedPicks.indexWhere(
-            (pick) => pick.pickNumber >= currentPick.pickNumber && !pick.isSelected
-          );
-          
-          // If still not found, use the last selected pick
-          if (currentPickIndex == -1) {
-            for (int i = displayedPicks.length - 1; i >= 0; i--) {
-              if (displayedPicks[i].isSelected) {
-                currentPickIndex = i + 1;
-                break;
-              }
-            }
-            
-            // If nothing found, default to the start
-            if (currentPickIndex == -1 || currentPickIndex >= displayedPicks.length) {
-              currentPickIndex = 0;
-            }
-          }
-        }
-        
-        // Calculate position to center the pick
-        const double itemHeight = 74.0;
-        final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-        
-        // Calculate position to center the current pick in the viewport
-        double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-        
-        // Ensure we don't scroll beyond bounds
-        targetPosition = targetPosition.clamp(
-          0.0, 
-          _draftOrderScrollController.position.maxScrollExtent
-        );
-        
-        // Smooth scroll with a longer duration for a better experience
-        _draftOrderScrollController.animateTo(
-          targetPosition,
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOutCubic,
-        );
-      });
-    }
+    // For now this is empty, but will be useful for the Draft Summary tab implementation
   }
 
   @override
@@ -385,9 +324,7 @@ Future<void> _loadData() async {
     if (widget.showAnalytics && !_summaryShown) {
       _summaryShown = true;
       Future.delayed(const Duration(milliseconds: 1200), () {
-        // Switch to the Analytics tab - adjust the index to match your app
-        _tabController.animateTo(3); // Adjust this index if your Analytics tab is at a different position
-        
+        _showDraftSummary();
         // Show a notification
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -661,33 +598,17 @@ void _initiateUserTradeProposal() {
     }
   }
 
-
-void _openDraftHistory() {
-  if (_draftService == null) return;
-  
-  // Show a full-screen dialog with the draft history
-  showDialog(
-    context: context,
-    builder: (context) => Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('${widget.draftYear} NFL Draft'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
-        body: DraftHistoryWidget(
-          completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-          userTeam: widget.selectedTeam,
-        ),
-      ),
-    ),
-  );
-}
-
   void _showDraftSummary() {
   if (_draftService == null) return;
+  
+  // Get all unique team names for filtering
+  final allTeams = _draftPicks
+      .map((pick) => pick.teamName)
+      .toSet()
+      .toList();
+  
+  // Sort alphabetically for better UX
+  allTeams.sort();
   
   // Show a full-screen dialog with the draft summary
   showDialog(
@@ -698,6 +619,7 @@ void _openDraftHistory() {
       draftedPlayers: _players.where((player) => 
         _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
       executedTrades: _executedTrades,
+      allTeams: allTeams, // Add the list of teams
       userTeam: widget.selectedTeam,
     ),
   );
@@ -859,36 +781,28 @@ void _testDraftSummary() {
   });
 }
 
-// Add a check to show the summary when draft is complete
 @override
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
-  print("Draft complete check: ${_draftService?.isDraftComplete()}");
-  print("Draft running: $_isDraftRunning");
-  print("Data loaded: $_isDataLoaded");
-  print("Show analytics: ${widget.showAnalytics}");
-  print("Summary already shown: $_summaryShown");
-
   // Check if draft just completed and summary hasn't been shown yet
   if (_draftService != null && 
       _draftService!.isDraftComplete() && 
       !_isDraftRunning && 
       _isDataLoaded &&
-      widget.showAnalytics &&
       !_summaryShown) {
     // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment, then switch to the Analytics tab
-    Future.delayed(const Duration(milliseconds: 500), () {
-      // Switch to the Analytics tab (assuming it's the 3rd tab, index 2)
-      _tabController.animateTo(3); // Adjust this index if needed
+    // Wait a moment before showing the summary
+    Future.delayed(const Duration(milliseconds: 800), () {
+      // Show draft summary screen directly
+      _showDraftSummary();
       
-      // Show a notification to inform the user
+      // Notify the user
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Draft complete! View your draft summary and analytics.'),
+          content: Text('Draft complete! View your draft summary.'),
           duration: Duration(seconds: 3),
         ),
       );
@@ -1082,12 +996,13 @@ void didUpdateWidget(DraftApp oldWidget) {
                 ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 if (widget.showAnalytics)
+                  // Use the simplified analytics dashboard
                   DraftAnalyticsDashboard(
                     completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
                     draftedPlayers: _players.where((player) => 
                       _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
                     executedTrades: _executedTrades,
-                    teamNeeds: _teamNeeds, // Add this parameter
+                    teamNeeds: _teamNeeds,
                     userTeam: widget.selectedTeam,
                   )
                 ],
@@ -1096,23 +1011,21 @@ void didUpdateWidget(DraftApp oldWidget) {
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Existing UI elements, if any
-        
-        // Add the history button
-        OutlinedButton.icon(
-          onPressed: _openDraftHistory,
-          icon: const Icon(Icons.history),
-          label: const Text('Draft History'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_draftService != null && _draftService!.completedPicksCount > 0)
+                OutlinedButton.icon(
+                  onPressed: _showDraftSummary,
+                  icon: const Icon(Icons.summarize),
+                  label: const Text('Draft Summary'),
+                ),
+            ],
+          ),
         ),
-      ],
-    ),
-  ),
-),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
         isDraftRunning: _isDraftRunning,
