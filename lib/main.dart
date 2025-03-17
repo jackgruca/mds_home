@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/analytics_service.dart';
+import 'utils/analytics_observer.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
@@ -18,13 +20,8 @@ void main() {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Turn on debug output for the app
-  if (kDebugMode) {
-    debugPrint = (String? message, {int? wrapWidth}) {
-      if (message != null) {
-        print(message);
-      }
-    };
+  if (kIsWeb) {
+    AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH'); // Replace with your GA4 measurement ID
   }
   
   runApp(
@@ -60,6 +57,7 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
+          navigatorObservers: [AnalyticsRouteObserver()],
           debugShowCheckedModeBanner: false,
           title: 'NFL Draft App',
           theme: AppTheme.lightTheme,
