@@ -742,103 +742,137 @@ Future<void> _loadUserPreferences() async {
                     )
                   :
                     // Regular layout (horizontal)
-                    Row(
-                      children: [
-                        // Rounds section (left side)
-                        const Text(
-                          'Rounds:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold, 
-                            fontSize: 12.0
-                          ),
-                        ),
-                        const SizedBox(width: 8.0),
-                        // Round selection buttons
-                        Row(
-                          children: List.generate(7, (index) {
-                            final roundNum = index + 1;
-                            final isSelected = _numberOfRounds == roundNum;
-                            
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 4.0),
-                              child: Material(
-                                color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(4.0),
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _numberOfRounds = roundNum;
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.circular(4.0),
-                                  child: Container(
-                                    width: 24.0,
-                                    height: 24.0,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '$roundNum',
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12.0,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                        
-                        // Spacer to push Year dropdown to the right
-                        const Spacer(),
-                        
-                        // Year dropdown (right side)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Year:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold, 
-                                fontSize: 12.0,
-                                color: isDarkMode ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            const SizedBox(width: 8.0),
-                            DropdownButton<int>(
-                              value: _selectedYear,
-                              underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
-                              isDense: true,
-                              items: _availableYears.map((int year) {
-                                return DropdownMenuItem<int>(
-                                  value: year,
-                                  child: Text(
-                                    year.toString(),
-                                    style: TextStyle(
-                                      fontSize: 12.0,
-                                      color: isDarkMode ? Colors.white : Colors.black,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (int? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedYear = newValue;
-                                  });
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(width: 16.0),
-                        
-                        // Speed slider on the second row (keep as is)
-                        // ...
-                      ],
-                    ),
+Row(
+  children: [
+    // Rounds section (left side)
+    const Text(
+      'Rounds:',
+      style: TextStyle(
+        fontWeight: FontWeight.bold, 
+        fontSize: 12.0
+      ),
+    ),
+    const SizedBox(width: 8.0),
+    // Round selection buttons
+    Row(
+      children: List.generate(7, (index) {
+        final roundNum = index + 1;
+        final isSelected = _numberOfRounds == roundNum;
+        
+        return Padding(
+          padding: const EdgeInsets.only(right: 4.0),
+          child: Material(
+            color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
+            borderRadius: BorderRadius.circular(4.0),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _numberOfRounds = roundNum;
+                });
+              },
+              borderRadius: BorderRadius.circular(4.0),
+              child: Container(
+                width: 24.0,
+                height: 24.0,
+                alignment: Alignment.center,
+                child: Text(
+                  '$roundNum',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    ),
+    
+    // Spacer to push Year dropdown to the right
+    const Spacer(),
+    
+    // Year dropdown (right side)
+    Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Year:',
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            fontSize: 12.0,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+        const SizedBox(width: 8.0),
+        DropdownButton<int>(
+          value: _selectedYear,
+          underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
+          isDense: true,
+          items: _availableYears.map((int year) {
+            return DropdownMenuItem<int>(
+              value: year,
+              child: Text(
+                year.toString(),
+                style: TextStyle(
+                  fontSize: 12.0,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: (int? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedYear = newValue;
+              });
+            }
+          },
+        ),
+      ],
+    ),
+  ],
+),
+
+// Add speed slider in a separate row below
+const SizedBox(height: 8.0),
+Row(
+  children: [
+    // Speed label
+    const Text(
+      'Speed:',
+      style: TextStyle(
+        fontWeight: FontWeight.bold, 
+        fontSize: 12.0
+      ),
+    ),
+    const SizedBox(width: 8.0),
+    // Speed slider
+    Expanded(
+      child: SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 4.0,
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+        ),
+        child: Slider(
+          value: _speed,
+          min: 1.0,
+          max: 5.0,
+          divisions: 4,
+          activeColor: Colors.green[700],
+          onChanged: (value) {
+            setState(() {
+              _speed = value;
+            });
+          },
+        ),
+      ),
+    ),
+    Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+  ],
+),
                   
                   const SizedBox(height: 8.0),
                   
