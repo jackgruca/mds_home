@@ -147,28 +147,36 @@ Future<void> _loadUserPreferences() async {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NFL Draft Simulator'),
-        actions: [
-          // Add the auth button here
-          const HeaderAuthButton(),
-          // Theme toggle button
-          Consumer<ThemeManager>(
-            builder: (context, themeManager, _) => IconButton(
-              icon: Icon(
-                themeManager.themeMode == ThemeMode.light
-                    ? Icons.dark_mode
-                    : Icons.light_mode,
-              ),
-              tooltip: themeManager.themeMode == ThemeMode.light
-                  ? 'Switch to Dark Mode'
-                  : 'Switch to Light Mode',
-              onPressed: () {
-                themeManager.toggleTheme();
-              },
-            ),
-          ),
-        ],
+  title: const Text(
+    'NFL Draft Simulator',
+    style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
+  ),
+  toolbarHeight: 48,
+  centerTitle: true,
+  titleSpacing: 8,
+  elevation: 0,
+  actions: [
+    // Add the auth button here
+    const HeaderAuthButton(),
+    // Theme toggle button
+    Consumer<ThemeManager>(
+      builder: (context, themeManager, _) => IconButton(
+        icon: Icon(
+          themeManager.themeMode == ThemeMode.light
+              ? Icons.dark_mode
+              : Icons.light_mode,
+          size: 20,
+        ),
+        tooltip: themeManager.themeMode == ThemeMode.light
+            ? 'Switch to Dark Mode'
+            : 'Switch to Light Mode',
+        onPressed: () {
+          themeManager.toggleTheme();
+        },
       ),
+    ),
+  ],
+),
 
       body: SafeArea(
         child: Column(
