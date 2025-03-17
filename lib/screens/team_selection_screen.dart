@@ -595,10 +595,10 @@ Future<void> _loadUserPreferences() async {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Rounds row
+                        // Rounds row with Year on the right
                         Row(
                           children: [
-                            // Rounds label
+                            // Rounds label and buttons (left side)
                             SizedBox(
                               width: 50,
                               child: Text(
@@ -610,6 +610,7 @@ Future<void> _loadUserPreferences() async {
                                 ),
                               ),
                             ),
+                            
                             // Round selection buttons
                             Expanded(
                               child: SingleChildScrollView(
@@ -651,12 +652,53 @@ Future<void> _loadUserPreferences() async {
                                 ),
                               ),
                             ),
+                            
+                            // Year selection (right side)
+                            const SizedBox(width: 8.0),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Year:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold, 
+                                    fontSize: 12.0,
+                                    color: isDarkMode ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 4.0),
+                                DropdownButton<int>(
+                                  value: _selectedYear,
+                                  underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
+                                  isDense: true,
+                                  items: _availableYears.map((int year) {
+                                    return DropdownMenuItem<int>(
+                                      value: year,
+                                      child: Text(
+                                        year.toString(),
+                                        style: TextStyle(
+                                          fontSize: 12.0,
+                                          color: isDarkMode ? Colors.white : Colors.black,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (int? newValue) {
+                                    if (newValue != null) {
+                                      setState(() {
+                                        _selectedYear = newValue;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                         
                         const SizedBox(height: 8.0),
                         
-                        // Speed row - more compact for mobile
+                        // Speed row (unchanged)
                         Row(
                           children: [
                             // Speed label
@@ -675,9 +717,9 @@ Future<void> _loadUserPreferences() async {
                             Expanded(
                               child: SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3.0, // Smaller track
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0), // Smaller thumb
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0), // Smaller overlay
+                                  trackHeight: 3.0,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
                                 ),
                                 child: Slider(
                                   value: _speed,
@@ -702,7 +744,7 @@ Future<void> _loadUserPreferences() async {
                     // Regular layout (horizontal)
                     Row(
                       children: [
-                        // Rounds buttons
+                        // Rounds section (left side)
                         const Text(
                           'Rounds:',
                           style: TextStyle(
@@ -748,39 +790,53 @@ Future<void> _loadUserPreferences() async {
                           }),
                         ),
                         
-                        const SizedBox(width: 16.0),
+                        // Spacer to push Year dropdown to the right
+                        const Spacer(),
                         
-                        // Speed slider (compact)
-                        const Text(
-                          'Speed:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold, 
-                            fontSize: 12.0
-                          ),
-                        ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 4.0,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
+                        // Year dropdown (right side)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Year:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
-                            child: Slider(
-                              value: _speed,
-                              min: 1.0,
-                              max: 5.0,
-                              divisions: 4,
-                              activeColor: Colors.green[700],
-                              onChanged: (value) {
-                                setState(() {
-                                  _speed = value;
-                                });
+                            const SizedBox(width: 8.0),
+                            DropdownButton<int>(
+                              value: _selectedYear,
+                              underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
+                              isDense: true,
+                              items: _availableYears.map((int year) {
+                                return DropdownMenuItem<int>(
+                                  value: year,
+                                  child: Text(
+                                    year.toString(),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode ? Colors.white : Colors.black,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (int? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _selectedYear = newValue;
+                                  });
+                                }
                               },
                             ),
-                          ),
+                          ],
                         ),
-                        Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                        
+                        const SizedBox(width: 16.0),
+                        
+                        // Speed slider on the second row (keep as is)
+                        // ...
                       ],
                     ),
                   
