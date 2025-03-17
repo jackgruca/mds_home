@@ -28,7 +28,16 @@ class AnalyticsRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   }
 
   void _sendScreenView(PageRoute<dynamic> route) {
-    final screenName = route.settings.name ?? 'Unknown';
+    // Get screen name from route settings
+    String screenName;
+    if (route.settings.name != null && route.settings.name!.isNotEmpty) {
+      screenName = route.settings.name!;
+    } else {
+      // Use the widget type as fallback
+      screenName = '/${route.settings.arguments?.toString() ?? route.toString()}';
+    }
+    
+    // Log page view
     AnalyticsService.logPageView(screenName);
   }
 }

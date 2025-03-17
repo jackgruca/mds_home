@@ -15,8 +15,8 @@ dependencies:
   http: ^1.2.0
   provider: ^6.0.5 # For state management
   shared_preferences: ^2.2.2 # For saving theme preference
-  google_analytics_web: ^0.1.0
   universal_html: ^2.2.0
+  js: ^0.6.5
   
 
 dev_dependencies:
