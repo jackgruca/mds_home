@@ -138,7 +138,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
         'tradeValue': tradeValue,
         'combinedValue': combinedValue,
         'pickCount': picks.length,
-        'isUserTeam': team == widget.userTeam,
+        'isUserTeams': team == widget.userTeam,
       };
     }
   }
@@ -158,7 +158,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
           'pick': pick.pickNumber,
           'rank': pick.selectedPlayer!.rank,
           'diff': diff,
-          'isUserTeam': pick.teamName == widget.userTeam,
+          'isUserTeams': pick.teamName == widget.userTeam,
         });
       }
       
@@ -171,7 +171,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
           'pick': pick.pickNumber,
           'rank': pick.selectedPlayer!.rank,
           'diff': diff,
-          'isUserTeam': pick.teamName == widget.userTeam,
+          'isUserTeams': pick.teamName == widget.userTeam,
         });
       }
     }
@@ -428,10 +428,10 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
                 ...sortedTeams.map((entry) {
                   final team = entry.key;
                   final data = entry.value;
-                  final bool isUserTeam = data['isUserTeam'] == true;
+                  final bool isUserTeams = data['isUserTeams'] == true;
                   
                   return TableRow(
-                    decoration: isUserTeam
+                    decoration: isUserTeams
                         ? BoxDecoration(color: Colors.blue.shade50)
                         : null,
                     children: [
@@ -441,8 +441,8 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
                         child: Text(
                           team,
                           style: TextStyle(
-                            fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                            color: isUserTeam ? Colors.blue.shade800 : null,
+                            fontWeight: isUserTeams ? FontWeight.bold : FontWeight.normal,
+                            color: isUserTeams ? Colors.blue.shade800 : null,
                           ),
                         ),
                       ),
@@ -530,7 +530,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
           children: [
             // Display top 5 picks
             ...picks.take(5).map((pick) {
-              final isUserTeam = pick['isUserTeam'] == true;
+              final isUserTeams = pick['isUserTeams'] == true;
               final diff = pick['diff'];
               
               return ListTile(
@@ -542,7 +542,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
                         text: '${pick['player']} ',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isUserTeam ? Colors.blue.shade800 : null,
+                          color: isUserTeams ? Colors.blue.shade800 : null,
                         ),
                       ),
                       TextSpan(

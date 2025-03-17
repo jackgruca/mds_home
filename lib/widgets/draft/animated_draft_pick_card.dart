@@ -10,14 +10,14 @@ import '../../utils/team_logo_utils.dart';
 
 class AnimatedDraftPickCard extends StatefulWidget {
   final DraftPick draftPick;
-  final bool isUserTeam;
+  final bool isUserTeams;
   final bool isRecentPick;
   final List<String>? teamNeeds; // Parameter to pass team needs
   
   const AnimatedDraftPickCard({
     super.key,
     required this.draftPick,
-    this.isUserTeam = false,
+    this.isUserTeams = false,
     this.isRecentPick = false,
     this.teamNeeds,
   });
@@ -70,7 +70,7 @@ Widget build(BuildContext context) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
   // Determine the card color with dark mode support
-  Color cardColor = widget.isUserTeam ? 
+  Color cardColor = widget.isUserTeams ? 
       (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
       (isDarkMode ? Colors.grey.shade800 : Colors.white);
   
@@ -84,10 +84,10 @@ Widget build(BuildContext context) {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
           side: BorderSide(
-            color: widget.isUserTeam ? 
+            color: widget.isUserTeams ? 
                 (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300) : 
                 (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-            width: widget.isUserTeam ? 1.5 : 1.0,
+            width: widget.isUserTeams ? 1.5 : 1.0,
           ),
         ),
         color: cardColor,

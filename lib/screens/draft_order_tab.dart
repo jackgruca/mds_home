@@ -6,13 +6,13 @@ import '../widgets/draft/animated_draft_pick_card.dart';
 class DraftOrderTab extends StatefulWidget {
   // Update this to accept a list of DraftPick objects instead of List<List<dynamic>>
   final List<DraftPick> draftOrder; 
-  final String? userTeam;
+  final String? userTeams;
   final ScrollController? scrollController;
   final List<List<dynamic>> teamNeeds; // Still need this for team needs
   
   const DraftOrderTab({
     required this.draftOrder,
-    this.userTeam,
+    this.userTeams,
     this.scrollController,
     required this.teamNeeds,
     super.key,
@@ -77,12 +77,12 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       itemCount: filteredPicks.length,
       itemBuilder: (context, index) {
         final DraftPick draftPick = filteredPicks[index];
-        final isUserTeam = draftPick.teamName == widget.userTeam;
+        final isUserTeams = draftPick.teamName == widget.userTeams;
         final isRecentPick = index < 3; // Consider the first 3 picks as "recent"
         
         return AnimatedDraftPickCard(
           draftPick: draftPick,
-          isUserTeam: isUserTeam,
+          isUserTeams: isUserTeams,
           isRecentPick: isRecentPick,
           teamNeeds: _getTeamNeeds(draftPick.teamName),
         );

@@ -16,7 +16,7 @@ class TradeService {
   final List<TeamNeed> teamNeeds;
   final List<Player> availablePlayers;
   final Random _random = Random();
-  final String? userTeam;
+  final List<String> userTeams;
   
   // Configurable parameters
   final bool enableUserTradeConfirmation;
@@ -64,7 +64,7 @@ class TradeService {
     required this.draftOrder,
     required this.teamNeeds,
     required this.availablePlayers,
-    this.userTeam,
+    required this.userTeams,
     this.enableUserTradeConfirmation = true,
     this.tradeRandomnessFactor = 0.5,
     this.enableQBPremium = true,
@@ -186,7 +186,7 @@ class TradeService {
     );
     
     // Check if this involves the user team
-    final bool isUsersPick = currentPick.teamName == userTeam;
+    final bool isUsersPick = currentPick.teamName == userTeams;
     
     // IMPORTANT: We now generate trade offers even for user team picks
     // Instead of returning an empty list as before
@@ -241,7 +241,7 @@ class TradeService {
     return TradeOffer(
       packages: packages,
       pickNumber: pickNumber,
-      isUserInvolved: isUsersPick || packages.any((p) => p.teamOffering == userTeam),
+      isUserInvolved: isUsersPick || packages.any((p) => p.teamOffering == userTeams),
     );
   }
   
@@ -313,7 +313,7 @@ class TradeService {
   }
   
   // Check if team is the user's team - allow more trade offers
-  if (currentPick.teamName == userTeam) {
+  if (currentPick.teamName == userTeams) {
     return false; // Generate offers for user regardless
   }
     
