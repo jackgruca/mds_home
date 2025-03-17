@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../providers/auth_provider.dart';
+import '../services/analytics_service.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
@@ -942,6 +943,18 @@ Row(
     debugPrint("Starting draft for year: $_selectedYear");
     debugPrint("Selected team (full name): $_selectedTeam");
     
+    AnalyticsService.logEvent('draft_started', parameters: {
+      'team': _selectedTeam,
+      'rounds': _numberOfRounds,
+      'year': _selectedYear,
+    });
+    
+    Navigator.pushNamed(
+      context, 
+      '/draft', 
+      arguments: _selectedTeam,
+    );
+
     // Determine the team identifier to use
     String? teamIdentifier;
     if (_selectedTeam != null) {

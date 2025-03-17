@@ -1,7 +1,10 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/analytics_service.dart';
+import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
@@ -17,7 +20,9 @@ DateTime? _lastTapTime;
 void main() {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+
   // Turn on debug output for the app
   if (kDebugMode) {
     debugPrint = (String? message, {int? wrapWidth}) {
@@ -60,11 +65,20 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
+          navigatorObservers: [AnalyticsRouteObserver()],
           debugShowCheckedModeBanner: false,
           title: 'NFL Draft App',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeManager.themeMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const TeamSelectionScreen(),
+            '/draft': (context) => DraftApp(
+              selectedTeam: ModalRoute.of(context)?.settings.arguments as String?,
+            ),
+            // Add other routes as needed
+          },
           home: GestureDetector(
             // Add a detector for admin access (5 quick taps on title bar)
             onTap: () {
