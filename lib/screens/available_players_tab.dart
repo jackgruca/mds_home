@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/player_descriptions_service.dart';
+import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
 import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
@@ -29,7 +30,7 @@ class AvailablePlayersTab extends StatefulWidget {
 }
 
 class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
-  String _searchQuery = '';
+  final String _searchQuery = '';
   final Set<String> _selectedPositions = {};
   
   // Track selected (crossed out) players locally
@@ -149,39 +150,15 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         child: TextField(
                           decoration: InputDecoration(
                             hintText: 'Search Players',
-                            hintStyle: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.grey.shade400 
-                                : Colors.grey.shade600,
-                          ),
-                            prefixIcon: Icon(Icons.search, size: 18,
-                                  color: Theme.of(context).brightness == Brightness.dark 
-                                  ? Colors.grey.shade400 
-                                  : Colors.grey.shade600,
-                            ),
-                            contentPadding: EdgeInsets.zero,
-                            isDense: true,
+                            prefixIcon: const Icon(Icons.search),
                             border: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                    color: Theme.of(context).brightness == Brightness.dark 
-                                        ? Colors.grey.shade700 
-                                        : Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
                           ),
-                              fillColor: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.grey.shade900 
-                                : Colors.white,
-                            filled: true,
-                          ),
-                          style: TextStyle(fontSize: 14,
-                              color: Theme.of(context).brightness == Brightness.dark 
-                              ? Colors.white 
-                              : Colors.black,
-                          ),
+                          style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
                           onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                            });
+                            // search logic
                           },
                         ),
                       ),

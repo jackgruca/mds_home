@@ -65,48 +65,48 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // Determine the card color with dark mode support
-    Color cardColor = widget.isUserTeam ? 
-        (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
-        (isDarkMode ? Colors.grey.shade800 : Colors.white);
-    
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: SizedBox(
-        height: 70.0,
+  // In animated_draft_pick_card.dart
+@override
+Widget build(BuildContext context) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Determine the card color with dark mode support
+  Color cardColor = widget.isUserTeam ? 
+      (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
+      (isDarkMode ? Colors.grey.shade800 : Colors.white);
+  
+  return FadeTransition(
+    opacity: _fadeAnimation,
+    child: ScaleTransition(
+      scale: _scaleAnimation,
+      child: SizedBox(
+        height: 72.0, // Matched to available players card height
         child: Card(
-          elevation: widget.isRecentPick ? 4.0 : 1.0,
-          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+          elevation: widget.isRecentPick ? 2.0 : 1.0,
+          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
             side: BorderSide(
               color: widget.isUserTeam ? 
                   (isDarkMode ? Colors.blue.shade300 : Colors.blue) : 
                   Colors.transparent,
-              width: widget.isUserTeam ? 2.0 : 0.0,
+              width: widget.isUserTeam ? 1.5 : 0.0,
             ),
           ),
           color: cardColor,
-          // Add InkWell wrap to make the card clickable when a player is selected
           child: InkWell(
             onTap: widget.draftPick.selectedPlayer != null 
                 ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
                 : null,
             borderRadius: BorderRadius.circular(8.0),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               child: Row(
                 children: [
-                  // Pick number (smaller)
+                  // Pick number circle
                   Container(
-                    width: 30.0,
-                    height: 30.0,
+                    width: 34.0,
+                    height: 34.0,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _getPickNumberColor(),
@@ -117,16 +117,16 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
+                          fontSize: 14.0, // Consistent text size
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8.0),
+                  const SizedBox(width: 12.0),
                   
                   // Team logo
                   _buildTeamLogo(widget.draftPick.teamName),
-                  const SizedBox(width: 8.0),
+                  const SizedBox(width: 12.0),
                   
                   // Player info or Team Needs
                   Expanded(
@@ -141,7 +141,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                             widget.draftPick.selectedPlayer!.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14.0,
+                              fontSize: TextConstants.kCardTitleSize, // Consistent title size
                               color: isDarkMode ? Colors.white : Colors.black,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -161,34 +161,26 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 10.0,
+                                    fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                   ),
                                 ),
                               ),
                               // Show college logo instead of NFL team name
                               if (widget.draftPick.selectedPlayer!.school.isNotEmpty)
                                 SizedBox(
-                                  width: 20, // Smaller logo size
+                                  width: 20,
                                   height: 20,
                                   child: TeamLogoUtils.buildCollegeTeamLogo(
                                     widget.draftPick.selectedPlayer!.school,
                                     size: 20.0,
-                                    placeholderBuilder: (schoolName) => Text(
-                                      schoolName.split(' ').map((s) => s.isNotEmpty ? s[0] : '').join('').toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 8,
-                                        color: isDarkMode ? Colors.white : Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                                   ),
                                 )
                               else
                                 Text(
                                   'No School',
                                   style: TextStyle(
+                                    fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                     color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                    fontSize: 10.0,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -206,7 +198,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                             widget.draftPick.teamName,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14.0,
+                              fontSize: TextConstants.kCardTitleSize, // Consistent title size
                               color: isDarkMode ? Colors.white : Colors.black,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -218,7 +210,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                               const Text(
                                 'Team Needs: ',
                                 style: TextStyle(
-                                  fontSize: 11.0, 
+                                  fontSize: TextConstants.kCardSubtitleSize, // Consistent subtitle size
                                   fontStyle: FontStyle.italic,
                                   color: Colors.grey,
                                 ),
@@ -228,7 +220,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                 Expanded(
                                   child: Wrap(
                                     spacing: 4.0,
-                                    runSpacing: 4.0, // Add some vertical spacing if wrapping occurs
+                                    runSpacing: 4.0,
                                     children: widget.teamNeeds!.take(3).map((need) => 
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
@@ -243,7 +235,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 10.0,
+                                            fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                           ),
                                         ),
                                       )
@@ -255,7 +247,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                   'No team needs data',
                                   style: TextStyle(
                                     color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                    fontSize: 11.0,
+                                    fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -269,7 +261,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Trade icon if applicable (moved to the left)
+                      // Trade icon if applicable
                       if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(right: 4.0),
@@ -314,7 +306,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                 'Rank: ',
                                 style: TextStyle(
                                   color: isDarkMode ? Colors.white : Colors.black87,
-                                  fontSize: 10.0,
+                                  fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                 ),
                               ),
                               Text(
@@ -327,7 +319,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                                         widget.draftPick.pickNumber,
                                       ),
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 11.0,
+                                  fontSize: TextConstants.kCardDetailsSize, // Consistent detail size
                                 ),
                               ),
                             ],
@@ -341,9 +333,9 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
           ),
         ),
       ),
-      ),
-    );
-  }
+    ),
+  );
+}
   
 // In lib/widgets/draft/animated_draft_pick_card.dart
 void _showPlayerDetails(BuildContext context, Player player) {

@@ -17,6 +17,7 @@ import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
 import '../widgets/analytics/draft_analytics_dashboard.dart';
+import '../utils/constants.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
@@ -125,7 +126,7 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     if (currentPickIndex == -1) return; // Not found
     
     // Calculate position
-    const double itemHeight = 74.0;
+    const double itemHeight = 72.0;
     double viewportHeight = _draftOrderScrollController.position.viewportDimension;
     double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
     
@@ -272,7 +273,7 @@ Future<void> _loadData() async {
           
           if (firstPickIndex == -1) return;
           
-          const double itemHeight = 74.0;
+          const double itemHeight = 72.0;
           final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
           double targetPosition = (firstPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
           
@@ -398,7 +399,7 @@ Future<void> _loadData() async {
         if (currentPickIndex == -1) return; // Not found
         
         // Center the current pick
-        const double itemHeight = 74.0;
+        const double itemHeight = 72.0;
         final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
         double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
         
@@ -843,116 +844,154 @@ void didUpdateWidget(DraftApp oldWidget) {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NFL Draft'),
-        actions: [
+  title: const Text(
+    'NFL Draft',
+    style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
+  ),
+  toolbarHeight: 48,
+  centerTitle: true,
+  titleSpacing: 8,
+  elevation: 0,
+  actions: [
     // Theme toggle button
     IconButton(
       icon: Icon(
         Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
             ? Icons.dark_mode
             : Icons.light_mode,
+        size: 20,
       ),
-      tooltip: 'Toggle Theme',
       onPressed: () {
         Provider.of<ThemeManager>(context, listen: false).toggleTheme();
       },
     ),
-    // Other app bar actions...
   ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            const Tab(text: 'Draft Order', icon: Icon(Icons.list)),
-            const Tab(text: 'Available Players', icon: Icon(Icons.people)),
-            const Tab(text: 'Team Needs', icon: Icon(Icons.assignment)),
-            if (widget.showAnalytics) // Only show if enabled
-              const Tab(text: 'Analytics', icon: Icon(Icons.analytics)),
-          ],
+  bottom: PreferredSize(
+    preferredSize: const Size.fromHeight(40),
+    child: TabBar(
+      controller: _tabController,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
+      tabs: [
+        const Tab(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.list, size: 18),
+              SizedBox(width: 4),
+              Text('Draft'),
+            ],
+          ),
         ),
-      ),
-      body: Column(
-        children: [
-          // Status bar
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-              colors: widget.selectedTeam != null 
-                ? _getTeamGradientColors(widget.selectedTeam!)
-                : Theme.of(context).brightness == Brightness.dark
-                  ? [Colors.blue.shade900, Colors.blue.shade800]
-                  : [Colors.blue.shade50, Colors.blue.shade100],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 1,
-                  blurRadius: 2,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
+        const Tab(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.people, size: 18),
+              SizedBox(width: 4),
+              Text('Players'),
+            ],
+          ),
+        ),
+        const Tab(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.assignment, size: 18),
+              SizedBox(width: 4),
+              Text('Needs'),
+            ],
+          ),
+        ),
+        if (widget.showAnalytics)
+          const Tab(
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.selectedTeam != null) ...[
-                  Icon(Icons.sports_football, 
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${widget.selectedTeam}:',  
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                
-                // Status message - always show this
-                Expanded(
-                  child: Text(
-                    _statusMessage,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white 
-                      : Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                
-                // Always show the propose trade button if user team selected
-                if (widget.selectedTeam != null)
-                  OutlinedButton.icon(
-                    onPressed: _initiateUserTradeProposal,
-                    icon: const Icon(Icons.swap_horiz, size: 16),
-                    label: const Text('Trade'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white24  // Semi-transparent white in dark mode
-                      : Colors.transparent,
-                  foregroundColor: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white 
-                      : Colors.blue.shade700,
-                  side: BorderSide(
-                    color: Theme.of(context).brightness == Brightness.dark 
-                        ? Colors.white70 
-                        : Colors.blue.shade300,
-                    width: 1.5,
-                    ),
-                  ),
-                  ),
+                Icon(Icons.analytics, size: 18),
+                SizedBox(width: 4),
+                Text('Stats'),
               ],
             ),
           ),
+      ],
+    ),
+  ),
+),
+      body: Column(
+        children: [
+          // Status bar
+Container(
+  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: widget.selectedTeam != null 
+        ? _getTeamGradientColors(widget.selectedTeam!)
+        : Theme.of(context).brightness == Brightness.dark
+          ? [Colors.blue.shade900, Colors.blue.shade800]
+          : [Colors.blue.shade50, Colors.blue.shade100],
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.grey.withOpacity(0.2),
+        spreadRadius: 0,
+        blurRadius: 1,
+        offset: const Offset(0, 1),
+      ),
+    ],
+  ),
+  child: Row(
+    children: [
+      if (widget.selectedTeam != null) ...[
+        Icon(Icons.sports_football, 
+          size: 16,
+          color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
+        const SizedBox(width: 4),
+        Text(
+          '${widget.selectedTeam}:',  
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        const SizedBox(width: 4),
+      ],
+      
+      // Status message
+      Expanded(
+        child: Text(
+          _statusMessage,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
+            color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.white 
+              : Colors.black87,
+          ),
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      
+      // Trade button
+      if (widget.selectedTeam != null)
+        OutlinedButton.icon(
+          onPressed: _initiateUserTradeProposal,
+          icon: const Icon(Icons.swap_horiz, size: 14),
+          label: const Text('Trade', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            // Keep other style properties
+          ),
+        ),
+    ],
+  ),
+),
           // Tab content
           Expanded(
             child: TabBarView(
