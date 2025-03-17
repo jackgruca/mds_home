@@ -799,6 +799,7 @@ Row(
       }),
     ),
     
+    
     // Spacer to push Year dropdown to the right
     const Spacer(),
     
@@ -846,44 +847,6 @@ Row(
 
 // Add speed slider in a separate row below
 const SizedBox(height: 8.0),
-Row(
-  children: [
-    // Speed label
-    const Text(
-      'Speed:',
-      style: TextStyle(
-        fontWeight: FontWeight.bold, 
-        fontSize: 12.0
-      ),
-    ),
-    const SizedBox(width: 8.0),
-    // Speed slider
-    Expanded(
-      child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(
-          trackHeight: 4.0,
-          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
-        ),
-        child: Slider(
-          value: _speed,
-          min: 1.0,
-          max: 5.0,
-          divisions: 4,
-          activeColor: Colors.green[700],
-          onChanged: (value) {
-            setState(() {
-              _speed = value;
-            });
-          },
-        ),
-      ),
-    ),
-    Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
-  ],
-),
-                  
-                  const SizedBox(height: 8.0),
                   
                   // Bottom row with Advanced button and Start button
                   Row(
