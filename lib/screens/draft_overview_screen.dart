@@ -689,6 +689,15 @@ void _openDraftHistory() {
   void _showDraftSummary() {
   if (_draftService == null) return;
   
+  // Get all unique team names for filtering
+  final allTeams = _draftPicks
+      .map((pick) => pick.teamName)
+      .toSet()
+      .toList();
+  
+  // Sort alphabetically for better UX
+  allTeams.sort();
+  
   // Show a full-screen dialog with the draft summary
   showDialog(
     context: context,
@@ -698,6 +707,7 @@ void _openDraftHistory() {
       draftedPlayers: _players.where((player) => 
         _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
       executedTrades: _executedTrades,
+      allTeams: allTeams, // Add the list of teams
       userTeam: widget.selectedTeam,
     ),
   );
@@ -864,31 +874,24 @@ void _testDraftSummary() {
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
-  print("Draft complete check: ${_draftService?.isDraftComplete()}");
-  print("Draft running: $_isDraftRunning");
-  print("Data loaded: $_isDataLoaded");
-  print("Show analytics: ${widget.showAnalytics}");
-  print("Summary already shown: $_summaryShown");
-
   // Check if draft just completed and summary hasn't been shown yet
   if (_draftService != null && 
       _draftService!.isDraftComplete() && 
       !_isDraftRunning && 
       _isDataLoaded &&
-      widget.showAnalytics &&
       !_summaryShown) {
     // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment, then switch to the Analytics tab
-    Future.delayed(const Duration(milliseconds: 500), () {
-      // Switch to the Analytics tab (assuming it's the 3rd tab, index 2)
-      _tabController.animateTo(3); // Adjust this index if needed
+    // Wait a moment before showing the summary
+    Future.delayed(const Duration(milliseconds: 800), () {
+      // Show draft summary screen directly
+      _showDraftSummary();
       
-      // Show a notification to inform the user
+      // Notify the user
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Draft complete! View your draft summary and analytics.'),
+          content: Text('Draft complete! View your draft summary.'),
           duration: Duration(seconds: 3),
         ),
       );
@@ -1101,14 +1104,20 @@ void didUpdateWidget(DraftApp oldWidget) {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Existing UI elements, if any
-        
-        // Add the history button
+        // History button
         OutlinedButton.icon(
           onPressed: _openDraftHistory,
           icon: const Icon(Icons.history),
           label: const Text('Draft History'),
         ),
+        
+        // Add summary button
+        if (_draftService != null && _draftService!.completedPicksCount > 0)
+          OutlinedButton.icon(
+            onPressed: _showDraftSummary,
+            icon: const Icon(Icons.summarize),
+            label: const Text('Draft Summary'),
+          ),
       ],
     ),
   ),
