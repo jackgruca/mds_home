@@ -286,7 +286,7 @@ Widget _buildTeamGradeComparison() {
         'grade': gradeInfo['grade'] ?? 'N/A',
         'value': gradeInfo['value'] ?? 0.0,
         'pickCount': gradeInfo['pickCount'] ?? 0,
-        'isUserTeam': team == widget.userTeam,
+        'isUserTeams': team == widget.userTeam,
       });
     }
   }
@@ -308,14 +308,14 @@ Widget _buildTeamGradeComparison() {
         itemCount: teamGrades.length,
         itemBuilder: (context, index) {
           final team = teamGrades[index];
-          final isUserTeam = team['isUserTeam'] == true;
+          final isUserTeams = team['isUserTeams'] == true;
           
           return ListTile(
             title: Text(
               team['team'],
               style: TextStyle(
-                fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                color: isUserTeam ? Theme.of(context).primaryColor : null,
+                fontWeight: isUserTeams ? FontWeight.bold : FontWeight.normal,
+                color: isUserTeams ? Theme.of(context).primaryColor : null,
               ),
             ),
             trailing: Row(
@@ -405,14 +405,14 @@ Widget _buildBestValuePicksList() {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: topPicks.map((pick) {
-          final isUserTeam = pick['team'] == widget.userTeam;
+          final isUserTeams = pick['team'] == widget.userTeam;
           
           return ListTile(
             title: Text(
               "${pick['player']} (${pick['position']})",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isUserTeam ? Theme.of(context).primaryColor : null,
+                color: isUserTeams ? Theme.of(context).primaryColor : null,
               ),
             ),
             subtitle: Text(

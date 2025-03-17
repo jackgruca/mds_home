@@ -20,7 +20,7 @@ class DraftService {
   
   // Draft settings
   final double randomnessFactor;
-  final String? userTeam;
+  final List<String> userTeams;
   final int numberRounds;
   
   // Trade service
@@ -38,6 +38,10 @@ class DraftService {
   final bool enableTrading;
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
+
+  bool isUserTeams(String teamName) {
+    return userTeams.contains(teamName);
+  }
   
   // Improved trade offer tracking for user
   final Map<int, List<TradePackage>> _pendingUserOffers = {};
@@ -64,7 +68,7 @@ class DraftService {
     required this.draftOrder,
     required this.teamNeeds,
     this.randomnessFactor = 0.5,
-    this.userTeam,
+    this.userTeams = const [], // Default to empty list
     this.numberRounds = 1, 
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
@@ -78,7 +82,7 @@ class DraftService {
       draftOrder: draftOrder,
       teamNeeds: teamNeeds,
       availablePlayers: availablePlayers,
-      userTeam: userTeam,
+      userTeams: userTeams,
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
@@ -172,7 +176,7 @@ class DraftService {
     _qbTrade = false;
       
     // Check if this is a user team pick
-    if (userTeam != null && nextPick.teamName == userTeam) {
+    if (userTeams.isNotEmpty && isUserTeams(nextPick.teamName)) {
       // Generate trade offers for the user to consider
       _generateUserTradeOffers(nextPick);
       
@@ -259,60 +263,67 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     }
   }
 
-    double tradeChance = _roundTradeFrequency[round] ?? 0.10;
+  double tradeChance = _roundTradeFrequency[round] ?? 0.10;
     
-    // Calibrated randomness to determine if we evaluate trades
-    bool evaluateTrades = _random.nextDouble() < tradeChance;
-    
-    // If we decide not to evaluate trades, skip
-    if (!evaluateTrades && !_qbTrade) {
-      return null;
-    }
-    
-    // Enhanced QB trade logic - more aggressive for top QB prospects
-    bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
-    if (tryQBTrade) {
-      final qbTradeOffer = _tradeService.generateTradeOffersForPick(
-        nextPick.pickNumber, 
-        qbSpecific: true
-      );
-      
-      if (qbTradeOffer.packages.isNotEmpty) {
-        final bestPackage = qbTradeOffer.bestPackage;
-        if (bestPackage != null) {
-          _qbTrade = true;
-          _executeTrade(bestPackage);
-          return bestPackage;
-        }
-      }
-    }
-    
-    // Regular trade evaluation
-    final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
-    
-    // Don't automatically execute user-involved trades
-    if (tradeOffer.isUserInvolved) {
-      return null;
-    }
-    
-    // If we have offers, find the best one that meets criteria
-    if (tradeOffer.packages.isNotEmpty) {
-      // Sort packages by value differential
-      List<TradePackage> viablePackages = List.from(tradeOffer.packages);
-      
-      for (var package in viablePackages) {
-        _executeTrade(package);
-        return package;  // Execute first viable trade
-      }
-    }
-    
+  // Calibrated randomness to determine if we evaluate trades
+  bool evaluateTrades = _random.nextDouble() < tradeChance;
+  
+  // If we decide not to evaluate trades, skip
+  if (!evaluateTrades && !_qbTrade) {
     return null;
   }
+  
+  // Enhanced QB trade logic - more aggressive for top QB prospects
+  bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
+  if (tryQBTrade) {
+    final qbTradeOffer = _tradeService.generateTradeOffersForPick(
+      nextPick.pickNumber, 
+      qbSpecific: true
+    );
+    
+    if (qbTradeOffer.packages.isNotEmpty) {
+      final bestPackage = qbTradeOffer.bestPackage;
+      if (bestPackage != null) {
+        // Check if user team is involved - ADDED THIS CHECK
+        if (isUserTeams(bestPackage.teamOffering) || isUserTeams(bestPackage.teamReceiving)) {
+          return null; // Don't execute trade automatically for user team
+        }
+        
+        _qbTrade = true;
+        _executeTrade(bestPackage);
+        return bestPackage;
+      }
+    }
+  }
+  
+  // Regular trade evaluation
+  final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+  
+  // Don't process trades involving user teams - IMPROVED THIS CHECK
+  if (tradeOffer.packages.isEmpty) {
+    return null;
+  }
+  
+  // Sort packages by value differential
+  List<TradePackage> viablePackages = List.from(tradeOffer.packages);
+  
+  for (var package in viablePackages) {
+    // Check if user team is involved in either side of the trade - ADDED THIS CHECK
+    if (isUserTeams(package.teamOffering) || isUserTeams(package.teamReceiving)) {
+      continue; // Skip this package
+    }
+    
+    _executeTrade(package);
+    return package;  // Execute first viable trade
+  }
+  
+  return null;
+}
   
   /// Evaluate if we should try a QB-specific trade scenario
 bool _evaluateQBTradeScenario(DraftPick nextPick) {
   // Skip QB trade logic for user team picks
-  if (nextPick.teamName == userTeam) return false;
+  if (isUserTeams(nextPick.teamName)) return false;
   
   // Get team needs for the team with the current pick
   TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
@@ -714,7 +725,7 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
   
   /// Generate user-initiated trade offers to AI teams
   void generateUserTradeOffers() {
-    if (userTeam == null || !enableUserTradeProposals) {
+    if (userTeams.isEmpty || !enableUserTradeProposals) {
       _pendingUserOffers.clear();
       return;
     }
@@ -727,7 +738,7 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     if (nextPick == null) return;
     
     // Only generate offers if it's the user's current pick
-    if (nextPick.teamName == userTeam) {
+    if (isUserTeams(nextPick.teamName)) {
       nextUserPick = nextPick;
     } else {
       // Clear any existing offers since it's not the user's turn
@@ -764,6 +775,18 @@ void generateUserPickOffers() {
   
   /// Process a user trade proposal with realistic acceptance criteria
   bool processUserTradeProposal(TradePackage proposal) {
+    // Verify that this is initiated by the user
+    bool isUserInitiated = isUserTeams(proposal.teamOffering);
+    
+    // If not user initiated, user must be the receiving team
+    bool isUserReceiving = isUserTeams(proposal.teamReceiving);
+    
+    // Only process if user initiated or explicitly approved as receiver
+    if (!isUserInitiated && !isUserReceiving) {
+      debugPrint("Trade rejected: User team not properly involved in trade initiation");
+      return false;
+    }
+    
     // Determine if the AI team should accept
     final shouldAccept = _tradeService.evaluateTradeProposal(proposal);
     
@@ -783,6 +806,14 @@ void generateUserPickOffers() {
   
   /// Execute a specific trade (for use with UI)
   void executeUserSelectedTrade(TradePackage package) {
+    // Verify this is explicitly user selected
+    bool isUserInvolved = isUserTeams(package.teamOffering) || isUserTeams(package.teamReceiving);
+    
+    if (!isUserInvolved) {
+      debugPrint("Warning: Attempted to execute non-user trade as user-selected. This may be a bug.");
+      // We'll still execute it since it was explicitly called, but log a warning
+    }
+    
     _executeTrade(package);
     _statusMessage = "Trade executed: ${package.tradeDescription}";
     _tradeUp = true;
@@ -802,6 +833,11 @@ void generateUserPickOffers() {
     return draftOrder.where((pick) => 
       pick.teamName != excludeTeam && !pick.isSelected
     ).toList();
+  }
+  
+  /// Check if a trade involves any of the user teams
+  bool isUserTeamInvolved(TradePackage trade) {
+    return isUserTeams(trade.teamOffering) || isUserTeams(trade.teamReceiving);
   }
   
   // Getters for state information

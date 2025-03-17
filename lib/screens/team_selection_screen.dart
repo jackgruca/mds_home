@@ -12,6 +12,13 @@ import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
 
+extension SetExtensions<T> on Set<T> {
+  void removeAll(Iterable<T> elements) {
+    for (var element in elements) {
+      remove(element);
+    }
+  }
+}
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
 
@@ -23,7 +30,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 2.0;
   double _randomness = 0.5;
-  String? _selectedTeam;
+  final Set<String> _selectedTeams = {};
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
 
@@ -65,10 +72,10 @@ Future<void> _loadUserPreferences() async {
   if (user == null) return;
   
   // Load favorite teams if none selected yet
-  if (_selectedTeam == null && user.favoriteTeams != null && user.favoriteTeams!.isNotEmpty) {
+  if (_selectedTeams.isEmpty && user.favoriteTeams != null && user.favoriteTeams!.isNotEmpty) {
     setState(() {
-      // Set the first favorite team as the selected team
-      _selectedTeam = user.favoriteTeams!.first;
+      // Add the first favorite team to the selected teams
+      _selectedTeams.add(user.favoriteTeams!.first);
     });
   }
   
@@ -96,7 +103,7 @@ Future<void> _loadUserPreferences() async {
         numberOfRounds: _numberOfRounds,
         randomnessFactor: _randomness,
         draftSpeed: _speed,
-        userTeam: _selectedTeam,
+        userTeam: _selectedTeams.isNotEmpty ? _selectedTeams.first : null,
         // Default values for new settings
         enableTrading: _enableTrading,
         enableUserTradeProposals: _enableUserTradeProposals,
@@ -193,28 +200,133 @@ Future<void> _loadUserPreferences() async {
               ),
 
             // Team selection indicator if a team is selected
-            if (_selectedTeam != null)
+            if (_selectedTeams.isNotEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 6.0),
-                color: Colors.green.shade50,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                color: isDarkMode ? Colors.green.shade900 : Colors.green.shade50,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.sports_football, color: Colors.green, size: 16.0),
-                    const SizedBox(width: 8.0),
-                    Text(
-                      'You are controlling: $_selectedTeam',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                        fontSize: 14.0,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.sports_football, 
+                                  color: Colors.green, size: 16.0),
+                        const SizedBox(width: 8.0),
+                        Text(
+                          _selectedTeams.length == NFLTeams.allTeams.length
+                              ? 'Controlling all teams'
+                              : _selectedTeams.length > 1
+                                  ? 'Controlling ${_selectedTeams.length} teams'
+                                  : 'You are controlling: ${_selectedTeams.first}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.green.shade300 : Colors.green.shade800,
+                            fontSize: 14.0,
+                          ),
+                        ),
+                      ],
                     ),
+                    
+                    // Only show chip list if not too many teams and not all teams
+                    if (_selectedTeams.length > 1 && 
+                        _selectedTeams.length <= 8 && 
+                        _selectedTeams.length < NFLTeams.allTeams.length)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 6.0,
+                          runSpacing: 6.0,
+                          children: _selectedTeams.map((team) {
+                            final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
+                            return Chip(
+                              label: Text(abbr),
+                              labelStyle: TextStyle(
+                                fontSize: 11,
+                                color: isDarkMode ? Colors.green.shade100 : Colors.green.shade800,
+                              ),
+                              backgroundColor: isDarkMode 
+                                  ? Colors.green.shade900 
+                                  : Colors.green.shade100,
+                              deleteIcon: Icon(
+                                Icons.clear, 
+                                size: 14,
+                                color: isDarkMode ? Colors.green.shade200 : Colors.green.shade700,
+                              ),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onDeleted: () {
+                                setState(() {
+                                  _selectedTeams.remove(team);
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            
+              // Select All button
+Container(
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+  color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      OutlinedButton.icon(
+        onPressed: () {
+          setState(() {
+            // If some teams are already selected, clear the selection
+            // Otherwise, select all teams
+            if (_selectedTeams.isNotEmpty) {
+              _selectedTeams.clear();
+            } else {
+              // Add all NFL teams to selected teams
+              _selectedTeams.addAll(NFLTeams.allTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _selectedTeams.length == NFLTeams.allTeams.length
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 16,
+        ),
+        label: Text(
+          _selectedTeams.length == NFLTeams.allTeams.length
+              ? 'Deselect All'
+              : 'Select All',
+          style: const TextStyle(fontSize: 12),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+      const SizedBox(width: 8),
+      // Show current selection count
+      if (_selectedTeams.isNotEmpty)
+        Chip(
+          label: Text(
+            '${_selectedTeams.length}/${NFLTeams.allTeams.length}',
+            style: TextStyle(
+              fontSize: 11,
+              color: isDarkMode ? Colors.blue.shade200 : Colors.blue.shade800,
+            ),
+          ),
+          backgroundColor: isDarkMode
+              ? Colors.blue.shade900.withOpacity(0.4)
+              : Colors.blue.shade50,
+          visualDensity: VisualDensity.compact,
+        ),
+    ],
+  ),
+),          
             // Team selection area (expanded)
             Expanded(
               child: Row(
@@ -231,24 +343,67 @@ Future<void> _loadUserPreferences() async {
                       ),
                       child: Column(
                         children: [
-                          // AFC header
-                          Container(
-                            color: afcColor,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding, 
-                              vertical: 6.0
-                            ),
-                            width: double.infinity,
-                            child: const Text(
-                              'AFC',
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                          // Modify the AFC header to include a select all button
+Container(
+  color: afcColor,
+  padding: EdgeInsets.symmetric(
+    horizontal: sectionPadding,
+    vertical: 6.0
+  ),
+  width: double.infinity,
+  child: Row(
+    children: [
+      const Text(
+        'AFC',
+        style: TextStyle(
+          fontSize: 16.0,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      const Spacer(),
+      // Add this button
+      TextButton.icon(
+        onPressed: () {
+          setState(() {
+            // Get all AFC teams
+            List<String> afcTeams = _afcDivisions.values.expand((teams) => teams).toList();
+            
+            // If all AFC teams are already selected, deselect them
+            // Otherwise, select all AFC teams
+            bool allAfcSelected = afcTeams.every((team) => _selectedTeams.contains(team));
+            
+            if (allAfcSelected) {
+              _selectedTeams.removeAll(afcTeams);
+            } else {
+              _selectedTeams.addAll(afcTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _afcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 14,
+          color: Colors.white,
+        ),
+        label: Text(
+          _afcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? 'Deselect AFC'
+              : 'Select AFC',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+      ),
+    ],
+  ),
+),
                           
                           // AFC divisions
                           Expanded(
@@ -283,7 +438,7 @@ Future<void> _loadUserPreferences() async {
                                     // Team row (all 4 teams in one row)
                                     Row(
                                       children: teams.map((team) {
-                                        final isSelected = _selectedTeam == team;
+                                        final isSelected = _selectedTeams.contains(team);
                                         final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
                                         
                                         return Expanded(
@@ -367,7 +522,11 @@ Future<void> _loadUserPreferences() async {
                                                         borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
                                                         onTap: () {
                                                           setState(() {
-                                                            _selectedTeam = team;
+                                                            if (_selectedTeams.contains(team)) {
+                                                              _selectedTeams.remove(team);
+                                                            } else {
+                                                              _selectedTeams.add(team);
+                                                            }
                                                           });
                                                         },
                                                         splashColor: Colors.blue.withOpacity(0.2),
@@ -420,24 +579,67 @@ Future<void> _loadUserPreferences() async {
                       ),
                       child: Column(
                         children: [
-                          // NFC header
-                          Container(
-                            color: nfcColor,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: sectionPadding, 
-                              vertical: 6.0
-                            ),
-                            width: double.infinity,
-                            child: const Text(
-                              'NFC',
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                          // Modify the NFC header to include a select all button
+Container(
+  color: nfcColor,
+  padding: EdgeInsets.symmetric(
+    horizontal: sectionPadding,
+    vertical: 6.0
+  ),
+  width: double.infinity,
+  child: Row(
+    children: [
+      const Text(
+        'NFC',
+        style: TextStyle(
+          fontSize: 16.0,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      const Spacer(),
+      // Add this button
+      TextButton.icon(
+        onPressed: () {
+          setState(() {
+            // Get all NFC teams
+            List<String> nfcTeams = _nfcDivisions.values.expand((teams) => teams).toList();
+            
+            // If all NFC teams are already selected, deselect them
+            // Otherwise, select all NFC teams
+            bool allNfcSelected = nfcTeams.every((team) => _selectedTeams.contains(team));
+            
+            if (allNfcSelected) {
+              _selectedTeams.removeAll(nfcTeams);
+            } else {
+              _selectedTeams.addAll(nfcTeams);
+            }
+          });
+        },
+        icon: Icon(
+          _nfcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? Icons.clear_all
+              : Icons.select_all,
+          size: 14,
+          color: Colors.white,
+        ),
+        label: Text(
+          _nfcDivisions.values.expand((teams) => teams).every((team) => _selectedTeams.contains(team))
+              ? 'Deselect NFC'
+              : 'Select NFC',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+      ),
+    ],
+  ),
+),
                           
                           // NFC divisions
                           Expanded(
@@ -472,7 +674,7 @@ Future<void> _loadUserPreferences() async {
                                     // Team row (all 4 teams in one row)
                                     Row(
                                       children: teams.map((team) {
-                                        final isSelected = _selectedTeam == team;
+                                        final isSelected = _selectedTeams.contains(team);
                                         final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
                                         
                                         return Expanded(
@@ -556,7 +758,11 @@ Future<void> _loadUserPreferences() async {
                                                         borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
                                                         onTap: () {
                                                           setState(() {
-                                                            _selectedTeam = team;
+                                                            if (_selectedTeams.contains(team)) {
+                                                              _selectedTeams.remove(team);
+                                                            } else {
+                                                              _selectedTeams.add(team);
+                                                            }
                                                           });
                                                         },
                                                         splashColor: Colors.blue.withOpacity(0.2),
@@ -708,46 +914,6 @@ Future<void> _loadUserPreferences() async {
                         
                         const SizedBox(height: 8.0),
                         
-                        // Speed row (unchanged)
-                        Row(
-                          children: [
-                            // Speed label
-                            SizedBox(
-                              width: 50,
-                              child: Text(
-                                'Speed:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                            // Speed slider
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3.0,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
-                                ),
-                                child: Slider(
-                                  value: _speed,
-                                  min: 1.0,
-                                  max: 5.0,
-                                  divisions: 4,
-                                  activeColor: Colors.green[700],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _speed = value;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
-                          ],
-                        ),
                       ],
                     )
                   :
@@ -910,7 +1076,7 @@ Row(
                         child: SizedBox(
                           height: 40.0,
                           child: ElevatedButton(
-                            onPressed: _selectedTeam != null ? _startDraft : null,
+                            onPressed: _selectedTeams.isNotEmpty ? _startDraft : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green[700],
                               foregroundColor: Colors.white,
@@ -941,44 +1107,51 @@ Row(
   }
   
   void _startDraft() {
-    debugPrint("Starting draft for year: $_selectedYear");
-    debugPrint("Selected team (full name): $_selectedTeam");
-    
-    // Determine the team identifier to use
-    String? teamIdentifier;
-    if (_selectedTeam != null) {
-      // If a full team name is selected, use its abbreviation if available
-      teamIdentifier = NFLTeamMappings.fullNameToAbbreviation[_selectedTeam];
-      
-      // If no abbreviation found, use the full name
-      teamIdentifier ??= _selectedTeam;
-      
-      debugPrint("Using team identifier: $teamIdentifier");
-    }
-    
-    if (kIsWeb) {
-      AnalyticsService.logEvent('draft_started', parameters: {
-        'team': _selectedTeam,
-        'rounds': _numberOfRounds,
-        'year': _selectedYear,
-      });
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DraftApp(
-          randomnessFactor: _randomness,
-          numberOfRounds: _numberOfRounds,
-          speedFactor: _speed,
-          selectedTeam: teamIdentifier,
-          draftYear: _selectedYear,
-          enableTrading: _enableTrading,
-          enableUserTradeProposals: _enableUserTradeProposals,
-          enableQBPremium: _enableQBPremium,
-          showAnalytics: _showAnalytics,
-        ),
+  debugPrint("Starting draft for year: $_selectedYear");
+  debugPrint("Selected teams: ${_selectedTeams.join(', ')}");
+  
+  if (_selectedTeams.isEmpty) {
+    // Show error or warning about no teams selected
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select at least one team to control'),
+        duration: Duration(seconds: 2),
       ),
     );
+    return;
   }
+  
+  // Convert full team names to abbreviations where possible
+  List<String> teamIdentifiers = _selectedTeams.map((team) {
+    return NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
+  }).toList();
+  
+  debugPrint("Using team identifiers: ${teamIdentifiers.join(', ')}");
+  
+  if (kIsWeb) {
+    AnalyticsService.logEvent('draft_started', parameters: {
+      'teams': teamIdentifiers.join(','),
+      'team_count': _selectedTeams.length,
+      'rounds': _numberOfRounds,
+      'year': _selectedYear,
+    });
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftApp(
+        randomnessFactor: _randomness,
+        numberOfRounds: _numberOfRounds,
+        speedFactor: _speed,
+        selectedTeams: teamIdentifiers, // Pass list instead of single team
+        draftYear: _selectedYear,
+        enableTrading: _enableTrading,
+        enableUserTradeProposals: _enableUserTradeProposals,
+        enableQBPremium: _enableQBPremium,
+        showAnalytics: _showAnalytics,
+      ),
+    ),
+  );
+}
 }
