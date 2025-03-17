@@ -1,7 +1,6 @@
 // lib/utils/analytics.dart
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:js_interop';
-import 'dart:html' as html;
+import 'dart:js' as js;
 
 class Analytics {
   static bool _initialized = false;
@@ -13,24 +12,23 @@ class Analytics {
     try {
       _measurementId = measurementId;
       
-      // Add Google Analytics script dynamically
-      final gaScript = html.ScriptElement()
-        ..async = true
-        ..src = 'https://www.googletagmanager.com/gtag/js?id=$measurementId';
-      html.document.head?.append(gaScript);
-      
-      // Add configuration script
-      final configScript = html.ScriptElement()
-        ..text = '''
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '$measurementId', {
-            'send_page_view': false,
-            'cookie_flags': 'SameSite=None;Secure'
-          });
-        ''';
-      html.document.head?.append(configScript);
+      // Call gtag function directly through js.context
+      js.context.callMethod('eval', ['''
+        // Add Google Analytics script
+        var gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=$measurementId';
+        document.head.appendChild(gaScript);
+        
+        // Initialize gtag
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '$measurementId', {
+          'send_page_view': false,
+          'cookie_flags': 'SameSite=None;Secure'
+        });
+      ''']);
       
       _initialized = true;
       print('Google Analytics initialized with ID: $measurementId');
@@ -43,10 +41,8 @@ class Analytics {
     if (!_initialized || !kIsWeb) return;
     
     try {
-      // Call gtag function
       final params = parameters ?? {};
-      final gtagFn = html.window.getProperty('gtag');
-      gtagFn?.callMethod('apply', [html.window, ['event', eventName, params].toJS]);
+      js.context.callMethod('gtag', ['event', eventName, js.JsObject.jsify(params)]);
       print('Logged event: $eventName with params: $params');
     } catch (e) {
       print('Failed to log event: $e');
@@ -57,19 +53,19 @@ class Analytics {
     if (!_initialized || !kIsWeb) return;
     
     try {
-      // Log page_view event
-      final params = {
+      // Create config with page path
+      final configParams = js.JsObject.jsify({'page_path': pagePath});
+      
+      // Set the page on the config
+      js.context.callMethod('gtag', ['config', _measurementId, configParams]);
+      
+      // Log page_view event with additional details
+      final pageViewParams = {
         'page_path': pagePath,
         'page_title': pageTitle ?? pagePath,
-        'page_location': '${html.window.location.origin}$pagePath'
       };
       
-      // First, set the page on the config
-      final gtagFn = html.window.getProperty('gtag');
-      gtagFn?.callMethod('apply', [html.window, ['config', _measurementId, {'page_path': pagePath}].toJS]);
-      
-      // Then send the page_view event
-      gtagFn?.callMethod('apply', [html.window, ['event', 'page_view', params].toJS]);
+      logEvent('page_view', parameters: pageViewParams);
       print('Logged page view: $pagePath');
     } catch (e) {
       print('Failed to log page view: $e');
