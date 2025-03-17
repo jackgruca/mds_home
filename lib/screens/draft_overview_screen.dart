@@ -94,69 +94,9 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     _initializeServices();
   }
 
-  // Add this new method to handle tab changes
+  // Add this method
   void _handleTabChange() {
-    // Only execute if switching to the draft order tab (index 0)
-    if (_tabController.index == 0 && _draftService != null) {
-      // Use a slightly longer delay to ensure the tab view is fully rendered
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (!_draftOrderScrollController.hasClients) return;
-        
-        // Get the current pick
-        DraftPick? currentPick = _draftService!.getNextPick();
-        if (currentPick == null) return;
-        
-        // Get the active (displayed) picks
-        final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
-        
-        // Find the index of the current pick in the displayed list
-        int currentPickIndex = displayedPicks.indexWhere(
-          (pick) => pick.pickNumber == currentPick.pickNumber
-        );
-        
-        if (currentPickIndex == -1) {
-          // If current pick not found, try to find the next available pick
-          currentPickIndex = displayedPicks.indexWhere(
-            (pick) => pick.pickNumber >= currentPick.pickNumber && !pick.isSelected
-          );
-          
-          // If still not found, use the last selected pick
-          if (currentPickIndex == -1) {
-            for (int i = displayedPicks.length - 1; i >= 0; i--) {
-              if (displayedPicks[i].isSelected) {
-                currentPickIndex = i + 1;
-                break;
-              }
-            }
-            
-            // If nothing found, default to the start
-            if (currentPickIndex == -1 || currentPickIndex >= displayedPicks.length) {
-              currentPickIndex = 0;
-            }
-          }
-        }
-        
-        // Calculate position to center the pick
-        const double itemHeight = 74.0;
-        final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-        
-        // Calculate position to center the current pick in the viewport
-        double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-        
-        // Ensure we don't scroll beyond bounds
-        targetPosition = targetPosition.clamp(
-          0.0, 
-          _draftOrderScrollController.position.maxScrollExtent
-        );
-        
-        // Smooth scroll with a longer duration for a better experience
-        _draftOrderScrollController.animateTo(
-          targetPosition,
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOutCubic,
-        );
-      });
-    }
+    // For now this is empty, but will be useful for the Draft Summary tab implementation
   }
 
   @override
@@ -384,9 +324,7 @@ Future<void> _loadData() async {
     if (widget.showAnalytics && !_summaryShown) {
       _summaryShown = true;
       Future.delayed(const Duration(milliseconds: 1200), () {
-        // Switch to the Analytics tab - adjust the index to match your app
-        _tabController.animateTo(3); // Adjust this index if your Analytics tab is at a different position
-        
+        _showDraftSummary();
         // Show a notification
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -843,7 +781,6 @@ void _testDraftSummary() {
   });
 }
 
-// Add a check to show the summary when draft is complete
 @override
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
@@ -857,9 +794,9 @@ void didUpdateWidget(DraftApp oldWidget) {
     // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment before showing the summary
+    // Wait a moment before showing the summary directly
     Future.delayed(const Duration(milliseconds: 800), () {
-      // Show draft summary screen directly
+      // Show draft summary screen directly instead of switching to analytics tab
       _showDraftSummary();
       
       // Notify the user
@@ -1059,13 +996,11 @@ void didUpdateWidget(DraftApp oldWidget) {
                 ),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 if (widget.showAnalytics)
-                  DraftAnalyticsDashboard(
-                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-                    draftedPlayers: _players.where((player) => 
-                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-                    executedTrades: _executedTrades,
-                    teamNeeds: _teamNeeds, // Add this parameter
-                    userTeam: widget.selectedTeam,
+                  // Replace with temporary placeholder
+                  const Center(
+                    child: Text('Draft Summary Coming Soon',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
                   )
                 ],
             ),
