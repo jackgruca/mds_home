@@ -17,7 +17,6 @@ import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
 import '../widgets/analytics/draft_analytics_dashboard.dart';
-import '../widgets/draft/draft_history_widget.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
@@ -661,31 +660,6 @@ void _initiateUserTradeProposal() {
     }
   }
 
-
-void _openDraftHistory() {
-  if (_draftService == null) return;
-  
-  // Show a full-screen dialog with the draft history
-  showDialog(
-    context: context,
-    builder: (context) => Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('${widget.draftYear} NFL Draft'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
-        body: DraftHistoryWidget(
-          completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-          userTeam: widget.selectedTeam,
-        ),
-      ),
-    ),
-  );
-}
-
   void _showDraftSummary() {
   if (_draftService == null) return;
   
@@ -1099,29 +1073,21 @@ void didUpdateWidget(DraftApp oldWidget) {
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // History button
-        OutlinedButton.icon(
-          onPressed: _openDraftHistory,
-          icon: const Icon(Icons.history),
-          label: const Text('Draft History'),
-        ),
-        
-        // Add summary button
-        if (_draftService != null && _draftService!.completedPicksCount > 0)
-          OutlinedButton.icon(
-            onPressed: _showDraftSummary,
-            icon: const Icon(Icons.summarize),
-            label: const Text('Draft Summary'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_draftService != null && _draftService!.completedPicksCount > 0)
+                OutlinedButton.icon(
+                  onPressed: _showDraftSummary,
+                  icon: const Icon(Icons.summarize),
+                  label: const Text('Draft Summary'),
+                ),
+            ],
           ),
-      ],
-    ),
-  ),
-),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
         isDraftRunning: _isDraftRunning,
