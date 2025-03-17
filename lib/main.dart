@@ -71,44 +71,14 @@ class _MyAppState extends State<MyApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeManager.themeMode,
-          initialRoute: '/',
+          home: const TeamSelectionScreen(), // Keep this
           routes: {
-            '/': (context) => const TeamSelectionScreen(),
+            // Remove the '/' route if it exists
             '/draft': (context) => DraftApp(
               selectedTeam: ModalRoute.of(context)?.settings.arguments as String?,
             ),
-            // Add other routes as needed
+            // Other routes...
           },
-          home: GestureDetector(
-            // Add a detector for admin access (5 quick taps on title bar)
-            onTap: () {
-              final now = DateTime.now();
-              if (_lastTapTime != null && 
-                  now.difference(_lastTapTime!).inSeconds < 3) {
-                _secretTapCount++;
-                
-                // Check for admin access after 5 quick taps
-                if (_secretTapCount >= 5) {
-                  // Reset the counter
-                  _secretTapCount = 0;
-                  
-                  // Show the admin panel
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const AdminAccessScreen(),
-                    ),
-                  );
-                }
-              } else {
-                // Reset counter if too much time has passed
-                _secretTapCount = 1;
-              }
-              _lastTapTime = now;
-            },
-            // Make sure the gesture detector doesn't interfere with other interactions
-            behavior: HitTestBehavior.translucent,
-            child: const TeamSelectionScreen(),
-          ),
         );
       },
     );
