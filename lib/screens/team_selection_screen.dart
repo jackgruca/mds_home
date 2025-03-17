@@ -1,7 +1,9 @@
 // lib/screens/team_selection_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../providers/auth_provider.dart';
+import '../services/analytics_service.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
@@ -954,6 +956,14 @@ Row(
       debugPrint("Using team identifier: $teamIdentifier");
     }
     
+    if (kIsWeb) {
+      AnalyticsService.logEvent('draft_started', parameters: {
+        'team': _selectedTeam,
+        'rounds': _numberOfRounds,
+        'year': _selectedYear,
+      });
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(

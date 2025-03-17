@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/analytics_service.dart';
+import 'utils/analytics_observer.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
@@ -18,13 +20,8 @@ void main() {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Turn on debug output for the app
-  if (kDebugMode) {
-    debugPrint = (String? message, {int? wrapWidth}) {
-      if (message != null) {
-        print(message);
-      }
-    };
+  if (kIsWeb) {
+    AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
   }
   
   runApp(
@@ -60,6 +57,7 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
+          navigatorObservers: [AnalyticsRouteObserver()],
           debugShowCheckedModeBanner: false,
           title: 'NFL Draft App',
           theme: AppTheme.lightTheme,
@@ -81,6 +79,7 @@ class _MyAppState extends State<MyApp> {
                   // Show the admin panel
                   Navigator.of(context).push(
                     MaterialPageRoute(
+                      settings: const RouteSettings(name: '/admin_access'),
                       builder: (context) => const AdminAccessScreen(),
                     ),
                   );
@@ -114,6 +113,15 @@ class _AdminAccessScreenState extends State<AdminAccessScreen> {
   bool _showError = false;
   
   @override
+  void initState() {
+    super.initState();
+    // Track screen view
+    if (kIsWeb) {
+      AnalyticsService.logPageView('/admin_access');
+    }
+  }
+  
+  @override
   void dispose() {
     _passwordController.dispose();
     super.dispose();
@@ -122,12 +130,19 @@ class _AdminAccessScreenState extends State<AdminAccessScreen> {
   void _checkPassword() {
     // Simple password for development
     if (_passwordController.text == 'admin123') {
+      if (kIsWeb) {
+        AnalyticsService.logEvent('admin_login_success');
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
+          settings: const RouteSettings(name: '/admin_panel'),
           builder: (context) => const AdminPanel(),
         ),
       );
     } else {
+      if (kIsWeb) {
+        AnalyticsService.logEvent('admin_login_failure');
+      }
       setState(() {
         _showError = true;
       });
@@ -178,6 +193,11 @@ class AdminPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Track screen view
+    if (kIsWeb) {
+      AnalyticsService.logPageView('/admin_panel');
+    }
+    
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Panel')),
       body: Padding(
@@ -196,10 +216,16 @@ class AdminPanel extends StatelessWidget {
                 title: const Text('Message Management'),
                 subtitle: const Text('View and manage user feedback messages'),
                 onTap: () async {
+                  if (kIsWeb) {
+                    AnalyticsService.logEvent('admin_action', parameters: {
+                      'action': 'view_messages'
+                    });
+                  }
                   final messageCount = await MessageService.getPendingMessageCount();
                   if (context.mounted) {
                     Navigator.of(context).push(
                       MaterialPageRoute(
+                        settings: const RouteSettings(name: '/message_admin'),
                         builder: (context) => const MessageAdminPanel(),
                       ),
                     );

@@ -31,6 +31,23 @@
 
   <title>mds_home</title>
   <link rel="manifest" href="manifest.json">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval'; script-src * 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com; connect-src * 'self';">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-8QGNSTTZGH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-8QGNSTTZGH', { 'debug_mode': true });
+  
+  // Add a test event that will fire as soon as the page loads
+  window.addEventListener('load', function() {
+    console.log('Sending test pageview event directly from HTML');
+    gtag('event', 'page_view', {
+      'page_title': 'Initial Load',
+      'page_path': window.location.pathname
+    });
+  });
+</script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
