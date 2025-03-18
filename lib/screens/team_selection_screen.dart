@@ -21,7 +21,7 @@ class TeamSelectionScreen extends StatefulWidget {
 class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 2.0;
-  double _randomness = 0.5;
+  double _randomness = 0.4;
   String? _selectedTeam;
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
@@ -745,6 +745,46 @@ Future<void> _loadUserPreferences() async {
                               ),
                             ),
                             Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                          ],
+                        ),
+                        // Randomness row
+                        Row(
+                          children: [
+                            // Randomness label
+                            SizedBox(
+                              width: 50,
+                              child: Text(
+                                'Random:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 12.0,
+                                  color: isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                            ),
+                            // Randomness slider
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3.0,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                                ),
+                                child: Slider(
+                                  value: _randomness * 5, // Convert to 1-5 scale for UI
+                                  min: 1.0,
+                                  max: 5.0,
+                                  divisions: 4,
+                                  activeColor: Colors.orange[700], // Use a different color than speed
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _randomness = value / 5.0; // Convert back to 0-1 scale
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            Text('${(_randomness * 5).toInt()}', style: const TextStyle(fontSize: 12.0)),
                           ],
                         ),
                       ],

@@ -179,7 +179,7 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
             // Randomness Factor
             _buildSettingItem(
               'Draft Randomness',
-              'How much randomness to add to team selections',
+              'How much randomness to add to team selections and trades',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -187,14 +187,14 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
                     children: [
                       Expanded(
                         child: Slider(
-                          value: _randomnessFactor * 5,
+                          value: _randomnessFactor * 5, // Convert to 1-5 scale for UI
                           min: 1.0,
                           max: 5.0,
                           divisions: 4,
                           label: '${(_randomnessFactor * 5).toInt()}',
                           onChanged: (value) {
                             setState(() {
-                              _randomnessFactor = value / 5.0;
+                              _randomnessFactor = value / 5.0; // Convert back to 0-1 scale
                             });
                           },
                         ),

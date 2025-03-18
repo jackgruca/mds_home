@@ -63,7 +63,7 @@ class DraftService {
     required this.availablePlayers,
     required this.draftOrder,
     required this.teamNeeds,
-    this.randomnessFactor = 0.5,
+    this.randomnessFactor = 0.4,
     this.userTeam,
     this.numberRounds = 1, 
     this.enableTrading = true,
