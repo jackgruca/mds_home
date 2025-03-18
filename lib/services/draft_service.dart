@@ -12,6 +12,17 @@ import '../models/future_pick.dart';
 import 'trade_service.dart';
 import 'draft_value_service.dart';
 
+  
+  // Add to DraftService class
+  enum ProspectTier {
+    elite,      // Top 5 talents
+    premium,    // Picks 6-15
+    firstRound, // Picks 16-32
+    secondRound,// Picks 33-64
+    midRound,   // Picks 65-150
+    lateRound   // Picks 151+
+  }
+
 /// Handles the logic for the draft simulation with enhanced trade integration
 class DraftService {
   final List<Player> availablePlayers;
@@ -44,7 +55,55 @@ class DraftService {
   
   // Track draft progress to adjust trade frequency
   int _completedPicks = 0;
-  
+
+  // Add need / value ratio
+  final Map<int, double> _pickPositionValueFactor = {
+    1: 0.9,   // Picks 1-10: 90% value, 10% need
+    11: 0.8,  // Picks 11-20: 80% value, 20% need
+    21: 0.7,  // Picks 21-32: 70% value, 30% need
+    33: 0.6,  // Picks 33-64: 60% value, 40% need
+    65: 0.5,  // Picks 65-100: 50% value, 50% need
+    101: 0.4, // Picks 101+: 40% value, 60% need
+  };
+
+  // Method to get value/need ratio based on pick number
+  double _getValueNeedRatio(int pickNumber) {
+    // Find the appropriate tier
+    int tier = _pickPositionValueFactor.keys
+        .where((key) => key <= pickNumber)
+        .reduce(max);
+    
+    return _pickPositionValueFactor[tier] ?? 0.5;
+  }
+
+  // Get prospect tier based on rank
+  ProspectTier _getProspectTier(int rank) {
+    if (rank <= 5) return ProspectTier.elite;
+    if (rank <= 15) return ProspectTier.premium;
+    if (rank <= 32) return ProspectTier.firstRound;
+    if (rank <= 64) return ProspectTier.secondRound;
+    if (rank <= 150) return ProspectTier.midRound;
+    return ProspectTier.lateRound;
+  }
+
+  // Get tier-based selection threshold
+  double _getTierSelectionThreshold(ProspectTier tier, bool isPremiumPosition) {
+    switch (tier) {
+      case ProspectTier.elite:
+        return isPremiumPosition ? 0.98 : 0.95;  // 98% chance to take elite premium position
+      case ProspectTier.premium:
+        return isPremiumPosition ? 0.92 : 0.88;  // 92% chance to take premium position
+      case ProspectTier.firstRound:
+        return isPremiumPosition ? 0.85 : 0.8;   // 85% chance to take first round premium
+      case ProspectTier.secondRound:
+        return isPremiumPosition ? 0.75 : 0.7;   // Lower percentage for second round
+      case ProspectTier.midRound:
+        return isPremiumPosition ? 0.6 : 0.55;
+      case ProspectTier.lateRound:
+        return isPremiumPosition ? 0.45 : 0.4;
+    }
+  }
+
   // Trade frequency settings
   final Map<int, double> _roundTradeFrequency = {
     1: 0.25,  // 25% chance of trade evaluation for round 1 picks 
@@ -56,6 +115,55 @@ class DraftService {
     7: 0.08,  // 8% chance for round 7
   };
   
+  // Update the _premiumPositions and add position weights
+  final Map<String, double> _positionWeights = {
+    'QB': 1.5,     // Extremely high premium
+    'OT': 1.3,     // High premium
+    'EDGE': 1.25,  // High premium 
+    'CB': 1.2,     // Significant premium
+    'CB | WR': 1.2,
+    'WR': 1.15,    // Moderate premium
+    'IDL': 1.05,   // Slight premium
+    'S': 1.0,      // Neutral
+    'TE': 0.95,    // Slightly devalued
+    'IOL': 0.95,   // Slightly devalued
+    'LB': 0.9,     // Moderately devalued
+    'RB': 0.9,    // Significantly devalued
+  };
+
+  // Method to get position weight with pick position adjustment
+  double _getPositionWeight(String position, int pickNumber) {
+    // Base weight from the map, defaulting to 1.0 for unlisted positions
+    double baseWeight = _positionWeights[position] ?? 1.0;
+    
+    // Position-specific adjustments based on draft position
+    if (position == 'QB') {
+      // QBs are extremely valuable early, less so later
+      if (pickNumber <= 10) return baseWeight * 1.2;
+      if (pickNumber <= 32) return baseWeight * 1.1;
+      if (pickNumber <= 75) return baseWeight * 0.9;
+      return baseWeight * 0.8;
+    }
+    
+    if (position == 'RB') {
+      // RBs are devalued early, but can be value picks later
+      if (pickNumber <= 32) return baseWeight * 0.8;
+      if (pickNumber >= 100) return baseWeight * 1.2;
+    }
+    
+    if (position == 'OT') {
+      // Tackles maintain high value throughout first two rounds
+      if (pickNumber <= 64) return baseWeight * 1.1;
+    }
+    
+    if (position == 'LB') {
+      // LBs are increasingly valued in later rounds
+      if (pickNumber >= 100) return baseWeight * 1.15;
+    }
+    
+    return baseWeight;
+  }
+
   // Random instance for introducing randomness
   final Random _random = Random();
 
@@ -310,77 +418,77 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
   }
   
   /// Evaluate if we should try a QB-specific trade scenario
-bool _evaluateQBTradeScenario(DraftPick nextPick) {
-  // Skip QB trade logic for user team picks
-  if (nextPick.teamName == userTeam) return false;
-  
-  // Get team needs for the team with the current pick
-  TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
-  
-  // Check if QB is a need within the relevant threshold (round+3)
-  int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
-  int needsToConsider = min(round + 3, teamNeeds?.needs.length ?? 0);
-  
-  bool currentTeamNeedsQB = false;
-  for (int i = 0; i < needsToConsider; i++) {
-    if (teamNeeds != null && i < teamNeeds.needs.length && teamNeeds.needs[i] == "QB") {
-      currentTeamNeedsQB = true;
-      break;
+  bool _evaluateQBTradeScenario(DraftPick nextPick) {
+    // Skip QB trade logic for user team picks
+    if (nextPick.teamName == userTeam) return false;
+    
+    // Get team needs for the team with the current pick
+    TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
+    
+    // Check if QB is a need within the relevant threshold (round+3)
+    int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
+    int needsToConsider = min(round + 3, teamNeeds?.needs.length ?? 0);
+    
+    bool currentTeamNeedsQB = false;
+    for (int i = 0; i < needsToConsider; i++) {
+      if (teamNeeds != null && i < teamNeeds.needs.length && teamNeeds.needs[i] == "QB") {
+        currentTeamNeedsQB = true;
+        break;
+      }
     }
-  }
-  
-  // If team with the pick needs a QB, they likely won't trade out
-  // for a QB-motivated trade (but might trade for other reasons)
-  if (currentTeamNeedsQB && nextPick.pickNumber <= 20) {
-    return false;
-  }
-  
-  // Check for available QB prospects in the top 32
-  final availableQBs = availablePlayers
-      .where((p) => p.position == "QB" && p.rank <= 32)
-      .toList();
-  
-  if (availableQBs.isEmpty) return false;
-  
-  // For other teams, we need to check if there are QB-needy teams that might trade up
-  // We'll use a simpler approach here since we don't have direct access to _teamCurrentPickPosition
-  
-  // Count how many teams need a QB as one of their top needs
-  int qbNeedyTeamsCount = 0;
-  
-  for (var team in this.teamNeeds) {
-    // Only consider where QB is in their top needs 
-    int qbIndex = team.needs.indexOf("QB");
-    if (qbIndex >= 0 && qbIndex < 3) { // QB is in top 3 needs
-      qbNeedyTeamsCount++;
+    
+    // If team with the pick needs a QB, they likely won't trade out
+    // for a QB-motivated trade (but might trade for other reasons)
+    if (currentTeamNeedsQB && nextPick.pickNumber <= 20) {
+      return false;
     }
+    
+    // Check for available QB prospects in the top 32
+    final availableQBs = availablePlayers
+        .where((p) => p.position == "QB" && p.rank <= 32)
+        .toList();
+    
+    if (availableQBs.isEmpty) return false;
+    
+    // For other teams, we need to check if there are QB-needy teams that might trade up
+    // We'll use a simpler approach here since we don't have direct access to _teamCurrentPickPosition
+    
+    // Count how many teams need a QB as one of their top needs
+    int qbNeedyTeamsCount = 0;
+    
+    for (var team in this.teamNeeds) {
+      // Only consider where QB is in their top needs 
+      int qbIndex = team.needs.indexOf("QB");
+      if (qbIndex >= 0 && qbIndex < 3) { // QB is in top 3 needs
+        qbNeedyTeamsCount++;
+      }
+    }
+    
+    // If multiple teams need a QB, trade ups become more likely
+    double qbMarketFactor = min(1.0, qbNeedyTeamsCount / 5.0); // Scale factor based on QB demand
+    
+    // High probabilities for QB trades when top QBs are available
+    if (nextPick.pickNumber <= 10) {
+      // Very high chance in top 10 with top QB
+      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
+      double qbTradeProb = (topQBAvailable ? 0.9 : 0.7) * qbMarketFactor;
+      return _random.nextDouble() < qbTradeProb;
+    } 
+    else if (nextPick.pickNumber <= 32) {
+      // Moderate chance in first round
+      bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 20);
+      double qbTradeProb = (topQBAvailable ? 0.8 : 0.5) * qbMarketFactor;
+      return _random.nextDouble() < qbTradeProb;
+    }
+    else if (nextPick.pickNumber <= 45) {
+      // Lower chance early in second round
+      double qbTradeProb = 0.4 * qbMarketFactor;
+      return _random.nextDouble() < qbTradeProb;
+    }
+    
+    // Very low chance in later rounds
+    return _random.nextDouble() < (0.15 * qbMarketFactor);
   }
-  
-  // If multiple teams need a QB, trade ups become more likely
-  double qbMarketFactor = min(1.0, qbNeedyTeamsCount / 5.0); // Scale factor based on QB demand
-  
-  // High probabilities for QB trades when top QBs are available
-  if (nextPick.pickNumber <= 10) {
-    // Very high chance in top 10 with top QB
-    bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 10);
-    double qbTradeProb = (topQBAvailable ? 0.9 : 0.7) * qbMarketFactor;
-    return _random.nextDouble() < qbTradeProb;
-  } 
-  else if (nextPick.pickNumber <= 32) {
-    // Moderate chance in first round
-    bool topQBAvailable = availableQBs.any((qb) => qb.rank <= 20);
-    double qbTradeProb = (topQBAvailable ? 0.8 : 0.5) * qbMarketFactor;
-    return _random.nextDouble() < qbTradeProb;
-  }
-  else if (nextPick.pickNumber <= 45) {
-    // Lower chance early in second round
-    double qbTradeProb = 0.4 * qbMarketFactor;
-    return _random.nextDouble() < qbTradeProb;
-  }
-  
-  // Very low chance in later rounds
-  return _random.nextDouble() < (0.15 * qbMarketFactor);
-}
   
   /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
@@ -428,6 +536,49 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     _executedTrades.add(package);
   }
   
+  // Position specific value weighting
+  double _evaluatePlayerForTeam(Player player, String teamName, TeamNeed? teamNeed, int pickNumber) {
+    double score = 100.0 - player.rank; // Base score is inverse of rank
+    
+    // Apply position weight
+    double positionWeight = _getPositionWeight(player.position, pickNumber);
+    score *= positionWeight;
+    
+    // Apply need-based adjustment if needs exist
+    if (teamNeed != null && teamNeed.needs.isNotEmpty) {
+      int needIndex = teamNeed.needs.indexOf(player.position);
+      if (needIndex != -1) {
+        // Higher bonus for higher need positions
+        double needBonus = (10.0 - min(needIndex, 9.0)) / 10.0;
+        
+        // Scale need bonus based on pick position (needs matter more later)
+        double needScale = pickNumber <= 10 ? 0.1 : 
+                          pickNumber <= 32 ? 0.2 :
+                          pickNumber <= 100 ? 0.3 : 0.4;
+        
+        score *= (1.0 + (needBonus * needScale));
+      }
+    }
+    
+    // Special handling for elite prospects
+    if (player.rank <= 5) {
+      // Elite prospects get additional premium
+      score *= 1.5;
+    } else if (player.rank <= 15) {
+      // Premium prospects get moderate boost
+      score *= 1.25;
+    } else if (player.rank <= 32) {
+      // First round talents get small boost
+      score *= 1.1;
+    }
+    
+    // Random factor for less predictable behavior
+    double randomFactor = 0.9 + (_random.nextDouble() * 0.2);
+    score *= randomFactor;
+    
+    return score;
+  }
+
   /// Select the best player for a team
   Player _selectBestPlayerForTeam(DraftPick pick) {
     // Get team needs
@@ -436,144 +587,123 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     // Use enhanced player selection logic
     return selectPlayerRStyle(teamNeed, pick);
   }
+
+  // Modified player selection implementation
+  List<Player> _evaluateProspectsByTier(List<Player> availablePlayers, int pickNumber) {
+    List<Player> evaluatedPlayers = [];
+    
+    for (var player in availablePlayers.take(20)) {
+      ProspectTier tier = _getProspectTier(player.rank);
+      bool isPremiumPosition = _premiumPositions.contains(player.position);
+      
+      // Calculate selection probability
+      double selectionThreshold = _getTierSelectionThreshold(tier, isPremiumPosition);
+      
+      // Adjust threshold by draft position
+      int pickGap = pickNumber - player.rank;
+      
+      // Higher gap means higher chance to select
+      if (pickGap > 0) {
+        // Apply increasingly aggressive selection for higher gaps
+        selectionThreshold += min(0.3, (pickGap / 30) * 0.3);
+      } else if (pickGap < 0) {
+        // Reduce likelihood of reaching for players
+        selectionThreshold -= min(0.4, (pickGap.abs() / 20) * 0.4);
+      }
+      
+      // Add the evaluated player with its selection probability
+      evaluatedPlayers.add(player);
+    }
+    
+    return evaluatedPlayers;
+  }
   
   /// Select a player based on the R algorithm - enhanced with better need/position weighting
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
-  // If team has no needs defined, use best player available
-  if (teamNeed == null || teamNeed.needs.isEmpty) {
-    return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
-  }
-  
-  // Calculate round based on pick number (1-indexed)
-  int round = (nextPick.pickNumber / 32).ceil();
-  
-  // Check for exceptional value first (players significantly better than the current pick)
-  for (var player in availablePlayers.take(10)) {
-    int valueGap = nextPick.pickNumber - player.rank;
+    // Build a list of evaluated players with both tier and team-specific scoring
+    List<Map<String, dynamic>> evaluatedPlayers = [];
     
-    // If a player is available significantly later than their rank (exceptional value)
-    if (valueGap >= 12 && player.rank <= 20) {
-      // Very high chance to take the exceptional value player
-      if (_random.nextDouble() < 0.9) {
-        return player;
-      }
-    }
-    
-    // Special consideration for premium positions with good value
-    if (_premiumPositions.contains(player.position) && valueGap >= 8 && player.rank <= 32) {
-      if (_random.nextDouble() < 0.85) {
-        return player;
-      }
-    }
-    
-  }
-  
-  // Get needs based on round (only consider round+3 needs as you specified)
-  int needsToConsider = min(round + 3, teamNeed.needs.length);
-  
-  // Check if QB is within the needs to consider
-  int qbNeedIndex = -1;
-  for (int i = 0; i < needsToConsider; i++) {
-    if (i < teamNeed.needs.length && teamNeed.needs[i] == "QB") {
-      qbNeedIndex = i;
-      break;
-    }
-  }
-  
-  // If QB is a need within the consideration threshold
-  if (qbNeedIndex != -1) {
-    // Look for any valuable QB
-    final qbCandidates = availablePlayers
-        .where((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 20)
-        .toList();
-    
-    if (qbCandidates.isNotEmpty) {
-      // Sort by rank
-      qbCandidates.sort((a, b) => a.rank.compareTo(b.rank));
+    for (var player in availablePlayers) {
+      // Get tier-based evaluation
+      ProspectTier tier = _getProspectTier(player.rank);
+      bool isPremiumPosition = _premiumPositions.contains(player.position);
+      double tierThreshold = _getTierSelectionThreshold(tier, isPremiumPosition);
       
-      // QB specific threshold - more aggressive reaching for QBs
-      // If QB is a top-3 need, be very aggressive
-      if (qbNeedIndex < 3) {
-        return qbCandidates.first; // Take the best QB available
-      }
-      // If QB is a mid-tier need, use more moderate threshold
-      else if (qbCandidates.first.rank <= nextPick.pickNumber * 1.3) {
-        return qbCandidates.first;
-      }
+      // Get team-specific evaluation
+      double teamScore = _evaluatePlayerForTeam(
+        player, 
+        nextPick.teamName, 
+        teamNeed, 
+        nextPick.pickNumber
+      );
+      
+      // Combine into a single composite score
+      double compositeScore = teamScore * tierThreshold;
+      
+      evaluatedPlayers.add({
+        'player': player,
+        'score': compositeScore,
+        'tier': tier,
+        'isPremiumPosition': isPremiumPosition
+      });
     }
-  }
-  
-  // Generate selections for each need, but strictly prioritize earlier needs
-  List<Player?> candidates = [];
-  for (int i = 0; i < needsToConsider; i++) {
-    if (i < teamNeed.needs.length) {
-      String needPosition = teamNeed.needs[i];
-      if (needPosition != "-") {
-        candidates.add(_makeSelection(needPosition));
-      }
-    }
-  }
-  
-  // Remove null entries
-  candidates.removeWhere((player) => player == null);
-  
-  // If no candidates found through needs, use best player available
-  if (candidates.isEmpty) {
-    return _selectBestPlayerAvailable(nextPick.pickNumber);
-  }
-  
-  // Special case for QB-needy teams 
-  if (_tradeUp && candidates.any((p) => p!.position == "QB")) {
-    return candidates.firstWhere((p) => p!.position == "QB")!;
-  }
-  
-  // Calculate value thresholds with better balance between need and value
-  // Upper rounds should prioritize value more
-  double factor;
-  if (round <= 2) {
-    factor = 0.15; // More aggressive value consideration in early rounds
-  } else if (round <= 4) {
-    factor = 0.12; // Moderate value consideration in middle rounds
-  } else {
-    factor = 0.10; // Less value consideration in late rounds
-  }
-  
-  // Evaluate each need/player in order of priority
-  for (int i = 0; i < candidates.length; i++) {
-    Player candidate = candidates[i]!;
     
-    // Special threshold for QBs when they're within considered needs
-    if (candidate.position == "QB" && qbNeedIndex != -1) {
-      // More aggressive threshold for QBs
-      if (candidate.rank <= nextPick.pickNumber * (1 + factor * 2) + round) {
-        return candidate; // More aggressive pick for QBs
+    // Sort by score
+    evaluatedPlayers.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+    
+    // Get top candidates
+    List<Map<String, dynamic>> topCandidates = evaluatedPlayers.take(5).toList();
+    
+    // Selection strategy varies by pick position
+    int pickNumber = nextPick.pickNumber;
+    
+    if (pickNumber <= 10) {
+      // Top 10 picks - most aggressive on pure talent/value
+      for (var candidate in topCandidates) {
+        // Check if it's an elite prospect
+        if (candidate['tier'] == ProspectTier.elite) {
+          // 95% chance to take
+          if (_random.nextDouble() < 0.95) {
+            return candidate['player'];
+          }
+        }
+        
+        // Check if it's a premium prospect at premium position
+        if (candidate['tier'] == ProspectTier.premium && candidate['isPremiumPosition']) {
+          // 90% chance to take
+          if (_random.nextDouble() < 0.9) {
+            return candidate['player'];
+          }
+        }
       }
     }
-    // Enhanced threshold for premium positions
-    else if (_premiumPositions.contains(candidate.position)) {
-      if (candidate.rank <= nextPick.pickNumber * (1 + factor * 1.5) + round) {
-        return candidate; // Enhanced threshold for premium positions
+    
+    // For any pick, select based on score with some randomness
+    double randomThreshold = 0.75;  // Base 75% chance to take top player
+    
+    // Adjust threshold based on pick number
+    if (pickNumber <= 32) {
+      randomThreshold = 0.85;  // Higher chance for 1st round
+    } else if (pickNumber >= 100) {
+      randomThreshold = 0.65;  // Lower chance for later rounds
+    }
+    
+    // Make selection based on threshold
+    for (var candidate in topCandidates) {
+      if (_random.nextDouble() < randomThreshold) {
+        return candidate['player'];
       }
+      // Decrease threshold for next candidate
+      randomThreshold *= 0.7;
     }
-    // Normal threshold for other positions
-    else if (candidate.rank <= nextPick.pickNumber * (1 + factor) + round) {
-      return candidate; // Pick player at this need position
-    }
+    
+    // Default to top scored player if no selection made
+    return topCandidates.first['player'];
   }
-  
-  // If no good value at needs, select best player available that matches any team need
-  if (candidates.isNotEmpty) {
-    candidates.sort((a, b) => a!.rank.compareTo(b!.rank));
-    return candidates.first!;
-  }
-  
-  // Fallback to best overall player
-  return _selectBestPlayerAvailable(nextPick.pickNumber);
-}
 
 // Define premium positions set (add this to DraftService class)
 final Set<String> _premiumPositions = {
-  'QB', 'OT', 'EDGE', 'CB', 'WR'
+  'QB', 'OT', 'EDGE', 'CB', 'WR', 'CB | WR'
 };
 
 // Secondary value positions
@@ -609,7 +739,7 @@ final Set<String> _secondaryPositions = {
     
     return candidatesForPosition[selectIndex];
   }
-  
+
   /// Select the best player available with consideration for pick position
   Player _selectBestPlayerAvailable(int pickNumber) {
     // For top picks, be more consistent
