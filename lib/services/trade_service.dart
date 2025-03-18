@@ -52,7 +52,7 @@ class TradeService {
   
   // Premium positions that are valued more highly
   final Set<String> _premiumPositions = {
-    'QB', 'OT', 'EDGE', 'CB', 'WR'
+    'QB', 'OT', 'EDGE', 'CB', 'WR', 'CB | WR'
   };
   
   // Secondary value positions

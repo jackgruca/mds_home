@@ -437,108 +437,186 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     return selectPlayerRStyle(teamNeed, pick);
   }
   
-  /// Select a player based on the R algorithm - enhanced with better need/position weighting
-Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
-  // If team has no needs defined, use best player available
-  if (teamNeed == null || teamNeed.needs.isEmpty) {
-    return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
-  }
-  
-  // Calculate round based on pick number (1-indexed)
-  int round = (nextPick.pickNumber / 32).ceil();
-  
-  // Get needs based on round (only consider round+3 needs as you specified)
-  int needsToConsider = min(round + 3, teamNeed.needs.length);
-  
-  // Check if QB is within the needs to consider
-  int qbNeedIndex = -1;
-  for (int i = 0; i < needsToConsider; i++) {
-    if (i < teamNeed.needs.length && teamNeed.needs[i] == "QB") {
-      qbNeedIndex = i;
-      break;
+  // Add this to the DraftService class - position value tiers
+  final Map<String, double> _positionValueWeights = {
+    'QB': 1.5,   // Premium for franchise QBs
+    'EDGE': 1.25, // Elite pass rushers
+    'OT': 1.20,   // Offensive tackles highly valued
+    'CB | WR': 1.2, // Travis Hunter
+    'CB': 1.15,   // Cornerbacks
+    'WR': 1.12,   // Wide receivers
+    'DT': 1.05,   // Interior defensive line
+    'S': 1.0,     // Safeties
+    'TE': 0.95,   // Tight ends
+    'IOL': 0.90,  // Interior offensive line
+    'LB': 0.90,   // Linebackers
+    'RB': 0.85,   // Running backs typically devalued
+  };
+
+  // Position scarcity tracker - will change during draft
+  final Map<String, double> _positionScarcity = {
+    'QB': 1.0,
+    'OT': 1.0,
+    'EDGE': 1.0,
+    'CB': 1.0,
+    'WR': 1.0,
+    'DT': 1.0,
+    'S': 1.0,
+    'TE': 1.0,
+    'IOL': 1.0,
+    'LB': 1.0,
+    'RB': 1.0,
+  };
+
+  // Method to update position scarcity after each selection
+  void _updatePositionScarcity(String position) {
+    // Increase scarcity for the selected position
+    _positionScarcity[position] = (_positionScarcity[position] ?? 1.0) * 1.03;
+    
+    // Cap at a maximum value
+    _positionScarcity[position] = min(_positionScarcity[position]!, 1.3);
+    
+    // Slightly decrease scarcity for other positions
+    for (var pos in _positionScarcity.keys) {
+      if (pos != position) {
+        _positionScarcity[pos] = max(1.0, (_positionScarcity[pos] ?? 1.0) * 0.99);
+      }
     }
   }
-  
-  // If QB is a need within the consideration threshold
-  if (qbNeedIndex != -1) {
-    // Look for any valuable QB
-    final qbCandidates = availablePlayers
-        .where((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 20)
+
+  // Then, modifying the selectPlayerRStyle method:
+  Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
+    // If team has no needs defined, use best player available
+    if (teamNeed == null || teamNeed.needs.isEmpty) {
+      return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
+    }
+    
+    // Calculate round based on pick number (1-indexed)
+    int round = (nextPick.pickNumber / 32).ceil();
+    
+    // Get needs based on round (only consider round+3 needs)
+    int needsToConsider = min(round + 3, teamNeed.needs.length);
+    
+    // Generate selections for each need, but with positional weighting
+    Map<Player, double> playerScores = {};
+    
+    // First, evaluate available players against team needs
+    for (int i = 0; i < needsToConsider; i++) {
+      if (i < teamNeed.needs.length) {
+        String needPosition = teamNeed.needs[i];
+        
+        // Skip empty needs
+        if (needPosition == "-" || needPosition.isEmpty) continue;
+        
+        // Find candidates for this position
+        final positionCandidates = availablePlayers
+          .where((p) => p.position.contains(needPosition) || 
+                      (p.position.contains('|') && 
+                        needPosition.contains(p.position.split('|')[0].trim())))
+          .where((p) => p.rank <= nextPick.pickNumber + 25)
+          .toList();
+        
+        if (positionCandidates.isEmpty) continue;
+        
+        // Sort by rank
+        positionCandidates.sort((a, b) => a.rank.compareTo(b.rank));
+        
+        // Get position value weight
+        double posWeight = _positionValueWeights[needPosition] ?? 1.0;
+        
+        // Get current scarcity factor
+        double scarcityFactor = _positionScarcity[needPosition] ?? 1.0;
+        
+        // Process top 3 candidates for this position
+        for (var player in positionCandidates.take(3)) {
+          // Need factor - higher for top needs
+          double needFactor = 1.0 - (i * 0.15); // 1.0 for top need, decreasing
+          
+          // Value calculation - how good is player relative to pick?
+          int valueGap = nextPick.pickNumber - player.rank;
+          double valueScore = valueGap >= 0 
+              ? min(1.0, valueGap / 10) // Good value (up to +1.0)
+              : max(-0.5, valueGap / 20); // Negative for reaching (-0.5 max penalty)
+          
+          // Early pick factor - higher standards for top picks
+          double pickFactor = 0;
+          if (nextPick.pickNumber <= 5) pickFactor = 0.15;
+          else if (nextPick.pickNumber <= 15) pickFactor = 0.1;
+          else if (nextPick.pickNumber <= 32) pickFactor = 0.05;
+          
+          // Calculate player score
+          double score = (needFactor * 0.4) + // Need impact
+                        (valueScore * 0.3) + // Value impact
+                        (posWeight * 0.2) +  // Position impact
+                        (scarcityFactor * 0.1) + // Scarcity impact
+                        pickFactor;          // Pick position impact
+                        
+          // Store score
+          playerScores[player] = score;
+        }
+      }
+    }
+    
+    // Also evaluate top 5 overall players (BPA consideration)
+    final topPlayers = availablePlayers
+        .where((p) => p.rank <= min(50, nextPick.pickNumber + 15))
+        .take(5)
         .toList();
-    
-    if (qbCandidates.isNotEmpty) {
-      // Sort by rank
-      qbCandidates.sort((a, b) => a.rank.compareTo(b.rank));
+        
+    for (var player in topPlayers) {
+      // Skip if already evaluated through needs
+      if (playerScores.containsKey(player)) continue;
       
-      // QB specific threshold - more aggressive reaching for QBs
-      // If QB is a top-3 need, be very aggressive
-      if (qbNeedIndex < 3) {
-        return qbCandidates.first; // Take the best QB available
-      }
-      // If QB is a mid-tier need, use more moderate threshold
-      else if (qbCandidates.first.rank <= nextPick.pickNumber * 1.3) {
-        return qbCandidates.first;
-      }
+      // Get position weight
+      double posWeight = _positionValueWeights[player.position] ?? 1.0;
+      
+      // Get scarcity factor
+      double scarcityFactor = _positionScarcity[player.position] ?? 1.0;
+      
+      // Value calculation
+      int valueGap = nextPick.pickNumber - player.rank;
+      double valueScore = valueGap >= 0 
+          ? min(1.0, valueGap / 10) 
+          : max(-0.5, valueGap / 20);
+      
+      // BPA gets a boost but need factor is low
+      double needFactor = 0.2; // Low since not in needs list
+      
+      // Calculate score with higher value emphasis
+      double score = (needFactor * 0.3) + // Lower need impact
+                    (valueScore * 0.5) + // Higher value impact
+                    (posWeight * 0.15) + // Position impact
+                    (scarcityFactor * 0.05); // Scarcity impact
+      
+      // Store score
+      playerScores[player] = score;
     }
-  }
-  
-  // Generate selections for each need, but strictly prioritize earlier needs
-  List<Player?> candidates = [];
-  for (int i = 0; i < needsToConsider; i++) {
-    if (i < teamNeed.needs.length) {
-      String needPosition = teamNeed.needs[i];
-      if (needPosition != "-") {
-        candidates.add(_makeSelection(needPosition));
-      }
-    }
-  }
-  
-  // Remove null entries
-  candidates.removeWhere((player) => player == null);
-  
-  // If no candidates found through needs, use best player available
-  if (candidates.isEmpty) {
-    return _selectBestPlayerAvailable(nextPick.pickNumber);
-  }
-  
-  // Special case for QB-needy teams 
-  if (_qbTrade && candidates.any((p) => p!.position == "QB")) {
-    return candidates.firstWhere((p) => p!.position == "QB")!;
-  }
-  
-  // Calculate value thresholds with less randomness for early picks
-  double factor = min(0.2, ((round * 0.05) + 0.05));
-  
-  // Evaluate each need/player in order of priority
-  for (int i = 0; i < candidates.length; i++) {
-    Player candidate = candidates[i]!;
     
-    // Special threshold for QBs when they're within considered needs
-    if (candidate.position == "QB" && qbNeedIndex != -1) {
-      // More aggressive threshold for QBs
-      if (candidate.rank <= nextPick.pickNumber * (1 + factor * 2) + round) {
-        return candidate; // More aggressive pick for QBs
-      }
+    // If no players evaluated, fall back to best available
+    if (playerScores.isEmpty) {
+      return _selectBestPlayerAvailable(nextPick.pickNumber);
     }
-    // Normal threshold for other positions
-    else if (candidate.rank <= nextPick.pickNumber * (1 + factor) + round) {
-      return candidate; // Pick player at this need position
+    
+    // Add randomness to each score
+    Map<Player, double> finalScores = {};
+    for (var entry in playerScores.entries) {
+      double randomFactor = _random.nextDouble() * 0.3 - 0.15; // -0.15 to +0.15
+      finalScores[entry.key] = entry.value + randomFactor;
     }
+    
+    // Find player with highest score
+    Player bestPlayer = finalScores.entries.reduce((a, b) => 
+        a.value > b.value ? a : b).key;
+    
+    // Update position scarcity after selection
+    _updatePositionScarcity(bestPlayer.position);
+    
+    return bestPlayer;
   }
   
-  // If no good value at needs, select best player available that matches any team need
-  if (candidates.isNotEmpty) {
-    candidates.sort((a, b) => a!.rank.compareTo(b!.rank));
-    return candidates.first!;
-  }
-  
-  // Fallback to best overall player
-  return _selectBestPlayerAvailable(nextPick.pickNumber);
-}
-  
-  /// Make a selection for a specific need position
+  // Modify _makeSelection method to use pick number for determining randomness
   Player? _makeSelection(String needPosition) {
-    // Filter players by position
+    // Filter players by position using contains
     List<Player> candidatesForPosition = availablePlayers
         .where((player) => player.position.contains(needPosition))
         .toList();
@@ -550,16 +628,59 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     // Sort by rank
     candidatesForPosition.sort((a, b) => a.rank.compareTo(b.rank));
     
-    // Random selection logic
-    double randSelect = _tradeUp ? 0.1 : _random.nextDouble();
+    // Use current pick number for randomness calculation
+    int pickNumber = _currentPick;
+    double randSelect = _random.nextDouble();
     int selectIndex;
     
-    if (randSelect <= 0.8) {
-      selectIndex = 0; // 80% chance for top player
-    } else if (randSelect > 0.8 && randSelect <= 0.95) {
-      selectIndex = min(1, candidatesForPosition.length - 1); // 15% for second
-    } else {
-      selectIndex = min(2, candidatesForPosition.length - 1); // 5% for third
+    // Differentiate selection probabilities by pick range
+    if (pickNumber <= 5) {
+      // Top 5 picks - almost always take the best player (95%)
+      if (randSelect <= 0.95) {
+        selectIndex = 0;
+      } else {
+        selectIndex = min(1, candidatesForPosition.length - 1);
+      }
+    } 
+    else if (pickNumber <= 15) {
+      // Picks 6-15 - still heavily favor best player (90%)
+      if (randSelect <= 0.90) {
+        selectIndex = 0;
+      } else if (randSelect <= 0.98) {
+        selectIndex = min(1, candidatesForPosition.length - 1);
+      } else {
+        selectIndex = min(2, candidatesForPosition.length - 1);
+      }
+    }
+    else if (pickNumber <= 32) {
+      // Rest of first round - moderately favor best player (85%)
+      if (randSelect <= 0.85) {
+        selectIndex = 0;
+      } else if (randSelect <= 0.97) {
+        selectIndex = min(1, candidatesForPosition.length - 1);
+      } else {
+        selectIndex = min(2, candidatesForPosition.length - 1);
+      }
+    }
+    else if (pickNumber <= 64) {
+      // Second round - slightly favor best player (80%)
+      if (randSelect <= 0.80) {
+        selectIndex = 0;
+      } else if (randSelect <= 0.95) {
+        selectIndex = min(1, candidatesForPosition.length - 1);
+      } else {
+        selectIndex = min(2, candidatesForPosition.length - 1);
+      }
+    }
+    else {
+      // Later rounds - standard randomness
+      if (randSelect <= 0.75) {
+        selectIndex = 0;
+      } else if (randSelect <= 0.90) {
+        selectIndex = min(1, candidatesForPosition.length - 1);
+      } else {
+        selectIndex = min(2, candidatesForPosition.length - 1);
+      }
     }
     
     return candidatesForPosition[selectIndex];
@@ -573,9 +694,9 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       
       // For picks 1-3, almost always pick the top player (90%)
       if (pickNumber <= 3) {
-        if (randSelect <= 0.9) {
+        if (randSelect <= 0.95) {
           return availablePlayers.first;
-        } else if (randSelect <= 0.98) {
+        } else if (randSelect <= 0.99) {
           return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
         } else {
           return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
@@ -583,9 +704,9 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       }
       // For picks 4-5, usually pick top 2 players (80%)
       else {
-        if (randSelect <= 0.8) {
+        if (randSelect <= 0.9) {
           return availablePlayers.first;
-        } else if (randSelect <= 0.95) {
+        } else if (randSelect <= 0.97) {
           return availablePlayers.length > 1 ? availablePlayers[1] : availablePlayers.first;
         } else {
           return availablePlayers.length > 2 ? availablePlayers[2] : availablePlayers.first;
