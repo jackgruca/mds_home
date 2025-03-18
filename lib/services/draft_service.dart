@@ -515,122 +515,124 @@ class DraftService {
   
   /// Select the best player for a team at a pick position
   Player selectBestPlayerForTeam(String teamName) {
-    // Get team's needs
-    TeamNeed? teamNeed = _getTeamNeeds(teamName);
-    
-    // Use enhanced selection logic
-    return selectPlayerRStyle(teamNeed, teamName);
+  // Get team needs
+  TeamNeed? teamNeed = teamNeeds.firstWhere(
+    (need) => need.teamName == teamName,
+    orElse: () => TeamNeed(teamName: teamName, needs: []),
+  );
+  
+  // Get next pick
+  DraftPick? nextPick = getNextPick();
+  if (nextPick == null) {
+    // Fallback to best overall player if no pick found
+    return availablePlayers.first;
   }
   
+  // Use the existing selection algorithm
+  return selectPlayerRStyle(teamNeed, nextPick.pickNumber);
+}
+  
   /// Player selection with realistic balance of BPA and need
-  Player selectPlayerRStyle(TeamNeed? teamNeed, String teamName) {
-    // Map of players to their scores
-    final Map<Player, double> playerScores = {};
+Player selectPlayerRStyle(TeamNeed? teamNeed, int pickNumber) {
+  // Map of players to their scores
+  final Map<Player, double> playerScores = {};
+  
+  // Get value/need balance for this pick position
+  double valueWeight = _getValueNeedRatio(pickNumber);
+  double needWeight = 1.0 - valueWeight;
+  
+  // Calculate scores for top available players (limit to 20 for performance)
+  for (var player in availablePlayers.take(min(20, availablePlayers.length))) {
+    // Calculate value component (based on rank differential)
+    double rankScore = 100.0 - player.rank;
+    if (rankScore < 0) rankScore = 0; // Ensure non-negative
     
-    // Get pick number
-    DraftPick? nextPick = draftOrder.firstWhere(
-      (pick) => pick.teamName == teamName && !pick.isSelected,
-      orElse: () => null as DraftPick
-    );
+    // Apply position importance
+    double positionFactor = _positionImportance[player.position] ?? 1.0;
     
-    int pickNumber = nextPick.pickNumber;
+    // Apply position adjustment based on pick position
+    positionFactor = _adjustPositionValueForPickNumber(positionFactor, player.position, pickNumber);
     
-    // Get value/need balance for this pick position
-    double valueWeight = _getValueNeedRatio(pickNumber);
-    double needWeight = 1.0 - valueWeight;
+    // Calculate position run adjustment
+    double runMultiplier = getPositionRunMultiplier(player.position);
     
-    // Calculate scores for top available players (limit to 20 for performance)
-    for (var player in availablePlayers.take(min(20, availablePlayers.length))) {
-      // Calculate value component (based on rank differential)
-      double rankScore = 100.0 - player.rank;
-      if (rankScore < 0) rankScore = 0; // Ensure non-negative
-      
-      // Apply position importance
-      double positionFactor = _positionImportance[player.position] ?? 1.0;
-      
-      // Apply position adjustment based on pick position
-      positionFactor = _adjustPositionValueForPickNumber(positionFactor, player.position, pickNumber);
-      
-      // Calculate position run adjustment
-      double runMultiplier = getPositionRunMultiplier(player.position);
-      
-      // Calculate need component
-      double needScore = 0.0;
-      if (teamNeed != null) {
-        int needIndex = teamNeed.needs.indexOf(player.position);
-        if (needIndex != -1) {
-          // Higher score for higher need positions
-          needScore = 100.0 * (1.0 - (min(needIndex, 9) / 10.0));
-        }
-      }
-      
-      // Elite prospect bonus
-      double eliteBonus = 0.0;
-      if (player.rank <= 5) {
-        eliteBonus = 50.0; // Major boost for top-5 players
-      } else if (player.rank <= 15) {
-        eliteBonus = 30.0; // Good boost for premium players
-      } else if (player.rank <= 32) {
-        eliteBonus = 15.0; // Moderate boost for 1st rounders
-      }
-      
-      // Combine components with appropriate weights
-      double totalScore = (rankScore * valueWeight * positionFactor * runMultiplier) + 
-                          (needScore * needWeight) + 
-                          (eliteBonus * valueWeight);
-      
-      // Store the score
-      playerScores[player] = totalScore;
-    }
-    
-    // Sort players by score
-    final List<MapEntry<Player, double>> sortedPlayers = playerScores.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    
-    // Get top candidates
-    final List<Player> topCandidates = sortedPlayers
-        .take(min(5, sortedPlayers.length))
-        .map((entry) => entry.key)
-        .toList();
-    
-    // Apply randomness appropriate to the pick position
-    double randomnessAdjusted = _getRandomnessByPickPosition(pickNumber);
-    
-    // With no randomness, just return the top player
-    if (randomnessAdjusted <= 0.0) {
-      return topCandidates.first;
-    }
-    
-    // Weighted random selection with exponentially decreasing probabilities
-    double totalWeight = 0.0;
-    final List<double> weights = [];
-    
-    for (int i = 0; i < topCandidates.length; i++) {
-      // Weight decreases exponentially as we go down the list
-      double weight = pow(0.5, i * randomnessAdjusted).toDouble();
-      weights.add(weight);
-      totalWeight += weight;
-    }
-    
-    // Normalize weights to sum to 1.0
-    for (int i = 0; i < weights.length; i++) {
-      weights[i] /= totalWeight;
-    }
-    
-    // Cumulative distribution function for weighted random selection
-    double randomValue = _random.nextDouble();
-    double cumulativeProbability = 0.0;
-    
-    for (int i = 0; i < topCandidates.length; i++) {
-      cumulativeProbability += weights[i];
-      if (randomValue <= cumulativeProbability) {
-        return topCandidates[i];
+    // Calculate need component
+    double needScore = 0.0;
+    if (teamNeed != null) {
+      int needIndex = teamNeed.needs.indexOf(player.position);
+      if (needIndex != -1) {
+        // Higher score for higher need positions
+        needScore = 100.0 * (1.0 - (min(needIndex, 9) / 10.0));
       }
     }
     
-    // Default to top player if something goes wrong
+    // Elite prospect bonus
+    double eliteBonus = 0.0;
+    if (player.rank <= 5) {
+      eliteBonus = 50.0; // Major boost for top-5 players
+    } else if (player.rank <= 15) {
+      eliteBonus = 30.0; // Good boost for premium players
+    } else if (player.rank <= 32) {
+      eliteBonus = 15.0; // Moderate boost for 1st rounders
+    }
+    
+    // Combine components with appropriate weights
+    double totalScore = (rankScore * valueWeight * positionFactor * runMultiplier) + 
+                        (needScore * needWeight) + 
+                        (eliteBonus * valueWeight);
+    
+    // Store the score
+    playerScores[player] = totalScore;
+  }
+  
+  // Sort players by score
+  final List<MapEntry<Player, double>> sortedPlayers = playerScores.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  
+  // Get top candidates
+  final List<Player> topCandidates = sortedPlayers
+      .take(min(5, sortedPlayers.length))
+      .map((entry) => entry.key)
+      .toList();
+  
+  // Apply randomness appropriate to the pick position
+  double randomnessAdjusted = _getRandomnessByPickPosition(pickNumber);
+  
+  // With no randomness, just return the top player
+  if (randomnessAdjusted <= 0.0) {
     return topCandidates.first;
   }
+  
+  // Weighted random selection with exponentially decreasing probabilities
+  double totalWeight = 0.0;
+  final List<double> weights = [];
+  
+  for (int i = 0; i < topCandidates.length; i++) {
+    // Weight decreases exponentially as we go down the list
+    double weight = pow(0.5, i * randomnessAdjusted).toDouble();
+    weights.add(weight);
+    totalWeight += weight;
+  }
+  
+  // Normalize weights to sum to 1.0
+  for (int i = 0; i < weights.length; i++) {
+    weights[i] /= totalWeight;
+  }
+  
+  // Cumulative distribution function for weighted random selection
+  double randomValue = _random.nextDouble();
+  double cumulativeProbability = 0.0;
+  
+  for (int i = 0; i < topCandidates.length; i++) {
+    cumulativeProbability += weights[i];
+    if (randomValue <= cumulativeProbability) {
+      return topCandidates[i];
+    }
+  }
+  
+  // Default to top player if something goes wrong
+  return topCandidates.first;
+}
   
   /// Adjust position value based on pick number
   double _adjustPositionValueForPickNumber(double baseFactor, String position, int pickNumber) {

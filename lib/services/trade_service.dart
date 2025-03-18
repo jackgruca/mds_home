@@ -927,7 +927,213 @@ class TradeService {
     
     return packages;
   }
+  /// Generate first round (1-32) trade packages
+List<TradePackage> _generateFirstRoundPackages(
+  String teamName,
+  List<DraftPick> teamPicks,
+  DraftPick targetPick,
+  double requiredValue,
+  DraftPick bestPick,
+  TeamTradingProfile profile
+) {
+  final List<TradePackage> packages = [];
+  final String targetTeam = targetPick.teamName;
   
+  // Get value of best pick
+  final bestPickValue = DraftValueService.getValueForPick(bestPick.pickNumber);
+  
+  // Strategy 1: Best pick + next best pick
+  if (teamPicks.length >= 2) {
+    final secondPick = teamPicks[1];
+    final secondPickValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+    final combinedValue = bestPickValue + secondPickValue;
+    
+    if (combinedValue >= requiredValue * 0.95) {
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick, secondPick],
+        targetPick: targetPick,
+        totalValueOffered: combinedValue,
+        targetPickValue: requiredValue,
+      ));
+    }
+  }
+  
+  // Strategy 2: Single pick with future pick (for high value first round trades)
+  if (targetPick.pickNumber <= 20 && profile.futurePickAffinity >= 0.4) {
+    // Only add future pick if single pick isn't close enough
+    if (bestPickValue < requiredValue * 0.9) {
+      // Generate a future pick based on team strength
+      // Estimate team strength from pick position (lower pick = stronger team)
+      int teamStrength = (bestPick.pickNumber / 8).ceil(); // scale to 1-32
+      teamStrength = max(1, min(32, teamStrength));
+      
+      // Create future pick with estimated value
+      const String futureDesc = "2026 First Round";
+      final double futureValue = (requiredValue - bestPickValue) * 1.1; // Add 10% premium
+      
+      // Create package with future pick
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue + futureValue,
+        targetPickValue: requiredValue,
+        includesFuturePick: true,
+        futurePickDescription: futureDesc,
+        futurePickValue: futureValue,
+      ));
+    }
+  }
+  
+  // Strategy 3: Three-pick package (for high value targets)
+  if (teamPicks.length >= 3 && targetPick.pickNumber <= 15) {
+    final secondPick = teamPicks[1];
+    final thirdPick = teamPicks[2];
+    final totalValue = bestPickValue + 
+                      DraftValueService.getValueForPick(secondPick.pickNumber) + 
+                      DraftValueService.getValueForPick(thirdPick.pickNumber);
+    
+    if (totalValue >= requiredValue * 0.98) {
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick, secondPick, thirdPick],
+        targetPick: targetPick,
+        totalValueOffered: totalValue,
+        targetPickValue: requiredValue,
+      ));
+    }
+  }
+  
+  // Strategy 4: Best pick + future pick for premium selection
+  if (targetPick.pickNumber <= 10 && profile.futurePickAffinity >= 0.6 && profile.riskTolerance >= 0.6) {
+    // Generate a higher value future pick
+    const String futureDesc = "2026 First Round and 2026 Second Round";
+    final double futureValue = (requiredValue - bestPickValue) * 1.2;
+    
+    packages.add(TradePackage(
+      teamOffering: teamName,
+      teamReceiving: targetTeam,
+      picksOffered: [bestPick],
+      targetPick: targetPick,
+      totalValueOffered: bestPickValue + futureValue,
+      targetPickValue: requiredValue,
+      includesFuturePick: true,
+      futurePickDescription: futureDesc,
+      futurePickValue: futureValue,
+    ));
+  }
+  
+  return packages;
+}
+
+/// Generate second round (33-64) trade packages
+List<TradePackage> _generateSecondRoundPackages(
+  String teamName,
+  List<DraftPick> teamPicks,
+  DraftPick targetPick,
+  double requiredValue,
+  DraftPick bestPick,
+  TeamTradingProfile profile
+) {
+  final List<TradePackage> packages = [];
+  final String targetTeam = targetPick.teamName;
+  
+  // Get value of best pick
+  final bestPickValue = DraftValueService.getValueForPick(bestPick.pickNumber);
+  
+  // Strategy 1: Simple one-for-one swap if close in value
+  if (bestPickValue >= requiredValue * 0.9) {
+    packages.add(TradePackage(
+      teamOffering: teamName,
+      teamReceiving: targetTeam,
+      picksOffered: [bestPick],
+      targetPick: targetPick,
+      totalValueOffered: bestPickValue,
+      targetPickValue: requiredValue,
+    ));
+  }
+  
+  // Strategy 2: Two-pick package (common approach)
+  if (teamPicks.length >= 2) {
+    final secondPick = teamPicks[1];
+    final combinedValue = bestPickValue + 
+                         DraftValueService.getValueForPick(secondPick.pickNumber);
+    
+    if (combinedValue >= requiredValue * 0.95) {
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick, secondPick],
+        targetPick: targetPick,
+        totalValueOffered: combinedValue,
+        targetPickValue: requiredValue,
+      ));
+    }
+  }
+  
+  // Strategy 3: Swap picks plus additional compensation
+  if (teamPicks.length >= 3 && targetPick.pickNumber <= 50) {
+    final secondPick = teamPicks[1];
+    final thirdPick = teamPicks[2];
+    
+    // Offer only one of the additional picks based on value needed
+    final secondPickValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+    final thirdPickValue = DraftValueService.getValueForPick(thirdPick.pickNumber);
+    
+    // Choose the pick that gets closest to required value without going too far over
+    double valueDiffWithSecond = (bestPickValue + secondPickValue) - requiredValue;
+    double valueDiffWithThird = (bestPickValue + thirdPickValue) - requiredValue;
+    
+    // Prefer positive but smaller value difference
+    if (valueDiffWithSecond >= 0 && 
+        (valueDiffWithThird < 0 || valueDiffWithSecond < valueDiffWithThird)) {
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick, secondPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue + secondPickValue,
+        targetPickValue: requiredValue,
+      ));
+    } else if (valueDiffWithThird >= 0) {
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick, thirdPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue + thirdPickValue,
+        targetPickValue: requiredValue,
+      ));
+    }
+  }
+  
+  // Strategy 4: Future pick strategy (less common in 2nd round)
+  if (profile.futurePickAffinity >= 0.7 && targetPick.pickNumber <= 45) {
+    // Only add future pick if single pick isn't close enough
+    if (bestPickValue < requiredValue * 0.85) {
+      const String futureDesc = "2026 Second Round";
+      final double futureValue = (requiredValue - bestPickValue) * 1.1;
+      
+      packages.add(TradePackage(
+        teamOffering: teamName,
+        teamReceiving: targetTeam,
+        picksOffered: [bestPick],
+        targetPick: targetPick,
+        totalValueOffered: bestPickValue + futureValue,
+        targetPickValue: requiredValue,
+        includesFuturePick: true,
+        futurePickDescription: futureDesc,
+        futurePickValue: futureValue,
+      ));
+    }
+  }
+  
+  return packages;
+}
 }
 
 /// Class to track team's interest in trading up

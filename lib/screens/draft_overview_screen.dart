@@ -1125,6 +1125,7 @@ extension DraftServiceExtensions on DraftService {
     }
     
     // Use the existing selection algorithm
-  return selectPlayerRStyle(teamNeed, nextPick);  }
+  return selectPlayerRStyle(teamNeed, nextPick.pickNumber);  
+  }
   
 }
