@@ -724,10 +724,10 @@ void _initiateUserTradeProposal() {
   void _autoSelectPlayer(DraftPick pick) {
     if (_draftService == null) return;
     
-    // Let the draft service select the best player
+    // Let the draft service select the best player 
     final player = _draftService!.selectBestPlayerForTeam(pick.teamName);
     
-    _selectPlayer(pick, player);
+    _selectPlayer(pick, player); 
   }
 
   void _restartDraft() {
