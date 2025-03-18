@@ -435,7 +435,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   // Visual indication of previously drafted position
-                                  backgroundColor: positionDrafted ? Colors.grey : Colors.green,
+                                  backgroundColor: positionDrafted ? Colors.green : Colors.green,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   minimumSize: const Size(0, 28),
                                 ),
