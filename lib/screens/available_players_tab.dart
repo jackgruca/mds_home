@@ -50,13 +50,23 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   void didUpdateWidget(AvailablePlayersTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    if (widget.teamSelectedPositions != oldWidget.teamSelectedPositions) {
+    // Reinitialize when positions or current team changes
+    if (widget.teamSelectedPositions != oldWidget.teamSelectedPositions ||
+        widget.userTeam != oldWidget.userTeam) {
       _initializeSelectedPlayers();
+      
+      // Debug logging
+      if (widget.userTeam != oldWidget.userTeam) {
+        debugPrint("Active team changed from ${oldWidget.userTeam} to ${widget.userTeam}");
+        _debugPositionTrackingStatus();
+      }
     }
   }
   
   void _initializeSelectedPlayers() {
     _selectedPlayerIds = {};
+    debugPrint("Initialized player selection for team: ${widget.userTeam}");
+    _debugPositionTrackingStatus();
   }
 
   // Check if a position has been drafted by the current team
@@ -66,6 +76,17 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
       return widget.teamSelectedPositions[widget.userTeam]!.contains(position);
     }
     return false;
+  }
+  
+  // Debug method to help trace position tracking issues
+  void _debugPositionTrackingStatus() {
+    debugPrint("==== POSITION TRACKING STATUS ====");
+    debugPrint("Current picking team: ${widget.userTeam}");
+    debugPrint("Teams with position data: ${widget.teamSelectedPositions.keys.join(", ")}");
+    widget.teamSelectedPositions.forEach((team, positions) {
+      debugPrint("$team drafted positions: ${positions.join(", ")}");
+    });
+    debugPrint("=================================");
   }
 
   @override
@@ -321,7 +342,14 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                 bool isSelected = _selectedPlayerIds.contains(player.id);
                 bool positionDrafted = isPositionDraftedByCurrentTeam(player.position);
                 
-                return Card(
+                                                  // Debug current player and position status for this card
+                                  if ((player.position == "QB" || player.position == "WR" || player.position == "RB") && widget.selectionEnabled) {
+                                    debugPrint(
+                                      "Position ${player.position} drafted by current team (${widget.userTeam})? " "${isPositionDraftedByCurrentTeam(player.position)}"
+                                    );
+                                  }
+                                  
+                                  return Card(
                   elevation: 1.0,
                   margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
                   shape: RoundedRectangleBorder(
@@ -333,8 +361,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       width: 1.0,
                     ),
                   ),
-                  // We're still applying visual styling for previously drafted positions
-                  // but not disabling the card functionality
+                  // Apply visual styling for previously drafted positions
                   color: isSelected ? 
                       (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100) : 
                       (positionDrafted ? 

@@ -172,17 +172,29 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
       teamPositions[teamName] = [];
     }
     
-    // Find all picks from user teams that have been made
-    for (var pick in _draftPicks.where((p) => p.selectedPlayer != null)) {
+    // Find all picks from all teams that have been made
+    for (var pick in _draftPicks.where((p) => p.selectedPlayer != null && p.isSelected)) {
       String teamName = pick.teamName;
-      // Only track for user teams
-      if (widget.selectedTeams!.contains(teamName)) {
+      // Only track for user-controlled teams
+      if (widget.selectedTeams != null && widget.selectedTeams!.contains(teamName)) {
         if (pick.selectedPlayer?.position != null) {
           teamPositions[teamName] ??= []; // Ensure list exists
           teamPositions[teamName]!.add(pick.selectedPlayer!.position);
         }
       }
     }
+  }
+  
+  // Debug log the result
+  if (widget.selectedTeams != null && widget.selectedTeams!.isNotEmpty) {
+    debugPrint("==== TEAM POSITIONS MAP ====");
+    teamPositions.forEach((team, positions) {
+      debugPrint("$team drafted positions: ${positions.join(", ")}");
+    });
+    if (_userNextPick != null) {
+      debugPrint("Current picking team: ${_userNextPick!.teamName}");
+    }
+    debugPrint("==========================");
   }
   
   return teamPositions;
@@ -1093,8 +1105,8 @@ Widget build(BuildContext context) {
                AvailablePlayersTab(
   availablePlayers: _availablePlayersLists,
   selectionEnabled: _isUserPickMode,
-  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // This only shows the first team
-  teamSelectedPositions: _getTeamSelectedPositions(), // This needs to be updated for multiple teams
+  userTeam: _userNextPick?.teamName, // Use the current picking team
+  teamSelectedPositions: _getTeamSelectedPositions(), // Pass the team positions map
   onPlayerSelected: (playerIndex) {
     // Fix selection logic to work with multiple teams
     if (_isUserPickMode && _userNextPick != null) {
