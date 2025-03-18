@@ -509,6 +509,13 @@ double _calculateTradeUpInterest(
   } else if (_secondaryPositions.contains(player.position)) {
     interestLevel += 0.05; // Secondary position boost
   }
+
+  int positionCount = availablePlayers.where((p) => p.position == player.position).length;
+    if (positionCount <= 2) {
+      interestLevel += 0.2; // Very scarce
+    } else if (positionCount <= 5) {
+      interestLevel += 0.1; // Somewhat scarce
+    }
   
   // 5. QB specific adjustments: Teams highly value QBs
   if (player.position == "QB" && qbInConsideration) {
@@ -1020,7 +1027,7 @@ double _calculateTradeUpInterest(
    final pickNumber = proposal.targetPick.pickNumber;
    
    // 1. Value-based acceptance probability
-   double acceptanceProbability = _calculateBaseAcceptanceProbability(valueRatio);
+   double acceptanceProbability = _getBaseAcceptanceProbability(valueRatio);
    
    // 2. Adjust for pick position premium
    acceptanceProbability = _adjustForPickPositionPremium(acceptanceProbability, pickNumber);
@@ -1075,23 +1082,15 @@ double _calculateTradeUpInterest(
  }
  
  // Get base acceptance probability based on value ratio
- double _calculateBaseAcceptanceProbability(double valueRatio) {
-   if (valueRatio >= 1.2) {
-     return 0.9;  // Excellent value (90% acceptance)
-   } else if (valueRatio >= 1.1) {
-     return 0.8;  // Very good value (80% acceptance)
-   } else if (valueRatio >= 1.05) {
-     return 0.7;  // Good value (70% acceptance)
-   } else if (valueRatio >= 1.0) {
-     return 0.6;  // Fair value (60% acceptance)
-   } else if (valueRatio >= 0.97) {
-     return 0.4;  // Slightly below value (40% acceptance)
-   } else if (valueRatio >= 0.95) {
-     return 0.2;  // Below value (20% acceptance)
-   } else {
-     return 0.05; // Poor value (5% acceptance)
-   }
- }
+ double _getBaseAcceptanceProbability(double valueRatio) {
+    if (valueRatio >= 1.2) return 0.9;       // Excellent value
+    else if (valueRatio >= 1.1) return 0.8;  // Very good value
+    else if (valueRatio >= 1.05) return 0.7; // Good value
+    else if (valueRatio >= 1.0) return 0.6;  // Fair value
+    else if (valueRatio >= 0.97) return 0.4; // Slightly below value
+    else if (valueRatio >= 0.95) return 0.2; // Below value
+    else return 0.05;                        // Poor value
+  }
  
  // Adjust acceptance probability based on pick position
  double _adjustForPickPositionPremium(double probability, int pickNumber) {

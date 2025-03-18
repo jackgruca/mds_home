@@ -66,16 +66,6 @@ class DraftService {
     101: 0.4, // Picks 101+: 40% value, 60% need
   };
 
-  // Method to get value/need ratio based on pick number
-  double _getValueNeedRatio(int pickNumber) {
-    // Find the appropriate tier
-    int tier = _pickPositionValueFactor.keys
-        .where((key) => key <= pickNumber)
-        .reduce(max);
-    
-    return _pickPositionValueFactor[tier] ?? 0.5;
-  }
-
   // Get prospect tier based on rank
   ProspectTier _getProspectTier(int rank) {
     if (rank <= 5) return ProspectTier.elite;
@@ -292,7 +282,7 @@ class DraftService {
     // If trading is disabled, skip trade evaluation
     if (!enableTrading) {
       // Select player using algorithm
-      Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
+      Player selectedPlayer = selectPlayerForTeam(nextPick, _getTeamNeeds(nextPick.teamName));
       nextPick.selectedPlayer = selectedPlayer;
       
       // Update simulation state
@@ -319,7 +309,7 @@ class DraftService {
     }
     
     // No trade - select a player
-    Player selectedPlayer = _selectBestPlayerForTeam(nextPick);
+    Player selectedPlayer = selectPlayerForTeam(nextPick, _getTeamNeeds(nextPick.teamName));
     nextPick.selectedPlayer = selectedPlayer;
     
     // Update simulation state
@@ -578,14 +568,216 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     
     return score;
   }
+  // Get value-to-need ratio based on pick position
+double _getValueNeedRatio(int pickNumber) {
+  // Early picks prioritize value, later picks prioritize need
+  if (pickNumber <= 10) return 0.9; // 90% value, 10% need
+  if (pickNumber <= 32) return 0.8; // 80% value, 20% need
+  if (pickNumber <= 64) return 0.7; // 70% value, 30% need
+  if (pickNumber <= 100) return 0.6; // 60% value, 40% need
+  return 0.5; // 50% value, 50% need for later picks
+}
 
+// Calculate position scarcity
+Map<String, int> _calculatePositionScarcity() {
+  Map<String, int> counts = {};
+  for (var player in availablePlayers) {
+    counts[player.position] = (counts[player.position] ?? 0) + 1;
+  }
+  return counts;
+}
+
+// Get position value multiplier based on positional importance
+double _getPositionValueMultiplier(String position, int pickNumber) {
+  // Base multipliers for premium positions
+  final baseMultipliers = {
+    'QB': 1.5, // Quarterbacks are highest value
+    'OT': 1.3, // Offensive tackles
+    'EDGE': 1.3, // Edge rushers
+    'CB': 1.2, // Cornerbacks
+    'WR': 1.15, // Wide receivers
+    'IDL': 1.1, // Interior defensive line
+    'S': 1.05, // Safeties
+    'TE': 1.0, // Tight ends
+    'IOL': 0.95, // Interior offensive line
+    'LB': 0.95, // Linebackers
+    'RB': 0.9, // Running backs
+  };
+  
+  // Get base multiplier (default 1.0 if not specified)
+  double multiplier = baseMultipliers[position] ?? 1.0;
+  
+  // Adjust multiplier based on pick position
+  if (position == 'QB') {
+    // QBs have higher value early, lower value later
+    if (pickNumber <= 10) {
+      multiplier += 0.2; // Even higher premium for top-10 QB
+    } else if (pickNumber > 100) {
+      multiplier -= 0.3; // Much less valuable late
+    }
+  } else if (position == 'RB') {
+    // RBs have lower value early, higher value later
+    if (pickNumber <= 32) {
+      multiplier -= 0.1; // Less valuable in 1st round
+    } else if (pickNumber > 100) {
+      multiplier += 0.1; // More valuable in later rounds
+    }
+  }
+  
+  return multiplier;
+}
+
+// Calculate need score based on team needs and pick position
+double _calculateNeedScore(String position, TeamNeed teamNeed, int pickNumber) {
+  int needIndex = teamNeed.needs.indexOf(position);
+  if (needIndex == -1) return 0; // Not a need
+  
+  // Calculate base need score (higher for higher needs)
+  double needScore = 100.0 * (1.0 - (needIndex / max(10, teamNeed.needs.length)));
+  
+  // Adjust need score based on pick position
+  if (pickNumber <= 15) {
+    // Very early picks: reduce need importance
+    needScore *= 0.7;
+  } else if (pickNumber <= 32) {
+    // First round: moderate need importance
+    needScore *= 0.8;
+  } else if (pickNumber <= 100) {
+    // Day 2: standard need importance
+    needScore *= 1.0;
+  } else {
+    // Day 3: increased need importance
+    needScore *= 1.2;
+  }
+  
+  return needScore;
+}
+
+// Calculate scarcity multiplier
+double _calculateScarcityMultiplier(String position, Map<String, int> positionCount) {
+  int count = positionCount[position] ?? 0;
+  
+  // More scarce positions get higher multiplier
+  if (count <= 2) return 1.2; // Very scarce
+  if (count <= 5) return 1.1; // Somewhat scarce
+  if (count >= 15) return 0.9; // Abundant
+  
+  return 1.0; // Default - moderate availability
+}
+
+// Check if position is premium
+bool _isPremiumPosition(String position) {
+  return ['QB', 'OT', 'EDGE', 'CB', 'WR'].contains(position);
+}
+
+// Apply controlled randomness based on pick position
+Player _selectWithControlledRandomness(List<ScoredPlayer> scoredPlayers, int pickNumber) {
+  // Base randomness levels
+  double randomnessFactor = this.randomnessFactor;
+  
+  // Adjust randomness based on pick position
+  if (pickNumber <= 5) {
+    randomnessFactor *= 0.2; // Very low randomness for top 5 picks
+  } else if (pickNumber <= 15) {
+    randomnessFactor *= 0.3; // Low randomness for top 15 picks
+  } else if (pickNumber <= 32) {
+    randomnessFactor *= 0.5; // Moderate randomness for 1st round
+  } else if (pickNumber <= 100) {
+    randomnessFactor *= 0.7; // Standard randomness for Day 2
+  }
+  
+  // Generate randomness-adjusted pool size
+  int poolSize = max(1, (scoredPlayers.length * randomnessFactor).ceil());
+  poolSize = min(poolSize, scoredPlayers.length);
+  
+  // Take only top candidates based on pool size
+  List<ScoredPlayer> candidates = scoredPlayers.take(poolSize).toList();
+  
+  // Create weighted probability distribution for selection
+  List<double> weights = [];
+  for (int i = 0; i < candidates.length; i++) {
+    // Exponentially decreasing weights
+    weights.add(pow(0.7, i).toDouble());
+  }
+  
+  // Normalize weights to sum to 1.0
+  double totalWeight = weights.reduce((a, b) => a + b);
+  for (int i = 0; i < weights.length; i++) {
+    weights[i] /= totalWeight;
+  }
+  
+  // Select based on weighted probability
+  double randVal = _random.nextDouble();
+  double cumulativeWeight = 0.0;
+  
+  for (int i = 0; i < candidates.length; i++) {
+    cumulativeWeight += weights[i];
+    if (randVal <= cumulativeWeight) {
+      return candidates[i].player;
+    }
+  }
+  
+  // Fallback to highest scored player
+  return candidates.first.player;
+}
   /// Select the best player for a team
-  Player _selectBestPlayerForTeam(DraftPick pick) {
-    // Get team needs
-    TeamNeed? teamNeed = _getTeamNeeds(pick.teamName);
+  Player selectPlayerForTeam(DraftPick pick, TeamNeed? teamNeed) {
+    // Get the pick number and determine value/need ratio based on draft position
+    final pickNumber = pick.pickNumber;
+    final valueNeedRatio = _getValueNeedRatio(pickNumber);
     
-    // Use enhanced player selection logic
-    return selectPlayerRStyle(teamNeed, pick);
+    // Initialize scoring for all available players
+    List<ScoredPlayer> scoredPlayers = [];
+    
+    // Track position scarcity for available players
+    Map<String, int> positionCount = _calculatePositionScarcity();
+    
+    // Score all available players
+    for (var player in availablePlayers) {
+      // 1. Base score from player's rank (higher rank = higher base score)
+      double score = 100.0 - player.rank;
+      if (score < 0) score = 0;
+      
+      // 2. Apply position value multiplier
+      final positionMultiplier = _getPositionValueMultiplier(player.position, pickNumber);
+      score *= positionMultiplier;
+      
+      // 3. Apply need bonus if applicable
+      double needScore = 0;
+      if (teamNeed != null) {
+        needScore = _calculateNeedScore(player.position, teamNeed, pickNumber);
+      }
+      
+      // 4. Apply scarcity pressure
+      final scarcityMultiplier = _calculateScarcityMultiplier(player.position, positionCount);
+      score *= scarcityMultiplier;
+      
+      // 5. Apply specific bonuses for exceptional talent
+      if (player.rank <= 5) {
+        score *= 1.4; // Elite talent bonus
+      } else if (player.rank <= 15) {
+        score *= 1.25; // Premium talent bonus
+      } else if (player.rank <= 32) {
+        score *= 1.1; // First-round talent bonus
+      }
+      
+      // 6. Calculate final weighted score with value/need balancing
+      final finalScore = (score * valueNeedRatio) + (needScore * (1 - valueNeedRatio));
+      
+      // Add to scored players list
+      scoredPlayers.add(ScoredPlayer(
+        player: player,
+        score: finalScore,
+        isNeed: teamNeed != null && teamNeed.needs.contains(player.position),
+        isPremium: _isPremiumPosition(player.position),
+      ));
+    }
+    
+    // Sort players by final score (descending)
+    scoredPlayers.sort((a, b) => b.score.compareTo(a.score));
+    
+    // Apply controlled randomness based on pickNumber
+    return _selectWithControlledRandomness(scoredPlayers, pickNumber);
   }
 
   // Modified player selection implementation
@@ -990,4 +1182,19 @@ void generateUserPickOffers() {
   bool isDraftComplete() {
     return draftOrder.where((pick) => pick.isActiveInDraft).every((pick) => pick.isSelected);
   }
+}
+
+// Helper class for scored players
+class ScoredPlayer {
+  final Player player;
+  final double score;
+  final bool isNeed;
+  final bool isPremium;
+  
+  ScoredPlayer({
+    required this.player,
+    required this.score,
+    required this.isNeed,
+    required this.isPremium,
+  });
 }
