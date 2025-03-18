@@ -470,6 +470,9 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
 
   // Method to update position scarcity after each selection
   void _updatePositionScarcity(String position) {
+    const debugMode = true; // Keep consistent with other debug flags
+    double oldScarcity = _positionScarcity[position] ?? 1.0;
+    
     // Increase scarcity for the selected position
     _positionScarcity[position] = (_positionScarcity[position] ?? 1.0) * 1.03;
     
@@ -479,16 +482,39 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     // Slightly decrease scarcity for other positions
     for (var pos in _positionScarcity.keys) {
       if (pos != position) {
+        double oldPosScarcity = _positionScarcity[pos] ?? 1.0;
         _positionScarcity[pos] = max(1.0, (_positionScarcity[pos] ?? 1.0) * 0.99);
+        
+        if (debugMode && (_positionScarcity[pos]! - oldPosScarcity).abs() > 0.001) {
+          debugPrint("Scarcity adjustment for $pos: ${oldPosScarcity.toStringAsFixed(3)} → ${_positionScarcity[pos]!.toStringAsFixed(3)}");
+        }
       }
+    }
+    
+    if (debugMode) {
+      debugPrint("Position scarcity updated for $position: ${oldScarcity.toStringAsFixed(3)} → ${_positionScarcity[position]!.toStringAsFixed(3)}");
     }
   }
 
   // Then, modifying the selectPlayerRStyle method:
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
+      const debugMode = true; // Toggle this to enable/disable debugging
+      final StringBuffer debugLog = StringBuffer();
+      if (debugMode) {
+        debugLog.writeln("\n----------- PLAYER SELECTION DEBUG -----------");
+        debugLog.writeln("Team: ${teamNeed?.teamName ?? 'Unknown'} | Pick #${nextPick.pickNumber}");
+        if (teamNeed != null) {
+          debugLog.writeln("Team Needs: ${teamNeed.needs.join(', ')}");
+        }
+  }
+
     // If team has no needs defined, use best player available
     if (teamNeed == null || teamNeed.needs.isEmpty) {
-      return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
+      if (debugMode) debugLog.writeln("No team needs defined, selecting best player available");
+      Player selected = _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
+      if (debugMode) debugLog.writeln("Selected: ${selected.name} (${selected.position}) - Rank #${selected.rank}");
+      if (debugMode) debugPrint(debugLog.toString());
+      return selected;
     }
     
     // Calculate round based on pick number (1-indexed)
@@ -496,10 +522,16 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     
     // Get needs based on round (only consider round+3 needs)
     int needsToConsider = min(round + 3, teamNeed.needs.length);
+
+    if (debugMode) {
+      debugLog.writeln("Round: $round | Considering top $needsToConsider needs");
+      debugLog.writeln("Relevant needs: ${teamNeed.needs.take(needsToConsider).toList()}");
+    }
     
     // Generate selections for each need, but with positional weighting
     Map<Player, double> playerScores = {};
-    
+    Map<Player, Map<String, double>> playerScoreDetails = {}; // Store detailed scoring for debugging
+
     // First, evaluate available players against team needs
     for (int i = 0; i < needsToConsider; i++) {
       if (i < teamNeed.needs.length) {
@@ -508,6 +540,8 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
         // Skip empty needs
         if (needPosition == "-" || needPosition.isEmpty) continue;
         
+        if (debugMode) debugLog.writeln("\nEvaluating need: $needPosition (Priority: ${i+1})");
+
         // Find candidates for this position
         final positionCandidates = availablePlayers
           .where((p) => p.position.contains(needPosition) || 
@@ -516,7 +550,10 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
           .where((p) => p.rank <= nextPick.pickNumber + 25)
           .toList();
         
-        if (positionCandidates.isEmpty) continue;
+        if (positionCandidates.isEmpty) {
+          if (debugMode) debugLog.writeln("  No candidates found for position: $needPosition");
+          continue;
+        }
         
         // Sort by rank
         positionCandidates.sort((a, b) => a.rank.compareTo(b.rank));
@@ -526,6 +563,11 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
         
         // Get current scarcity factor
         double scarcityFactor = _positionScarcity[needPosition] ?? 1.0;
+
+        if (debugMode) {
+          debugLog.writeln("  Position weight: $posWeight | Scarcity factor: $scarcityFactor");
+          debugLog.writeln("  Top candidates for $needPosition:");
+        }
         
         // Process top 3 candidates for this position
         for (var player in positionCandidates.take(3)) {
@@ -544,15 +586,27 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
           else if (nextPick.pickNumber <= 15) pickFactor = 0.1;
           else if (nextPick.pickNumber <= 32) pickFactor = 0.05;
           
+          // Store all scoring components for debugging
+          Map<String, double> scoreComponents = {
+            'needFactor': needFactor * 0.4,
+            'valueScore': valueScore * 0.3,
+            'positionWeight': posWeight * 0.2,
+            'scarcityFactor': scarcityFactor * 0.1,
+            'pickFactor': pickFactor
+          };
+
           // Calculate player score
-          double score = (needFactor * 0.4) + // Need impact
-                        (valueScore * 0.3) + // Value impact
-                        (posWeight * 0.2) +  // Position impact
-                        (scarcityFactor * 0.1) + // Scarcity impact
-                        pickFactor;          // Pick position impact
+          double score = scoreComponents.values.reduce((a, b) => a + b);
                         
           // Store score
           playerScores[player] = score;
+          playerScoreDetails[player] = scoreComponents;
+        
+          if (debugMode) {
+            debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
+            debugLog.writeln("    Need Factor: ${(needFactor * 0.4).toStringAsFixed(3)} | Value Score: ${(valueScore * 0.3).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.2).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.1).toStringAsFixed(3)} | Pick Factor: ${pickFactor.toStringAsFixed(3)}");
+            debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
+          }
         }
       }
     }
@@ -562,6 +616,8 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
         .where((p) => p.rank <= min(50, nextPick.pickNumber + 15))
         .take(5)
         .toList();
+
+    if (debugMode) debugLog.writeln("\nEvaluating Top 5 BPA candidates:");
         
     for (var player in topPlayers) {
       // Skip if already evaluated through needs
@@ -580,28 +636,57 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
           : max(-0.5, valueGap / 20);
       
       // BPA gets a boost but need factor is low
-      double needFactor = 0.2; // Low since not in needs list
+      double needFactor = 0.4; // Low since not in needs list
+      
+      // Store all scoring components for debugging
+      Map<String, double> scoreComponents = {
+        'needFactor': needFactor * 0.3,
+        'valueScore': valueScore * 0.5,
+        'positionWeight': posWeight * 0.15,
+        'scarcityFactor': scarcityFactor * 0.05
+      };
       
       // Calculate score with higher value emphasis
-      double score = (needFactor * 0.3) + // Lower need impact
-                    (valueScore * 0.5) + // Higher value impact
-                    (posWeight * 0.15) + // Position impact
-                    (scarcityFactor * 0.05); // Scarcity impact
+      double score = scoreComponents.values.reduce((a, b) => a + b);
       
       // Store score
       playerScores[player] = score;
+      playerScoreDetails[player] = scoreComponents;
+    
+      if (debugMode) {
+        debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
+        debugLog.writeln("    Need Factor: ${(needFactor * 0.3).toStringAsFixed(3)} | Value Score: ${(valueScore * 0.5).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.15).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.05).toStringAsFixed(3)}");
+        debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
+      }
     }
     
     // If no players evaluated, fall back to best available
     if (playerScores.isEmpty) {
-      return _selectBestPlayerAvailable(nextPick.pickNumber);
+      if (debugMode) debugLog.writeln("\nNo players evaluated, falling back to best available");
+      Player selected = _selectBestPlayerAvailable(nextPick.pickNumber);
+      if (debugMode) {
+        debugLog.writeln("Selected: ${selected.name} (${selected.position}) - Rank #${selected.rank}");
+        debugPrint(debugLog.toString());
+      }
+      return selected;
     }
+
     
     // Add randomness to each score
     Map<Player, double> finalScores = {};
+
+    if (debugMode) debugLog.writeln("\nAdding randomness to scores:");
+
     for (var entry in playerScores.entries) {
-      double randomFactor = _random.nextDouble() * 0.3 - 0.15; // -0.15 to +0.15
+      //double randomFactor = _random.nextDouble() * 0.3 - 0.15; // -0.15 to +0.15
+      //finalScores[entry.key] = entry.value + randomFactor;
+      double randomnessRange = 0.3 * randomnessFactor; // 0.3 is the maximum range
+      double randomFactor = (_random.nextDouble() * randomnessRange) - (randomnessRange / 2);
       finalScores[entry.key] = entry.value + randomFactor;
+    
+      if (debugMode) {
+        debugLog.writeln("  ${entry.key.name}: Base score ${entry.value.toStringAsFixed(3)} + Random ${randomFactor.toStringAsFixed(3)} = Final ${finalScores[entry.key]!.toStringAsFixed(3)}");
+      }
     }
     
     // Find player with highest score
@@ -610,6 +695,23 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     
     // Update position scarcity after selection
     _updatePositionScarcity(bestPlayer.position);
+
+    if (debugMode) {
+      // Print all player scores in order for comparison
+      debugLog.writeln("\nFinal player rankings:");
+      List<MapEntry<Player, double>> sortedEntries = finalScores.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+        
+      for (int i = 0; i < min(sortedEntries.length, 5); i++) {
+        var entry = sortedEntries[i];
+        String indicator = entry.key == bestPlayer ? " ★ SELECTED" : "";
+        debugLog.writeln("  ${i+1}. ${entry.key.name} (${entry.key.position}) - Score: ${entry.value.toStringAsFixed(3)}$indicator");
+      }
+      
+      debugLog.writeln("\nSELECTION RESULT: ${bestPlayer.name} (${bestPlayer.position}) - Rank #${bestPlayer.rank}");
+      debugLog.writeln("----------- END DEBUG -----------\n");
+      debugPrint(debugLog.toString());
+    }
     
     return bestPlayer;
   }
@@ -761,6 +863,14 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   
   /// Select the best player with appropriate randomness factor for draft position
   Player _selectBestPlayerWithRandomness(List<Player> players, int pickNumber) {
+    const debugMode = true; // Keep consistent with the main function
+    final StringBuffer debugLog = StringBuffer();
+    
+    if (debugMode) {
+      debugLog.writeln("\n----------- RANDOMNESS SELECTION DEBUG -----------");
+      debugLog.writeln("Pick #$pickNumber | Using Best Player Available with Randomness");
+    }
+    
     if (players.isEmpty) {
       throw Exception('No players available for selection');
     }
@@ -770,6 +880,11 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     
     // With no randomness, just return the top player
     if (randomnessFactor <= 0.0) {
+      if (debugMode) {
+        debugLog.writeln("Randomness is disabled, selecting top player");
+        debugLog.writeln("Selected: ${players.first.name} (${players.first.position}) - Rank #${players.first.rank}");
+        debugPrint(debugLog.toString());
+      }
       return players.first;
     }
     
@@ -790,6 +905,11 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
       effectiveRandomness = randomnessFactor * 0.75;
     }
     
+    if (debugMode) {
+      debugLog.writeln("Base randomness factor: $randomnessFactor");
+      debugLog.writeln("Effective randomness for pick #$pickNumber: $effectiveRandomness");
+    }
+
     // Calculate how many players to consider in the pool
     int poolSize = max(1, (players.length * effectiveRandomness).round());
     poolSize = min(poolSize, players.length); // Don't exceed list length
@@ -798,10 +918,27 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     if (pickNumber <= 3) {
       poolSize = min(2, poolSize); // At most consider top 2 players
     }
+
+    if (debugMode) {
+      debugLog.writeln("Pool size: $poolSize players");
+      debugLog.writeln("Available players in pool:");
+      for (int i = 0; i < poolSize; i++) {
+        debugLog.writeln("  ${i+1}. ${players[i].name} (${players[i].position}) - Rank #${players[i].rank}");
+      }
+    }
     
     // Select a random player from the top poolSize players
     int randomIndex = _random.nextInt(poolSize);
-    return players[randomIndex];
+    Player selectedPlayer = players[randomIndex];
+    
+    if (debugMode) {
+      debugLog.writeln("Random selection index: $randomIndex");
+      debugLog.writeln("Selected: ${selectedPlayer.name} (${selectedPlayer.position}) - Rank #${selectedPlayer.rank}");
+      debugLog.writeln("----------- END RANDOMNESS DEBUG -----------\n");
+      debugPrint(debugLog.toString());
+    }
+    
+    return selectedPlayer;
   }
     
   // Randomization helper functions (from R code)
