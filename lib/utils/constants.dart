@@ -85,7 +85,7 @@ class NFLTeamMappings {
     "Green Bay Packers": "GB",
     "Houston Texans": "HOU",
     "Indianapolis Colts": "IND",
-    "Jacksonville Jaguars": "JAX",
+    "Jacksonville Jaguars": "JAC",
     "Kansas City Chiefs": "KC",
     "Las Vegas Raiders": "LV",
     "Los Angeles Chargers": "LAC",
