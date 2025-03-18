@@ -32,6 +32,18 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   bool _showAnalytics = true;
   bool _showFeedbackBanner = true;  // Define this in your state class
 
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedTeams.length == NFLTeams.allTeams.length) {
+        // If all teams are selected, deselect all
+        _selectedTeams.clear();
+      } else {
+        // Otherwise, select all teams
+        _selectedTeams.clear();
+        _selectedTeams.addAll(NFLTeams.allTeams);
+      }
+    });
+  }
 
   // NFL divisions and conferences
   final Map<String, List<String>> _afcDivisions = {
@@ -190,6 +202,59 @@ Future<void> _loadUserPreferences() async {
                   });
                 },
               ),
+
+            // Add Select All toggle
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? 
+                  Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade100,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).brightness == Brightness.dark ? 
+                      Colors.grey.shade700 : Colors.grey.shade300,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: Checkbox(
+                      value: _selectedTeams.isNotEmpty && _selectedTeams.length == NFLTeams.allTeams.length,
+                      onChanged: (_) => _toggleSelectAll(),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: _toggleSelectAll,
+                    child: Text(
+                      'Select All Teams',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark ? 
+                          Colors.blue.shade300 : Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${_selectedTeams.length} teams selected',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).brightness == Brightness.dark ? 
+                        Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // Team selection indicator if a team is selected
             if (_selectedTeams.isNotEmpty)

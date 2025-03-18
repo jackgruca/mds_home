@@ -371,7 +371,7 @@ Future<void> _loadData() async {
         
         setState(() {
           _isDraftRunning = false; // Pause the draft
-          _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
+          _statusMessage = "${nextPick.teamName} Pick: Select from the Available Players tab";
           _isUserPickMode = true;
           _userNextPick = nextPick;
         });
@@ -1049,7 +1049,9 @@ Widget build(BuildContext context) {
                     color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                   const SizedBox(width: 4),
                   Text(
-                    '${widget.selectedTeams}:',  
+                    widget.selectedTeams!.length == 1 
+                      ? 'Team: ${widget.selectedTeams!.first}'
+                      : 'Teams: ${widget.selectedTeams!.length}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
