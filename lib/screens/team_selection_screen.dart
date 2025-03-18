@@ -22,7 +22,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 2.0;
   double _randomness = 0.4;
-  String? _selectedTeam;
+  final Set<String> _selectedTeams = {};
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
 
@@ -64,10 +64,10 @@ Future<void> _loadUserPreferences() async {
   if (user == null) return;
   
   // Load favorite teams if none selected yet
-  if (_selectedTeam == null && user.favoriteTeams != null && user.favoriteTeams!.isNotEmpty) {
+  if (_selectedTeams.isEmpty && user.favoriteTeams != null && user.favoriteTeams!.isNotEmpty) {
     setState(() {
       // Set the first favorite team as the selected team
-      _selectedTeam = user.favoriteTeams!.first;
+      _selectedTeams.add(user.favoriteTeams!.first);
     });
   }
   
@@ -192,7 +192,7 @@ Future<void> _loadUserPreferences() async {
               ),
 
             // Team selection indicator if a team is selected
-            if (_selectedTeam != null)
+            if (_selectedTeams.isNotEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -203,7 +203,7 @@ Future<void> _loadUserPreferences() async {
                     const Icon(Icons.sports_football, color: Colors.green, size: 16.0),
                     const SizedBox(width: 8.0),
                     Text(
-                      'You are controlling: $_selectedTeam',
+                      'You are controlling: ${_selectedTeams.length} ${_selectedTeams.length == 1 ? 'team' : 'teams'}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
@@ -213,7 +213,6 @@ Future<void> _loadUserPreferences() async {
                   ],
                 ),
               ),
-            
             // Team selection area (expanded)
             Expanded(
               child: Row(
@@ -282,7 +281,7 @@ Future<void> _loadUserPreferences() async {
                                     // Team row (all 4 teams in one row)
                                     Row(
                                       children: teams.map((team) {
-                                        final isSelected = _selectedTeam == team;
+                                        final isSelected = _selectedTeams.contains(team);
                                         final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
                                         
                                         return Expanded(
@@ -366,7 +365,11 @@ Future<void> _loadUserPreferences() async {
                                                         borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
                                                         onTap: () {
                                                           setState(() {
-                                                            _selectedTeam = team;
+                                                            if (_selectedTeams.contains(team)) {
+                                                              _selectedTeams.remove(team);
+                                                            } else {
+                                                              _selectedTeams.add(team);
+                                                            }
                                                           });
                                                         },
                                                         splashColor: Colors.blue.withOpacity(0.2),
@@ -471,7 +474,7 @@ Future<void> _loadUserPreferences() async {
                                     // Team row (all 4 teams in one row)
                                     Row(
                                       children: teams.map((team) {
-                                        final isSelected = _selectedTeam == team;
+                                        final isSelected = _selectedTeams.contains(team);
                                         final abbr = NFLTeamMappings.fullNameToAbbreviation[team] ?? '';
                                         
                                         return Expanded(
@@ -555,7 +558,11 @@ Future<void> _loadUserPreferences() async {
                                                         borderRadius: BorderRadius.circular(isSelected ? 8.0 : 24.0),
                                                         onTap: () {
                                                           setState(() {
-                                                            _selectedTeam = team;
+                                                            if (_selectedTeams.contains(team)) {
+                                                              _selectedTeams.remove(team);
+                                                            } else {
+                                                              _selectedTeams.add(team);
+                                                            }
                                                           });
                                                         },
                                                         splashColor: Colors.blue.withOpacity(0.2),
@@ -999,7 +1006,7 @@ Future<void> _loadUserPreferences() async {
                       child: SizedBox(
                         height: 40.0,
                         child: ElevatedButton(
-                          onPressed: _selectedTeam != null ? _startDraft : null,
+                          onPressed: _selectedTeams.isNotEmpty ? _startDraft : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],
                             foregroundColor: Colors.white,
@@ -1030,26 +1037,18 @@ Future<void> _loadUserPreferences() async {
   }
   
   void _startDraft() {
-    debugPrint("Starting draft for year: $_selectedYear");
-    debugPrint("Selected team (full name): $_selectedTeam");
-    
+    // Log analytics
     AnalyticsService.logEvent('draft_started', parameters: {
-      'team': _selectedTeam,
+      'teams': _selectedTeams.join(','),
+      'team_count': _selectedTeams.length,
       'rounds': _numberOfRounds,
       'year': _selectedYear,
     });
 
-    // Determine the team identifier to use
-    String? teamIdentifier;
-    if (_selectedTeam != null) {
-      // If a full team name is selected, use its abbreviation if available
-      teamIdentifier = NFLTeamMappings.fullNameToAbbreviation[_selectedTeam];
-      
-      // If no abbreviation found, use the full name
-      teamIdentifier ??= _selectedTeam;
-      
-      debugPrint("Using team identifier: $teamIdentifier");
-    }
+    // Convert to list of team identifiers
+    List<String> teamIdentifiers = _selectedTeams.map((team) {
+      return NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
+    }).toList();
     
     Navigator.push(
       context,
@@ -1058,7 +1057,7 @@ Future<void> _loadUserPreferences() async {
           randomnessFactor: _randomness,
           numberOfRounds: _numberOfRounds,
           speedFactor: _speed,
-          selectedTeam: teamIdentifier,
+          selectedTeams: teamIdentifiers, // Pass list instead of single team
           draftYear: _selectedYear,
           enableTrading: _enableTrading,
           enableUserTradeProposals: _enableUserTradeProposals,

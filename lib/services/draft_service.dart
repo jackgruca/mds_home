@@ -20,7 +20,7 @@ class DraftService {
   
   // Draft settings
   final double randomnessFactor;
-  final String? userTeam;
+  final List<String>? userTeams;
   final int numberRounds;
   
   // Trade service
@@ -64,7 +64,7 @@ class DraftService {
     required this.draftOrder,
     required this.teamNeeds,
     this.randomnessFactor = 0.4,
-    this.userTeam,
+    this.userTeams,
     this.numberRounds = 1, 
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
@@ -78,7 +78,7 @@ class DraftService {
       draftOrder: draftOrder,
       teamNeeds: teamNeeds,
       availablePlayers: availablePlayers,
-      userTeam: userTeam,
+      userTeams: selectedTeams,
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
@@ -172,7 +172,7 @@ class DraftService {
     _qbTrade = false;
       
     // Check if this is a user team pick
-    if (userTeam != null && nextPick.teamName == userTeam) {
+    if (userTeams != null && userTeams!.contains(nextPick.teamName)) {
       // Generate trade offers for the user to consider
       _generateUserTradeOffers(nextPick);
       
@@ -312,7 +312,7 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
   /// Evaluate if we should try a QB-specific trade scenario
 bool _evaluateQBTradeScenario(DraftPick nextPick) {
   // Skip QB trade logic for user team picks
-  if (nextPick.teamName == userTeam) return false;
+  if (userTeams != null && userTeams!.contains(nextPick.teamName)) return false;
   
   // Get team needs for the team with the current pick
   TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
@@ -972,7 +972,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   
   /// Generate user-initiated trade offers to AI teams
   void generateUserTradeOffers() {
-    if (userTeam == null || !enableUserTradeProposals) {
+    if (userTeams == null || userTeams!.isEmpty || !enableUserTradeProposals) {
       _pendingUserOffers.clear();
       return;
     }
@@ -985,7 +985,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     if (nextPick == null) return;
     
     // Only generate offers if it's the user's current pick
-    if (nextPick.teamName == userTeam) {
+    if (userTeams != null && userTeams!.contains(nextPick.teamName)) {
       nextUserPick = nextPick;
     } else {
       // Clear any existing offers since it's not the user's turn
