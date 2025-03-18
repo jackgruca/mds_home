@@ -1369,7 +1369,7 @@ double _calculateTradeUpInterest(
      
      if (hasNeedMatch) {
        final options = [
-         "We have our eye on a specific player at this position.",
+         "We have our eye on a specific player at this position." ,
          "We believe we can address a key roster need with this selection.",
          "Our scouts are high on a player that should be available here.",
          "We have immediate needs that we're planning to address with this pick.",
