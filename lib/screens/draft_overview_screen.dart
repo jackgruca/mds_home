@@ -99,7 +99,13 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 
   // Add this method
   void _handleTabChange() {
-    // For now this is empty, but will be useful for the Draft Summary tab implementation
+    // When tab changes to draft order tab (index 0), scroll to current pick
+    if (_tabController.index == 0) {
+      // Small delay to ensure the tab view is ready
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _scrollToCurrentPick();
+      });
+    }
   }
 
   // Add a method to update the active user team
@@ -124,40 +130,40 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   }
 
   void _scrollToCurrentPick() {
-    if (!_draftOrderScrollController.hasClients || _draftService == null) return;
-    
-    // Get the current pick
-    DraftPick? currentPick = _draftService!.getNextPick();
-    if (currentPick == null) return;
-    
-    // Get the active (displayed) picks
-    final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
-    
-    // Find the current pick's position
-    int currentPickIndex = displayedPicks.indexWhere(
-      (pick) => pick.pickNumber == currentPick.pickNumber
-    );
-    
-    if (currentPickIndex == -1) return; // Not found
-    
-    // Calculate position
-    const double itemHeight = 72.0;
-    double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-    double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-    
-    // Enforce bounds
-    targetPosition = targetPosition.clamp(
-      0.0, 
-      _draftOrderScrollController.position.maxScrollExtent
-    );
-    
-    // Animate to the position
-    _draftOrderScrollController.animateTo(
-      targetPosition,
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
-    );
-  }
+  if (!_draftOrderScrollController.hasClients || _draftService == null) return;
+  
+  // Get the current pick
+  DraftPick? currentPick = _draftService!.getNextPick();
+  if (currentPick == null) return;
+  
+  // Get the active (displayed) picks
+  final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
+  
+  // Find the current pick's position
+  int currentPickIndex = displayedPicks.indexWhere(
+    (pick) => pick.pickNumber == currentPick.pickNumber
+  );
+  
+  if (currentPickIndex == -1) return; // Not found
+  
+  // Calculate position
+  const double itemHeight = 72.0;
+  double viewportHeight = _draftOrderScrollController.position.viewportDimension;
+  double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+  
+  // Enforce bounds
+  targetPosition = targetPosition.clamp(
+    0.0, 
+    _draftOrderScrollController.position.maxScrollExtent
+  );
+  
+  // Animate to the position
+  _draftOrderScrollController.animateTo(
+    targetPosition,
+    duration: const Duration(milliseconds: 600),
+    curve: Curves.easeOutCubic,
+  );
+}
 
   Future<void> _initializeServices() async {
   try {
@@ -298,26 +304,7 @@ Future<void> _loadData() async {
       // Short delay to allow UI to update
       Future.delayed(const Duration(milliseconds: 200), () {
         if (_draftOrderScrollController.hasClients && _draftService != null) {
-          // Use the same scrolling logic as above to center the first pick
-          DraftPick? firstPick = _draftService!.getNextPick();
-          if (firstPick == null) return;
-          
-          final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
-          int firstPickIndex = displayedPicks.indexWhere((pick) => pick.pickNumber == firstPick.pickNumber);
-          
-          if (firstPickIndex == -1) return;
-          
-          const double itemHeight = 72.0;
-          final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-          double targetPosition = (firstPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-          
-          targetPosition = targetPosition.clamp(0.0, _draftOrderScrollController.position.maxScrollExtent);
-          
-          _draftOrderScrollController.animateTo(
-            targetPosition,
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOutCubic,
-          );
+          _scrollToCurrentPick();
         }
       });
     }
@@ -419,39 +406,7 @@ Future<void> _loadData() async {
     if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
       // Short delay to allow state to update
       Future.delayed(const Duration(milliseconds: 100), () {
-        if (!_draftOrderScrollController.hasClients) return;
-        
-        // Get the newly processed pick
-        DraftPick? currentPick = _draftService!.getNextPick();
-        if (currentPick == null) return;
-        
-        // Get displayed picks
-        final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
-        
-        // Find current pick index
-        int currentPickIndex = displayedPicks.indexWhere(
-          (pick) => pick.pickNumber == currentPick.pickNumber
-        );
-        
-        if (currentPickIndex == -1) return; // Not found
-        
-        // Center the current pick
-        const double itemHeight = 72.0;
-        final double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-        double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
-        
-        // Enforce bounds
-        targetPosition = targetPosition.clamp(
-          0.0, 
-          _draftOrderScrollController.position.maxScrollExtent
-        );
-        
-        // Smooth scroll
-        _draftOrderScrollController.animateTo(
-          targetPosition,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-        );
+        _scrollToCurrentPick();
       });
     }
         if (_draftService != null) {
@@ -762,19 +717,17 @@ void _initiateUserTradeProposal() {
     _tabController.animateTo(0);
     
     // Continue the draft after a brief pause
-    Future.delayed(
-      const Duration(milliseconds: 500), 
-      _processDraftPick
-    );
+    Future.delayed(const Duration(milliseconds: 100), _scrollToCurrentPick);
+
   }
 
   void _autoSelectPlayer(DraftPick pick) {
     if (_draftService == null) return;
     
-    // Let the draft service select the best player
+    // Let the draft service select the best player 
     final player = _draftService!.selectBestPlayerForTeam(pick.teamName);
     
-    _selectPlayer(pick, player);
+    _selectPlayer(pick, player); 
   }
 
   void _restartDraft() {
