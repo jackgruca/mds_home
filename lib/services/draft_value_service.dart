@@ -222,7 +222,15 @@ static double getValueForPick(int pickNumber) {
   
   /// Helper to calculate the round from a pick number
   static int getRoundForPick(int pickNumber) {
-    return ((pickNumber - 1) / 32).floor() + 1;
+    // Define the pick ranges for each round (inclusive bounds)
+    if (pickNumber <= 32) return 1;      // Round 1: picks 1-32
+    if (pickNumber <= 64) return 2;      // Round 2: picks 33-64
+    if (pickNumber <= 102) return 3;     // Round 3: picks 65-105
+    if (pickNumber <= 138) return 4;     // Round 4: picks 106-143
+    if (pickNumber <= 176) return 5;     // Round 5: picks 144-184
+    if (pickNumber <= 216) return 6;     // Round 6: picks 185-224
+    if (pickNumber <= 257) return 7;     // Round 7: picks 225-262
+    return 8; // Any picks beyond 262 would be in hypothetical later rounds
   }
   
   /// Create a draft value string representation

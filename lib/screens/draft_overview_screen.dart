@@ -211,7 +211,8 @@ Future<void> _loadData() async {
     // Mark which picks are active in the current draft (based on selected rounds)
     // but keep all picks for trading purposes
     for (var pick in allDraftPicks) {
-      int round = int.tryParse(pick.round) ?? 1;
+      // Calculate the round using the accurate method instead of relying on the stored round
+      int round = DraftValueService.getRoundForPick(pick.pickNumber);
       pick.isActiveInDraft = round <= widget.numberOfRounds;
     }
     

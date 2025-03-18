@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
+import '../../services/draft_value_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/player/player_details_dialog.dart';
 import '../../utils/mock_player_data.dart';
@@ -377,21 +378,25 @@ void _showPlayerDetails(BuildContext context, Player player) {
   
   Color _getPickNumberColor() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Get the round using the service method
+    int round = DraftValueService.getRoundForPick(widget.draftPick.pickNumber);
+
     // Different colors for each round with dark mode adjustments
-    switch (widget.draftPick.round) {
-      case '1':
+    switch (round) {
+      case 1:
         return isDarkMode ? Colors.blue.shade600 : Colors.blue.shade700;
-      case '2':
+      case 2:
         return isDarkMode ? Colors.green.shade600 : Colors.green.shade700;
-      case '3':
+      case 3:
         return isDarkMode ? Colors.orange.shade600 : Colors.orange.shade700;
-      case '4':
+      case 4:
         return isDarkMode ? Colors.purple.shade600 : Colors.purple.shade700;
-      case '5':
+      case 5:
         return isDarkMode ? Colors.red.shade600 : Colors.red.shade700;
-      case '6':
+      case 6:
         return isDarkMode ? Colors.teal.shade600 : Colors.teal.shade700;
-      case '7':
+      case 7:
         return isDarkMode ? Colors.brown.shade600 : Colors.brown.shade700;
       default:
         return isDarkMode ? Colors.grey.shade600 : Colors.grey.shade700;
