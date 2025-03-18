@@ -75,7 +75,9 @@ class _MyAppState extends State<MyApp> {
           routes: {
             // Remove the '/' route if it exists
             '/draft': (context) => DraftApp(
-              selectedTeam: ModalRoute.of(context)?.settings.arguments as String?,
+              selectedTeams: ModalRoute.of(context)?.settings.arguments != null 
+              ? [ModalRoute.of(context)?.settings.arguments as String] 
+              : null,
             ),
             // Other routes...
           },

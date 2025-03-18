@@ -78,11 +78,26 @@ class DraftService {
       draftOrder: draftOrder,
       teamNeeds: teamNeeds,
       availablePlayers: availablePlayers,
-      userTeams: selectedTeams,
+      userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
   }
+
+// Also update the getOtherTeamPicks method to handle list of teams
+List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
+  if (excludeTeams == null || excludeTeams.isEmpty) {
+    // If no teams to exclude, return all picks
+    return draftOrder.where((pick) => 
+      !pick.isSelected
+    ).toList();
+  }
+  
+  // Include ALL picks for trading, not just active ones, excluding the teams in the list
+  return draftOrder.where((pick) => 
+    !excludeTeams.contains(pick.teamName) && !pick.isSelected
+  ).toList();
+}
   
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
@@ -1051,14 +1066,6 @@ void generateUserPickOffers() {
     // Include ALL picks for trading, not just active ones
     return draftOrder.where((pick) => 
       pick.teamName == teamName && !pick.isSelected
-    ).toList();
-  }
-  
-  /// Get picks from all other teams
-  List<DraftPick> getOtherTeamPicks(String excludeTeam) {
-    // Include ALL picks for trading, not just active ones
-    return draftOrder.where((pick) => 
-      pick.teamName != excludeTeam && !pick.isSelected
     ).toList();
   }
   

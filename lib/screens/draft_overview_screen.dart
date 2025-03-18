@@ -231,7 +231,7 @@ Future<void> _loadData() async {
       draftOrder: allDraftPicks,  // Use all picks for the draft service
       teamNeeds: teamNeeds,
       randomnessFactor: widget.randomnessFactor,
-      userTeams: widget.selectedTeams,
+      userTeams: widget.selectedTeams,  // Pass the list of selected teams
       numberRounds: widget.numberOfRounds,
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
@@ -440,7 +440,7 @@ Future<void> _loadData() async {
   void _handleUserPick(DraftPick pick) {
     setState(() {
       _isDraftRunning = false;
-      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber}";
+      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber} (${pick.teamName})";
     });
     
     // First show trade offers for this pick
@@ -455,15 +455,15 @@ void _initiateUserTradeProposal() {
   }
   
   // Generate offers for user picks if needed
-  _draftService!.generateUserPickOffers();
+  _draftService!.generateUserTradeOffers();
   
-  // Get user's available picks
-  final userPicks = widget.selectedTeams!.isNotEmpty 
+  // Get user's available picks - now using the first team in the selectedTeams list
+  final List<DraftPick> userPicks = widget.selectedTeams!.isNotEmpty 
     ? _draftService!.getTeamPicks(widget.selectedTeams!.first)
     : [];
     
   // Get other teams' available picks
-  final otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeam!);
+  final List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -624,7 +624,7 @@ void _initiateUserTradeProposal() {
         _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
       executedTrades: _executedTrades,
       allTeams: allTeams, // Add the list of teams
-      userTeams: widget.selectedTeams,
+      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
     ),
   );
 }
@@ -1082,14 +1082,14 @@ Widget build(BuildContext context) {
               children: [
                 DraftOrderTab(
                   draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
-                  userTeams: widget.selectedTeams,
+                  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
                   scrollController: _draftOrderScrollController,
                   teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(
                 availablePlayers: _availablePlayersLists,
                 selectionEnabled: _isUserPickMode,
-                userTeams: widget.selectedTeams,
+                userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
                 selectedPositions: _getSelectedPositions(), // Add this parameter
                 onPlayerSelected: (playerIndex) {
                     // Keep your existing onPlayerSelected code unchanged
@@ -1125,7 +1125,7 @@ Widget build(BuildContext context) {
                       _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
                     executedTrades: _executedTrades,
                     teamNeeds: _teamNeeds,
-                    userTeams: widget.selectedTeams,
+                    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
                   )
                 ],
             ),
