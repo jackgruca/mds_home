@@ -775,7 +775,7 @@ Future<void> _loadUserPreferences() async {
                                   min: 1.0,
                                   max: 5.0,
                                   divisions: 4,
-                                  activeColor: Colors.orange[700], // Use a different color than speed
+                                  activeColor: Colors.green[700], // Use a different color than speed
                                   onChanged: (value) {
                                     setState(() {
                                       _randomness = value / 5.0; // Convert back to 0-1 scale
