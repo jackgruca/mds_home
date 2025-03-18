@@ -166,16 +166,20 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   // Extract positions that have been drafted
   List<String> selectedPositions = [];
   
-  // Find all picks from user's team that have been made
-  final userPicks = _draftPicks.where((pick) => 
-    pick.teamName == widget.selectedTeams && 
-    pick.selectedPlayer != null
-  );
-  
-  // Add those positions to the list
-  for (var pick in userPicks) {
-    if (pick.selectedPlayer?.position != null) {
-      selectedPositions.add(pick.selectedPlayer!.position);
+  if (widget.selectedTeams != null) {
+    // Find all picks from ALL user's teams that have been made
+    for (String teamName in widget.selectedTeams!) {
+      final userPicks = _draftPicks.where((pick) => 
+        pick.teamName == teamName && 
+        pick.selectedPlayer != null
+      );
+      
+      // Add those positions to the list
+      for (var pick in userPicks) {
+        if (pick.selectedPlayer?.position != null) {
+          selectedPositions.add(pick.selectedPlayer!.position);
+        }
+      }
     }
   }
   
@@ -631,67 +635,64 @@ void _initiateUserTradeProposal() {
 }
 
   void _showPlayerSelectionDialog(DraftPick pick) {
-    if (_draftService == null) return;
-    
-    // Get team needs for the current team
-    final teamNeed = _teamNeeds.firstWhere(
-      (need) => need.teamName == pick.teamName,
-      orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
-    );
-    
-    // Filter available players - first 10 players to make selection manageable
-    final topPlayers = _draftService!.availablePlayers.take(10).toList();
-    
-    // Mark players that fill needs
-    final needPositions = teamNeed.needs;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Select a Player for ${pick.teamName}'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: ListView.builder(
-            itemCount: topPlayers.length,
-            itemBuilder: (context, index) {
-              final player = topPlayers[index];
-              final isNeed = needPositions.contains(player.position);
-              
-              return ListTile(
-                title: Text(player.name),
-                subtitle: Text('${player.position} - Rank: ${player.rank}'),
-                trailing: isNeed 
-                  ? Chip(
-                      label: const Text('Need'),
-                      backgroundColor: Colors.green.shade100,
-                    )
-                  : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  
-                  // Execute the player selection
-                  _selectPlayer(pick, player);
-                },
-              );
-            },
-          ),
+  if (_draftService == null) return;
+  
+  // Get team needs for the current team
+  final teamNeed = _teamNeeds.firstWhere(
+    (need) => need.teamName == pick.teamName,
+    orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+  );
+  
+  // Filter available players
+  final topPlayers = _draftService!.availablePlayers.take(10).toList();
+  
+  // Mark players that fill needs
+  final needPositions = teamNeed.needs;
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Select a Player for ${pick.teamName}'), // Show correct team name
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: ListView.builder(
+          itemCount: topPlayers.length,
+          itemBuilder: (context, index) {
+            final player = topPlayers[index];
+            final isNeed = needPositions.contains(player.position);
+            
+            return ListTile(
+              title: Text(player.name),
+              subtitle: Text('${player.position} - Rank: ${player.rank}'),
+              trailing: isNeed 
+                ? Chip(
+                    label: const Text('Need'),
+                    backgroundColor: Colors.green.shade100,
+                  )
+                : null,
+              onTap: () {
+                Navigator.pop(context);
+                // Execute the player selection
+                _selectPlayer(pick, player);
+              },
+            );
+          },
         ),
-        actions: [
-          
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              
-              // Auto-select best player at position of need
-              _autoSelectPlayer(pick);
-            },
-            child: const Text('Auto Pick'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            // Auto-select best player at position of need
+            _autoSelectPlayer(pick);
+          },
+          child: const Text('Auto Pick'),
+        ),
+      ],
+    ),
+  );
+}
 
   void _selectPlayer(DraftPick pick, Player player) {
     if (_draftService == null) return;
@@ -1088,35 +1089,35 @@ Widget build(BuildContext context) {
                   teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(
-                availablePlayers: _availablePlayersLists,
-                selectionEnabled: _isUserPickMode,
-                userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
-                selectedPositions: _getSelectedPositions(), // Add this parameter
-                onPlayerSelected: (playerIndex) {
-                    // Keep your existing onPlayerSelected code unchanged
-                    if (_isUserPickMode && _userNextPick != null) {
-                      Player? selectedPlayer;
-                      
-                      try {
-                        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-                      } catch (e) {
-                        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-                          selectedPlayer = _draftService!.availablePlayers[playerIndex];
-                        }
-                      }
-                      
-                      if (selectedPlayer != null) {
-                        _selectPlayer(_userNextPick!, selectedPlayer);
-                        setState(() {
-                          _isUserPickMode = false;
-                          _userNextPick = null;
-                        });
-                      } else {
-                        debugPrint("Could not find player with index $playerIndex");
-                      }
-                    }
-                  },
-                ),
+  availablePlayers: _availablePlayersLists,
+  selectionEnabled: _isUserPickMode,
+  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // This only shows the first team
+  selectedPositions: _getSelectedPositions(), // This needs to be updated for multiple teams
+  onPlayerSelected: (playerIndex) {
+    // Fix selection logic to work with multiple teams
+    if (_isUserPickMode && _userNextPick != null) {
+      Player? selectedPlayer;
+      
+      try {
+        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+      } catch (e) {
+        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+          selectedPlayer = _draftService!.availablePlayers[playerIndex];
+        }
+      }
+      
+      if (selectedPlayer != null) {
+        _selectPlayer(_userNextPick!, selectedPlayer);
+        setState(() {
+          _isUserPickMode = false;
+          _userNextPick = null;
+        });
+      } else {
+        debugPrint("Could not find player with index $playerIndex");
+      }
+    }
+  },
+),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 if (widget.showAnalytics)
                   // Use the simplified analytics dashboard
@@ -1151,7 +1152,7 @@ extension DraftServiceExtensions on DraftService {
   /// Get the next pick in the draft
   DraftPick? getNextPick() {
     for (var pick in draftOrder) {
-      if (!pick.isSelected) {
+      if (!pick.isSelected && pick.isActiveInDraft) {
         return pick;
       }
     }
