@@ -438,7 +438,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   }
   
   /// Select a player based on the R algorithm - enhanced with better need/position weighting
-Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
+  Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
   // If team has no needs defined, use best player available
   if (teamNeed == null || teamNeed.needs.isEmpty) {
     return _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
@@ -446,6 +446,27 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
   
   // Calculate round based on pick number (1-indexed)
   int round = (nextPick.pickNumber / 32).ceil();
+  
+  // Check for exceptional value first (players significantly better than the current pick)
+  for (var player in availablePlayers.take(10)) {
+    int valueGap = nextPick.pickNumber - player.rank;
+    
+    // If a player is available significantly later than their rank (exceptional value)
+    if (valueGap >= 12 && player.rank <= 20) {
+      // Very high chance to take the exceptional value player
+      if (_random.nextDouble() < 0.9) {
+        return player;
+      }
+    }
+    
+    // Special consideration for premium positions with good value
+    if (_premiumPositions.contains(player.position) && valueGap >= 8 && player.rank <= 32) {
+      if (_random.nextDouble() < 0.85) {
+        return player;
+      }
+    }
+    
+  }
   
   // Get needs based on round (only consider round+3 needs as you specified)
   int needsToConsider = min(round + 3, teamNeed.needs.length);
@@ -502,12 +523,20 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
   }
   
   // Special case for QB-needy teams 
-  if (_qbTrade && candidates.any((p) => p!.position == "QB")) {
+  if (_tradeUp && candidates.any((p) => p!.position == "QB")) {
     return candidates.firstWhere((p) => p!.position == "QB")!;
   }
   
-  // Calculate value thresholds with less randomness for early picks
-  double factor = min(0.2, ((round * 0.05) + 0.05));
+  // Calculate value thresholds with better balance between need and value
+  // Upper rounds should prioritize value more
+  double factor;
+  if (round <= 2) {
+    factor = 0.15; // More aggressive value consideration in early rounds
+  } else if (round <= 4) {
+    factor = 0.12; // Moderate value consideration in middle rounds
+  } else {
+    factor = 0.10; // Less value consideration in late rounds
+  }
   
   // Evaluate each need/player in order of priority
   for (int i = 0; i < candidates.length; i++) {
@@ -518,6 +547,12 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       // More aggressive threshold for QBs
       if (candidate.rank <= nextPick.pickNumber * (1 + factor * 2) + round) {
         return candidate; // More aggressive pick for QBs
+      }
+    }
+    // Enhanced threshold for premium positions
+    else if (_premiumPositions.contains(candidate.position)) {
+      if (candidate.rank <= nextPick.pickNumber * (1 + factor * 1.5) + round) {
+        return candidate; // Enhanced threshold for premium positions
       }
     }
     // Normal threshold for other positions
@@ -535,6 +570,16 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
   // Fallback to best overall player
   return _selectBestPlayerAvailable(nextPick.pickNumber);
 }
+
+// Define premium positions set (add this to DraftService class)
+final Set<String> _premiumPositions = {
+  'QB', 'OT', 'EDGE', 'CB', 'WR'
+};
+
+// Secondary value positions
+final Set<String> _secondaryPositions = {
+  'DT', 'S', 'TE', 'IOL', 'LB'
+};
   
   /// Make a selection for a specific need position
   Player? _makeSelection(String needPosition) {
