@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class DraftControlButtons extends StatelessWidget {
   final bool isDraftRunning;
   final bool hasTradeOffers;
+  final int tradeOffersCount;  // Add this parameter
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
@@ -14,6 +15,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onRestartDraft,
     required this.onRequestTrade,
     this.hasTradeOffers = false,
+    this.tradeOffersCount = 0,  // Default value
   });
 
   @override
@@ -25,25 +27,29 @@ class DraftControlButtons extends StatelessWidget {
         children: [
           // Restart button with label
           Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 48,
-                height: 48,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: Badge(
+                isLabelVisible: hasTradeOffers,
+                label: Text(tradeOffersCount > 1 ? '$tradeOffersCount' : '!'),
                 child: FloatingActionButton(
-                  onPressed: onRestartDraft,
-                  tooltip: 'Restart Draft',
+                  onPressed: onRequestTrade,
+                  tooltip: 'Trade Center',
                   mini: true,
-                  child: const Icon(Icons.refresh),
+                  child: const Icon(Icons.swap_horiz),
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Restart',
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Trade',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
           
           const SizedBox(width: 24),
           

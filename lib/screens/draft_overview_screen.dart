@@ -84,6 +84,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   List<List<dynamic>> _availablePlayersLists = [];
   List<List<dynamic>> _teamNeedsLists = [];
 
+  String? _activeUserTeam;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +101,19 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   void _handleTabChange() {
     // For now this is empty, but will be useful for the Draft Summary tab implementation
   }
+
+  // Add a method to update the active user team
+  void _updateActiveUserTeam() {
+    if (_draftService == null || widget.selectedTeams == null) return;
+    
+    DraftPick? nextPick = _draftService!.getNextPick();
+    if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
+      setState(() {
+        _activeUserTeam = nextPick.teamName;
+      });
+      debugPrint("Active user team updated to: $_activeUserTeam");
+    }
+  }  
 
   @override
   void dispose() {
@@ -357,6 +372,8 @@ Future<void> _loadData() async {
       return;
     }
 
+      _updateActiveUserTeam();
+
     try {
       // Get the next pick
       final nextPick = _draftService!.getNextPick();
@@ -475,14 +492,16 @@ void _initiateUserTradeProposal() {
   
   // Generate offers for user picks if needed
   _draftService!.generateUserTradeOffers();
-  
-  // Get user's available picks - now using the first team in the selectedTeams list
-  final List<DraftPick> userPicks = widget.selectedTeams!.isNotEmpty 
-    ? _draftService!.getTeamPicks(widget.selectedTeams!.first)
-    : [];
+
+    // Use active user team rather than first team in list
+    String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
     
-  // Get other teams' available picks
-  final List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
+    // Get user's available picks for the active team
+    final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
+    
+    // Get other teams' available picks (excluding all user teams)
+    final List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
+
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -498,7 +517,7 @@ void _initiateUserTradeProposal() {
   showDialog(
     context: context,
     builder: (context) => UserTradeTabsDialog(
-      userTeam: widget.selectedTeams!.first,
+      userTeam: activeTeam,
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
@@ -888,10 +907,22 @@ Widget build(BuildContext context) {
     );
   }
 
+  // Calculate trade offers count
+  int tradeOffersCount = 0;
+  if (_draftService != null && widget.selectedTeams != null) {
+    // Count all pending offers for user teams
+    tradeOffersCount = _draftService!.pendingUserOffers.values
+        .expand((offers) => offers)
+        .where((offer) => widget.selectedTeams!.contains(offer.teamReceiving))
+        .length;
+  }
+
   bool hasTradeOffers = false;
   if (_draftService != null && widget.selectedTeams != null) {
     // Check if there are any pending offers for the user team
-    hasTradeOffers = _draftService!.pendingUserOffers.isNotEmpty;
+    hasTradeOffers = _draftService!.pendingUserOffers.values
+      .expand((offers) => offers)
+      .any((offer) => widget.selectedTeams!.contains(offer.teamReceiving));
     
     // Specifically check for the current pick
     DraftPick? nextPick = _draftService!.getNextPick();
@@ -1150,14 +1181,16 @@ Widget build(BuildContext context) {
           ),
         ],
       ),
+      
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
-        isDraftRunning: _isDraftRunning,
-        hasTradeOffers: hasTradeOffers,
-        onToggleDraft: _toggleDraft,
-        onRestartDraft: _restartDraft,
-        onRequestTrade: _requestTrade,
-      ),
+      isDraftRunning: _isDraftRunning,
+      hasTradeOffers: hasTradeOffers,
+      tradeOffersCount: tradeOffersCount,  // Add the count
+      onToggleDraft: _toggleDraft,
+      onRestartDraft: _restartDraft,
+      onRequestTrade: _requestTrade,
+    ),
     ),
   );
 }
