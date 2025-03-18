@@ -152,7 +152,7 @@ class HeaderAuthButton extends StatelessWidget {
           return TextButton.icon(
             onPressed: () => _showAuthDialog(context),
             icon: const Icon(Icons.login, size: 16),
-            label: const Text('Sign In / Sign up'),
+            label: const Text('Members'),
             style: TextButton.styleFrom(
               foregroundColor: isDarkMode ? Colors.white : Colors.white,
             ),

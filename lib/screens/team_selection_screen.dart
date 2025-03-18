@@ -585,357 +585,444 @@ Future<void> _loadUserPreferences() async {
             ),
             
             // Compact settings bar at bottom
+            // Compact settings bar at bottom
             Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: sectionPadding,
-                vertical: 8.0
-              ),
-              decoration: BoxDecoration(
-                color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
-                border: Border(top: BorderSide(color: isDarkMode ? Colors.grey[600]! : Colors.grey[300]!)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Draft settings in a responsive layout
-                  isSmallScreen ?
-                    // Small screen layout (vertical stacking)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Rounds row with Year on the right
-                        Row(
-                          children: [
-                            // Rounds label and buttons (left side)
-                            SizedBox(
-                              width: 50,
-                              child: Text(
-                                'Rounds:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.white : Colors.black,
-                                ),
+            padding: EdgeInsets.symmetric(
+              horizontal: sectionPadding,
+              vertical: 8.0
+            ),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
+              border: Border(top: BorderSide(color: isDarkMode ? Colors.grey[600]! : Colors.grey[300]!)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Draft settings in a responsive layout
+                isSmallScreen ?
+                  // Small screen layout (vertical stacking)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Rounds row with Year on the right
+                      Row(
+                        children: [
+                          // Rounds label and buttons (left side)
+                          SizedBox(
+                            width: 50,
+                            child: Text(
+                              'Rounds:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
-                            
-                            // Round selection buttons
-                            Expanded(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: List.generate(7, (index) {
-                                    final roundNum = index + 1;
-                                    final isSelected = _numberOfRounds == roundNum;
-                                    
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 4.0),
-                                      child: Material(
-                                        color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
+                          ),
+                          
+                          // Round selection buttons
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: List.generate(7, (index) {
+                                  final roundNum = index + 1;
+                                  final isSelected = _numberOfRounds == roundNum;
+                                  
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 4.0),
+                                    child: Material(
+                                      color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4.0),
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            _numberOfRounds = roundNum;
+                                          });
+                                        },
                                         borderRadius: BorderRadius.circular(4.0),
-                                        child: InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              _numberOfRounds = roundNum;
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(4.0),
-                                          child: Container(
-                                            width: 24.0,
-                                            height: 24.0,
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              '$roundNum',
-                                              style: TextStyle(
-                                                color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12.0,
-                                              ),
+                                        child: Container(
+                                          width: 24.0,
+                                          height: 24.0,
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            '$roundNum',
+                                            style: TextStyle(
+                                              color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12.0,
                                             ),
                                           ),
                                         ),
                                       ),
-                                    );
-                                  }),
-                                ),
+                                    ),
+                                  );
+                                }),
                               ),
                             ),
-                            
-                            // Year selection (right side)
-                            const SizedBox(width: 8.0),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Year:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold, 
-                                    fontSize: 12.0,
-                                    color: isDarkMode ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                                const SizedBox(width: 4.0),
-                                DropdownButton<int>(
-                                  value: _selectedYear,
-                                  underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
-                                  isDense: true,
-                                  items: _availableYears.map((int year) {
-                                    return DropdownMenuItem<int>(
-                                      value: year,
-                                      child: Text(
-                                        year.toString(),
-                                        style: TextStyle(
-                                          fontSize: 12.0,
-                                          color: isDarkMode ? Colors.white : Colors.black,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (int? newValue) {
-                                    if (newValue != null) {
-                                      setState(() {
-                                        _selectedYear = newValue;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 8.0),
-                        
-                        // Speed row (unchanged)
-                        Row(
-                          children: [
-                            // Speed label
-                            SizedBox(
-                              width: 50,
-                              child: Text(
-                                'Speed:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                            // Speed slider
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3.0,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
-                                ),
-                                child: Slider(
-                                  value: _speed,
-                                  min: 1.0,
-                                  max: 5.0,
-                                  divisions: 4,
-                                  activeColor: Colors.green[700],
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _speed = value;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
-                          ],
-                        ),
-                        // Randomness row
-                        Row(
-                          children: [
-                            // Randomness label
-                            SizedBox(
-                              width: 50,
-                              child: Text(
-                                'Random:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                            // Randomness slider
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3.0,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
-                                ),
-                                child: Slider(
-                                  value: _randomness * 5, // Convert to 1-5 scale for UI
-                                  min: 1.0,
-                                  max: 5.0,
-                                  divisions: 4,
-                                  activeColor: Colors.green[700], // Use a different color than speed
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _randomness = value / 5.0; // Convert back to 0-1 scale
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                            Text('${(_randomness * 5).toInt()}', style: const TextStyle(fontSize: 12.0)),
-                          ],
-                        ),
-                      ],
-                    )
-                  :
-                    // Regular layout (horizontal)
-Row(
-  children: [
-    // Rounds section (left side)
-    const Text(
-      'Rounds:',
-      style: TextStyle(
-        fontWeight: FontWeight.bold, 
-        fontSize: 12.0
-      ),
-    ),
-    const SizedBox(width: 8.0),
-    // Round selection buttons
-    Row(
-      children: List.generate(7, (index) {
-        final roundNum = index + 1;
-        final isSelected = _numberOfRounds == roundNum;
-        
-        return Padding(
-          padding: const EdgeInsets.only(right: 4.0),
-          child: Material(
-            color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
-            borderRadius: BorderRadius.circular(4.0),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _numberOfRounds = roundNum;
-                });
-              },
-              borderRadius: BorderRadius.circular(4.0),
-              child: Container(
-                width: 24.0,
-                height: 24.0,
-                alignment: Alignment.center,
-                child: Text(
-                  '$roundNum',
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12.0,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
-    ),
-    
-    
-    // Spacer to push Year dropdown to the right
-    const Spacer(),
-    
-    // Year dropdown (right side)
-    Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Year:',
-          style: TextStyle(
-            fontWeight: FontWeight.bold, 
-            fontSize: 12.0,
-            color: isDarkMode ? Colors.white : Colors.black,
-          ),
-        ),
-        const SizedBox(width: 8.0),
-        DropdownButton<int>(
-          value: _selectedYear,
-          underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
-          isDense: true,
-          items: _availableYears.map((int year) {
-            return DropdownMenuItem<int>(
-              value: year,
-              child: Text(
-                year.toString(),
-                style: TextStyle(
-                  fontSize: 12.0,
-                  color: isDarkMode ? Colors.white : Colors.black,
-                ),
-              ),
-            );
-          }).toList(),
-          onChanged: (int? newValue) {
-            if (newValue != null) {
-              setState(() {
-                _selectedYear = newValue;
-              });
-            }
-          },
-        ),
-      ],
-    ),
-  ],
-),
-
-// Add speed slider in a separate row below
-const SizedBox(height: 8.0),
-                  
-                  // Bottom row with Advanced button and Start button
-                  Row(
-                    children: [
-                      // Advanced settings button
-                      OutlinedButton.icon(
-                        onPressed: _openDraftSettings,
-                        icon: const Icon(Icons.settings, size: 16),
-                        label: const Text('Advanced'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12, 
-                            vertical: 8
                           ),
-                          visualDensity: VisualDensity.compact,
-                        ),
+                          
+                          // Year selection (right side)
+                          const SizedBox(width: 8.0),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Year:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 12.0,
+                                  color: isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              const SizedBox(width: 4.0),
+                              DropdownButton<int>(
+                                value: _selectedYear,
+                                underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
+                                isDense: true,
+                                items: _availableYears.map((int year) {
+                                  return DropdownMenuItem<int>(
+                                    value: year,
+                                    child: Text(
+                                      year.toString(),
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: isDarkMode ? Colors.white : Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (int? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedYear = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       
-                      const SizedBox(width: 12.0),
+                      const SizedBox(height: 8.0),
                       
-                      // Start button (expanded width)
-                      Expanded(
-                        child: SizedBox(
-                          height: 40.0,
-                          child: ElevatedButton(
-                            onPressed: _selectedTeam != null ? _startDraft : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[700],
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor: Colors.grey[300],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4.0),
-                              ),
-                            ),
-                            child: const Text(
-                              'START DRAFT',
+                      // Speed row
+                      Row(
+                        children: [
+                          // Speed label
+                          SizedBox(
+                            width: 50,
+                            child: Text(
+                              'Speed:',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
                               ),
                             ),
                           ),
-                        ),
+                          // Speed slider
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                              ),
+                              child: Slider(
+                                value: _speed,
+                                min: 1.0,
+                                max: 5.0,
+                                divisions: 4,
+                                activeColor: Colors.green[700],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _speed = value;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                        ],
+                      ),
+                      // Randomness row
+                      Row(
+                        children: [
+                          // Randomness label
+                          SizedBox(
+                            width: 50,
+                            child: Text(
+                              'Random:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ),
+                          // Randomness slider
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                              ),
+                              child: Slider(
+                                value: _randomness * 5, // Convert to 1-5 scale for UI
+                                min: 1.0,
+                                max: 5.0,
+                                divisions: 4,
+                                activeColor: Colors.green[700], // Use a different color than speed
+                                onChanged: (value) {
+                                  setState(() {
+                                    _randomness = value / 5.0; // Convert back to 0-1 scale
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          Text('${(_randomness * 5).toInt()}', style: const TextStyle(fontSize: 12.0)),
+                        ],
+                      ),
+                    ],
+                  )
+                :
+                  // Regular layout (horizontal)
+                  Column(
+                    children: [
+                      // Top row with rounds and year
+                      Row(
+                        children: [
+                          // Rounds section (left side)
+                          const Text(
+                            'Rounds:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 12.0
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          // Round selection buttons
+                          Row(
+                            children: List.generate(7, (index) {
+                              final roundNum = index + 1;
+                              final isSelected = _numberOfRounds == roundNum;
+                              
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 4.0),
+                                child: Material(
+                                  color: isSelected ? Colors.blue : isDarkMode ? Colors.grey[700] : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(4.0),
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _numberOfRounds = roundNum;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(4.0),
+                                    child: Container(
+                                      width: 24.0,
+                                      height: 24.0,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        '$roundNum',
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white : isDarkMode ? Colors.white70 : Colors.black87,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.0,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                          
+                          // Spacer to push Year dropdown to the right
+                          const Spacer(),
+                          
+                          // Year dropdown (right side)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Year:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 12.0,
+                                  color: isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              const SizedBox(width: 8.0),
+                              DropdownButton<int>(
+                                value: _selectedYear,
+                                underline: Container(height: 1, color: isDarkMode ? Colors.grey[600] : Colors.grey[400]),
+                                isDense: true,
+                                items: _availableYears.map((int year) {
+                                  return DropdownMenuItem<int>(
+                                    value: year,
+                                    child: Text(
+                                      year.toString(),
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: isDarkMode ? Colors.white : Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (int? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedYear = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // Add speed slider in a separate row below
+                      const SizedBox(height: 8.0),
+                      Row(
+                        children: [
+                          // Speed label
+                          SizedBox(
+                            width: 50,
+                            child: Text(
+                              'Speed:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ),
+                          // Speed slider
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                              ),
+                              child: Slider(
+                                value: _speed,
+                                min: 1.0,
+                                max: 5.0,
+                                divisions: 4,
+                                activeColor: Colors.green[700],
+                                onChanged: (value) {
+                                  setState(() {
+                                    _speed = value;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          Text('${_speed.toInt()}', style: const TextStyle(fontSize: 12.0)),
+                        ],
+                      ),
+
+                      // Add randomness slider below speed slider
+                      const SizedBox(height: 8.0),
+                      Row(
+                        children: [
+                          // Randomness label
+                          SizedBox(
+                            width: 50,
+                            child: Text(
+                              'Random:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12.0,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ),
+                          // Randomness slider
+                          Expanded(
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12.0),
+                              ),
+                              child: Slider(
+                                value: _randomness * 5, // Convert to 1-5 scale for UI
+                                min: 1.0,
+                                max: 5.0,
+                                divisions: 4,
+                                activeColor: Colors.green[700], // Use a different color than speed
+                                onChanged: (value) {
+                                  setState(() {
+                                    _randomness = value / 5.0; // Convert back to 0-1 scale
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          Text('${(_randomness * 5).toInt()}', style: const TextStyle(fontSize: 12.0)),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                
+                // Bottom row with Advanced button and Start button
+                const SizedBox(height: 8.0),
+                Row(
+                  children: [
+                    // Advanced settings button
+                    OutlinedButton.icon(
+                      onPressed: _openDraftSettings,
+                      icon: const Icon(Icons.settings, size: 16),
+                      label: const Text('Advanced'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12, 
+                          vertical: 8
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 12.0),
+                    
+                    // Start button (expanded width)
+                    Expanded(
+                      child: SizedBox(
+                        height: 40.0,
+                        child: ElevatedButton(
+                          onPressed: _selectedTeam != null ? _startDraft : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[700],
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4.0),
+                            ),
+                          ),
+                          child: const Text(
+                            'START DRAFT',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
+          ),
           ],
         ),
       ),
