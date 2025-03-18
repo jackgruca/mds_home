@@ -740,50 +740,54 @@ void _initiateUserTradeProposal() {
   }
 
   void _restartDraft() {
-    // Show confirmation dialog before restarting
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-        
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.refresh, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700),
-              const SizedBox(width: 8),
-              const Text('Restart Draft?'),
-            ],
-          ),
-          content: const Text(
-            'Are you sure you want to restart the draft? All progress will be lost.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(), // Close dialog
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                // Navigate back to team selection screen
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TeamSelectionScreen(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.red.shade600,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Restart'),
-            ),
+  // Show confirmation dialog before restarting
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+      
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.refresh, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700),
+            const SizedBox(width: 8),
+            const Text('Restart Draft?'),
           ],
-        );
-      },
-    );
-  }
+        ),
+        content: const Text(
+          'Are you sure you want to restart the draft? All progress will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(), // Close dialog
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              
+              // Reset the draft state instead of navigating
+              setState(() {
+                _isDraftRunning = false;
+                _isUserPickMode = false;
+                _userNextPick = null;
+                _summaryShown = false;
+                
+                // Reload data to reset the draft
+                _loadData();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Restart'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   // Find this method in draft_overview_screen.dart and replace it
   void _requestTrade() {
@@ -848,186 +852,226 @@ void didUpdateWidget(DraftApp oldWidget) {
 }
 
   @override
-  Widget build(BuildContext context) {
-    if (!_isDataLoaded) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('NFL Draft')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(_statusMessage),
-            ],
-          ),
+Widget build(BuildContext context) {
+  if (!_isDataLoaded) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('NFL Draft')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(_statusMessage),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool hasTradeOffers = false;
+  if (_draftService != null && widget.selectedTeam != null) {
+    // Check if there are any pending offers for the user team
+    hasTradeOffers = _draftService!.pendingUserOffers.isNotEmpty;
+    
+    // Specifically check for the current pick
+    DraftPick? nextPick = _draftService!.getNextPick();
+    if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+      hasTradeOffers = hasTradeOffers || _draftService!.hasOffersForPick(nextPick.pickNumber);
+    }
+  }
+
+  return WillPopScope(
+    onWillPop: () async {
+    // Show a confirmation dialog
+    bool shouldPop = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Exit Draft?'),
+          content: const Text('Are you sure you want to return to team selection?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Pop the dialog with true result
+                Navigator.of(dialogContext).pop(true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text('Exit'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+    
+    // If user confirms, forcefully navigate back to selection screen
+    if (shouldPop) {
+      // Push a replacement instead of normal pop to ensure we go back to selection screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const TeamSelectionScreen(),
         ),
       );
+      return false; // Prevent the default back behavior
     }
-
-     bool hasTradeOffers = false;
-      if (_draftService != null && widget.selectedTeam != null) {
-        // Check if there are any pending offers for the user team
-        hasTradeOffers = _draftService!.pendingUserOffers.isNotEmpty;
-        
-        // Specifically check for the current pick
-        DraftPick? nextPick = _draftService!.getNextPick();
-        if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
-          hasTradeOffers = hasTradeOffers || _draftService!.hasOffersForPick(nextPick.pickNumber);
-        }
-      }
-    
-
-    return Scaffold(
+    return false; // Prevent the default back behavior
+  },
+    child: Scaffold(
       appBar: AppBar(
-  title: const Text(
-    'NFL Draft',
-    style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
-  ),
-  toolbarHeight: 48,
-  centerTitle: true,
-  titleSpacing: 8,
-  elevation: 0,
-  actions: [
-    // Theme toggle button
-    IconButton(
-      icon: Icon(
-        Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
-            ? Icons.dark_mode
-            : Icons.light_mode,
-        size: 20,
-      ),
-      onPressed: () {
-        Provider.of<ThemeManager>(context, listen: false).toggleTheme();
-      },
-    ),
-  ],
-  bottom: PreferredSize(
-    preferredSize: const Size.fromHeight(40),
-    child: TabBar(
-      controller: _tabController,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
-      tabs: [
-        const Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.list, size: 18),
-              SizedBox(width: 4),
-              Text('Draft'),
-            ],
-          ),
+        title: const Text(
+          'NFL Draft',
+          style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
         ),
-        const Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.people, size: 18),
-              SizedBox(width: 4),
-              Text('Players'),
-            ],
-          ),
-        ),
-        const Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.assignment, size: 18),
-              SizedBox(width: 4),
-              Text('Needs'),
-            ],
-          ),
-        ),
-        if (widget.showAnalytics)
-          const Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.analytics, size: 18),
-                SizedBox(width: 4),
-                Text('Stats'),
-              ],
+        toolbarHeight: 48,
+        centerTitle: true,
+        titleSpacing: 8,
+        elevation: 0,
+        actions: [
+          // Theme toggle button
+          IconButton(
+            icon: Icon(
+              Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+                  ? Icons.dark_mode
+                  : Icons.light_mode,
+              size: 20,
             ),
+            onPressed: () {
+              Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+            },
           ),
-      ],
-    ),
-  ),
-),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(40),
+          child: TabBar(
+            controller: _tabController,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
+            tabs: [
+              const Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.list, size: 18),
+                    SizedBox(width: 4),
+                    Text('Draft'),
+                  ],
+                ),
+              ),
+              const Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.people, size: 18),
+                    SizedBox(width: 4),
+                    Text('Players'),
+                  ],
+                ),
+              ),
+              const Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.assignment, size: 18),
+                    SizedBox(width: 4),
+                    Text('Needs'),
+                  ],
+                ),
+              ),
+              if (widget.showAnalytics)
+                const Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.analytics, size: 18),
+                      SizedBox(width: 4),
+                      Text('Stats'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
       body: Column(
         children: [
           // Status bar
-Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      colors: widget.selectedTeam != null 
-        ? _getTeamGradientColors(widget.selectedTeam!)
-        : Theme.of(context).brightness == Brightness.dark
-          ? [Colors.blue.shade900, Colors.blue.shade800]
-          : [Colors.blue.shade50, Colors.blue.shade100],
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.grey.withOpacity(0.2),
-        spreadRadius: 0,
-        blurRadius: 1,
-        offset: const Offset(0, 1),
-      ),
-    ],
-  ),
-  child: Row(
-    children: [
-      if (widget.selectedTeam != null) ...[
-        Icon(Icons.sports_football, 
-          size: 16,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
-        const SizedBox(width: 4),
-        Text(
-          '${widget.selectedTeam}:',  
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: widget.selectedTeam != null 
+                  ? _getTeamGradientColors(widget.selectedTeam!)
+                  : Theme.of(context).brightness == Brightness.dark
+                    ? [Colors.blue.shade900, Colors.blue.shade800]
+                    : [Colors.blue.shade50, Colors.blue.shade100],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 0,
+                  blurRadius: 1,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                if (widget.selectedTeam != null) ...[
+                  Icon(Icons.sports_football, 
+                    size: 16,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.selectedTeam}:',  
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                
+                // Status message
+                Expanded(
+                  child: Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
+                      color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                
+                // Trade button
+                if (widget.selectedTeam != null)
+                  OutlinedButton.icon(
+                    onPressed: _showDraftSummary,
+                    icon: const Icon(Icons.summarize, size: 14),
+                    label: const Text('Draft Recap', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // Keep other style properties
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 4),
-      ],
-      
-      // Status message
-      Expanded(
-        child: Text(
-          _statusMessage,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
-            color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.white 
-              : Colors.black87,
-          ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      
-      // Trade button
-      if (widget.selectedTeam != null)
-        OutlinedButton.icon(
-          onPressed: _showDraftSummary,
-          icon: const Icon(Icons.summarize, size: 14),
-          label: const Text('Draft Recap', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            // Keep other style properties
-          ),
-        ),
-    ],
-  ),
-),
           // Tab content
           Expanded(
             child: TabBarView(
@@ -1088,13 +1132,14 @@ Container(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
         isDraftRunning: _isDraftRunning,
-        hasTradeOffers: hasTradeOffers,  // Pass this value
+        hasTradeOffers: hasTradeOffers,
         onToggleDraft: _toggleDraft,
         onRestartDraft: _restartDraft,
         onRequestTrade: _requestTrade,
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // Extension method for DraftService to add required functionality

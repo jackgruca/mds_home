@@ -1038,12 +1038,6 @@ Future<void> _loadUserPreferences() async {
       'rounds': _numberOfRounds,
       'year': _selectedYear,
     });
-    
-    Navigator.pushNamed(
-      context, 
-      '/draft', 
-      arguments: _selectedTeam,
-    );
 
     // Determine the team identifier to use
     String? teamIdentifier;
