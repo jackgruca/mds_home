@@ -64,7 +64,7 @@ class TradeService {
     required this.draftOrder,
     required this.teamNeeds,
     required this.availablePlayers,
-    this.userTeam,
+    this.userTeam, // Keep accepting single team
     this.enableUserTradeConfirmation = true,
     this.tradeRandomnessFactor = 0.5,
     this.enableQBPremium = true,
@@ -313,7 +313,7 @@ class TradeService {
   }
   
   // Check if team is the user's team - allow more trade offers
-  if (currentPick.teamName == userTeam) {
+  if (userTeam != null && userTeam!.contains(currentPick.teamName)) {
     return false; // Generate offers for user regardless
   }
     

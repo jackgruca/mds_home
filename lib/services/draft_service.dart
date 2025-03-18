@@ -20,7 +20,7 @@ class DraftService {
   
   // Draft settings
   final double randomnessFactor;
-  final String? userTeam;
+  final List<String>? userTeams;
   final int numberRounds;
   
   // Trade service
@@ -64,7 +64,7 @@ class DraftService {
     required this.draftOrder,
     required this.teamNeeds,
     this.randomnessFactor = 0.4,
-    this.userTeam,
+    this.userTeams,
     this.numberRounds = 1, 
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
@@ -78,11 +78,26 @@ class DraftService {
       draftOrder: draftOrder,
       teamNeeds: teamNeeds,
       availablePlayers: availablePlayers,
-      userTeam: userTeam,
+      userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
   }
+
+// Also update the getOtherTeamPicks method to handle list of teams
+List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
+  if (excludeTeams == null || excludeTeams.isEmpty) {
+    // If no teams to exclude, return all picks
+    return draftOrder.where((pick) => 
+      !pick.isSelected
+    ).toList();
+  }
+  
+  // Include ALL picks for trading, not just active ones, excluding the teams in the list
+  return draftOrder.where((pick) => 
+    !excludeTeams.contains(pick.teamName) && !pick.isSelected
+  ).toList();
+}
   
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
@@ -136,13 +151,36 @@ class DraftService {
 
   /// Add this helper to check for offers for the current pick
   bool hasOffersForCurrentPick() {
-    DraftPick? nextPick = getNextPick();
-    if (nextPick == null) {
-      return false;
-    }
-    
-    return hasOffersForPick(nextPick.pickNumber);
+  DraftPick? nextPick = getNextPick();
+  if (nextPick == null) {
+    return false;
   }
+  
+  // Check if this pick belongs to any user team and has offers
+  return userTeams != null && 
+         userTeams!.contains(nextPick.teamName) &&
+         hasOffersForPick(nextPick.pickNumber);
+}
+
+// Add a method to check if any user team has offers
+bool anyUserTeamHasOffers() {
+  if (userTeams == null || userTeams!.isEmpty) return false;
+  
+  // Check if any user team has pending offers
+  for (var pickNumber in _pendingUserOffers.keys) {
+    // Find the team for this pick
+    var pickTeam = draftOrder.firstWhere(
+      (pick) => pick.pickNumber == pickNumber, 
+      orElse: () => DraftPick(pickNumber: 0, teamName: "", round: "")
+    ).teamName;
+    
+    if (userTeams!.contains(pickTeam)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 
   // Modify the getTradeOffersForCurrentPick method to filter out invalid offers
   TradeOffer getTradeOffersForCurrentPick() {
@@ -172,7 +210,7 @@ class DraftService {
     _qbTrade = false;
       
     // Check if this is a user team pick
-    if (userTeam != null && nextPick.teamName == userTeam) {
+    if (userTeams != null && userTeams!.contains(nextPick.teamName)) {
       // Generate trade offers for the user to consider
       _generateUserTradeOffers(nextPick);
       
@@ -312,7 +350,7 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
   /// Evaluate if we should try a QB-specific trade scenario
 bool _evaluateQBTradeScenario(DraftPick nextPick) {
   // Skip QB trade logic for user team picks
-  if (nextPick.teamName == userTeam) return false;
+  if (userTeams != null && userTeams!.contains(nextPick.teamName)) return false;
   
   // Get team needs for the team with the current pick
   TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
@@ -972,29 +1010,21 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   
   /// Generate user-initiated trade offers to AI teams
   void generateUserTradeOffers() {
-    if (userTeam == null || !enableUserTradeProposals) {
-      _pendingUserOffers.clear();
-      return;
-    }
-    
-    // Find only the current active user pick that's next in the draft
-    DraftPick? nextUserPick;
-    
-    // First find the next pick in the draft order
-    DraftPick? nextPick = _getNextPick();
-    if (nextPick == null) return;
-    
-    // Only generate offers if it's the user's current pick
-    if (nextPick.teamName == userTeam) {
-      nextUserPick = nextPick;
-    } else {
-      // Clear any existing offers since it's not the user's turn
-      _pendingUserOffers.clear();
-      return;
-    }
-    
-    // Generate offers only for the current pick
-    final pickNum = nextUserPick.pickNumber;
+  if (userTeams == null || userTeams!.isEmpty || !enableUserTradeProposals) {
+    _pendingUserOffers.clear();
+    return;
+  }
+  
+  // Find the next pick in the draft order
+  DraftPick? nextPick = _getNextPick();
+  if (nextPick == null) return;
+  
+  // Check if this is a user team pick
+  bool isUserTeamPick = userTeams!.contains(nextPick.teamName);
+  
+  // Generate offers only for the current team's pick
+  if (isUserTeamPick) {
+    final pickNum = nextPick.pickNumber;
     
     // If there are already offers for this pick, don't regenerate
     if (_pendingUserOffers.containsKey(pickNum)) return;
@@ -1005,6 +1035,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
       _pendingUserOffers[pickNum] = offers.packages;
     }
   }
+}
 
 /// Method alias for backward compatibility
 void generateUserPickOffers() {
@@ -1051,14 +1082,6 @@ void generateUserPickOffers() {
     // Include ALL picks for trading, not just active ones
     return draftOrder.where((pick) => 
       pick.teamName == teamName && !pick.isSelected
-    ).toList();
-  }
-  
-  /// Get picks from all other teams
-  List<DraftPick> getOtherTeamPicks(String excludeTeam) {
-    // Include ALL picks for trading, not just active ones
-    return draftOrder.where((pick) => 
-      pick.teamName != excludeTeam && !pick.isSelected
     ).toList();
   }
   

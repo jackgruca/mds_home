@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class DraftControlButtons extends StatelessWidget {
   final bool isDraftRunning;
   final bool hasTradeOffers;
+  final int tradeOffersCount;
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
@@ -14,6 +15,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onRestartDraft,
     required this.onRequestTrade,
     this.hasTradeOffers = false,
+    this.tradeOffersCount = 0,
   });
 
   @override
@@ -71,7 +73,7 @@ class DraftControlButtons extends StatelessWidget {
           
           const SizedBox(width: 24),
           
-          // Trade button with label
+          // Trade button with label and numeric badge
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -80,7 +82,7 @@ class DraftControlButtons extends StatelessWidget {
                 height: 48,
                 child: Badge(
                   isLabelVisible: hasTradeOffers,
-                  label: const Text('!'),
+                  label: Text(tradeOffersCount > 1 ? '$tradeOffersCount' : '!'),
                   child: FloatingActionButton(
                     onPressed: onRequestTrade,
                     tooltip: 'Trade Center',

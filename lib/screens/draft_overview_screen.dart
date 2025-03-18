@@ -34,7 +34,7 @@ class DraftApp extends StatefulWidget {
   final double randomnessFactor;
   final int numberOfRounds;
   final double speedFactor;
-  final String? selectedTeam;
+  final List<String>? selectedTeams;
   final int draftYear; // Add this line
   final bool enableTrading;
   final bool enableUserTradeProposals;
@@ -46,7 +46,7 @@ class DraftApp extends StatefulWidget {
     this.randomnessFactor = AppConstants.defaultRandomnessFactor,
     this.numberOfRounds = 1,
     this.speedFactor = 1.0,
-    this.selectedTeam,
+    this.selectedTeams,
     this.draftYear = 2025, // Add this line with default
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
@@ -84,6 +84,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   List<List<dynamic>> _availablePlayersLists = [];
   List<List<dynamic>> _teamNeedsLists = [];
 
+  String? _activeUserTeam;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +101,19 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   void _handleTabChange() {
     // For now this is empty, but will be useful for the Draft Summary tab implementation
   }
+
+  // Add a method to update the active user team
+  void _updateActiveUserTeam() {
+    if (_draftService == null || widget.selectedTeams == null) return;
+    
+    DraftPick? nextPick = _draftService!.getNextPick();
+    if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
+      setState(() {
+        _activeUserTeam = nextPick.teamName;
+      });
+      debugPrint("Active user team updated to: $_activeUserTeam");
+    }
+  }  
 
   @override
   void dispose() {
@@ -162,24 +177,42 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   }
 }
 
-  List<String> _getSelectedPositions() {
-  // Extract positions that have been drafted
-  List<String> selectedPositions = [];
+ Map<String, List<String>> _getTeamSelectedPositions() {
+  // Create a map of team name -> list of drafted positions
+  Map<String, List<String>> teamPositions = {};
   
-  // Find all picks from user's team that have been made
-  final userPicks = _draftPicks.where((pick) => 
-    pick.teamName == widget.selectedTeam && 
-    pick.selectedPlayer != null
-  );
-  
-  // Add those positions to the list
-  for (var pick in userPicks) {
-    if (pick.selectedPlayer?.position != null) {
-      selectedPositions.add(pick.selectedPlayer!.position);
+  if (widget.selectedTeams != null) {
+    // Initialize map for all selected teams
+    for (String teamName in widget.selectedTeams!) {
+      teamPositions[teamName] = [];
+    }
+    
+    // Find all picks from all teams that have been made
+    for (var pick in _draftPicks.where((p) => p.selectedPlayer != null && p.isSelected)) {
+      String teamName = pick.teamName;
+      // Only track for user-controlled teams
+      if (widget.selectedTeams != null && widget.selectedTeams!.contains(teamName)) {
+        if (pick.selectedPlayer?.position != null) {
+          teamPositions[teamName] ??= []; // Ensure list exists
+          teamPositions[teamName]!.add(pick.selectedPlayer!.position);
+        }
+      }
     }
   }
   
-  return selectedPositions;
+  // Debug log the result
+  if (widget.selectedTeams != null && widget.selectedTeams!.isNotEmpty) {
+    debugPrint("==== TEAM POSITIONS MAP ====");
+    teamPositions.forEach((team, positions) {
+      debugPrint("$team drafted positions: ${positions.join(", ")}");
+    });
+    if (_userNextPick != null) {
+      debugPrint("Current picking team: ${_userNextPick!.teamName}");
+    }
+    debugPrint("==========================");
+  }
+  
+  return teamPositions;
 }
 
 List<Color> _getTeamGradientColors(String teamName) {
@@ -231,7 +264,7 @@ Future<void> _loadData() async {
       draftOrder: allDraftPicks,  // Use all picks for the draft service
       teamNeeds: teamNeeds,
       randomnessFactor: widget.randomnessFactor,
-      userTeam: widget.selectedTeam,
+      userTeams: widget.selectedTeams,  // Pass the list of selected teams
       numberRounds: widget.numberOfRounds,
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
@@ -339,26 +372,29 @@ Future<void> _loadData() async {
       return;
     }
 
+      _updateActiveUserTeam();
+
     try {
       // Get the next pick
       final nextPick = _draftService!.getNextPick();
 
-      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Team: ${widget.selectedTeam}");
-      
+      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Teams: ${widget.selectedTeams}");
+
       // Check if this is the user's team and they should make a choice
-      if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+      if (nextPick != null && widget.selectedTeams != null && 
+          widget.selectedTeams!.contains(nextPick.teamName)) {
         // Generate trade offers before pausing the draft
         _draftService!.generateUserTradeOffers();
         
         setState(() {
           _isDraftRunning = false; // Pause the draft
-          _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
-          _isUserPickMode = true; // Add this flag to your class
-          _userNextPick = nextPick; // Add this field to store the current pick
+          _statusMessage = "${nextPick.teamName} Pick: Select from the Available Players tab";
+          _isUserPickMode = true;
+          _userNextPick = nextPick;
         });
         
         // Switch to the available players tab
-        _tabController.animateTo(1); // Index of available players tab
+        _tabController.animateTo(1);
         
         return;
       }
@@ -440,7 +476,7 @@ Future<void> _loadData() async {
   void _handleUserPick(DraftPick pick) {
     setState(() {
       _isDraftRunning = false;
-      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber}";
+      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber} (${pick.teamName})";
     });
     
     // First show trade offers for this pick
@@ -449,19 +485,23 @@ Future<void> _loadData() async {
 
 // In draft_overview_screen.dart, inside the DraftAppState class
 void _initiateUserTradeProposal() {
-  if (_draftService == null || widget.selectedTeam == null) {
+  if (_draftService == null || widget.selectedTeams == null) {
     debugPrint("Draft service or selected team is null");
     return;
   }
   
   // Generate offers for user picks if needed
-  _draftService!.generateUserPickOffers();
-  
-  // Get user's available picks
-  final userPicks = _draftService!.getTeamPicks(widget.selectedTeam!);
-  
-  // Get other teams' available picks
-  final otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeam!);
+  _draftService!.generateUserTradeOffers();
+
+    // Use active user team rather than first team in list
+    String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
+    
+    // Get user's available picks for the active team
+    final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
+    
+    // Get other teams' available picks (excluding all user teams)
+    final List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
+
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -477,7 +517,7 @@ void _initiateUserTradeProposal() {
   showDialog(
     context: context,
     builder: (context) => UserTradeTabsDialog(
-      userTeam: widget.selectedTeam!,
+      userTeam: activeTeam,
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
@@ -566,7 +606,7 @@ void _initiateUserTradeProposal() {
             Navigator.pop(context); // Close the dialog
             
             // Let the user select a player if this is their pick
-            if (pick.teamName == widget.selectedTeam) {
+            if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
               _showPlayerSelectionDialog(pick);
             } else if (_isDraftRunning) {
               // Continue the draft if it was running
@@ -588,7 +628,7 @@ void _initiateUserTradeProposal() {
           showAnalytics: widget.showAnalytics,
         ),
       );
-    } else if (pick.teamName == widget.selectedTeam) {
+    } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
       // If no trade offers, go straight to player selection
       _showPlayerSelectionDialog(pick);
     } else if (_isDraftRunning) {
@@ -622,73 +662,70 @@ void _initiateUserTradeProposal() {
         _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
       executedTrades: _executedTrades,
       allTeams: allTeams, // Add the list of teams
-      userTeam: widget.selectedTeam,
+      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
     ),
   );
 }
 
   void _showPlayerSelectionDialog(DraftPick pick) {
-    if (_draftService == null) return;
-    
-    // Get team needs for the current team
-    final teamNeed = _teamNeeds.firstWhere(
-      (need) => need.teamName == pick.teamName,
-      orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
-    );
-    
-    // Filter available players - first 10 players to make selection manageable
-    final topPlayers = _draftService!.availablePlayers.take(10).toList();
-    
-    // Mark players that fill needs
-    final needPositions = teamNeed.needs;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Select a Player for ${pick.teamName}'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: ListView.builder(
-            itemCount: topPlayers.length,
-            itemBuilder: (context, index) {
-              final player = topPlayers[index];
-              final isNeed = needPositions.contains(player.position);
-              
-              return ListTile(
-                title: Text(player.name),
-                subtitle: Text('${player.position} - Rank: ${player.rank}'),
-                trailing: isNeed 
-                  ? Chip(
-                      label: const Text('Need'),
-                      backgroundColor: Colors.green.shade100,
-                    )
-                  : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  
-                  // Execute the player selection
-                  _selectPlayer(pick, player);
-                },
-              );
-            },
-          ),
+  if (_draftService == null) return;
+  
+  // Get team needs for the current team
+  final teamNeed = _teamNeeds.firstWhere(
+    (need) => need.teamName == pick.teamName,
+    orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+  );
+  
+  // Filter available players
+  final topPlayers = _draftService!.availablePlayers.take(10).toList();
+  
+  // Mark players that fill needs
+  final needPositions = teamNeed.needs;
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Select a Player for ${pick.teamName}'), // Show correct team name
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: ListView.builder(
+          itemCount: topPlayers.length,
+          itemBuilder: (context, index) {
+            final player = topPlayers[index];
+            final isNeed = needPositions.contains(player.position);
+            
+            return ListTile(
+              title: Text(player.name),
+              subtitle: Text('${player.position} - Rank: ${player.rank}'),
+              trailing: isNeed 
+                ? Chip(
+                    label: const Text('Need'),
+                    backgroundColor: Colors.green.shade100,
+                  )
+                : null,
+              onTap: () {
+                Navigator.pop(context);
+                // Execute the player selection
+                _selectPlayer(pick, player);
+              },
+            );
+          },
         ),
-        actions: [
-          
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              
-              // Auto-select best player at position of need
-              _autoSelectPlayer(pick);
-            },
-            child: const Text('Auto Pick'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            // Auto-select best player at position of need
+            _autoSelectPlayer(pick);
+          },
+          child: const Text('Auto Pick'),
+        ),
+      ],
+    ),
+  );
+}
 
   void _selectPlayer(DraftPick pick, Player player) {
     if (_draftService == null) return;
@@ -795,7 +832,7 @@ void _initiateUserTradeProposal() {
     if (_draftService == null) return;
     
     // If user has selected a team, show user trade proposal UI
-    if (widget.selectedTeam != null) {
+    if (widget.selectedTeams != null) {
       _initiateUserTradeProposal();
       return;
     }
@@ -870,14 +907,26 @@ Widget build(BuildContext context) {
     );
   }
 
+  // Calculate trade offers count
+  int tradeOffersCount = 0;
+  if (_draftService != null && widget.selectedTeams != null) {
+    // Count all pending offers for user teams
+    tradeOffersCount = _draftService!.pendingUserOffers.values
+        .expand((offers) => offers)
+        .where((offer) => widget.selectedTeams!.contains(offer.teamReceiving))
+        .length;
+  }
+
   bool hasTradeOffers = false;
-  if (_draftService != null && widget.selectedTeam != null) {
+  if (_draftService != null && widget.selectedTeams != null) {
     // Check if there are any pending offers for the user team
-    hasTradeOffers = _draftService!.pendingUserOffers.isNotEmpty;
+    hasTradeOffers = _draftService!.pendingUserOffers.values
+      .expand((offers) => offers)
+      .any((offer) => widget.selectedTeams!.contains(offer.teamReceiving));
     
     // Specifically check for the current pick
     DraftPick? nextPick = _draftService!.getNextPick();
-    if (nextPick != null && nextPick.teamName == widget.selectedTeam) {
+    if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
       hasTradeOffers = hasTradeOffers || _draftService!.hasOffersForPick(nextPick.pickNumber);
     }
   }
@@ -1006,8 +1055,8 @@ Widget build(BuildContext context) {
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: widget.selectedTeam != null 
-                  ? _getTeamGradientColors(widget.selectedTeam!)
+                colors: widget.selectedTeams != null 
+                  ? _getTeamGradientColors(widget.selectedTeams!.first)
                   : Theme.of(context).brightness == Brightness.dark
                     ? [Colors.blue.shade900, Colors.blue.shade800]
                     : [Colors.blue.shade50, Colors.blue.shade100],
@@ -1025,13 +1074,15 @@ Widget build(BuildContext context) {
             ),
             child: Row(
               children: [
-                if (widget.selectedTeam != null) ...[
+                if (widget.selectedTeams != null) ...[
                   Icon(Icons.sports_football, 
                     size: 16,
                     color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
                   const SizedBox(width: 4),
                   Text(
-                    '${widget.selectedTeam}:',  
+                    widget.selectedTeams!.length == 1 
+                      ? 'Team: ${widget.selectedTeams!.first}'
+                      : 'Teams: ${widget.selectedTeams!.length}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
@@ -1058,7 +1109,7 @@ Widget build(BuildContext context) {
                 ),
                 
                 // Trade button
-                if (widget.selectedTeam != null)
+                if (widget.selectedTeams != null)
                   OutlinedButton.icon(
                     onPressed: _showDraftSummary,
                     icon: const Icon(Icons.summarize, size: 14),
@@ -1080,40 +1131,40 @@ Widget build(BuildContext context) {
               children: [
                 DraftOrderTab(
                   draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
-                  userTeam: widget.selectedTeam,
+                  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
                   scrollController: _draftOrderScrollController,
                   teamNeeds: _teamNeedsLists,
                 ),
                AvailablePlayersTab(
-                availablePlayers: _availablePlayersLists,
-                selectionEnabled: _isUserPickMode,
-                userTeam: widget.selectedTeam,
-                selectedPositions: _getSelectedPositions(), // Add this parameter
-                onPlayerSelected: (playerIndex) {
-                    // Keep your existing onPlayerSelected code unchanged
-                    if (_isUserPickMode && _userNextPick != null) {
-                      Player? selectedPlayer;
-                      
-                      try {
-                        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-                      } catch (e) {
-                        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-                          selectedPlayer = _draftService!.availablePlayers[playerIndex];
-                        }
-                      }
-                      
-                      if (selectedPlayer != null) {
-                        _selectPlayer(_userNextPick!, selectedPlayer);
-                        setState(() {
-                          _isUserPickMode = false;
-                          _userNextPick = null;
-                        });
-                      } else {
-                        debugPrint("Could not find player with index $playerIndex");
-                      }
-                    }
-                  },
-                ),
+  availablePlayers: _availablePlayersLists,
+  selectionEnabled: _isUserPickMode,
+  userTeam: _userNextPick?.teamName, // Use the current picking team
+  teamSelectedPositions: _getTeamSelectedPositions(), // Pass the team positions map
+  onPlayerSelected: (playerIndex) {
+    // Fix selection logic to work with multiple teams
+    if (_isUserPickMode && _userNextPick != null) {
+      Player? selectedPlayer;
+      
+      try {
+        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+      } catch (e) {
+        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+          selectedPlayer = _draftService!.availablePlayers[playerIndex];
+        }
+      }
+      
+      if (selectedPlayer != null) {
+        _selectPlayer(_userNextPick!, selectedPlayer);
+        setState(() {
+          _isUserPickMode = false;
+          _userNextPick = null;
+        });
+      } else {
+        debugPrint("Could not find player with index $playerIndex");
+      }
+    }
+  },
+),
                 TeamNeedsTab(teamNeeds: _teamNeedsLists),
                 if (widget.showAnalytics)
                   // Use the simplified analytics dashboard
@@ -1123,21 +1174,23 @@ Widget build(BuildContext context) {
                       _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
                     executedTrades: _executedTrades,
                     teamNeeds: _teamNeeds,
-                    userTeam: widget.selectedTeam,
+                    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
                   )
                 ],
             ),
           ),
         ],
       ),
+      
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
-        isDraftRunning: _isDraftRunning,
-        hasTradeOffers: hasTradeOffers,
-        onToggleDraft: _toggleDraft,
-        onRestartDraft: _restartDraft,
-        onRequestTrade: _requestTrade,
-      ),
+      isDraftRunning: _isDraftRunning,
+      hasTradeOffers: hasTradeOffers,
+      tradeOffersCount: tradeOffersCount,  // Add the count
+      onToggleDraft: _toggleDraft,
+      onRestartDraft: _restartDraft,
+      onRequestTrade: _requestTrade,
+    ),
     ),
   );
 }
@@ -1148,7 +1201,7 @@ extension DraftServiceExtensions on DraftService {
   /// Get the next pick in the draft
   DraftPick? getNextPick() {
     for (var pick in draftOrder) {
-      if (!pick.isSelected) {
+      if (!pick.isSelected && pick.isActiveInDraft) {
         return pick;
       }
     }
