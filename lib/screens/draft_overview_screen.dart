@@ -343,22 +343,23 @@ Future<void> _loadData() async {
       // Get the next pick
       final nextPick = _draftService!.getNextPick();
 
-      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Team: ${widget.selectedTeams}");
-      
+      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Teams: ${widget.selectedTeams}");
+
       // Check if this is the user's team and they should make a choice
-      if (nextPick != null && nextPick.teamName == widget.selectedTeams) {
+      if (nextPick != null && widget.selectedTeams != null && 
+          widget.selectedTeams!.contains(nextPick.teamName)) {
         // Generate trade offers before pausing the draft
         _draftService!.generateUserTradeOffers();
         
         setState(() {
           _isDraftRunning = false; // Pause the draft
           _statusMessage = "YOUR PICK: Select a player from the Available Players tab";
-          _isUserPickMode = true; // Add this flag to your class
-          _userNextPick = nextPick; // Add this field to store the current pick
+          _isUserPickMode = true;
+          _userNextPick = nextPick;
         });
         
         // Switch to the available players tab
-        _tabController.animateTo(1); // Index of available players tab
+        _tabController.animateTo(1);
         
         return;
       }
