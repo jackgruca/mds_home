@@ -162,28 +162,30 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   }
 }
 
-  List<String> _getSelectedPositions() {
-  // Extract positions that have been drafted
-  List<String> selectedPositions = [];
+ Map<String, List<String>> _getTeamSelectedPositions() {
+  // Create a map of team name -> list of drafted positions
+  Map<String, List<String>> teamPositions = {};
   
   if (widget.selectedTeams != null) {
-    // Find all picks from ALL user's teams that have been made
+    // Initialize map for all selected teams
     for (String teamName in widget.selectedTeams!) {
-      final userPicks = _draftPicks.where((pick) => 
-        pick.teamName == teamName && 
-        pick.selectedPlayer != null
-      );
-      
-      // Add those positions to the list
-      for (var pick in userPicks) {
+      teamPositions[teamName] = [];
+    }
+    
+    // Find all picks from user teams that have been made
+    for (var pick in _draftPicks.where((p) => p.selectedPlayer != null)) {
+      String teamName = pick.teamName;
+      // Only track for user teams
+      if (widget.selectedTeams!.contains(teamName)) {
         if (pick.selectedPlayer?.position != null) {
-          selectedPositions.add(pick.selectedPlayer!.position);
+          teamPositions[teamName] ??= []; // Ensure list exists
+          teamPositions[teamName]!.add(pick.selectedPlayer!.position);
         }
       }
     }
   }
   
-  return selectedPositions;
+  return teamPositions;
 }
 
 List<Color> _getTeamGradientColors(String teamName) {
@@ -1092,7 +1094,7 @@ Widget build(BuildContext context) {
   availablePlayers: _availablePlayersLists,
   selectionEnabled: _isUserPickMode,
   userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // This only shows the first team
-  selectedPositions: _getSelectedPositions(), // This needs to be updated for multiple teams
+  teamSelectedPositions: _getTeamSelectedPositions(), // This needs to be updated for multiple teams
   onPlayerSelected: (playerIndex) {
     // Fix selection logic to work with multiple teams
     if (_isUserPickMode && _userNextPick != null) {

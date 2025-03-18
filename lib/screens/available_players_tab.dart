@@ -14,14 +14,14 @@ class AvailablePlayersTab extends StatefulWidget {
   final bool selectionEnabled;
   final Function(int)? onPlayerSelected;
   final String? userTeam;
-  final List<String> selectedPositions;
+  final Map<String, List<String>> teamSelectedPositions;
 
   const AvailablePlayersTab({
     required this.availablePlayers, 
     this.selectionEnabled = false,
     this.onPlayerSelected,
     this.userTeam,
-    this.selectedPositions = const [],
+    this.teamSelectedPositions = const {},
     super.key
   });
 
@@ -50,13 +50,22 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   void didUpdateWidget(AvailablePlayersTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    if (widget.selectedPositions != oldWidget.selectedPositions) {
+    if (widget.teamSelectedPositions != oldWidget.teamSelectedPositions) {
       _initializeSelectedPlayers();
     }
   }
   
   void _initializeSelectedPlayers() {
     _selectedPlayerIds = {};
+  }
+
+  // Check if a position has been drafted by the current team
+  bool isPositionDraftedByCurrentTeam(String position) {
+    if (widget.userTeam != null && 
+        widget.teamSelectedPositions.containsKey(widget.userTeam)) {
+      return widget.teamSelectedPositions[widget.userTeam]!.contains(position);
+    }
+    return false;
   }
 
   @override
@@ -211,13 +220,13 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                           children: [
                             // All positions chip
                             if (_selectedPositions.isEmpty)
-                              _buildPositionChip('All', true, () {}),
+                              _buildPositionChip('All', true, () {}, isDraftedByCurrentTeam: false),
                             if (_selectedPositions.isNotEmpty)
                               _buildPositionChip('All', false, () {
                                 setState(() {
                                   _selectedPositions.clear();
                                 });
-                              }),
+                              }, isDraftedByCurrentTeam: false),
                               
                             // Offensive positions
                             ...availableOffensive.map((position) => 
@@ -234,6 +243,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                   });
                                 },
                                 isOffensive: true,
+                                isDraftedByCurrentTeam: isPositionDraftedByCurrentTeam(position),
                               )
                             ),
                             
@@ -252,6 +262,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                   });
                                 },
                                 isOffensive: false,
+                                isDraftedByCurrentTeam: isPositionDraftedByCurrentTeam(position),
                               )
                             ),
                           ],
@@ -266,6 +277,38 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
           
           const SizedBox(height: 6),
           
+          // Show current team label if applicable
+          if (widget.userTeam != null)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? 
+                      Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark ? 
+                        Colors.blue.shade600 : Colors.blue.shade200,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sports_football, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Drafting for: ${widget.userTeam}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Theme.of(context).brightness == Brightness.dark ? 
+                            Colors.blue.shade200 : Colors.blue.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
           // Player List with Card-based Layout (similar to Draft Order)
           Expanded(
             child: ListView.builder(
@@ -274,9 +317,9 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                 final player = filteredPlayers[index];
                 final isDarkMode = Theme.of(context).brightness == Brightness.dark;
                 
-                // Check if player is selected or position has been drafted
+                // Check if player is selected or position has been drafted by current team
                 bool isSelected = _selectedPlayerIds.contains(player.id);
-                bool positionDrafted = widget.selectedPositions.contains(player.position);
+                bool positionDrafted = isPositionDraftedByCurrentTeam(player.position);
                 
                 return Card(
                   elevation: 1.0,
@@ -435,15 +478,15 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   // Visual indication of previously drafted position
-                                  backgroundColor: positionDrafted ? Colors.green : Colors.green,
+                                  backgroundColor: positionDrafted ? Colors.green.shade200 : Colors.green,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   minimumSize: const Size(0, 28),
                                 ),
                                 child: Text(
                                   // Change text to indicate if this is a duplicate position
                                   positionDrafted ? 'Draft' : 'Draft',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: positionDrafted ? Colors.grey.shade800 : Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -541,29 +584,33 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   );
 }
 
-  Widget _buildPositionChip(String label, bool isSelected, VoidCallback onTap, {bool isOffensive = true}) {
-    bool isPositionDrafted = widget.selectedPositions.contains(label);
+  Widget _buildPositionChip(
+    String label, 
+    bool isSelected, 
+    VoidCallback onTap, 
+    {bool isOffensive = true, bool isDraftedByCurrentTeam = false}
+  ) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     Color getBgColor() {
-    if (isDarkMode) {
-      return isSelected 
-          ? (isOffensive ? Colors.blue.shade800 : Colors.red.shade800) 
-          : (isOffensive ? Colors.blue.shade900.withOpacity(0.3) : Colors.red.shade900.withOpacity(0.3));
-    } else {
-      return isSelected 
-          ? (isOffensive ? Colors.blue.shade100 : Colors.red.shade100)
-          : (isOffensive ? Colors.blue.shade50 : Colors.red.shade50);
+      if (isDarkMode) {
+        return isSelected 
+            ? (isOffensive ? Colors.blue.shade800 : Colors.red.shade800) 
+            : (isOffensive ? Colors.blue.shade900.withOpacity(0.3) : Colors.red.shade900.withOpacity(0.3));
+      } else {
+        return isSelected 
+            ? (isOffensive ? Colors.blue.shade100 : Colors.red.shade100)
+            : (isOffensive ? Colors.blue.shade50 : Colors.red.shade50);
+      }
     }
-  }
   
-  Color getTextColor() {
-    if (isDarkMode) {
-      return isOffensive ? Colors.blue.shade200 : Colors.red.shade200;
-    } else {
-      return isOffensive ? Colors.blue.shade700 : Colors.red.shade700;
+    Color getTextColor() {
+      if (isDarkMode) {
+        return isOffensive ? Colors.blue.shade200 : Colors.red.shade200;
+      } else {
+        return isOffensive ? Colors.blue.shade700 : Colors.red.shade700;
+      }
     }
-  }
 
     return Container(
       margin: const EdgeInsets.only(right: 6),
@@ -589,16 +636,17 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: getTextColor(),
+                  color: getTextColor(),
                 ),
               ),
-              if (isPositionDrafted && label != 'All')
+              // Only strike through if position drafted by current team
+              if (isDraftedByCurrentTeam && label != 'All')
                 Positioned(
                   left: 0,
                   right: 0,
                   child: Container(
-                  height: 1.5,
-                  color: getTextColor(),
+                    height: 1.5,
+                    color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700,
                   ),
                 ),
             ],
