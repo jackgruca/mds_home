@@ -95,7 +95,7 @@ Future<void> _loadUserPreferences() async {
         numberOfRounds: _numberOfRounds,
         randomnessFactor: _randomness,
         draftSpeed: _speed,
-        userTeam: _selectedTeam,
+        userTeam: _selectedTeams.isNotEmpty ? _selectedTeams.first : null,
         // Default values for new settings
         enableTrading: _enableTrading,
         enableUserTradeProposals: _enableUserTradeProposals,

@@ -458,8 +458,10 @@ void _initiateUserTradeProposal() {
   _draftService!.generateUserPickOffers();
   
   // Get user's available picks
-  final userPicks = _draftService!.getTeamPicks(widget.selectedTeam!);
-  
+  final userPicks = widget.selectedTeams!.isNotEmpty 
+    ? _draftService!.getTeamPicks(widget.selectedTeams!.first)
+    : [];
+    
   // Get other teams' available picks
   final otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeam!);
   
@@ -477,7 +479,7 @@ void _initiateUserTradeProposal() {
   showDialog(
     context: context,
     builder: (context) => UserTradeTabsDialog(
-      userTeams: widget.selectedTeams,
+      userTeam: widget.selectedTeams!.first,
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
@@ -1007,7 +1009,7 @@ Widget build(BuildContext context) {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: widget.selectedTeams != null 
-                  ? _getTeamGradientColors(widget.selectedTeams!)
+                  ? _getTeamGradientColors(widget.selectedTeams!.first)
                   : Theme.of(context).brightness == Brightness.dark
                     ? [Colors.blue.shade900, Colors.blue.shade800]
                     : [Colors.blue.shade50, Colors.blue.shade100],
