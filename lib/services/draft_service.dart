@@ -17,6 +17,7 @@ class DraftConfig {
   final int numberOfRounds;
   final bool enableTrading;
   final bool enableQBPremium;
+  final bool enableUserTradeProposals;
   
   // Player selection behavior settings
   final double valueVsNeedBalance; // 1.0 = all value, 0.0 = all need
@@ -31,6 +32,7 @@ class DraftConfig {
     this.numberOfRounds = 7,
     this.enableTrading = true,
     this.enableQBPremium = true,
+    this.enableUserTradeProposals = true,
     this.valueVsNeedBalance = 0.6, // Default to 60% value, 40% need
     this.positionTierAdjustment = 0.3,
     this.enablePositionRuns = true,
@@ -123,11 +125,22 @@ class DraftService {
     required this.draftOrder,
     required this.teamNeeds,
     this.userTeam,
+    double randomnessFactor = 0.5,
+    int numberRounds = 7,
+    bool enableTrading = true,
+    bool enableUserTradeProposals = true,
+    bool enableQBPremium = true,
     DraftConfig? config,
     TradeService? tradeService,
     Random? random,
   }) : 
-    config = config ?? const DraftConfig(),
+    config = config ?? DraftConfig(
+      randomnessFactor: randomnessFactor,
+      numberOfRounds: numberRounds,
+      enableTrading: enableTrading,
+      enableUserTradeProposals: enableUserTradeProposals,
+      enableQBPremium: enableQBPremium
+    ),
     _random = random ?? Random() {
     // Sort players by rank initially
     availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
@@ -159,7 +172,7 @@ class DraftService {
     // Check if this is a user team pick
     if (userTeam != null && nextPick.teamName == userTeam) {
       // Generate trade offers for user-controlled team
-      _generateUserTradeOffers(nextPick);
+      generateUserTradeOffers();
       
       // Return without making a selection - user will choose
       _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
@@ -197,7 +210,7 @@ class DraftService {
   /// Make a player selection for a pick and update state
   void _makePlayerSelection(DraftPick pick) {
     // Select best player for this team
-    Player selectedPlayer = selectBestPlayerForTeam(pick.teamName, pick.pickNumber);
+    Player selectedPlayer = selectBestPlayerForTeam(pick.teamName);
     pick.selectedPlayer = selectedPlayer;
     
     // Update team needs
@@ -267,16 +280,44 @@ class DraftService {
   }
   
   /// Generate trade offers for user team pick
-  void _generateUserTradeOffers(DraftPick userPick) {
-    // Generate realistic offers using trade service
-    TradeOffer tradeOffers = _tradeService.generateTradeOffersForPick(userPick.pickNumber);
-    
-    // Store the offers for the user to consider
-    if (tradeOffers.packages.isNotEmpty) {
-      _pendingUserOffers[userPick.pickNumber] = tradeOffers.packages;
-    } else {
-      _pendingUserOffers.remove(userPick.pickNumber);
+  void generateUserTradeOffers() {
+    if (userTeam == null || !config.enableUserTradeProposals) {
+      _pendingUserOffers.clear();
+      return;
     }
+    
+    // Find the next user pick that's active in the draft
+    DraftPick? nextUserPick;
+    
+    // Find the next pick in the draft order
+    DraftPick? nextPick = getNextPick();
+    if (nextPick == null) return;
+    
+    // Only generate offers if it's the user's current pick
+    if (nextPick.teamName == userTeam) {
+      nextUserPick = nextPick;
+    } else {
+      // Clear any existing offers since it's not the user's turn
+      _pendingUserOffers.clear();
+      return;
+    }
+    
+    // Generate offers only for the current pick
+    final pickNum = nextUserPick.pickNumber;
+    
+    // If there are already offers for this pick, don't regenerate
+    if (_pendingUserOffers.containsKey(pickNum)) return;
+    
+    // Generate trade offers for this pick
+    TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
+    if (offers.packages.isNotEmpty) {
+      _pendingUserOffers[pickNum] = offers.packages;
+    }
+  }
+  
+  /// Legacy method alias for backward compatibility
+  void generateUserPickOffers() {
+    generateUserTradeOffers();
   }
   
   /// Clean up stale trade offers for picks that have been handled
@@ -473,24 +514,32 @@ class DraftService {
   }
   
   /// Select the best player for a team at a pick position
-  Player selectBestPlayerForTeam(String teamName, int pickNumber) {
+  Player selectBestPlayerForTeam(String teamName) {
     // Get team's needs
     TeamNeed? teamNeed = _getTeamNeeds(teamName);
     
     // Use enhanced selection logic
-    return _selectPlayerWithCombinedLogic(teamName, teamNeed, pickNumber);
+    return selectPlayerRStyle(teamNeed, teamName);
   }
   
-  /// Select player using a blend of positional value, need, and randomness
-  Player _selectPlayerWithCombinedLogic(String teamName, TeamNeed? teamNeed, int pickNumber) {
+  /// Player selection with realistic balance of BPA and need
+  Player selectPlayerRStyle(TeamNeed? teamNeed, String teamName) {
     // Map of players to their scores
     final Map<Player, double> playerScores = {};
+    
+    // Get pick number
+    DraftPick? nextPick = draftOrder.firstWhere(
+      (pick) => pick.teamName == teamName && !pick.isSelected,
+      orElse: () => null as DraftPick
+    );
+    
+    int pickNumber = nextPick.pickNumber;
     
     // Get value/need balance for this pick position
     double valueWeight = _getValueNeedRatio(pickNumber);
     double needWeight = 1.0 - valueWeight;
     
-    // Calculate scores for top available players
+    // Calculate scores for top available players (limit to 20 for performance)
     for (var player in availablePlayers.take(min(20, availablePlayers.length))) {
       // Calculate value component (based on rank differential)
       double rankScore = 100.0 - player.rank;
@@ -648,7 +697,8 @@ class DraftService {
       return teamNeeds.firstWhere((need) => need.teamName == teamName);
     } catch (e) {
       debugPrint('No team needs found for $teamName');
-      return null;
+      // Instead of returning null, create a default instance
+      return TeamNeed(teamName: teamName, needs: []);
     }
   }
   
@@ -675,47 +725,6 @@ class DraftService {
     if (rank <= 64) return ProspectTier.secondRound;
     if (rank <= 150) return ProspectTier.midRound;
     return ProspectTier.lateRound;
-  }
-  
-  /// Generate offers for user-initiated trades
-  void generateUserTradeOffers() {
-    if (userTeam == null) {
-      _pendingUserOffers.clear();
-      return;
-    }
-    
-    // Find the next user pick that's active in the draft
-    DraftPick? nextUserPick;
-    
-    // Find the next pick in the draft order
-    DraftPick? nextPick = getNextPick();
-    if (nextPick == null) return;
-    
-    // Only generate offers if it's the user's current pick
-    if (nextPick.teamName == userTeam) {
-      nextUserPick = nextPick;
-    } else {
-      // Clear any existing offers since it's not the user's turn
-      _pendingUserOffers.clear();
-      return;
-    }
-    
-    // Generate offers only for the current pick
-    final pickNum = nextUserPick.pickNumber;
-    
-    // If there are already offers for this pick, don't regenerate
-    if (_pendingUserOffers.containsKey(pickNum)) return;
-    
-    // Generate trade offers for this pick
-    TradeOffer offers = _tradeService.generateTradeOffersForPick(pickNum);
-    if (offers.packages.isNotEmpty) {
-      _pendingUserOffers[pickNum] = offers.packages;
-    }
-  }
-  
-  /// Legacy method alias for backward compatibility
-  void generateUserPickOffers() {
-    generateUserTradeOffers();
   }
   
   /// Check if there are trade offers for a specific pick
@@ -762,6 +771,20 @@ class DraftService {
     return draftOrder.where((pick) => 
       pick.teamName != excludeTeam && !pick.isSelected
     ).toList();
+  }
+  
+  /// Get trade offers for current pick
+  TradeOffer getTradeOffersForCurrentPick() {
+    DraftPick? nextPick = getNextPick();
+    if (nextPick == null) {
+      return const TradeOffer(
+        packages: [],
+        pickNumber: 0,
+        isUserInvolved: false
+      );
+    }
+    
+    return _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
   }
   
   // Public getters for state information
