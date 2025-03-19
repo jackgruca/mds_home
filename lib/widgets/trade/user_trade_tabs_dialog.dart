@@ -131,146 +131,150 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   }
   
   Widget _buildPendingOffersTab(List<TradePackage> offers) {
-    if (offers.isEmpty) {
-      return const Center(
-        child: Text('No trade offers available.'),
-      );
-    }
-    
-    return ListView.builder(
-      itemCount: offers.length,
-      itemBuilder: (context, index) {
-        final offer = offers[index];
-        final valueRatio = offer.totalValueOffered / offer.targetPickValue;
-        final valueScore = (valueRatio * 100).toInt();
-        
-        // Extract key information from the trade description
-        String sentenceCase(String text) {
-          if (text.isEmpty) return text;
-          return text[0].toUpperCase() + text.substring(1);
-        }
-        
-        final picksGained = _getPicksSummary(offer.targetPick, offer.additionalTargetPicks);
-        final picksLost = _getPicksOfferedSummary(offer.picksOffered, offer.includesFuturePick ? offer.futurePickDescription : null);
-        
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(
-              color: _getOfferValueColor(offer).withOpacity(0.5),
-              width: 1.0,
-            ),
-          ),
-          elevation: 1,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => _showTradeDetails(context, offer),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Row(
-                children: [
-                  // Team logo
-                  TeamLogoUtils.buildNFLTeamLogo(
-                    offer.teamOffering,
-                    size: 32.0,
-                  ),
-                  const SizedBox(width: 12),
-                  
-                  // Trade summary
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Team name
-                        Text(
-                          offer.teamOffering,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        const SizedBox(height: 2),
-                        
-                        // Trade terms (simplified)
-                        Row(
-                          children: [
-                            // Picks you gain
-                            Expanded(
-                              child: Text(
-                                'Receives: $picksGained',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).brightness == Brightness.dark ? 
-                                        Colors.white : Colors.black,
-                                      ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            
-                            // Picks you lose
-                            Expanded(
-                              child: Text(
-                                'Offers: $picksLost',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).brightness == Brightness.dark ? 
-                                         Colors.white : Colors.black,
-                                      ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Value score chip
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getOfferValueColor(offer).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _getOfferValueColor(offer),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Text(
-                      '$valueScore%',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: _getOfferValueColor(offer),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(width: 8),
-                  
-                  // Accept button (smaller)
-                  SizedBox(
-                    height: 30,
-                    width: 30,
-                    child: IconButton(
-                      onPressed: () => widget.onAcceptOffer(offer),
-                      icon: const Icon(Icons.check_circle, size: 20),
-                      color: Colors.green,
-                      tooltip: 'Accept Offer',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+  if (offers.isEmpty) {
+    return const Center(
+      child: Text('No trade offers available.'),
     );
   }
+  
+  return ListView.builder(
+    itemCount: offers.length,
+    itemBuilder: (context, index) {
+      final offer = offers[index];
+      final valueRatio = offer.totalValueOffered / offer.targetPickValue;
+      final valueScore = (valueRatio * 100).toInt();
+      
+      // Extract the picks offered and picks received
+      final picksGained = _getPicksSummary(offer.targetPick, offer.additionalTargetPicks);
+      final picksLost = _getPicksOfferedSummary(offer.picksOffered, offer.includesFuturePick ? offer.futurePickDescription : null);
+      
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: _getOfferValueColor(offer).withOpacity(0.5),
+            width: 1.0,
+          ),
+        ),
+        elevation: 1,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _showTradeDetails(context, offer),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: Row(
+              children: [
+                // Team offering logo and what they get
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TeamLogoUtils.buildNFLTeamLogo(
+                        offer.teamOffering,
+                        size: 32.0,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        offer.teamOffering,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Gets: $picksGained",
+                        style: const TextStyle(fontSize: 11),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Swap arrows
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Icon(
+                    Icons.swap_horiz,
+                    size: 20,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+                
+                // Your team logo and what you get
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TeamLogoUtils.buildNFLTeamLogo(
+                        offer.teamReceiving,
+                        size: 32.0,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        offer.teamReceiving,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Gets: $picksLost",
+                        style: const TextStyle(fontSize: 11),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Value score chip
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getOfferValueColor(offer).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getOfferValueColor(offer),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Text(
+                    '$valueScore%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: _getOfferValueColor(offer),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Accept button
+                SizedBox(
+                  height: 30,
+                  width: 30,
+                  child: IconButton(
+                    onPressed: () => widget.onAcceptOffer(offer),
+                    icon: const Icon(Icons.check_circle, size: 20),
+                    color: Colors.green,
+                    tooltip: 'Accept Offer',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
   
   // Helper method to get a simple summary of picks gained
   String _getPicksSummary(DraftPick targetPick, List<DraftPick> additionalPicks) {
