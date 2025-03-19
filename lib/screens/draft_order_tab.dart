@@ -1,20 +1,22 @@
+// Update the DraftOrderTab class to handle current pick tracking
 import 'package:flutter/material.dart';
+
 import '../models/draft_pick.dart';
-import '../models/player.dart';
 import '../widgets/draft/animated_draft_pick_card.dart';
 
 class DraftOrderTab extends StatefulWidget {
-  // Update this to accept a list of DraftPick objects instead of List<List<dynamic>>
-  final List<DraftPick> draftOrder; 
+  final List<DraftPick> draftOrder;
   final String? userTeam;
   final ScrollController? scrollController;
   final List<List<dynamic>> teamNeeds; // Still need this for team needs
+  final int? currentPickNumber; // Add this to track the current pick
   
   const DraftOrderTab({
     required this.draftOrder,
     this.userTeam,
     this.scrollController,
     required this.teamNeeds,
+    this.currentPickNumber, // New parameter
     super.key,
   });
 
@@ -80,11 +82,18 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
         final isUserTeam = draftPick.teamName == widget.userTeam;
         final isRecentPick = index < 3; // Consider the first 3 picks as "recent"
         
+        // Check if this is the current pick
+        final isCurrentPick = widget.currentPickNumber != null && 
+                             draftPick.pickNumber == widget.currentPickNumber;
+        
+        // Add key for better list diffing and animation
         return AnimatedDraftPickCard(
+          key: ValueKey('draft-pick-${draftPick.pickNumber}'),
           draftPick: draftPick,
           isUserTeam: isUserTeam,
           isRecentPick: isRecentPick,
           teamNeeds: _getTeamNeeds(draftPick.teamName),
+          isCurrentPick: isCurrentPick, // Pass the isCurrentPick flag
         );
       },
     );
@@ -148,6 +157,28 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                     ),
                   ),
                 ),
+                
+                // Current pick indicator
+                if (widget.currentPickNumber != null)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? Colors.green.shade800 : Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isDarkMode ? Colors.green.shade600 : Colors.green.shade300,
+                      ),
+                    ),
+                    child: Text(
+                      'Pick #${widget.currentPickNumber}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.green.shade900,
+                      ),
+                    ),
+                  ),
                 
                 // Clear search button when search is active
                 if (_searchQuery.isNotEmpty)
