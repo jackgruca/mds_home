@@ -9,7 +9,7 @@ class DraftOrderTab extends StatefulWidget {
   final String? userTeam;
   final ScrollController? scrollController;
   final List<List<dynamic>> teamNeeds; // Still need this for team needs
-  final int? currentPickNumber; // Add this to track the current pick
+  final int? currentPickNumber; // Add this to track the current pick 
   
   const DraftOrderTab({
     required this.draftOrder,
