@@ -826,17 +826,19 @@ void _initiateUserTradeProposal() {
   // Sort alphabetically for better UX
   allTeams.sort();
   
-  // Show a full-screen dialog with the draft summary
+  // Show a custom-sized dialog with the draft summary
   showDialog(
     context: context,
-    barrierDismissible: false, // Prevent dismissing by tapping outside
+    barrierColor: Colors.black54.withOpacity(0.3), // More transparent barrier
+    barrierDismissible: true, // Allow dismissing by tapping outside
     builder: (context) => DraftSummaryScreen(
       completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
       draftedPlayers: _players.where((player) => 
         _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
       executedTrades: _executedTrades,
-      allTeams: allTeams, // Add the list of teams
-      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
+      allTeams: allTeams,
+      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+      allDraftPicks: _draftPicks,
     ),
   );
 }
