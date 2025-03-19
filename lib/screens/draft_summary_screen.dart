@@ -944,50 +944,52 @@ Widget build(BuildContext context) {
   }
 
   // Replace the _buildEnhancedGradeBanner method with this compact version
-Widget _buildCompactGradeHeader(Map<String, dynamic> gradeInfo) {
-  final grade = gradeInfo['grade'];
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
-  // Determine color based on grade
-  Color gradeColor;
-  if (grade.startsWith('A')) {
-    gradeColor = Colors.green.shade700;
-  } else if (grade.startsWith('B')) {
-    gradeColor = Colors.blue.shade700;
-  } else if (grade.startsWith('C')) {
-    gradeColor = Colors.orange.shade700;
-  } else {
-    gradeColor = Colors.red.shade700;
-  }
-  
-  return Card(
-    elevation: 1,
-    margin: const EdgeInsets.only(bottom: 12),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8.0),
-      side: BorderSide(
-        color: isDarkMode ? gradeColor.withOpacity(0.7) : gradeColor.withOpacity(0.3),
-        width: 1.5,
-      ),
-    ),
-    child: Padding(
+  Widget _buildCompactGradeHeader(Map<String, dynamic> gradeInfo) {
+    final grade = gradeInfo['grade'];
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    // Determine color based on grade
+    Color gradeColor;
+    if (grade.startsWith('A')) {
+      gradeColor = Colors.green.shade700;
+    } else if (grade.startsWith('B')) {
+      gradeColor = Colors.blue.shade700;
+    } else if (grade.startsWith('C')) {
+      gradeColor = Colors.orange.shade700;
+    } else if (grade.startsWith('N/A')) {
+      gradeColor = Colors.grey.shade700;
+    } else {
+      gradeColor = Colors.red.shade700;
+    }
+    
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8.0),
+        // Removed the border property entirely
+      ),
       child: Row(
         children: [
-          // Team Logo
-          TeamLogoUtils.buildNFLTeamLogo(
-            _selectedTeam!,
-            size: 32.0,
+          // Team Logo - Made larger
+          SizedBox(
+            width: 48.0, // Increased from 32.0
+            height: 48.0, // Increased from 32.0
+            child: TeamLogoUtils.buildNFLTeamLogo(
+              _selectedTeam!,
+              size: 48.0, // Increased from 32.0
+            ),
           ),
           const SizedBox(width: 12),
           
-          // Team Name
+          // Team Name - Made more prominent
           Expanded(
             child: Text(
               _selectedTeam!,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16.0,
+                fontSize: 20.0, // Increased from 16.0
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1029,9 +1031,8 @@ Widget _buildCompactGradeHeader(Map<String, dynamic> gradeInfo) {
           ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
    // Helper method for stat rows in the enhanced banner
   Widget _buildStatRow(String label, String value, bool isDarkMode, [Color? valueColor]) {
     return Row(
