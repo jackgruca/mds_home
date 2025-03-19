@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
+import '../models/team_need.dart';
 import '../models/trade_package.dart';
+import '../services/draft_grade_service.dart';
 import '../services/draft_value_service.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
 
@@ -13,7 +15,8 @@ class DraftSummaryScreen extends StatefulWidget {
   final List<TradePackage> executedTrades;
   final List<String> allTeams; 
   final String? userTeam;
-  final List<DraftPick> allDraftPicks; // New parameter for all picks
+  final List<DraftPick> allDraftPicks;
+  final List<TeamNeed> teamNeeds; // Add this line
 
   const DraftSummaryScreen({
     super.key,
@@ -23,6 +26,7 @@ class DraftSummaryScreen extends StatefulWidget {
     required this.allTeams,
     this.userTeam,
     required this.allDraftPicks,
+    required this.teamNeeds, // Add this parameter
   });
 
   @override
@@ -218,15 +222,35 @@ Widget build(BuildContext context) {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank)).withOpacity(0.2),
+                      color: _getGradeColor(_calculatePickGrade(
+  pick.pickNumber, 
+  pick.selectedPlayer!.rank,
+  pick.selectedPlayer!.position,
+  pick.teamName
+)).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank))),
+                      border: Border.all(color: _getGradeColor(_calculatePickGrade(
+  pick.pickNumber, 
+  pick.selectedPlayer!.rank,
+  pick.selectedPlayer!.position,
+  pick.teamName
+))),
                     ),
                     child: Text(
-                      _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank),
+                      _calculatePickGrade(
+  pick.pickNumber, 
+  pick.selectedPlayer!.rank,
+  pick.selectedPlayer!.position,
+  pick.teamName
+),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank)),
+                        color: _getGradeColor(_calculatePickGrade(
+  pick.pickNumber, 
+  pick.selectedPlayer!.rank,
+  pick.selectedPlayer!.position,
+  pick.teamName
+)),
                       ),
                     ),
                   ),
@@ -1128,94 +1152,55 @@ Widget build(BuildContext context) {
       },
     );
   }
+
+// Modify the _calculatePickGrade method
+String _calculatePickGrade(int pickNumber, int playerRank, String position, String teamName) {
+  // Create a dummy DraftPick and Player
+  final player = Player(
+    id: 0,
+    name: '',
+    position: position,
+    rank: playerRank
+  );
   
-  Map<String, dynamic> _calculateTeamGrade(
-    List<DraftPick> teamPicks, 
-    List<TradePackage> teamTrades
-  ) {
-    if (teamPicks.isEmpty) {
-      return {
-        'grade': 'N/A',
-        'value': 0.0,
-        'description': 'No picks made',
-        'pickCount': 0,
-      };
-    }
-    
-    // Calculate average rank differential
-    double totalDiff = 0;
-    for (var pick in teamPicks) {
-      if (pick.selectedPlayer != null) {
-        totalDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
-    }
-    double avgDiff = totalDiff / teamPicks.length;
-    
-    // Calculate trade value
-    double tradeValue = 0;
-    for (var trade in teamTrades) {
-      if (trade.teamOffering == _selectedTeam) {
-        tradeValue -= trade.valueDifferential;
-      } else {
-        tradeValue += trade.valueDifferential;
-      }
-    }
-    
-    // Trade value per pick
-    double tradeValuePerPick = teamPicks.isNotEmpty ? tradeValue / teamPicks.length : 0;
-    
-    // Combine metrics for final grade
-    double combinedValue = avgDiff + (tradeValuePerPick / 10);
-    
-    // Determine letter grade based on value
-    String grade;
-    String description;
-    
-    if (combinedValue >= 15) {
-      grade = 'A+';
-      description = 'Outstanding draft with exceptional value';
-    } else if (combinedValue >= 10) {
-      grade = 'A';
-      description = 'Excellent draft with great value picks';
-    } else if (combinedValue >= 5) {
-      grade = 'B+';
-      description = 'Very good draft with solid value picks';
-    } else if (combinedValue >= 0) {
-      grade = 'B';
-      description = 'Solid draft with good value picks';
-    } else if (combinedValue >= -5) {
-      grade = 'C+';
-      description = 'Average draft with some reaches';
-    } else if (combinedValue >= -10) {
-      grade = 'C';
-      description = 'Below average draft with several reaches';
-    } else {
-      grade = 'D';
-      description = 'Poor draft with significant reaches';
-    }
-    
+  final pick = DraftPick(
+    pickNumber: pickNumber,
+    teamName: teamName,
+    round: DraftValueService.getRoundForPick(pickNumber).toString(),
+    selectedPlayer: player
+  );
+  
+  // Get grade from service
+  final gradeInfo = DraftGradeService.calculatePickGrade(
+    pick, 
+    widget.teamNeeds
+  );
+  
+  return gradeInfo['letterGrade'];
+}
+
+// Modify the _calculateTeamGrade method
+Map<String, dynamic> _calculateTeamGrade(
+  List<DraftPick> teamPicks, 
+  List<TradePackage> teamTrades
+) {
+  if (teamPicks.isEmpty) {
     return {
-      'grade': grade,
-      'value': avgDiff,
-      'description': description,
-      'pickCount': teamPicks.length,
+      'grade': 'N/A',
+      'value': 0.0,
+      'description': 'No picks made',
+      'pickCount': 0,
     };
   }
   
-  // Calculate pick grade based on value differential
-  String _calculatePickGrade(int pickNumber, int playerRank) {
-    int diff = pickNumber - playerRank;
-    
-    if (diff >= 20) return 'A+';
-    if (diff >= 15) return 'A';
-    if (diff >= 10) return 'B+';
-    if (diff >= 5) return 'B';
-    if (diff >= 0) return 'C+';
-    if (diff >= -10) return 'C';
-    if (diff >= -20) return 'D';
-    return 'F';
-  }
-  
+  // Use the new service
+  return DraftGradeService.calculateTeamGrade(
+    teamPicks,
+    teamTrades,
+    widget.teamNeeds
+  );
+}
+
   // Get color for pick grade
   Color _getGradeColor(String grade) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;

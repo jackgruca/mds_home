@@ -829,8 +829,8 @@ void _initiateUserTradeProposal() {
   // Show a custom-sized dialog with the draft summary
   showDialog(
     context: context,
-    barrierColor: Colors.black54.withOpacity(0.3), // More transparent barrier
-    barrierDismissible: true, // Allow dismissing by tapping outside
+    barrierColor: Colors.black54.withOpacity(0.3),
+    barrierDismissible: true,
     builder: (context) => DraftSummaryScreen(
       completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
       draftedPlayers: _players.where((player) => 
@@ -839,10 +839,10 @@ void _initiateUserTradeProposal() {
       allTeams: allTeams,
       userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
       allDraftPicks: _draftPicks,
+      teamNeeds: _teamNeeds, // Add this line to pass the team needs
     ),
   );
 }
-
   void _showPlayerSelectionDialog(DraftPick pick) {
   if (_draftService == null) return;
   
