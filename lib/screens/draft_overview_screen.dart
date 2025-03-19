@@ -587,76 +587,81 @@ void _initiateUserTradeProposal() {
 }
 
   void _showTradeOptions(DraftPick pick) {
-    if (_draftService == null) return;
-    
-    // Generate trade offers for this pick
-    final tradeOffers = _draftService!.getTradeOffersForCurrentPick();
-    
-    // Only show the dialog if there are viable trade offers
-    if (tradeOffers.packages.isNotEmpty) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => TradeDialogWrapper(
-          tradeOffer: tradeOffers,
-          onAccept: (package) {
-            // Execute the selected trade
-            _draftService!.executeUserSelectedTrade(package);
-            _executedTrades = _draftService!.executedTrades;
+  if (_draftService == null) return;
+  
+  // Generate trade offers for this pick
+  final tradeOffers = _draftService!.getTradeOffersForCurrentPick();
+  
+  // Only show the dialog if there are viable trade offers
+  if (tradeOffers.packages.isNotEmpty) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => TradeDialogWrapper(
+        tradeOffer: tradeOffers,
+        onAccept: (package) {
+          // Execute the selected trade
+          _draftService!.executeUserSelectedTrade(package);
+          _executedTrades = _draftService!.executedTrades;
+          
+          // Update UI
+          setState(() {
+            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+            _statusMessage = _draftService!.statusMessage;
             
-            // Update UI
-            setState(() {
-              _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-              _statusMessage = _draftService!.statusMessage;
-            });
+            // Reset user pick mode
+            _isUserPickMode = false;
+            _userNextPick = null;
             
-            Navigator.pop(context); // Close the dialog
-            
+            // IMPORTANT: Set draft to running to continue automatically
+            _isDraftRunning = true;
+          });
+          
+          Navigator.pop(context); // Close the dialog
+          
+          // IMPORTANT: Continue the draft after a brief pause
+          Future.delayed(
+            Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+            _processDraftPick
+          );
+        },
+        onReject: () {
+          Navigator.pop(context); // Close the dialog
+          
+          // Let the user select a player if this is their pick
+          if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+            _showPlayerSelectionDialog(pick);
+          } else if (_isDraftRunning) {
             // Continue the draft if it was running
-            if (_isDraftRunning) {
-              Future.delayed(
-                Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-                _processDraftPick
-              );
-            }
-          },
-          onReject: () {
-            Navigator.pop(context); // Close the dialog
-            
-            // Let the user select a player if this is their pick
-            if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
-              _showPlayerSelectionDialog(pick);
-            } else if (_isDraftRunning) {
-              // Continue the draft if it was running
-              Future.delayed(
-                Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-                _processDraftPick
-              );
-            }
-          },
-          onCounter: (package) {
-            // Show snackbar for now - counter feature coming in future update
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Counter offers will be available in a future update'),
-                duration: Duration(seconds: 2),
-              ),
+            Future.delayed(
+              Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+              _processDraftPick
             );
-          },
-          showAnalytics: widget.showAnalytics,
-        ),
-      );
-    } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
-      // If no trade offers, go straight to player selection
-      _showPlayerSelectionDialog(pick);
-    } else if (_isDraftRunning) {
-      // Continue the draft if it was running
-      Future.delayed(
-        Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-        _processDraftPick
-      );
-    }
+          }
+        },
+        onCounter: (package) {
+          // Show snackbar for now - counter feature coming in future update
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Counter offers will be available in a future update'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        showAnalytics: widget.showAnalytics,
+      ),
+    );
+  } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+    // If no trade offers, go straight to player selection
+    _showPlayerSelectionDialog(pick);
+  } else if (_isDraftRunning) {
+    // Continue the draft if it was running
+    Future.delayed(
+      Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+      _processDraftPick
+    );
   }
+}
 
   void _showDraftSummary() {
   if (_draftService == null) return;
@@ -746,52 +751,93 @@ void _initiateUserTradeProposal() {
 }
 
   void _selectPlayer(DraftPick pick, Player player) {
-    if (_draftService == null) return;
+  if (_draftService == null) return;
+  
+  // Update the pick with the selected player
+  pick.selectedPlayer = player;
+  
+  // Update team needs
+  final teamNeed = _teamNeeds.firstWhere(
+    (need) => need.teamName == pick.teamName,
+    orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+  );
+  teamNeed.removeNeed(player.position);
+  
+  // Remove player from available players
+  _draftService!.availablePlayers.remove(player);
+  
+  // Update UI
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+    _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
     
-    // Update the pick with the selected player
-    pick.selectedPlayer = player;
+    // Reset user pick mode
+    _isUserPickMode = false;
+    _userNextPick = null;
     
-    // Update team needs
-    final teamNeed = _teamNeeds.firstWhere(
-      (need) => need.teamName == pick.teamName,
-      orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
+    // IMPORTANT: Set draft to running to continue automatically
+    _isDraftRunning = true;
+  });
+  
+  // Switch to draft order tab to see the selection
+  _tabController.animateTo(0);
+  
+  // Continue the draft after a brief pause
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+    
+    // IMPORTANT: Add this to continue the draft after a brief delay
+    // This delay is important to allow UI updates to complete
+    Future.delayed(
+      Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+      _processDraftPick
     );
-    teamNeed.removeNeed(player.position);
-    
-    // Remove player from available players
-    _draftService!.availablePlayers.remove(player);
-    
-    // Update UI good
-    setState(() {
-      _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-      _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
-      _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
-      _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
-      
-      // Reset user pick mode
-      _isUserPickMode = false;
-      _userNextPick = null;
-      
-      // Automatically resume the draft
-      _isDraftRunning = true;
-    });
-    
-    // Switch to draft order tab to see the selection
-    _tabController.animateTo(0);
-    
-    // Continue the draft after a brief pause
-    Future.delayed(const Duration(milliseconds: 100), _scrollToCurrentPick);
+  });
+}
 
-  }
+void _autoSelectPlayer(DraftPick pick) {
+  if (_draftService == null) return;
+  
+  // Let the draft service select the best player 
+  final player = _draftService!.selectBestPlayerForTeam(pick.teamName);
+  
+  _selectPlayer(pick, player); 
+}
 
-  void _autoSelectPlayer(DraftPick pick) {
-    if (_draftService == null) return;
+void executeUserSelectedTrade(TradePackage package) {
+  if (_draftService == null) return;
+  
+  _draftService!.executeUserSelectedTrade(package);
+  
+  setState(() {
+    _executedTrades = _draftService!.executedTrades;
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _statusMessage = "Trade executed: ${package.tradeDescription}";
     
-    // Let the draft service select the best player 
-    final player = _draftService!.selectBestPlayerForTeam(pick.teamName);
+    // Reset user pick mode
+    _isUserPickMode = false;
+    _userNextPick = null;
     
-    _selectPlayer(pick, player); 
-  }
+    // IMPORTANT: Set draft to running to continue automatically
+    _isDraftRunning = true;
+  });
+  
+  // Switch to draft order tab
+  _tabController.animateTo(0);
+  
+  // Continue the draft after a brief pause
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+    
+    // IMPORTANT: Add this to continue the draft after a brief delay
+    Future.delayed(
+      Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+      _processDraftPick
+    );
+  });
+}
 
   void _restartDraft() {
   // Show confirmation dialog before restarting
