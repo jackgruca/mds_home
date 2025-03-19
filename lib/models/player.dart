@@ -16,6 +16,7 @@ class Player {
   final String? description;  // Player analysis/write-up
   final String? strengths;    // Key strengths
   final String? weaknesses;   // Areas for improvement
+  final String? fortyTime;    // 40-yard dash time
   
   const Player({
     required this.id,
@@ -30,6 +31,7 @@ class Player {
     this.description,
     this.strengths,
     this.weaknesses,
+    this.fortyTime,
   });
   
   // Create a Player from CSV row data
@@ -281,6 +283,11 @@ class Player {
   String get formattedWeight {
     if (weight == null) return "N/A";
     return "${weight!.round()} lbs";
+  }
+
+  String get formatted40Time {
+    if (fortyTime == null || fortyTime!.isEmpty) return "N/A";
+    return "${fortyTime}s";
   }
   
   // Format RAS with 1 decimal place

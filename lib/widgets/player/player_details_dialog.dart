@@ -155,7 +155,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stats row
+                  // Stats row - modified to include 40 time
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -180,11 +180,31 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
                         Icons.fitness_center,
                         isDarkMode,
                       ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // New row for 40 time and RAS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildStatCard(
+                        context,
+                        '40 Time',
+                        player.formatted40Time,
+                        Icons.speed,
+                        isDarkMode,
+                        hasRating: player.fortyTime != null,
+                        rating: player.fortyTime != null ? 
+                          _getFortyTimeRating(player.fortyTime!) : null,
+                        isInverted: true, // Lower 40 time is better
+                      ),
                       _buildStatCard(
                         context,
                         'RAS',
                         player.formattedRAS,
-                        Icons.speed,
+                        Icons.fitness_center,
                         isDarkMode,
                         hasRating: player.rasScore != null,
                         rating: player.rasScore,
@@ -300,66 +320,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
     ),
   );
 }
-  
-  Widget _buildStatCard(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    bool isDarkMode, {
-    bool hasRating = false,
-    double? rating,
-  }) {
-    Color getColorForRating(double rating) {
-      if (rating >= 9.0) return Colors.green.shade800;
-      if (rating >= 8.0) return Colors.green.shade600;
-      if (rating >= 7.0) return Colors.green.shade400;
-      if (rating >= 6.0) return Colors.blue.shade500;
-      if (rating >= 5.0) return Colors.blue.shade300;
-      if (rating >= 4.0) return Colors.orange.shade400;
-      if (rating >= 3.0) return Colors.orange.shade600;
-      return Colors.red.shade400;
-    }
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: hasRating && rating != null 
-                ? getColorForRating(rating) 
-                : (isDarkMode ? Colors.white70 : Colors.grey.shade700),
-            size: 20,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: hasRating && rating != null 
-                ? getColorForRating(rating) 
-                : (isDarkMode ? Colors.white : Colors.black87),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
+
 Widget _buildStrengthsWeaknesses(
   BuildContext context,
   String title,
@@ -439,4 +400,96 @@ Widget _buildStrengthsWeaknesses(
     // Default color
     return Colors.grey.shade700;
   }
+
+  Widget _buildStatCard(
+  BuildContext context,
+  String label,
+  String value,
+  IconData icon,
+  bool isDarkMode, {
+  bool hasRating = false,
+  double? rating,
+  bool isInverted = false,
+}) {
+  Color getColorForRating(double rating, bool isInverted) {
+    if (isInverted) {
+      // For 40 time, lower is better
+      if (label == '40 Time') {
+        double time = double.tryParse(value.replaceAll('s', '')) ?? 0;
+        if (time <= 4.3) return Colors.green.shade800;
+        if (time <= 4.4) return Colors.green.shade600;
+        if (time <= 4.5) return Colors.green.shade400;
+        if (time <= 4.6) return Colors.blue.shade500;
+        if (time <= 4.7) return Colors.blue.shade300;
+        if (time <= 4.8) return Colors.orange.shade400;
+        if (time <= 4.9) return Colors.orange.shade600;
+        return Colors.red.shade400;
+      }
+    } else {
+      // For RAS and other ratings, higher is better
+      if (rating >= 9.0) return Colors.green.shade800;
+      if (rating >= 8.0) return Colors.green.shade600;
+      if (rating >= 7.0) return Colors.green.shade400;
+      if (rating >= 6.0) return Colors.blue.shade500;
+      if (rating >= 5.0) return Colors.blue.shade300;
+      if (rating >= 4.0) return Colors.orange.shade400;
+      if (rating >= 3.0) return Colors.orange.shade600;
+      return Colors.red.shade400;
+    }
+    return isDarkMode ? Colors.white70 : Colors.grey.shade700;
+  }
+  
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+    decoration: BoxDecoration(
+      color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      children: [
+        Icon(
+          icon,
+          color: hasRating && rating != null 
+              ? getColorForRating(rating, isInverted) 
+              : (isDarkMode ? Colors.white70 : Colors.grey.shade700),
+          size: 20,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: hasRating && rating != null 
+              ? getColorForRating(rating, isInverted) 
+              : (isDarkMode ? Colors.white : Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Helper method to get a rating value for the 40 time
+double _getFortyTimeRating(String fortyTime) {
+  // Convert string to double, handling errors
+  double time = double.tryParse(fortyTime.replaceAll('s', '')) ?? 5.0;
+  
+  // Map 40 time to a 0-10 scale where:
+  // 4.2s = 10.0 (exceptional)
+  // 5.0s = 0.0 (poor)
+  if (time <= 4.2) return 10.0;
+  if (time >= 5.0) return 0.0;
+  
+  // Linear mapping from 4.2-5.0 to 10.0-0.0
+  return 10.0 - ((time - 4.2) * (10.0 / 0.8));
+}
 }
