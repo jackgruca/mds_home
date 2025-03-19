@@ -1,4 +1,7 @@
 // lib/screens/draft_overview_screen.dart - Updated with trade integration
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_manager.dart';
 import 'package:provider/provider.dart';
@@ -86,6 +89,10 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 
   String? _activeUserTeam;
 
+  Timer? _scrollTimer;
+  final bool _isScrolling = false;
+  int _lastScrolledPickNumber = 0;
+
   @override
   void initState() {
     super.initState();
@@ -99,14 +106,25 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 
   // Add this method
   void _handleTabChange() {
-    // When tab changes to draft order tab (index 0), scroll to current pick
-    if (_tabController.index == 0) {
-      // Small delay to ensure the tab view is ready
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollToCurrentPick();
-      });
+  // When tab changes to draft order tab (index 0), scroll to current pick
+  if (_tabController.index == 0 && _draftService != null) {
+    DraftPick? nextPick = _draftService!.getNextPick();
+    
+    if (nextPick != null) {
+      // Reset the last scrolled pick to ensure we scroll again
+      _lastScrolledPickNumber = 0;
+      
+      // Make multiple attempts with increasing delays
+      for (int i = 0; i < 3; i++) {
+        Future.delayed(Duration(milliseconds: 200 + (i * 150)), () {
+          if (_draftOrderScrollController.hasClients) {
+            _scrollToCurrentPick();
+          }
+        });
+      }
     }
   }
+}
 
   // Add a method to update the active user team
   void _updateActiveUserTeam() {
@@ -121,14 +139,6 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     }
   }  
 
-  @override
-  void dispose() {
-    _tabController.removeListener(_handleTabChange); // Remove listener
-    _tabController.dispose();
-    _draftOrderScrollController.dispose();
-    super.dispose();
-  }
-
   void _scrollToCurrentPick() {
   if (!_draftOrderScrollController.hasClients || _draftService == null) return;
   
@@ -136,32 +146,51 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   DraftPick? currentPick = _draftService!.getNextPick();
   if (currentPick == null) return;
   
-  // Get the active (displayed) picks
+  // Get the active picks that are displayed
   final displayedPicks = _draftPicks.where((pick) => pick.isActiveInDraft).toList();
   
-  // Find the current pick's position
+  // Find the index of the current pick
   int currentPickIndex = displayedPicks.indexWhere(
     (pick) => pick.pickNumber == currentPick.pickNumber
   );
   
-  if (currentPickIndex == -1) return; // Not found
+  if (currentPickIndex == -1) {
+    debugPrint("Current pick not found in displayed picks");
+    return; // Pick not found
+  }
   
-  // Calculate position
-  const double itemHeight = 72.0;
+  // Cancel any previous scrolling
+  if (_scrollTimer != null) {
+    _scrollTimer!.cancel();
+    _scrollTimer = null;
+  }
+  
+  // Use a more direct approach to find the position
+  // Get approximate item height based on viewport and items
   double viewportHeight = _draftOrderScrollController.position.viewportDimension;
-  double targetPosition = (currentPickIndex * itemHeight) - (viewportHeight / 2) + (itemHeight / 2);
+  double estimatedTotalHeight = _draftOrderScrollController.position.maxScrollExtent + viewportHeight;
+  double averageItemHeight = estimatedTotalHeight / displayedPicks.length;
   
-  // Enforce bounds
+  // Calculate position to center the current pick
+  double targetPosition = (currentPickIndex * averageItemHeight) - (viewportHeight / 2) + (averageItemHeight / 2);
+  
+  // Ensure we don't scroll beyond bounds
   targetPosition = targetPosition.clamp(
     0.0, 
     _draftOrderScrollController.position.maxScrollExtent
   );
   
-  // Animate to the position
+  // Adjust animation duration based on speed factor
+  int animationDuration = (300 / widget.speedFactor).round().clamp(100, 500);
+  
+  // Log for debugging
+  debugPrint("Scrolling to pick #${currentPick.pickNumber} (index $currentPickIndex) at position $targetPosition");
+  
+  // Use animateTo for smooth scrolling
   _draftOrderScrollController.animateTo(
     targetPosition,
-    duration: const Duration(milliseconds: 600),
-    curve: Curves.easeOutCubic,
+    duration: Duration(milliseconds: animationDuration),
+    curve: Curves.easeOutQuad,
   );
 }
 
@@ -333,100 +362,95 @@ Future<void> _loadData() async {
   }
 
   void _processDraftPick() {
-    if (!_isDraftRunning || _draftService == null) {
+  if (!_isDraftRunning || _draftService == null) return;
+
+  if (_draftService!.isDraftComplete()) {
+    setState(() {
+      _isDraftRunning = false;
+      _statusMessage = "Draft complete!";
+    });
+    // Draft complete handling...
+    return;
+  }
+
+  _updateActiveUserTeam();
+
+  try {
+    // Get the next pick
+    final nextPick = _draftService!.getNextPick();
+    if (nextPick == null) return;
+    
+    // Handle user team pick...
+    if (widget.selectedTeams != null && 
+        widget.selectedTeams!.contains(nextPick.teamName)) {
+      // User team handling...
       return;
     }
-
-    if (_draftService!.isDraftComplete()) {
-      setState(() {
-        _isDraftRunning = false;
-        _statusMessage = "Draft complete!";
-      });
-          // Add this code to automatically switch to the Analytics tab
-    if (widget.showAnalytics && !_summaryShown) {
-      _summaryShown = true;
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        _showDraftSummary();
-        // Show a notification
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Draft complete! View your draft summary and analytics.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      });
-    }
-      return;
-    }
-
-      _updateActiveUserTeam();
-
-    try {
-      // Get the next pick
-      final nextPick = _draftService!.getNextPick();
-
-      debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Teams: ${widget.selectedTeams}");
-
-      // Check if this is the user's team and they should make a choice
-      if (nextPick != null && widget.selectedTeams != null && 
-          widget.selectedTeams!.contains(nextPick.teamName)) {
-        // Generate trade offers before pausing the draft
-        _draftService!.generateUserTradeOffers();
-        
-        setState(() {
-          _isDraftRunning = false; // Pause the draft
-          _statusMessage = "${nextPick.teamName} Pick: Select from the Available Players tab";
-          _isUserPickMode = true;
-          _userNextPick = nextPick;
-        });
-        
-        // Switch to the available players tab
-        _tabController.animateTo(1);
-        
-        return;
-      }
-      
-      // Process the next pick using the enhanced algorithm
-      final updatedPick = _draftService!.processDraftPick();
-      
-      // Check if a trade was executed
-      _executedTrades = _draftService!.executedTrades;
-      
-      // Update the UI with newly processed data
-      setState(() {
-      // Refresh the list representations for UI
+    
+    // Process the pick
+    final updatedPick = _draftService!.processDraftPick();
+    
+    // Update state
+    setState(() {
       _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
       _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
       _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
-      
+      _executedTrades = _draftService!.executedTrades;
       _statusMessage = _draftService!.statusMessage;
     });
 
-    // After updating state, scroll to current pick if in draft order tab
-    if (_tabController.index == 0 && _draftOrderScrollController.hasClients) {
-      // Short delay to allow state to update
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollToCurrentPick();
-      });
-    }
-        if (_draftService != null) {
-          _draftService!.cleanupTradeOffers();
+    // Get the next pick again after processing
+    final newNextPick = _draftService!.getNextPick();
+    
+    // Only scroll if we have a new pick and we're on the draft tab
+    if (newNextPick != null && _tabController.index == 0) {
+      // Don't scroll again to the same pick
+      if (_lastScrolledPickNumber != newNextPick.pickNumber) {
+        _lastScrolledPickNumber = newNextPick.pickNumber;
+        
+        // Cancel any previous scrolling
+        if (_scrollTimer != null) {
+          _scrollTimer!.cancel();
         }
-
-      // Continue the draft loop with delay
-      if (_isDraftRunning) {
-        // Adjust delay based on speed factor (lower is faster)
-        int delay = (AppConstants.defaultDraftSpeed / widget.speedFactor).round();
-        Future.delayed(Duration(milliseconds: delay), _processDraftPick);
+        
+        // Delay scrolling to ensure UI has updated
+        _scrollTimer = Timer(const Duration(milliseconds: 150), () {
+          if (_draftOrderScrollController.hasClients) {
+            _scrollToCurrentPick();
+          }
+        });
       }
-    } catch (e) {
-      debugPrint("Error processing draft pick: $e");
-      setState(() {
-        _isDraftRunning = false;
-        _statusMessage = "Error during draft: $e";
-      });
     }
+    
+    _draftService!.cleanupTradeOffers();
+
+    // Continue the draft with appropriate delay
+    if (_isDraftRunning) {
+      int delay = (AppConstants.defaultDraftSpeed / widget.speedFactor).round();
+      
+      // Add a minimum delay to allow scrolling to complete
+      int minDelay = 400;
+      delay = max(delay, minDelay);
+      
+      Future.delayed(Duration(milliseconds: delay), _processDraftPick);
+    }
+  } catch (e) {
+    debugPrint("Error processing draft pick: $e");
+    // Error handling...
   }
+}
+
+@override
+void dispose() {
+  if (_scrollTimer != null) {
+    _scrollTimer!.cancel();
+    _scrollTimer = null;
+  }
+  _tabController.removeListener(_handleTabChange);
+  _tabController.dispose();
+  _draftOrderScrollController.dispose();
+  super.dispose();
+}
 
   void _handleUserPick(DraftPick pick) {
     setState(() {
@@ -717,9 +741,16 @@ void _initiateUserTradeProposal() {
     _tabController.animateTo(0);
     
     // Continue the draft after a brief pause
-    Future.delayed(const Duration(milliseconds: 100), _scrollToCurrentPick);
-
-  }
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scrollToCurrentPick();
+      
+      // Continue the draft
+      if (_isDraftRunning) {
+        // Use a slightly longer delay to ensure UI has updated properly
+        Future.delayed(const Duration(milliseconds: 300), _processDraftPick);
+      }
+    });
+}
 
   void _autoSelectPlayer(DraftPick pick) {
     if (_draftService == null) return;

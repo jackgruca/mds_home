@@ -68,10 +68,9 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
 
 @override
 Widget build(BuildContext context) {
+  // Add this optimization to reduce rebuild overhead
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
-  // Determine the card color with dark mode support
-  Color cardColor = widget.isUserTeam ? 
+  final cardColor = widget.isUserTeam ? 
       (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
       (isDarkMode ? Colors.grey.shade800 : Colors.white);
   
@@ -82,15 +81,6 @@ Widget build(BuildContext context) {
       child: Card(
         elevation: widget.isRecentPick ? 1.5 : 1.0,
         margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-          side: BorderSide(
-            color: widget.isUserTeam ? 
-                (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300) : 
-                (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-            width: widget.isUserTeam ? 1.5 : 1.0,
-          ),
-        ),
         color: cardColor,
         child: InkWell(
           onTap: widget.draftPick.selectedPlayer != null 

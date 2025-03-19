@@ -75,6 +75,10 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 4),
       itemCount: filteredPicks.length,
+      // Add these properties for better list performance
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: false,
+      itemExtent: 72.0, // Helps Flutter optimize list rendering
       itemBuilder: (context, index) {
         final DraftPick draftPick = filteredPicks[index];
         final isUserTeam = draftPick.teamName == widget.userTeam;
