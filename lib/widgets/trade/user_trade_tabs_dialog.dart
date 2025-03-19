@@ -35,7 +35,9 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: 1);
+    // Determine initial tab index based on pending offers
+    final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
+    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
   }
   
   @override
@@ -57,16 +59,7 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.swap_horiz, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            'Trade Center: ${widget.userTeam}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
+      title: null, // Remove title completely
       contentPadding: EdgeInsets.zero, // Remove default padding
       insetPadding: const EdgeInsets.all(12), // Reduced inset padding
       content: SizedBox(
@@ -78,6 +71,16 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
             TabBar(
               controller: _tabController,
               labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
+                labelColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white 
+                  : Colors.black, // Selected tab text color
+                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white70 
+                  : Colors.grey.shade700, // Unselected tab text color
+                indicatorWeight: 3, // Make the indicator more visible
+                indicatorColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.blue.shade300 
+                  : Colors.blue.shade700, // Indicator color
               tabs: [
                 Tab(
                   icon: Badge(

@@ -148,6 +148,11 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                     _updateValues();
                                   }
                                 },
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.blue.shade800, // Always use dark blue for visibility
+                                ),
+                                iconSize: 24,
                                 items: targetTeams.map<DropdownMenuItem<String>>((String team) {
                                   return DropdownMenuItem<String>(
                                     value: team,
@@ -156,24 +161,34 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                         TeamLogoUtils.buildNFLTeamLogo(
                                           team,
                                           size: 24.0,
+
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
                                           team, 
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).brightness == Brightness.dark 
+                                              ? Colors.black87 
+                                              : Colors.black87,
                                           ),
                                         ),
                                       ],
                                     ),
                                   );
                                 }).toList(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                    ? Colors.white 
+                                    : Colors.black87,
                                 ),
                                 underline: Container(height: 0),
+                                dropdownColor: Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey.shade700 
+                                  : Colors.white,
                               ),
                           ],
                         ),
