@@ -743,7 +743,7 @@ void _initiateUserTradeProposal() {
     // Remove player from available players
     _draftService!.availablePlayers.remove(player);
     
-    // Update UI
+    // Update UI good
     setState(() {
       _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
       _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
