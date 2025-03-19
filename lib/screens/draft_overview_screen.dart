@@ -114,16 +114,45 @@ void initState() {
 
   // Add a method to update the active user team 
   void _updateActiveUserTeam() {
-    if (_draftService == null || widget.selectedTeams == null) return;
-    
-    DraftPick? nextPick = _draftService!.getNextPick();
-    if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
+  if (_draftService == null || widget.selectedTeams == null || widget.selectedTeams!.isEmpty) {
+    setState(() {
+      _activeUserTeam = null;
+    });
+    return;
+  }
+  
+  // First check if the next pick belongs to a user team
+  DraftPick? nextPick = _draftService!.getNextPick();
+  if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
+    if (_activeUserTeam != nextPick.teamName) {
       setState(() {
         _activeUserTeam = nextPick.teamName;
       });
-      debugPrint("Active user team updated to: $_activeUserTeam");
+      debugPrint("Active user team updated to: $_activeUserTeam (next pick)");
     }
-  }  
+    return;
+  }
+  
+  // If the next pick is not a user team, but we have _userNextPick set
+  if (_userNextPick != null && widget.selectedTeams!.contains(_userNextPick!.teamName)) {
+    if (_activeUserTeam != _userNextPick!.teamName) {
+      setState(() {
+        _activeUserTeam = _userNextPick!.teamName;
+      });
+      debugPrint("Active user team updated to: $_activeUserTeam (user next pick)");
+    }
+    return;
+  }
+  
+  // If we can't determine an active team from the current draft state,
+  // fallback to the first selected team
+  if (_activeUserTeam == null || !widget.selectedTeams!.contains(_activeUserTeam)) {
+    setState(() {
+      _activeUserTeam = widget.selectedTeams!.first;
+    });
+    debugPrint("Active user team fallback to: $_activeUserTeam (first selected)");
+  }
+}
 
   @override
   void dispose() {
@@ -219,6 +248,125 @@ void _handleTabChange() {
     Future.delayed(const Duration(milliseconds: 150), () {
       _ensureScrollControllerReady();
     });
+  }
+}
+
+/// Builds the content for the status bar based on context
+Widget _buildStatusBarContent() {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Check if it's currently the user's turn to pick
+  DraftPick? nextPick = _draftService?.getNextPick();
+  bool isUserPicking = nextPick != null && 
+                       widget.selectedTeams != null && 
+                       widget.selectedTeams!.contains(nextPick.teamName);
+  
+  // Only show team needs when it's the user's turn to pick
+  if (isUserPicking && _activeUserTeam != null) {
+    // Get team needs for the active team
+    List<String> teamNeeds = [];
+    for (var need in _teamNeeds) {
+      if (need.teamName == _activeUserTeam) {
+        teamNeeds = need.needs.take(5).toList(); // Take top 3 needs
+        break;
+      }
+    }
+    
+    return Row(
+      children: [
+        Icon(
+          Icons.sports_football, 
+          size: 16,
+          color: isDarkMode ? Colors.white70 : Colors.black54
+        ),
+        const SizedBox(width: 4),
+        
+        // Team name
+        Text(
+          _activeUserTeam!,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: TextConstants.kCardSubtitleSize,
+            color: isDarkMode ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        
+        const SizedBox(width: 8),
+        
+        // Display team needs as chips
+        if (teamNeeds.isNotEmpty) ...[
+          Text(
+            'Needs:',
+            style: TextStyle(
+              fontSize: TextConstants.kCardSubtitleSize - 1,
+              color: isDarkMode ? Colors.white60 : Colors.black54,
+            ),
+          ),
+          const SizedBox(width: 4),
+          
+          // Team need chips in a row
+          ...teamNeeds.map((need) => 
+            Padding(
+              padding: const EdgeInsets.only(right: 3),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _getPositionColor(need).withOpacity(isDarkMode ? 0.3 : 0.2),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: _getPositionColor(need).withOpacity(isDarkMode ? 0.6 : 0.5),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  need,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: _getPositionColor(need),
+                  ),
+                ),
+              ),
+            )
+          ),
+        ],
+      ],
+    );
+  } 
+  // For all other cases, show the status message
+  else {
+    return Text(
+      _statusMessage,
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: TextConstants.kCardSubtitleSize,
+        color: isDarkMode ? Colors.white : Colors.black87,
+      ),
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+// Add this helper method for position colors if it doesn't already exist
+Color _getPositionColor(String position) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Different colors for different position groups with dark mode adjustments
+  if (['QB', 'RB', 'FB'].contains(position)) {
+    return isDarkMode ? Colors.blue.shade600 : Colors.blue.shade700; // Backfield
+  } else if (['WR', 'TE'].contains(position)) {
+    return isDarkMode ? Colors.green.shade600 : Colors.green.shade700; // Receivers
+  } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
+    return isDarkMode ? Colors.purple.shade600 : Colors.purple.shade700; // Offensive line
+  } else if (['EDGE', 'IDL', 'DT', 'DE'].contains(position)) {
+    return isDarkMode ? Colors.red.shade600 : Colors.red.shade700; // Defensive line
+  } else if (['LB', 'ILB', 'OLB'].contains(position)) {
+    return isDarkMode ? Colors.orange.shade600 : Colors.orange.shade700; // Linebackers
+  } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
+    return isDarkMode ? Colors.teal.shade600 : Colors.teal.shade700; // Secondary
+  } else {
+    return isDarkMode ? Colors.grey.shade600 : Colors.grey.shade700; // Special teams, etc.
   }
 }
 
@@ -357,6 +505,8 @@ List<Color> _getTeamGradientColors(String teamName) {
       _statusMessage = "Draft data loaded successfully";
     });
 
+     _updateActiveUserTeam();
+
     // Ensure proper scrolling after loading data
     if (_tabController.index == 0) {
       // Give UI time to render before scrolling
@@ -416,6 +566,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     return;
   }
 
+  // Update active user team before processing the pick
   _updateActiveUserTeam();
 
   try {
@@ -781,6 +932,9 @@ void _initiateUserTradeProposal() {
     _isDraftRunning = true;
   });
   
+  // Update active user team after player selection
+  _updateActiveUserTeam();
+  
   // Switch to draft order tab to see the selection
   _tabController.animateTo(0);
   
@@ -824,6 +978,9 @@ void executeUserSelectedTrade(TradePackage package) {
     _isDraftRunning = true;
   });
   
+  // Update active user team after trade execution
+  _updateActiveUserTeam();
+  
   // Switch to draft order tab
   _tabController.animateTo(0);
   
@@ -837,6 +994,17 @@ void executeUserSelectedTrade(TradePackage package) {
       _processDraftPick
     );
   });
+}
+
+bool _shouldShowTeamInfo() {
+  // Only show team info when it's the user's turn to pick
+  DraftPick? nextPick = _draftService?.getNextPick();
+  
+  // Check if it's a user team's turn AND we have an active user team
+  return nextPick != null && 
+         widget.selectedTeams != null && 
+         widget.selectedTeams!.contains(nextPick.teamName) &&
+         _activeUserTeam != null;
 }
 
   void _restartDraft() {
@@ -1112,80 +1280,51 @@ Widget build(BuildContext context) {
       ),
       body: Column(
         children: [
+          // Find the Status bar section in the build method of DraftAppState
+
           // Status bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: widget.selectedTeams != null 
-                  ? _getTeamGradientColors(widget.selectedTeams!.first)
-                  : Theme.of(context).brightness == Brightness.dark
-                    ? [Colors.blue.shade900, Colors.blue.shade800]
-                    : [Colors.blue.shade50, Colors.blue.shade100],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 0,
-                  blurRadius: 1,
-                  offset: const Offset(0, 1),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _shouldShowTeamInfo() 
+                    ? _getTeamGradientColors(_activeUserTeam!)
+                    : Theme.of(context).brightness == Brightness.dark
+                      ? [Colors.blue.shade900, Colors.blue.shade800]
+                      : [Colors.blue.shade50, Colors.blue.shade100],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                if (widget.selectedTeams != null) ...[
-                  Icon(Icons.sports_football, 
-                    size: 16,
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black54),
-                  const SizedBox(width: 4),
-                  Text(
-                    widget.selectedTeams!.length == 1 
-                      ? 'Team: ${widget.selectedTeams!.first}'
-                      : 'Teams: ${widget.selectedTeams!.length}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 0,
+                    blurRadius: 1,
+                    offset: const Offset(0, 1),
                   ),
-                  const SizedBox(width: 4),
                 ],
-                
-                // Status message
-                Expanded(
-                  child: Text(
-                    _statusMessage,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: TextConstants.kCardSubtitleSize, // Use standard subtitle size
-                      color: Theme.of(context).brightness == Brightness.dark 
-                        ? Colors.white 
-                        : Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
+              ),
+              child: Row(
+                children: [
+                  // Dynamic left side of the banner
+                  Expanded(
+                    child: _buildStatusBarContent(),
                   ),
-                ),
-                
-                // Trade button
-                if (widget.selectedTeams != null)
+                  
+                  // Draft recap button - keeps the same on the right side
                   OutlinedButton.icon(
                     onPressed: _showDraftSummary,
                     icon: const Icon(Icons.summarize, size: 14),
-                    label: const Text('Draft Recap', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+                    label: const Text('Your Picks', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       visualDensity: VisualDensity.compact,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      // Keep other style properties
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
           // Tab content
           Expanded(
             child: TabBarView(

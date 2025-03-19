@@ -296,40 +296,6 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
             ),
           ),
           
-          const SizedBox(height: 6),
-          
-          // Show current team label if applicable
-          if (widget.userTeam != null)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark ? 
-                      Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark ? 
-                        Colors.blue.shade600 : Colors.blue.shade200,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.sports_football, size: 14),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Drafting for: ${widget.userTeam}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark ? 
-                            Colors.blue.shade200 : Colors.blue.shade800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          
           // Player List with Card-based Layout (similar to Draft Order)
           Expanded(
             child: ListView.builder(
