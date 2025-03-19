@@ -102,7 +102,7 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
     // For now this is empty, but will be useful for the Draft Summary tab implementation
   }
 
-  // Add a method to update the active user team
+  // Add a method to update the active user team 
   void _updateActiveUserTeam() {
     if (_draftService == null || widget.selectedTeams == null) return;
     
