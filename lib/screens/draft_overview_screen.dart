@@ -1273,7 +1273,7 @@ Widget build(BuildContext context) {
                     children: [
                       Icon(Icons.analytics, size: 18),
                       SizedBox(width: 4),
-                      Text('Stats'),
+                      Text('Recap'),
                     ],
                   ),
                 ),

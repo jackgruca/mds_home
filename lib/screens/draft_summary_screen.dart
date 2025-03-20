@@ -92,17 +92,6 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-                  child: Text(
-                    'Picks 1-16',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
                 ...leftColumnPicks.map((pick) => 
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4.0),
@@ -125,17 +114,6 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-                  child: Text(
-                    'Picks 17-32',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
                 ...rightColumnPicks.map((pick) => 
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4.0),
@@ -293,7 +271,7 @@ Widget build(BuildContext context) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
   // Calculate dialog size - 80% width, 70% height positioned at bottom
-  final dialogWidth = screenSize.width * 0.8;
+  final dialogWidth = screenSize.width * 0.9;
   final dialogHeight = screenSize.height * 0.90;
   
   return Dialog(
