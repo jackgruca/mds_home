@@ -11,7 +11,7 @@ class EnhancedPlayerSelection {
   
   // Position tiers based on NFL draft data
   final Map<String, double> _positionPremium = {
-    'QB': 1.3,     // Premium for QBs - highest value
+    'QB': 1.7,     // Premium for QBs - highest value
     'OT': 1.2,     // Premium tackles
     'EDGE': 1.2,   // Edge rushers
     'CB': 1.15,    // Cornerbacks
