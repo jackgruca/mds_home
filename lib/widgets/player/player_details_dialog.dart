@@ -26,6 +26,10 @@ class PlayerDetailsDialog extends StatelessWidget {
     );
   }
   
+// In lib/widgets/player/player_details_dialog.dart
+
+// In lib/widgets/player/player_details_dialog.dart
+
 Widget contentBox(BuildContext context, bool isDarkMode) {
   final headerColor = _getPositionColor(player.position);
   final screenSize = MediaQuery.of(context).size;
@@ -48,7 +52,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // Header with player name and position
+        // Header with player name and position (keep your existing code here)
         Container(
           decoration: BoxDecoration(
             color: headerColor.withOpacity(isDarkMode ? 0.7 : 0.2),
@@ -146,8 +150,56 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
           ),
         ),
         
-        // Body with player details - make this scrollable
-        Flexible(
+        // Stats section - reorganized in a grid format
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+            border: Border(
+              bottom: BorderSide(
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                width: 1,
+              ),
+            ),
+          ),
+          child: GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            childAspectRatio: 2.0,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: [
+              _buildGridStatItem(context, 'Rank', '#${player.rank}', isDarkMode),
+              _buildGridStatItem(context, 'Height', player.formattedHeight, isDarkMode),
+              _buildGridStatItem(context, 'Weight', player.formattedWeight, isDarkMode),
+              _buildGridStatItem(
+                context, 
+                '40 Time', 
+                player.fortyTime != null && player.fortyTime!.isNotEmpty ? "${player.fortyTime}s" : "N/A", 
+                isDarkMode,
+                ratingColor: player.fortyTime != null ? _getFortyTimeColor(player.fortyTime!) : null,
+              ),
+              _buildGridStatItem(
+                context, 
+                'RAS', 
+                player.formattedRAS, 
+                isDarkMode,
+                ratingColor: player.rasScore != null ? _getRasColor(player.rasScore!) : null,
+              ),
+              _buildGridStatItem(
+                context, 
+                'Draft Grade', 
+                _getPlayerGrade(player), 
+                isDarkMode, 
+                ratingColor: _getGradeColor(_getPlayerGrade(player)),
+              ),
+            ],
+          ),
+        ),
+        
+        // Single scrollable content area
+        Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Padding(
@@ -155,76 +207,15 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stats row - modified to include 40 time
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatCard(
-                        context,
-                        'Rank',
-                        '#${player.rank}',
-                        Icons.format_list_numbered,
-                        isDarkMode,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Height',
-                        player.formattedHeight,
-                        Icons.height,
-                        isDarkMode,
-                      ),
-                      _buildStatCard(
-                        context,
-                        'Weight',
-                        player.formattedWeight,
-                        Icons.fitness_center,
-                        isDarkMode,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  // New row for 40 time and RAS
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildStatCard(
-                        context,
-                        '40 Time',
-                        player.formatted40Time,
-                        Icons.speed,
-                        isDarkMode,
-                        hasRating: player.fortyTime != null,
-                        rating: player.fortyTime != null ? 
-                          _getFortyTimeRating(player.fortyTime!) : null,
-                        isInverted: true, // Lower 40 time is better
-                      ),
-                      _buildStatCard(
-                        context,
-                        'RAS',
-                        player.formattedRAS,
-                        Icons.fitness_center,
-                        isDarkMode,
-                        hasRating: player.rasScore != null,
-                        rating: player.rasScore,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Description/Analysis - make scrollable with a max height
-                  Text(
+                  // Scouting Report - Main description
+                  const Text(
                     'Scouting Report',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : Colors.black87,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isDarkMode ? Colors.black12 : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
@@ -232,62 +223,124 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
                         color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
                       ),
                     ),
-                    padding: const EdgeInsets.all(12),
-                    // Limit height and make it scrollable
-                    constraints: BoxConstraints(
-                      maxHeight: isSmallScreen ? 120 : 150,
-                    ),
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Text(
-                        player.description ?? player.getDefaultDescription(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
-                        ),
+                    child: Text(
+                      player.description ?? player.getDefaultDescription(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
                       ),
                     ),
                   ),
                   
                   const SizedBox(height: 16),
                   
-                  // Strengths and weaknesses section
-                  if (player.strengths != null || player.weaknesses != null) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStrengthsWeaknesses(
-                            context,
-                            'Strengths',
-                            player.strengths ?? 'No specific strengths listed',
-                            Icons.thumb_up,
-                            Colors.green,
-                            isDarkMode,
-                          ),
+                  // Strengths and Weaknesses section in a single box
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Strengths
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.thumb_up,
+                                  size: 16,
+                                  color: Colors.green.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Strengths',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(isDarkMode ? 0.1 : 0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.green.withOpacity(isDarkMode ? 0.3 : 0.2),
+                                ),
+                              ),
+                              child: Text(
+                                player.strengths ?? 'No specific strengths listed',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStrengthsWeaknesses(
-                            context,
-                            'Weaknesses',
-                            player.weaknesses ?? 'No specific weaknesses listed',
-                            Icons.thumb_down,
-                            Colors.red,
-                            isDarkMode,
-                          ),
+                      ),
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Weaknesses
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.thumb_down,
+                                  size: 16,
+                                  color: Colors.red.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Weaknesses',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(isDarkMode ? 0.1 : 0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.red.withOpacity(isDarkMode ? 0.3 : 0.2),
+                                ),
+                              ),
+                              child: Text(
+                                player.weaknesses ?? 'No specific weaknesses listed',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ),
         
-        // Footer actions
+        // Footer - keep your existing code here
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -319,6 +372,107 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
       ],
     ),
   );
+}
+
+// Add these new helper methods at the end of the PlayerDetailsDialog class:
+
+// New helper method for grid-style stat items
+Widget _buildGridStatItem(
+  BuildContext context, 
+  String label, 
+  String value, 
+  bool isDarkMode, 
+  {Color? ratingColor}
+) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    decoration: BoxDecoration(
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(
+        color: ratingColor != null 
+            ? ratingColor.withOpacity(0.5) 
+            : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+        width: ratingColor != null ? 1.5 : 1.0,
+      ),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.normal,
+            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: ratingColor ?? (isDarkMode ? Colors.white : Colors.black87),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
+
+// Helper for 40 time color
+Color _getFortyTimeColor(String fortyTime) {
+  double time = double.tryParse(fortyTime.replaceAll('s', '')) ?? 5.0;
+  
+  if (time <= 4.3) return Colors.green.shade700;
+  if (time <= 4.4) return Colors.green.shade600;
+  if (time <= 4.5) return Colors.green.shade500;
+  if (time <= 4.6) return Colors.blue.shade600;
+  if (time <= 4.7) return Colors.blue.shade500;
+  if (time <= 4.8) return Colors.orange.shade600;
+  if (time <= 4.9) return Colors.orange.shade700;
+  return Colors.red.shade600;
+}
+
+// Helper for RAS color
+Color _getRasColor(double ras) {
+  if (ras >= 9.5) return Colors.green.shade700;
+  if (ras >= 9.0) return Colors.green.shade600;
+  if (ras >= 8.0) return Colors.green.shade500;
+  if (ras >= 7.0) return Colors.blue.shade600;
+  if (ras >= 6.0) return Colors.blue.shade500;
+  if (ras >= 5.0) return Colors.orange.shade600;
+  if (ras < 5.0) return Colors.red.shade600;
+  return Colors.grey.shade700;
+}
+
+// Helper for grade color
+Color _getGradeColor(String grade) {
+  if (grade.startsWith('A+')) return Colors.green.shade700;
+  if (grade.startsWith('A')) return Colors.green.shade600;
+  if (grade.startsWith('B+')) return Colors.blue.shade700;
+  if (grade.startsWith('B')) return Colors.blue.shade600;
+  if (grade.startsWith('C+')) return Colors.orange.shade700;
+  if (grade.startsWith('C')) return Colors.orange.shade600;
+  if (grade.startsWith('D')) return Colors.red.shade600;
+  return Colors.red.shade700;
+}
+
+// Player grade helper
+String _getPlayerGrade(Player player) {
+  // Simple algorithm based on rank and position importance
+  if (player.rank <= 10) return 'A+';
+  if (player.rank <= 20) return 'A';
+  if (player.rank <= 32) return 'B+';
+  if (player.rank <= 50) return 'B';
+  if (player.rank <= 75) return 'C+';
+  if (player.rank <= 100) return 'C';
+  if (player.rank <= 150) return 'D';
+  return 'F';
 }
 
 Widget _buildStrengthsWeaknesses(
