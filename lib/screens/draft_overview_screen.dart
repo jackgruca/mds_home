@@ -8,6 +8,7 @@ import '../models/team_need.dart';
 import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../services/data_service.dart';
+import '../services/draft_pick_grade_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../services/player_descriptions_service.dart';
@@ -554,12 +555,16 @@ List<Color> _getTeamGradientColors(String teamName) {
     _tabController.animateTo(3); // Index 3 is the Stats tab
     
     // Show a snackbar notification
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (mounted) {  // Check if widget is still mounted to avoid errors
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Draft complete! View your draft analytics.'),
         duration: Duration(seconds: 3),
       ),
     );
+  }
+});
   }
   return;
 }
@@ -833,23 +838,23 @@ void _showDraftSummary({bool draftComplete = false}) {
   
   // Show the dialog with the appropriate filter
   showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (context) => DraftSummaryScreen(
-      completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-      draftedPlayers: _players.where((player) => 
-        _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-      executedTrades: _executedTrades,
-      allTeams: allTeams,
-      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-      allDraftPicks: _draftPicks,
-      initialFilter: initialFilter,
-    ),
-  );
+  context: context,
+  barrierDismissible: true,
+  builder: (context) => DraftSummaryScreen(
+    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+    draftedPlayers: _players.where((player) => 
+      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+    executedTrades: _executedTrades,
+    allTeams: allTeams,
+    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+    allDraftPicks: _draftPicks,
+    initialFilter: initialFilter,
+    teamNeeds: _teamNeeds, // Add this line
+  ),
+);
 }
 
-
-  void _showPlayerSelectionDialog(DraftPick pick) {
+void _showPlayerSelectionDialog(DraftPick pick) {
   if (_draftService == null) return;
   
   // Get team needs for the current team
@@ -866,48 +871,158 @@ void _showDraftSummary({bool draftComplete = false}) {
   
   showDialog(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Select a Player for ${pick.teamName}'), // Show correct team name
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: ListView.builder(
-          itemCount: topPlayers.length,
-          itemBuilder: (context, index) {
-            final player = topPlayers[index];
-            final isNeed = needPositions.contains(player.position);
-            
-            return ListTile(
-              title: Text(player.name),
-              subtitle: Text('${player.position} - Rank: ${player.rank}'),
-              trailing: isNeed 
-                ? Chip(
-                    label: const Text('Need'),
-                    backgroundColor: Colors.green.shade100,
-                  )
-                : null,
-              onTap: () {
-                Navigator.pop(context);
-                // Execute the player selection
-                _selectPlayer(pick, player);
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        // Track which player is being hovered
+        int? hoveredPlayerIndex;
+        
+        return AlertDialog(
+          title: Text('Select a Player for ${pick.teamName}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: ListView.builder(
+              itemCount: topPlayers.length,
+              itemBuilder: (context, index) {
+                final player = topPlayers[index];
+                final isNeed = needPositions.contains(player.position);
+                
+                // Calculate pick grade
+                Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(
+                  DraftPick(
+                    pickNumber: pick.pickNumber,
+                    teamName: pick.teamName,
+                    round: pick.round,
+                    selectedPlayer: player,
+                  ),
+                  _teamNeeds,
+                );
+                
+                final letterGrade = gradeInfo['letter'];
+                final colorScore = gradeInfo['colorScore'];
+                
+                return InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Execute the player selection
+                    _selectPlayer(pick, player);
+                  },
+                  onHover: (isHovered) {
+                    setState(() {
+                      hoveredPlayerIndex = isHovered ? index : null;
+                    });
+                  },
+                  child: Container(
+                    color: hoveredPlayerIndex == index ? 
+                        Colors.grey.withOpacity(0.1) : null,
+                    child: ListTile(
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              player.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          if (hoveredPlayerIndex == index)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    _getGradientColor(colorScore, 0.2),
+                                    _getGradientColor(colorScore, 0.3),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: _getGradientColor(colorScore, 0.8),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                letterGrade,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: _getGradientColor(colorScore, 1.0),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Text('${player.position} - Rank: ${player.rank}'),
+                          const Spacer(),
+                          if (hoveredPlayerIndex == index)
+                            Text(
+                              'Value: ${pick.pickNumber - player.rank > 0 ? "+" : ""}${pick.pickNumber - player.rank}',
+                              style: TextStyle(
+                                color: pick.pickNumber - player.rank >= 0 ? 
+                                    Colors.green.shade700 : Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: isNeed 
+                        ? Chip(
+                            label: const Text('Need'),
+                            backgroundColor: Colors.green.shade100,
+                          )
+                        : null,
+                    ),
+                  ),
+                );
               },
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            // Auto-select best player at position of need
-            _autoSelectPlayer(pick);
-          },
-          child: const Text('Auto Pick'),
-        ),
-      ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Auto-select best player at position of need
+                _autoSelectPlayer(pick);
+              },
+              child: const Text('Auto Pick'),
+            ),
+          ],
+        );
+      }
     ),
   );
 }
+
+// Helper method to get gradient color based on score
+Color _getGradientColor(int score, double opacity) {
+  // A grades (green)
+  if (score > 95) return Colors.green.shade700.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.green.shade500.withOpacity(opacity);  // A-
+  
+  // B grades (blue)
+  if (score > 85) return Colors.blue.shade700.withOpacity(opacity);   // B+
+  if (score == 85) return Colors.blue.shade600.withOpacity(opacity);   // B
+  if (score >= 80) return Colors.blue.shade500.withOpacity(opacity);   // B-
+  
+  // C grades (yellow)
+  if (score > 75) return Colors.amber.shade500.withOpacity(opacity);  // C+
+  if (score == 75) return Colors.amber.shade600.withOpacity(opacity);  // C
+  if (score >= 70) return Colors.amber.shade700.withOpacity(opacity);  // C-
+
+  // D grades (orange)
+  if (score >= 60) return Colors.amber.shade900.withOpacity(opacity);  // C-
+
+  // F grades (red)
+  if (score >= 30) return Colors.red.shade600.withOpacity(opacity);    // D+/D
+  return Colors.red.shade700.withOpacity(opacity);                     // F
+}
+
+  
 
   void _selectPlayer(DraftPick pick, Player player) {
   if (_draftService == null) return;
@@ -1113,12 +1228,17 @@ void didUpdateWidget(DraftApp oldWidget) {
     if (widget.showAnalytics) {
       _tabController.animateTo(3); // Index 3 is the Stats tab
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Draft complete! View your draft analytics.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      // Use post-frame callback to display SnackBar
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Draft complete! View your draft analytics.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      });
     }
   }
 }

@@ -7,6 +7,8 @@ import '../../models/player.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/team_need.dart';
+import '../../services/draft_pick_grade_service.dart';
+
 
 class DraftAnalyticsDashboard extends StatefulWidget {
   final List<DraftPick> completedPicks;
@@ -306,8 +308,10 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
     return const SizedBox(height: 0);
   }
   
-  // Calculate pick grade
-  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+  // Calculate detailed pick grade
+  Map<String, dynamic> gradeInfo = _calculatePickGradeInfo(pick);
+  String letterGrade = gradeInfo['letter'];
+  int colorScore = gradeInfo['colorScore'];
   
   final bool isUserTeam = pick.teamName == widget.userTeam;
   
@@ -387,26 +391,33 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
           ),
         ),
         
-        // Grade badge
+        // Grade badge with gradient background
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 4, 
             vertical: 1,
           ),
           decoration: BoxDecoration(
-            color: _getGradeColor(grade).withOpacity(0.2),
+            gradient: LinearGradient(
+              colors: [
+                _getGradientColor(colorScore, 0.2),
+                _getGradientColor(colorScore, 0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(2),
             border: Border.all(
-              color: _getGradeColor(grade),
+              color: _getGradientColor(colorScore, 0.8),
               width: 0.5,
             ),
           ),
           child: Text(
-            grade,
+            letterGrade,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 8,
-              color: _getGradeColor(grade),
+              color: _getGradientColor(colorScore, 1.0),
             ),
           ),
         ),
@@ -415,18 +426,72 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
   );
 }
 
-// Helper method for calculating grade based on value differential
-String _calculatePickGrade(int pickNumber, int playerRank) {
-  int diff = pickNumber - playerRank;
+// Add this helper method for gradient colors
+Color _getGradientColor(int score, double opacity) {
+  // A grades (green)
+  if (score > 95) return Colors.green.shade700.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.green.shade500.withOpacity(opacity);  // A-
   
-  if (diff >= 20) return 'A+';
-  if (diff >= 15) return 'A';
-  if (diff >= 10) return 'B+';
-  if (diff >= 5) return 'B';
-  if (diff >= 0) return 'C+';
-  if (diff >= -10) return 'C';
-  if (diff >= -20) return 'D';
-  return 'F';
+  // B grades (blue)
+  if (score > 85) return Colors.blue.shade700.withOpacity(opacity);   // B+
+  if (score == 85) return Colors.blue.shade600.withOpacity(opacity);   // B
+  if (score >= 80) return Colors.blue.shade500.withOpacity(opacity);   // B-
+  
+  // C grades (yellow)
+  if (score > 75) return Colors.amber.shade500.withOpacity(opacity);  // C+
+  if (score == 75) return Colors.amber.shade600.withOpacity(opacity);  // C
+  if (score >= 70) return Colors.amber.shade700.withOpacity(opacity);  // C-
+
+  // D grades (orange)
+  if (score >= 60) return Colors.amber.shade900.withOpacity(opacity);  // C-
+
+  // F grades (red)
+  if (score >= 30) return Colors.red.shade600.withOpacity(opacity);    // D+/D
+  return Colors.red.shade700.withOpacity(opacity);                     // F
+}
+
+// Helper method for calculating grade based on value differential
+Map<String, dynamic> _calculatePickGradeInfo(DraftPick pick) {
+  return DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds);
+}
+
+void _findValueAndReachPicks() {
+  _valuePicks = [];
+  _reachPicks = [];
+  
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer == null) continue;
+    
+    // Use the new grading system
+    Map<String, dynamic> gradeInfo = _calculatePickGradeInfo(pick);
+    double score = gradeInfo['grade'];
+    
+    // Store relevant information
+    Map<String, dynamic> pickData = {
+      'team': pick.teamName,
+      'player': pick.selectedPlayer!.name,
+      'position': pick.selectedPlayer!.position,
+      'pick': pick.pickNumber,
+      'rank': pick.selectedPlayer!.rank,
+      'diff': pick.pickNumber - pick.selectedPlayer!.rank,
+      'score': score,
+      'grade': gradeInfo['letter'],
+      'colorScore': gradeInfo['colorScore'],
+      'isUserTeam': pick.teamName == widget.userTeam,
+    };
+    
+    // Categorize as value pick or reach
+    if (score >= 7) {  // A-range and above
+      _valuePicks.add(pickData);
+    } else if (score <= -5) {  // C- and below
+      _reachPicks.add(pickData);
+    }
+  }
+  
+  // Sort by grade score
+  _valuePicks.sort((a, b) => b['score'].compareTo(a['score']));
+  _reachPicks.sort((a, b) => a['score'].compareTo(b['score'])); // Most significant reaches first
 }
 
 // Helper method for pick number color
@@ -511,45 +576,7 @@ Color _getPickNumberColor(String round) {
       };
     }
   }
-  
-  void _findValueAndReachPicks() {
-    for (var pick in widget.completedPicks) {
-      if (pick.selectedPlayer == null) continue;
-      
-      int diff = pick.pickNumber - pick.selectedPlayer!.rank;
-      
-      // Value picks (player taken later than rank)
-      if (diff >= 15) {
-        _valuePicks.add({
-          'team': pick.teamName,
-          'player': pick.selectedPlayer!.name,
-          'position': pick.selectedPlayer!.position,
-          'pick': pick.pickNumber,
-          'rank': pick.selectedPlayer!.rank,
-          'diff': diff,
-          'isUserTeam': pick.teamName == widget.userTeam,
-        });
-      }
-      
-      // Reach picks (player taken earlier than rank)
-      if (diff <= -15) {
-        _reachPicks.add({
-          'team': pick.teamName,
-          'player': pick.selectedPlayer!.name,
-          'position': pick.selectedPlayer!.position,
-          'pick': pick.pickNumber,
-          'rank': pick.selectedPlayer!.rank,
-          'diff': diff,
-          'isUserTeam': pick.teamName == widget.userTeam,
-        });
-      }
-    }
-    
-    // Sort by value differential
-    _valuePicks.sort((a, b) => b['diff'].compareTo(a['diff']));
-    _reachPicks.sort((a, b) => a['diff'].compareTo(b['diff'])); // Most significant reaches first
-  }
-  
+
   void _identifyPositionRuns() {
   // Create list of picks in order
   List<DraftPick> orderedPicks = List.from(widget.completedPicks)
@@ -878,84 +905,123 @@ Widget build(BuildContext context) {
   }
   
   Widget _buildValuePicksList(bool isValuePicks) {
-    // Use value picks or reach picks based on parameter
-    final picks = isValuePicks ? _valuePicks : _reachPicks;
-    
-    // If no picks, show empty message
-    if (picks.isEmpty) {
-      return Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              'No ${isValuePicks ? 'value' : 'reach'} picks found yet',
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ),
-        ),
-      );
-    }
-    
+  // Use value picks or reach picks based on parameter
+  final picks = isValuePicks ? _valuePicks : _reachPicks;
+  
+  // If no picks, show empty message
+  if (picks.isEmpty) {
     return Card(
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Display top 5 picks
-            ...picks.take(5).map((pick) {
-              final isUserTeam = pick['isUserTeam'] == true;
-              final diff = pick['diff'];
-              
-              return ListTile(
-                title: RichText(
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style,
-                    children: [
-                      TextSpan(
-                        text: '${pick['player']} ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isUserTeam ? Colors.blue.shade800 : null,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '(${pick['position']})',
-                        style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                subtitle: Text(
-                  '${pick['team']} - Pick #${pick['pick']} (Rank #${pick['rank']})',
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isValuePicks ? Colors.green.shade100 : Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: isValuePicks ? Colors.green.shade700 : Colors.red.shade700,
-                    ),
-                  ),
-                  child: Text(
-                    isValuePicks ? '+$diff' : '$diff',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isValuePicks ? Colors.green.shade700 : Colors.red.shade700,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
+        child: Center(
+          child: Text(
+            'No ${isValuePicks ? 'value' : 'reach'} picks found yet',
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
         ),
       ),
     );
   }
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          // Display top 5 picks
+          ...picks.take(5).map((pick) {
+            final isUserTeam = pick['isUserTeam'] == true;
+            final diff = pick['diff'];
+            final letterGrade = pick['grade'];
+            final colorScore = pick['colorScore'];
+            
+            return ListTile(
+              title: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style,
+                  children: [
+                    TextSpan(
+                      text: '${pick['player']} ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isUserTeam ? Colors.blue.shade800 : null,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '(${pick['position']})',
+                      style: const TextStyle(
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              subtitle: Text(
+                '${pick['team']} - Pick #${pick['pick']} (Rank #${pick['rank']})',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Value differential
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (diff >= 0 ? Colors.green : Colors.red).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: (diff >= 0 ? Colors.green : Colors.red).withOpacity(0.5),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      diff >= 0 ? '+$diff' : '$diff',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: diff >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  
+                  // Grade
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _getGradientColor(colorScore, 0.2),
+                          _getGradientColor(colorScore, 0.3),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: _getGradientColor(colorScore, 0.8),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      letterGrade,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: _getGradientColor(colorScore, 1.0),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    ),
+  );
+}
   
   Widget _buildPositionRunsList() {
   // If no position runs, show empty message

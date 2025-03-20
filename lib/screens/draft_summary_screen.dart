@@ -3,18 +3,22 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
+import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_value_service.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
+import '../services/draft_pick_grade_service.dart';
+
 
 class DraftSummaryScreen extends StatefulWidget {
   final List<DraftPick> completedPicks;
   final List<Player> draftedPlayers;
   final List<TradePackage> executedTrades;
-  final List<String> allTeams; 
+  final List<String> allTeams;
   final String? userTeam;
   final List<DraftPick> allDraftPicks;
-  final String? initialFilter; // Add the initialFilter parameter
+  final String? initialFilter;
+  final List<TeamNeed> teamNeeds; // Add this line
 
   const DraftSummaryScreen({
     super.key,
@@ -24,7 +28,8 @@ class DraftSummaryScreen extends StatefulWidget {
     required this.allTeams,
     this.userTeam,
     required this.allDraftPicks,
-    this.initialFilter, // New parameter
+    this.initialFilter,
+    required this.teamNeeds, // Add this line
   });
 
   @override
@@ -34,6 +39,11 @@ class DraftSummaryScreen extends StatefulWidget {
 class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   String? _selectedTeam;
   int _selectedRound = 1; 
+
+  // Calculate pick grade based on value differential
+Map<String, dynamic> _calculateDetailedPickGrade(DraftPick pick, List<TeamNeed> teamNeeds) {
+  return DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
+}
 
   @override
   void initState() {
@@ -135,9 +145,9 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
   if (pick.selectedPlayer == null) {
     return const SizedBox(height: 0);
   }
-  
-  // Calculate pick grade
-  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+
+  Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
+
   
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
@@ -237,26 +247,30 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
         
         // Grade badge
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 4, 
-            vertical: 1,
-          ),
-          decoration: BoxDecoration(
-            color: _getGradeColor(grade).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(
-              color: _getGradeColor(grade),
-              width: 0.5,
-            ),
-          ),
-          child: Text(
-            grade,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 8,
-              color: _getGradeColor(grade),
-            ),
-          ),
+  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        _getGradientColor(gradeInfo['colorScore'], 0.2),
+        _getGradientColor(gradeInfo['colorScore'], 0.3),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(2),
+    border: Border.all(
+      color: _getGradientColor(gradeInfo['colorScore'], 0.8),
+      width: 0.5,
+    ),
+  ),
+  child: Text(
+    gradeInfo['letter'],
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 8,
+      color: _getGradientColor(gradeInfo['colorScore'], 1.0),
+    ),
+  ),
         ),
       ],
     ),
@@ -494,13 +508,15 @@ Widget _buildRoundSummary(int round) {
   );
 }
 
-Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
+  Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
   if (pick.selectedPlayer == null) {
     return const SizedBox();
   }
   
-  // Calculate pick grade
-  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+  // Calculate detailed pick grade
+  Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
+  String letterGrade = gradeInfo['letter'];
+  int colorScore = gradeInfo['colorScore'];
   
   // More compact dimensions for first round picks
   final double pickNumSize = isFirstRound ? 16 : 20;
@@ -509,119 +525,155 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
   final double posTextSize = isFirstRound ? 7 : 9;
   final double gradeTextSize = isFirstRound ? 8 : 10;
   
-  return Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(
-        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-        width: 0.5,
+  return GestureDetector(
+    onTap: () => _showPickGradeDetails(pick, gradeInfo),
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 0.5,
+        ),
       ),
-    ),
-    child: Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isFirstRound ? 2.0 : 4.0,
-        vertical: isFirstRound ? 2.0 : 6.0,
-      ),
-      child: Row(
-        children: [
-          // Pick number
-          Container(
-            width: pickNumSize,
-            height: pickNumSize,
-            decoration: BoxDecoration(
-              color: _getPickNumberColor(pick.round),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${pick.pickNumber}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isFirstRound ? 7 : posTextSize,
-                  fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isFirstRound ? 2.0 : 4.0,
+          vertical: isFirstRound ? 2.0 : 6.0,
+        ),
+        child: Row(
+          children: [
+            // Pick number
+            Container(
+              width: pickNumSize,
+              height: pickNumSize,
+              decoration: BoxDecoration(
+                color: _getPickNumberColor(pick.round),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '${pick.pickNumber}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isFirstRound ? 7 : posTextSize,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(width: isFirstRound ? 1 : 4),
-          
-          // Team logo
-          SizedBox(
-            width: logoSize,
-            height: logoSize,
-            child: TeamLogoUtils.buildNFLTeamLogo(
-              pick.teamName,
-              size: logoSize,
+            SizedBox(width: isFirstRound ? 1 : 4),
+            
+            // Team logo
+            SizedBox(
+              width: logoSize,
+              height: logoSize,
+              child: TeamLogoUtils.buildNFLTeamLogo(
+                pick.teamName,
+                size: logoSize,
+              ),
             ),
-          ),
-          SizedBox(width: isFirstRound ? 1 : 4),
-          
-          // Player name and position
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  pick.selectedPlayer!.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: nameTextSize,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isFirstRound ? 2 : 3, 
-                    vertical: isFirstRound ? 0 : 1
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                  child: Text(
-                    pick.selectedPlayer!.position,
+            SizedBox(width: isFirstRound ? 1 : 4),
+            
+            // Player name and position
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    pick.selectedPlayer!.name,
                     style: TextStyle(
-                      fontSize: posTextSize,
-                      color: _getPositionColor(pick.selectedPlayer!.position),
                       fontWeight: FontWeight.bold,
+                      fontSize: nameTextSize,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isFirstRound ? 2 : 3, 
+                      vertical: isFirstRound ? 0 : 1
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Text(
+                      pick.selectedPlayer!.position,
+                      style: TextStyle(
+                        fontSize: posTextSize,
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            
+            // Grade badge with gradient background based on color score
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isFirstRound ? 3 : 6, 
+                vertical: isFirstRound ? 0 : 1,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _getGradientColor(colorScore, 0.2),
+                    _getGradientColor(colorScore, 0.3),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
-            ),
-          ),
-          
-          // Grade badge
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isFirstRound ? 3 : 6, 
-              vertical: isFirstRound ? 0 : 1,
-            ),
-            decoration: BoxDecoration(
-              color: _getGradeColor(grade).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(
-                color: _getGradeColor(grade),
-                width: 0.5,
+                borderRadius: BorderRadius.circular(2),
+                border: Border.all(
+                  color: _getGradientColor(colorScore, 0.8),
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                letterGrade,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: gradeTextSize,
+                  color: _getGradientColor(colorScore, 1.0),
+                ),
               ),
             ),
-            child: Text(
-              grade,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: gradeTextSize,
-                color: _getGradeColor(grade),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
 }
+
+// Add this helper method to get a color for the gradient based on the score
+Color _getGradientColor(int score, double opacity) {
+  // A grades (green)
+  if (score > 95) return Colors.green.shade700.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.green.shade500.withOpacity(opacity);  // A-
+  
+  // B grades (blue)
+  if (score > 85) return Colors.blue.shade700.withOpacity(opacity);   // B+
+  if (score == 85) return Colors.blue.shade600.withOpacity(opacity);   // B
+  if (score >= 80) return Colors.blue.shade500.withOpacity(opacity);   // B-
+  
+  // C grades (yellow)
+  if (score > 75) return Colors.amber.shade500.withOpacity(opacity);  // C+
+  if (score == 75) return Colors.amber.shade600.withOpacity(opacity);  // C
+  if (score >= 70) return Colors.amber.shade700.withOpacity(opacity);  // C-
+
+  // D grades (orange)
+  if (score >= 60) return Colors.amber.shade900.withOpacity(opacity);  // C-
+
+  // F grades (red)
+  if (score >= 30) return Colors.red.shade600.withOpacity(opacity);    // D+/D
+  return Colors.red.shade700.withOpacity(opacity);                     // F
+}
+
 
   // New method to build a list of all user picks, including future picks
   Widget _buildUserPicksList() {
@@ -631,10 +683,11 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
     List<DraftPick> userPicks = widget.allDraftPicks
         .where((pick) => pick.teamName == _selectedTeam && pick.isActiveInDraft)
         .toList();
+  
     
     // Sort by pick number
     userPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
-    
+
     if (userPicks.isEmpty) {
       return Card(
         margin: const EdgeInsets.only(bottom: 12),
@@ -658,6 +711,10 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
         final pick = userPicks[index];
         final bool pickMade = pick.selectedPlayer != null;
         
+        Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
+        String letterGrade = gradeInfo['letter'];
+        int colorScore = gradeInfo['colorScore'];
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           // Highlight picked vs unpicked differently
@@ -691,21 +748,31 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
+                  
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank)).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank))),
-                    ),
-                    child: Text(
-                      _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _getGradeColor(_calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank)),
-                      ),
-                    ),
-                  ),
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        _getGradientColor(colorScore, 0.2),
+        _getGradientColor(colorScore, 0.3),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(
+      color: _getGradientColor(colorScore, 0.8),
+    ),
+  ),
+  child: Text(
+    letterGrade,
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      color: _getGradientColor(colorScore, 1.0),
+    ),
+  ),
+),
                 ],
               ) : 
               // If pick not yet made, show "Upcoming Pick"
@@ -969,6 +1036,231 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
           const SizedBox(height: 16),
         ],
       ),
+    ),
+  );
+}
+
+void _showPickGradeDetails(DraftPick pick, Map<String, dynamic> gradeInfo) {
+  final factors = gradeInfo['factors'];
+  final letterGrade = gradeInfo['letter'];
+  final colorScore = gradeInfo['colorScore'];
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Row(
+        children: [
+          Text('Pick Analysis: ${pick.selectedPlayer!.name}'),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _getGradientColor(colorScore, 0.2),
+                  _getGradientColor(colorScore, 0.4),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: _getGradientColor(colorScore, 0.8),
+                width: 1.0,
+              ),
+            ),
+            child: Text(
+              letterGrade,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: _getGradientColor(colorScore, 1.0),
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Basics
+              _buildDetailRow('Team', pick.teamName),
+              _buildDetailRow('Position', pick.selectedPlayer!.position),
+              _buildDetailRow('Pick Number', '#${pick.pickNumber}'),
+              _buildDetailRow('Player Rank', '#${pick.selectedPlayer!.rank}'),
+              
+              const Divider(),
+              
+              // Value analysis
+              Text(
+                'Value Analysis',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              _buildDetailRow(
+                'Base Value Diff', 
+                '${factors['baseValueDiff'] > 0 ? '+' : ''}${factors['baseValueDiff'].toString()}',
+                valueColor: factors['baseValueDiff'] >= 0 ? Colors.green : Colors.red,
+              ),
+              _buildDetailRow(
+                'Adjusted Value', 
+                '${factors['adjustedValueDiff'] > 0 ? '+' : ''}${factors['adjustedValueDiff'].toStringAsFixed(1)}',
+                valueColor: factors['adjustedValueDiff'] >= 0 ? Colors.green : Colors.red,
+              ),
+              
+              const Divider(),
+              
+              // Position value
+              Text(
+                'Position Analysis',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              _buildDetailRow(
+                'Position Value Coefficient', 
+                '${factors['positionCoefficient'].toStringAsFixed(2)}x',
+                valueColor: factors['positionCoefficient'] >= 1.0 ? Colors.green : Colors.orange,
+              ),
+              
+              // Team needs
+              const Divider(),
+              
+              Text(
+                'Team Needs Analysis',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              _buildDetailRow(
+                'Need Priority', 
+                factors['needIndex'] >= 0 ? '${factors['needIndex'] + 1}' : 'Not in top needs',
+                valueColor: factors['needIndex'] >= 0 && factors['needIndex'] < 3 ? 
+                    Colors.green : (factors['needIndex'] >= 0 ? Colors.orange : Colors.red),
+              ),
+              _buildDetailRow(
+                'Need Factor', 
+                '${factors['needFactor'].toStringAsFixed(2)}x',
+                valueColor: factors['needFactor'] > 1.0 ? Colors.green : Colors.grey,
+              ),
+              
+              // Draft value
+              const Divider(),
+              
+              Text(
+                'Draft Value Analysis',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              _buildDetailRow(
+                'Pick Value', 
+                factors['pickValue'].toStringAsFixed(1),
+              ),
+              _buildDetailRow(
+                'Projected Value', 
+                factors['projectedPickValue'].toStringAsFixed(1),
+              ),
+              _buildDetailRow(
+                'Value Differential', 
+                '${factors['draftValueDiff'] > 0 ? '+' : ''}${factors['draftValueDiff'].toStringAsFixed(2)}',
+                valueColor: factors['draftValueDiff'] >= 0 ? Colors.green : Colors.red,
+              ),
+              
+              // Other factors
+              const Divider(),
+              
+              Text(
+                'Other Factors',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              _buildDetailRow(
+                'Round', 
+                '${factors['round']}',
+              ),
+              _buildDetailRow(
+                'Round Expectation Factor', 
+                '${factors['roundFactor'].toStringAsFixed(2)}x',
+              ),
+              
+              // Summary
+              const Divider(),
+              
+              Text(
+                'Summary',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              Text(
+                DraftPickGradeService.getGradeDescription(gradeInfo),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -1691,34 +1983,13 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
     };
   }
   
-  // Calculate pick grade based on value differential
-  String _calculatePickGrade(int pickNumber, int playerRank) {
-    int diff = pickNumber - playerRank;
-    
-    if (diff >= 20) return 'A+';
-    if (diff >= 15) return 'A';
-    if (diff >= 10) return 'B+';
-    if (diff >= 5) return 'B';
-    if (diff >= 0) return 'C+';
-    if (diff >= -10) return 'C';
-    if (diff >= -20) return 'D';
-    return 'F';
-  }
-  
   // Get color for pick grade
   Color _getGradeColor(String grade) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    if (grade.startsWith('A')) {
-      return isDarkMode ? Colors.green.shade400 : Colors.green.shade700;
-    } else if (grade.startsWith('B')) {
-      return isDarkMode ? Colors.blue.shade400 : Colors.blue.shade700;
-    } else if (grade.startsWith('C')) {
-      return isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700;
-    } else {
-      return isDarkMode ? Colors.red.shade400 : Colors.red.shade700;
-    }
-  }
+  if (grade.startsWith('A')) return Colors.green.shade700;
+  if (grade.startsWith('B')) return Colors.blue.shade700;
+  if (grade.startsWith('C')) return Colors.orange.shade700;
+  return Colors.red.shade700;
+}
   
   // Color method for pick number background - handles rounds properly
   Color _getPickNumberColor(String round) {
