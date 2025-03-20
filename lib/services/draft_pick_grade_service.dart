@@ -155,16 +155,16 @@ class DraftPickGradeService {
   /// Convert numeric grade to letter grade
   static String getLetterGrade(double score) {
   // More forgiving grading scale
-  if (score >= 12) return 'A+';  // Was 15
-  if (score >= 8) return 'A';    // Was 10
-  if (score >= 5) return 'A-';   // Was 7
-  if (score >= 3) return 'B+';   // Was 5
-  if (score >= 1) return 'B';    // Was 3
-  if (score >= 0) return 'B-';   // Was 1
-  if (score >= -2) return 'C+';  // Was 0
-  if (score >= -4) return 'C';   // Was -3
-  if (score >= -6) return 'C-';  // Was -5
-  if (score >= -9) return 'D+';  // Was -8
+  if (score >= 8) return 'A+';  // Was 15
+  if (score >= 6) return 'A';    // Was 10
+  if (score >= 4) return 'A-';   // Was 7
+  if (score >= 2) return 'B+';   // Was 5
+  if (score >= 0) return 'B';    // Was 3
+  if (score >= -2) return 'B-';   // Was 1
+  if (score >= -4) return 'C+';  // Was 0
+  if (score >= -6) return 'C';   // Was -3
+  if (score >= -8) return 'C-';  // Was -5
+  if (score >= -10) return 'D+';  // Was -8
   if (score >= -12) return 'D';  // No change
   return 'F';                   // No change
 }
@@ -172,16 +172,16 @@ class DraftPickGradeService {
   /// Get color score for gradients (0-100)
   static int getColorScore(double score) {
   // Convert score to 0-100 scale for color gradients with new thresholds
-  if (score >= 12) return 100;      // A+
-  if (score >= 8) return 95;        // A
-  if (score >= 5) return 90;        // A-
-  if (score >= 3) return 85;        // B+
-  if (score >= 1) return 80;        // B
-  if (score >= 0) return 75;        // B-
-  if (score >= -2) return 65;       // C+
-  if (score >= -4) return 60;       // C
-  if (score >= -6) return 55;       // C-
-  if (score >= -9) return 45;       // D+
+  if (score >= 8) return 100;      // A+
+  if (score >= 6) return 95;        // A
+  if (score >= 4) return 90;        // A-
+  if (score >= 2) return 85;        // B+
+  if (score >= 0) return 80;        // B
+  if (score >= -2) return 75;        // B-
+  if (score >= -4) return 65;       // C+
+  if (score >= -6) return 60;       // C
+  if (score >= -8) return 55;       // C-
+  if (score >= -10) return 45;       // D+
   if (score >= -12) return 30;      // D
   return 10;                        // F
 }
