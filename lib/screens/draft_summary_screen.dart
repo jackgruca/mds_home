@@ -13,7 +13,8 @@ class DraftSummaryScreen extends StatefulWidget {
   final List<TradePackage> executedTrades;
   final List<String> allTeams; 
   final String? userTeam;
-  final List<DraftPick> allDraftPicks; // New parameter for all picks
+  final List<DraftPick> allDraftPicks;
+  final String? initialFilter; // Add the initialFilter parameter
 
   const DraftSummaryScreen({
     super.key,
@@ -23,6 +24,7 @@ class DraftSummaryScreen extends StatefulWidget {
     required this.allTeams,
     this.userTeam,
     required this.allDraftPicks,
+    this.initialFilter, // New parameter
   });
 
   @override
@@ -31,14 +33,13 @@ class DraftSummaryScreen extends StatefulWidget {
 
 class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   String? _selectedTeam;
-  int _selectedRound = 1; // Add this line to track the selected round
+  int _selectedRound = 1; 
 
-  
   @override
   void initState() {
     super.initState();
-    // Default to user team if available
-    _selectedTeam = widget.userTeam ?? "All Teams";
+    // Always use the initialFilter if provided
+    _selectedTeam = widget.initialFilter ?? widget.userTeam ?? "All Teams";
   }
 
  Widget _buildFirstRoundTwoColumnLayout() {

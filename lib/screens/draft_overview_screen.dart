@@ -544,27 +544,25 @@ List<Color> _getTeamGradientColors(String teamName) {
   }
 
   if (_draftService!.isDraftComplete()) {
-    setState(() {
-      _isDraftRunning = false;
-      _statusMessage = "Draft complete!";
+  setState(() {
+    _isDraftRunning = false;
+    _statusMessage = "Draft complete!";
+  });
+  
+  if (widget.showAnalytics && !_summaryShown) {
+    _summaryShown = true;
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      _showDraftSummary(draftComplete: true); // Pass draftComplete: true here
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Draft complete! View your draft summary and analytics.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
     });
-    
-    // Add this code to automatically switch to the Analytics tab
-    if (widget.showAnalytics && !_summaryShown) {
-      _summaryShown = true;
-      Future.delayed(const Duration(milliseconds: 1200), () {
-        _showDraftSummary();
-        // Show a notification
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Draft complete! View your draft summary and analytics.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      });
-    }
-    return;
   }
+  return;
+}
 
   // Update active user team before processing the pick
   _updateActiveUserTeam();
@@ -814,7 +812,7 @@ void _initiateUserTradeProposal() {
   }
 }
 
-  void _showDraftSummary() {
+void _showDraftSummary({bool draftComplete = false}) {
   if (_draftService == null) return;
   
   // Get all unique team names for filtering
@@ -826,11 +824,17 @@ void _initiateUserTradeProposal() {
   // Sort alphabetically for better UX
   allTeams.sort();
   
-  // Show a custom-sized dialog with the draft summary
+  // Determine initial filter
+  // - If draft is complete, use "All Teams"
+  // - Otherwise, use user team if available
+  String? initialFilter = draftComplete 
+      ? "All Teams" 
+      : (widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null);
+  
+  // Show the dialog with the appropriate filter
   showDialog(
     context: context,
-    barrierColor: Colors.black54.withOpacity(0.3), // More transparent barrier
-    barrierDismissible: true, // Allow dismissing by tapping outside
+    barrierDismissible: true,
     builder: (context) => DraftSummaryScreen(
       completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
       draftedPlayers: _players.where((player) => 
@@ -839,9 +843,11 @@ void _initiateUserTradeProposal() {
       allTeams: allTeams,
       userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
       allDraftPicks: _draftPicks,
+      initialFilter: initialFilter,
     ),
   );
 }
+
 
   void _showPlayerSelectionDialog(DraftPick pick) {
   if (_draftService == null) return;
@@ -1096,21 +1102,16 @@ void _testDraftSummary() {
 void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
-  // Check if draft just completed and summary hasn't been shown yet
   if (_draftService != null && 
       _draftService!.isDraftComplete() && 
       !_isDraftRunning && 
       _isDataLoaded &&
       !_summaryShown) {
-    // Set flag to prevent showing summary multiple times
     _summaryShown = true;
     
-    // Wait a moment before showing the summary
     Future.delayed(const Duration(milliseconds: 800), () {
-      // Show draft summary screen directly
-      _showDraftSummary();
+      _showDraftSummary(draftComplete: true); // Pass draftComplete: true here
       
-      // Notify the user
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Draft complete! View your draft summary.'),
@@ -1315,9 +1316,9 @@ Widget build(BuildContext context) {
                   
                   // Draft recap button - keeps the same on the right side
                   OutlinedButton.icon(
-                    onPressed: _showDraftSummary,
-                    icon: const Icon(Icons.summarize, size: 14),
-                    label: const Text('Your Picks', style: TextStyle(fontSize: TextConstants.kButtonTextSize)),
+  onPressed: () => _showDraftSummary(draftComplete: false),
+  icon: const Icon(Icons.summarize, size: 14),
+  label: const Text('Your Picks'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       visualDensity: VisualDensity.compact,
