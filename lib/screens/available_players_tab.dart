@@ -508,10 +508,36 @@ void _showPlayerDetails(BuildContext context, Player player) {
   
   if (additionalInfo != null) {
     // If we have additional info, use it for the player
-    // Parse height, weight as before
+    // Attempt to parse height from string to double
     double? height;
     if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
-      // ... existing height parsing code ...
+      String heightStr = additionalInfo['height']!;
+      
+      // Handle height in different formats
+      if (heightStr.contains("'")) {
+        // Format like 6'2"
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else {
+        // Assume it's in inches
+        height = double.tryParse(heightStr);
+      }
     }
     
     // Parse weight
