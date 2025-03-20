@@ -13,7 +13,8 @@ class DraftSummaryScreen extends StatefulWidget {
   final List<TradePackage> executedTrades;
   final List<String> allTeams; 
   final String? userTeam;
-  final List<DraftPick> allDraftPicks; // New parameter for all picks
+  final List<DraftPick> allDraftPicks;
+  final String? initialFilter; // Add the initialFilter parameter
 
   const DraftSummaryScreen({
     super.key,
@@ -23,6 +24,7 @@ class DraftSummaryScreen extends StatefulWidget {
     required this.allTeams,
     this.userTeam,
     required this.allDraftPicks,
+    this.initialFilter, // New parameter
   });
 
   @override
@@ -31,14 +33,257 @@ class DraftSummaryScreen extends StatefulWidget {
 
 class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   String? _selectedTeam;
-  
+  int _selectedRound = 1; 
+
   @override
   void initState() {
     super.initState();
-    // Default to user team if available
-    _selectedTeam = widget.userTeam ?? "All Teams";
+    // Always use the initialFilter if provided
+    _selectedTeam = widget.initialFilter ?? widget.userTeam ?? "All Teams";
   }
 
+ Widget _buildFirstRoundTwoColumnLayout() {
+  // Filter picks for just the first round
+  List<DraftPick> firstRoundPicks = widget.completedPicks
+      .where((pick) => int.tryParse(pick.round) == 1)
+      .toList();
+  
+  // Sort by pick number
+  firstRoundPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  // If no picks in this round, show a message
+  if (firstRoundPicks.isEmpty) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            'No picks found for Round 1',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Split picks into two columns
+  List<DraftPick> leftColumnPicks = [];
+  List<DraftPick> rightColumnPicks = [];
+  
+  for (int i = 0; i < firstRoundPicks.length; i++) {
+    if (firstRoundPicks[i].pickNumber <= 16) {
+      leftColumnPicks.add(firstRoundPicks[i]);
+    } else {
+      rightColumnPicks.add(firstRoundPicks[i]);
+    }
+  }
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column - Picks 1-16
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                  child: Text(
+                    'Picks 1-16',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                ...leftColumnPicks.map((pick) => 
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: _buildCompactPickRow(pick, isDarkMode),
+                  )
+                ),
+              ],
+            ),
+          ),
+          
+          // Divider
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8.0),
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          
+          // Right column - Picks 17-32
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                  child: Text(
+                    'Picks 17-32',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                ...rightColumnPicks.map((pick) => 
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: _buildCompactPickRow(pick, isDarkMode),
+                  )
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+// Step 2: Add this helper method to create compact pick rows for the two-column layout
+Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
+  if (pick.selectedPlayer == null) {
+    return const SizedBox(height: 0);
+  }
+  
+  // Calculate pick grade
+  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+  
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
+    decoration: BoxDecoration(
+      color: isDarkMode ? Colors.grey.shade800.withOpacity(0.5) : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        width: 0.5,
+      ),
+    ),
+    child: Row(
+      children: [
+        // Pick number
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _getPickNumberColor(pick.round),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              '${pick.pickNumber}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        
+        // Team logo
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: TeamLogoUtils.buildNFLTeamLogo(
+            pick.teamName,
+            size: 16,
+          ),
+        ),
+        const SizedBox(width: 4),
+        
+        // Player name and position
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                pick.selectedPlayer!.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    decoration: BoxDecoration(
+                      color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          pick.selectedPlayer!.position,
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: _getPositionColor(pick.selectedPlayer!.position),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          ' #${pick.selectedPlayer!.rank}',
+                          style: TextStyle(
+                            fontSize: 7,
+                            color: _getPositionColor(pick.selectedPlayer!.position),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Grade badge
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 4, 
+            vertical: 1,
+          ),
+          decoration: BoxDecoration(
+            color: _getGradeColor(grade).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(
+              color: _getGradeColor(grade),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            grade,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 8,
+              color: _getGradeColor(grade),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
   // Replace the Dialog.fullscreen with this custom-sized dialog implementation
 // in the DraftSummaryScreen build method
 
@@ -49,7 +294,7 @@ Widget build(BuildContext context) {
   
   // Calculate dialog size - 80% width, 70% height positioned at bottom
   final dialogWidth = screenSize.width * 0.8;
-  final dialogHeight = screenSize.height * 0.70;
+  final dialogHeight = screenSize.height * 0.90;
   
   return Dialog(
     insetPadding: EdgeInsets.only(
@@ -78,7 +323,7 @@ Widget build(BuildContext context) {
                 topRight: Radius.circular(16.0),
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Reduced vertical padding
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -86,11 +331,11 @@ Widget build(BuildContext context) {
                   'Draft Summary',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 18.0,
+                    fontSize: 16.0, // Reduced font size
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, size: 18), // Smaller icon
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () => Navigator.of(context).pop(),
@@ -99,39 +344,51 @@ Widget build(BuildContext context) {
             ),
           ),
           
-          // Team filter dropdown
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          // More compact team filter dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0), // Reduced padding
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.end, // Move to right
               children: [
-                const Text('Select Team: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'Team:', 
+                  style: TextStyle(
+                    fontSize: 12, // Smaller font
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                  )
+                ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButton<String>(
-                    value: _selectedTeam,
-                    isExpanded: true,
-                    hint: const Text('Select a team'),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedTeam = newValue;
-                      });
-                    },
-                    items: [
-                      // Add "All Teams" as first option
-                      const DropdownMenuItem<String>(
-                        value: "All Teams",
-                        child: Text("All Teams"),
-                      ),
-                      // Then add all the individual teams
-                      ...widget.allTeams
-                          .map<DropdownMenuItem<String>>((String team) {
-                        return DropdownMenuItem<String>(
-                          value: team,
-                          child: Text(team),
-                        );
-                      }),
-                    ],
+                DropdownButton<String>(
+                  value: _selectedTeam,
+                  isDense: true, // Makes the dropdown more compact
+                  hint: const Text('Select a team', style: TextStyle(fontSize: 12)),
+                  style: const TextStyle(fontSize: 12), // Smaller font
+                  iconSize: 16, // Smaller icon
+                  underline: Container(
+                    height: 1,
+                    color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
                   ),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedTeam = newValue;
+                    });
+                  },
+                  items: [
+                    // Add "All Teams" as first option
+                    const DropdownMenuItem<String>(
+                      value: "All Teams",
+                      child: Text("All Teams", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    // Then add all the individual teams
+                    ...widget.allTeams
+                        .map<DropdownMenuItem<String>>((String team) {
+                      return DropdownMenuItem<String>(
+                        value: team,
+                        child: Text(team),
+                      );
+                    }),
+                  ],
                 ),
               ],
             ),
@@ -147,6 +404,247 @@ Widget build(BuildContext context) {
   );
 }
   
+  // Add this method to build the round selector
+  Widget _buildRoundSelector() {
+  // Get screen width to adjust layout
+  final screenWidth = MediaQuery.of(context).size.width;
+  final bool isNarrowScreen = screenWidth < 360;
+  
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 1; i <= min(7, _getMaxRound()); i++)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
+            child: ChoiceChip(
+              label: Text(
+                'R$i', // Shorter text for round
+                style: TextStyle(
+                  fontSize: isNarrowScreen ? 11 : 12,
+                ),
+              ),
+              selected: _selectedRound == i,
+              visualDensity: VisualDensity.compact, // More compact chips
+              labelPadding: EdgeInsets.symmetric(
+                horizontal: isNarrowScreen ? 4 : 8,
+                vertical: 0,
+              ),
+              onSelected: (bool selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedRound = i;
+                  });
+                }
+              },
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+// Helper to get the maximum round in the completed picks
+int _getMaxRound() {
+  int maxRound = 1;
+  for (var pick in widget.completedPicks) {
+    int round = int.tryParse(pick.round) ?? 1;
+    if (round > maxRound) maxRound = round;
+  }
+  return maxRound;
+}
+
+Widget _buildRoundSummary(int round) {
+  // Filter picks by the selected round
+  List<DraftPick> roundPicks = widget.completedPicks
+      .where((pick) => int.tryParse(pick.round) == round)
+      .toList();
+  
+  // Sort by pick number
+  roundPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  // If no picks in this round, show a message
+  if (roundPicks.isEmpty) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            'No picks found for Round $round',
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Increase grid columns for first round to see all 32 picks
+  final int crossAxisCount = round == 1 ? 4 : 2;
+  
+  // Adjust child aspect ratio based on round
+  final double childAspectRatio = round == 1 ? 2.2 : 3.5;
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+      child: Column(
+        children: [
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: childAspectRatio,
+              crossAxisSpacing: 4.0,
+              mainAxisSpacing: 4.0,
+            ),
+            itemCount: roundPicks.length,
+            itemBuilder: (context, index) {
+              if (index < roundPicks.length) {
+                return _buildPickCard(roundPicks[index], isDarkMode, round == 1);
+              }
+              return const SizedBox();
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isFirstRound) {
+  if (pick.selectedPlayer == null) {
+    return const SizedBox();
+  }
+  
+  // Calculate pick grade
+  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+  
+  // More compact dimensions for first round picks
+  final double pickNumSize = isFirstRound ? 16 : 20;
+  final double logoSize = isFirstRound ? 16 : 24;
+  final double nameTextSize = isFirstRound ? 9 : 11;
+  final double posTextSize = isFirstRound ? 7 : 9;
+  final double gradeTextSize = isFirstRound ? 8 : 10;
+  
+  return Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        width: 0.5,
+      ),
+    ),
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isFirstRound ? 2.0 : 4.0,
+        vertical: isFirstRound ? 2.0 : 6.0,
+      ),
+      child: Row(
+        children: [
+          // Pick number
+          Container(
+            width: pickNumSize,
+            height: pickNumSize,
+            decoration: BoxDecoration(
+              color: _getPickNumberColor(pick.round),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '${pick.pickNumber}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isFirstRound ? 7 : posTextSize,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: isFirstRound ? 1 : 4),
+          
+          // Team logo
+          SizedBox(
+            width: logoSize,
+            height: logoSize,
+            child: TeamLogoUtils.buildNFLTeamLogo(
+              pick.teamName,
+              size: logoSize,
+            ),
+          ),
+          SizedBox(width: isFirstRound ? 1 : 4),
+          
+          // Player name and position
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  pick.selectedPlayer!.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: nameTextSize,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isFirstRound ? 2 : 3, 
+                    vertical: isFirstRound ? 0 : 1
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Text(
+                    pick.selectedPlayer!.position,
+                    style: TextStyle(
+                      fontSize: posTextSize,
+                      color: _getPositionColor(pick.selectedPlayer!.position),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Grade badge
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isFirstRound ? 3 : 6, 
+              vertical: isFirstRound ? 0 : 1,
+            ),
+            decoration: BoxDecoration(
+              color: _getGradeColor(grade).withOpacity(0.2),
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(
+                color: _getGradeColor(grade),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              grade,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: gradeTextSize,
+                color: _getGradeColor(grade),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
   // New method to build a list of all user picks, including future picks
   Widget _buildUserPicksList() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -345,65 +843,78 @@ Widget build(BuildContext context) {
   
   // Handle "All Teams" selection - this section can stay mostly the same
   if (_selectedTeam == "All Teams") {
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(16),
-        bottomRight: Radius.circular(16),
+  return ClipRRect(
+    borderRadius: const BorderRadius.only(
+      bottomLeft: Radius.circular(16),
+      bottomRight: Radius.circular(16),
+    ),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // First Round Summary - 2 column layout (moved to top)
+          const Text(
+            'First Round Summary',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildFirstRoundTwoColumnLayout(),
+          
+          const SizedBox(height: 16),
+          
+          // Team Grade Comparison
+          const Text(
+            'Team Grade Comparison',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildTeamGradeComparison(),
+          
+          const SizedBox(height: 16),
+          
+          // Draft Overview
+          _buildAllTeamsGradeBanner(),
+          
+          const SizedBox(height: 16),
+          
+          // Best Value Picks across all teams
+          const Text(
+            'Best Value Picks',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildBestValuePicksList(),
+          
+          const SizedBox(height: 16),
+          
+          // Position breakdown across all teams
+          const Text(
+            'Overall Position Breakdown',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildOverallPositionBreakdown(),
+          
+          // Add some bottom padding for scrolling
+          const SizedBox(height: 16),
+        ],
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Overall draft summary for all teams
-            _buildAllTeamsGradeBanner(),
-            
-            const SizedBox(height: 16),
-            
-            // Team Grade Comparison
-            const Text(
-              'Team Grade Comparison',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildTeamGradeComparison(),
-            
-            const SizedBox(height: 16),
-            
-            // Best Value Picks across all teams
-            const Text(
-              'Best Value Picks',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildBestValuePicksList(),
-            
-            const SizedBox(height: 16),
-            
-            // Position breakdown across all teams
-            const Text(
-              'Overall Position Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildOverallPositionBreakdown(),
-            
-            // Add some bottom padding for scrolling
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   // Filter picks for selected team
   final teamCompletedPicks = widget.completedPicks.where(
