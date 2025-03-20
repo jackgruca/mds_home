@@ -150,26 +150,43 @@ Widget build(BuildContext context) {
 }
   
   // Add this method to build the round selector
-Widget _buildRoundSelector() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      for (int i = 1; i <= min(7, _getMaxRound()); i++)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: ChoiceChip(
-            label: Text('Round $i'),
-            selected: _selectedRound == i,
-            onSelected: (bool selected) {
-              if (selected) {
-                setState(() {
-                  _selectedRound = i;
-                });
-              }
-            },
+  Widget _buildRoundSelector() {
+  // Get screen width to adjust layout
+  final screenWidth = MediaQuery.of(context).size.width;
+  final bool isNarrowScreen = screenWidth < 360;
+  
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 1; i <= min(7, _getMaxRound()); i++)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
+            child: ChoiceChip(
+              label: Text(
+                'R$i', // Shorter text for round
+                style: TextStyle(
+                  fontSize: isNarrowScreen ? 11 : 12,
+                ),
+              ),
+              selected: _selectedRound == i,
+              visualDensity: VisualDensity.compact, // More compact chips
+              labelPadding: EdgeInsets.symmetric(
+                horizontal: isNarrowScreen ? 4 : 8,
+                vertical: 0,
+              ),
+              onSelected: (bool selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedRound = i;
+                  });
+                }
+              },
+            ),
           ),
-        ),
-    ],
+      ],
+    ),
   );
 }
 
@@ -183,7 +200,6 @@ int _getMaxRound() {
   return maxRound;
 }
 
-// Add this method to build the round summary grid
 Widget _buildRoundSummary(int round) {
   // Filter picks by the selected round
   List<DraftPick> roundPicks = widget.completedPicks
@@ -210,63 +226,77 @@ Widget _buildRoundSummary(int round) {
   
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
+  // Get screen width to adjust layout
+  final screenWidth = MediaQuery.of(context).size.width;
+  final bool isNarrowScreen = screenWidth < 360; // Adjust this threshold as needed
+  
+  // Calculate grid parameters based on screen size
+  final double childAspectRatio = isNarrowScreen ? 3.0 : 3.5;
+  
   return Card(
     elevation: 2,
     child: Padding(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0), // Reduced padding
       child: Column(
         children: [
-          // Split into two columns for a two-sided display
-          for (int i = 0; i < roundPicks.length; i += 2)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left side pick
-                  Expanded(
-                    child: _buildPickCard(roundPicks[i], isDarkMode),
-                  ),
-                  const SizedBox(width: 8),
-                  // Right side pick (if available)
-                  Expanded(
-                    child: i + 1 < roundPicks.length 
-                        ? _buildPickCard(roundPicks[i + 1], isDarkMode)
-                        : const SizedBox(), // Empty space if no matching pick
-                  ),
-                ],
-              ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: childAspectRatio, // Adjusted by screen width
+              crossAxisSpacing: isNarrowScreen ? 4.0 : 8.0, // Smaller spacing on narrow screens
+              mainAxisSpacing: isNarrowScreen ? 4.0 : 8.0,
             ),
+            itemCount: roundPicks.length,
+            itemBuilder: (context, index) {
+              if (index < roundPicks.length) {
+                return _buildPickCard(roundPicks[index], isDarkMode, isNarrowScreen);
+              }
+              return const SizedBox();
+            },
+          ),
         ],
       ),
     ),
   );
 }
 
-// Helper to build an individual pick card
-Widget _buildPickCard(DraftPick pick, bool isDarkMode) {
+// Modified to accept screen size parameter
+Widget _buildPickCard(DraftPick pick, bool isDarkMode, bool isNarrowScreen) {
   if (pick.selectedPlayer == null) {
-    return const SizedBox(); // Skip picks without players
+    return const SizedBox();
   }
   
   // Calculate pick grade
   String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
   
+  // Adjust dimensions based on screen size
+  final double pickNumSize = isNarrowScreen ? 18 : 20;
+  final double logoSize = isNarrowScreen ? 20 : 24;
+  final double nameTextSize = isNarrowScreen ? 10 : 11;
+  final double posTextSize = isNarrowScreen ? 8 : 9;
+  final double gradeTextSize = isNarrowScreen ? 9 : 10;
+  
   return Container(
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       border: Border.all(
         color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        width: 0.5,
       ),
     ),
     child: Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: isNarrowScreen ? 2.0 : 4.0,
+        vertical: isNarrowScreen ? 4.0 : 6.0,
+      ),
       child: Row(
         children: [
           // Pick number
           Container(
-            width: 24,
-            height: 24,
+            width: pickNumSize,
+            height: pickNumSize,
             decoration: BoxDecoration(
               color: _getPickNumberColor(pick.round),
               shape: BoxShape.circle,
@@ -274,65 +304,57 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode) {
             child: Center(
               child: Text(
                 '${pick.pickNumber}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 10,
+                  fontSize: posTextSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isNarrowScreen ? 2 : 4),
           
           // Team logo
           SizedBox(
-            width: 30,
-            height: 30,
+            width: logoSize,
+            height: logoSize,
             child: TeamLogoUtils.buildNFLTeamLogo(
               pick.teamName,
-              size: 30,
+              size: logoSize,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isNarrowScreen ? 2 : 4),
           
           // Player name and position
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   pick.selectedPlayer!.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: nameTextSize,
+                  ),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        pick.selectedPlayer!.position,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: _getPositionColor(pick.selectedPlayer!.position),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    pick.selectedPlayer!.position,
+                    style: TextStyle(
+                      fontSize: posTextSize,
+                      color: _getPositionColor(pick.selectedPlayer!.position),
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      pick.selectedPlayer!.school,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -340,17 +362,23 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode) {
           
           // Grade badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: isNarrowScreen ? 4 : 6, 
+              vertical: 1,
+            ),
             decoration: BoxDecoration(
               color: _getGradeColor(grade).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: _getGradeColor(grade)),
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(
+                color: _getGradeColor(grade),
+                width: 0.5,
+              ),
             ),
             child: Text(
               grade,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: gradeTextSize,
                 color: _getGradeColor(grade),
               ),
             ),
@@ -360,6 +388,8 @@ Widget _buildPickCard(DraftPick pick, bool isDarkMode) {
     ),
   );
 }
+
+
 
   // New method to build a list of all user picks, including future picks
   Widget _buildUserPicksList() {
