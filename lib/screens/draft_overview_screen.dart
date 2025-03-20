@@ -549,17 +549,17 @@ List<Color> _getTeamGradientColors(String teamName) {
     _statusMessage = "Draft complete!";
   });
   
-  if (widget.showAnalytics && !_summaryShown) {
-    _summaryShown = true;
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      _showDraftSummary(draftComplete: true); // Pass draftComplete: true here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Draft complete! View your draft summary and analytics.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    });
+  if (widget.showAnalytics) {
+    // Instead of showing the summary popup, switch to the Stats tab
+    _tabController.animateTo(3); // Index 3 is the Stats tab
+    
+    // Show a snackbar notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Draft complete! View your draft analytics.'),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
   return;
 }
@@ -1109,16 +1109,17 @@ void didUpdateWidget(DraftApp oldWidget) {
       !_summaryShown) {
     _summaryShown = true;
     
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _showDraftSummary(draftComplete: true); // Pass draftComplete: true here
+    // Navigate to the Stats tab instead of showing the summary popup
+    if (widget.showAnalytics) {
+      _tabController.animateTo(3); // Index 3 is the Stats tab
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Draft complete! View your draft summary.'),
+          content: Text('Draft complete! View your draft analytics.'),
           duration: Duration(seconds: 3),
         ),
       );
-    });
+    }
   }
 }
 
