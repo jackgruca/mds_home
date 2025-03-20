@@ -33,7 +33,6 @@ class PlayerDetailsDialog extends StatelessWidget {
 Widget contentBox(BuildContext context, bool isDarkMode) {
   final headerColor = _getPositionColor(player.position);
   final screenSize = MediaQuery.of(context).size;
-  final isSmallScreen = screenSize.height < 600; // Adjust based on device height
   
   return Container(
     padding: EdgeInsets.zero,
@@ -52,7 +51,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // Header with player name and position (keep your existing code here)
+        // Header with player name and position
         Container(
           decoration: BoxDecoration(
             color: headerColor.withOpacity(isDarkMode ? 0.7 : 0.2),
@@ -150,9 +149,10 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
           ),
         ),
         
-        // Stats section - reorganized in a grid format
+        // NEW COMPACT STATS BANNER
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
             border: Border(
@@ -162,37 +162,80 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
               ),
             ),
           ),
-          child: GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            childAspectRatio: 2.0,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildGridStatItem(context, 'Rank', '#${player.rank}', isDarkMode),
-              _buildGridStatItem(context, 'Height', player.formattedHeight, isDarkMode),
-              _buildGridStatItem(context, 'Weight', player.formattedWeight, isDarkMode),
-              _buildGridStatItem(
-                context, 
-                '40 Time', 
-                player.fortyTime != null && player.fortyTime!.isNotEmpty ? "${player.fortyTime}s" : "N/A", 
+              // Rank
+              _buildCompactStat(
+                context,
+                'Rank',
+                '#${player.rank}',
                 isDarkMode,
-                ratingColor: player.fortyTime != null ? _getFortyTimeColor(player.fortyTime!) : null,
               ),
-              _buildGridStatItem(
-                context, 
-                'RAS', 
-                player.formattedRAS, 
+              
+              // Vertical divider
+              Container(
+                height: 24,
+                width: 1,
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+              
+              // Height
+              _buildCompactStat(
+                context,
+                'HT',
+                player.formattedHeight,
                 isDarkMode,
-                ratingColor: player.rasScore != null ? _getRasColor(player.rasScore!) : null,
               ),
-              _buildGridStatItem(
-                context, 
-                'Draft Grade', 
-                _getPlayerGrade(player), 
-                isDarkMode, 
-                ratingColor: _getGradeColor(_getPlayerGrade(player)),
+              
+              // Vertical divider
+              Container(
+                height: 24,
+                width: 1,
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+              
+              // Weight
+              _buildCompactStat(
+                context,
+                'WT',
+                player.formattedWeight,
+                isDarkMode,
+              ),
+              
+              // Vertical divider
+              Container(
+                height: 24,
+                width: 1,
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+              
+              // 40 Time
+              _buildCompactStat(
+                context,
+                '40',
+                player.fortyTime != null && player.fortyTime!.isNotEmpty ? 
+                  "${player.fortyTime}s" : "N/A",
+                isDarkMode,
+                valueColor: player.fortyTime != null ? 
+                  _getFortyTimeColor(player.fortyTime!) : null,
+              ),
+              
+              // Vertical divider
+              Container(
+                height: 24,
+                width: 1,
+                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              ),
+              
+              // RAS
+              _buildCompactStat(
+                context,
+                'RAS',
+                player.formattedRAS,
+                isDarkMode,
+                valueColor: player.rasScore != null ? 
+                  _getRasColor(player.rasScore!) : null,
               ),
             ],
           ),
@@ -340,7 +383,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
           ),
         ),
         
-        // Footer - keep your existing code here
+        // Footer
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -367,6 +410,41 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
                 child: const Text('Close'),
               ),
             ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Add this new helper method for compact stat display
+Widget _buildCompactStat(
+  BuildContext context, 
+  String label, 
+  String value, 
+  bool isDarkMode,
+  {Color? valueColor}
+) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.normal,
+            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
           ),
         ),
       ],

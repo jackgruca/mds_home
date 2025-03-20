@@ -49,7 +49,7 @@ Widget build(BuildContext context) {
   
   // Calculate dialog size - 80% width, 70% height positioned at bottom
   final dialogWidth = screenSize.width * 0.8;
-  final dialogHeight = screenSize.height * 0.7;
+  final dialogHeight = screenSize.height * 0.70;
   
   return Dialog(
     insetPadding: EdgeInsets.only(
