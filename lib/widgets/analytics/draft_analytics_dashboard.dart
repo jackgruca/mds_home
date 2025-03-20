@@ -35,6 +35,8 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
   List<Map<String, dynamic>> _valuePicks = [];
   List<Map<String, dynamic>> _reachPicks = [];
   List<Map<String, dynamic>> _positionRuns = [];
+  int _selectedRound = 1; // Add this line
+
   
   @override
   void initState() {
@@ -84,7 +86,374 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
     
     setState(() {});
   }
+
+  Widget _buildRoundSummary() {
+  // Get the maximum round in the completed picks
+  int maxRound = 1;
+  for (var pick in widget.completedPicks) {
+    int round = int.tryParse(pick.round) ?? 1;
+    if (round > maxRound) maxRound = round;
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Round selector tabs
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (int i = 1; i <= maxRound; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text('Round $i'),
+                  selected: _selectedRound == i,
+                  onSelected: (bool selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedRound = i;
+                      });
+                    }
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      
+      // Round picks display
+      _buildRoundPicksGrid(_selectedRound),
+    ],
+  );
+}
+
+Widget _buildRoundPicksGrid(int round) {
+  // Filter picks by the selected round
+  List<DraftPick> roundPicks = widget.completedPicks
+      .where((pick) => int.tryParse(pick.round) == round)
+      .toList();
   
+  // Sort by pick number
+  roundPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  // If no picks in this round, show a message
+  if (roundPicks.isEmpty) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Text(
+            'No picks made yet in Round $round',
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // First vs Rest columns based on round number
+          _roundLayoutBuilder(roundPicks, round, isDarkMode),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _roundLayoutBuilder(List<DraftPick> picks, int round, bool isDarkMode) {
+  // For round 1, we split into 2 columns: picks 1-16 and 17-32
+  if (round == 1) {
+    return _buildTwoColumnLayout(picks, isDarkMode);
+  } 
+  // For rounds 2-3, we do 3 columns
+  else if (round <= 3) {
+    return _buildTwoColumnLayout(picks, isDarkMode);
+  }
+  // For later rounds, do 4 columns for more compact display
+  else {
+    return _buildTwoColumnLayout(picks, isDarkMode);
+  }
+}
+
+Widget _buildTwoColumnLayout(List<DraftPick> picks, bool isDarkMode) {
+  // Create row with two columns
+  List<DraftPick> leftColumnPicks = [];
+  List<DraftPick> rightColumnPicks = [];
+  
+  // Determine the midpoint
+  int midpoint = (picks.length / 2).ceil();
+  
+  // Split the picks
+  for (int i = 0; i < picks.length; i++) {
+    if (i < midpoint) {
+      leftColumnPicks.add(picks[i]);
+    } else {
+      rightColumnPicks.add(picks[i]);
+    }
+  }
+  
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Left column
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...leftColumnPicks.map((pick) => 
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4.0),
+                child: _buildPickRow(pick, isDarkMode),
+              )
+            ),
+          ],
+        ),
+      ),
+      
+      // Divider
+      Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        width: 1,
+        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+      ),
+      
+      // Right column
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...rightColumnPicks.map((pick) => 
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4.0),
+                child: _buildPickRow(pick, isDarkMode),
+              )
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMode) {
+  // Calculate items per column, ensuring equal distribution
+  int itemsPerColumn = (picks.length / columns).ceil();
+  
+  // Create list of columns
+  List<List<DraftPick>> columnPicks = List.generate(columns, (index) => []);
+  
+  // Distribute picks across columns
+  for (int i = 0; i < picks.length; i++) {
+    int columnIndex = i ~/ itemsPerColumn;
+    if (columnIndex < columns) {
+      columnPicks[columnIndex].add(picks[i]);
+    }
+  }
+  
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (int i = 0; i < columns; i++) ...[
+        if (i > 0)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4.0),
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+        
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (columnPicks[i].isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                  child: Text(
+                    'Picks ${columnPicks[i].first.pickNumber} - ${columnPicks[i].last.pickNumber}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ...columnPicks[i].map((pick) => 
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4.0),
+                  child: _buildPickRow(pick, isDarkMode),
+                )
+              ),
+            ],
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
+  if (pick.selectedPlayer == null) {
+    return const SizedBox(height: 0);
+  }
+  
+  // Calculate pick grade
+  String grade = _calculatePickGrade(pick.pickNumber, pick.selectedPlayer!.rank);
+  
+  final bool isUserTeam = pick.teamName == widget.userTeam;
+  
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
+    decoration: BoxDecoration(
+      color: isUserTeam 
+          ? (isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50) 
+          : (isDarkMode ? Colors.grey.shade800.withOpacity(0.5) : Colors.grey.shade100),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: isUserTeam
+            ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
+            : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+        width: 0.5,
+      ),
+    ),
+    child: Row(
+      children: [
+        // Pick number
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _getPickNumberColor(pick.round),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              '${pick.pickNumber}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        
+        // Player name and position
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                pick.selectedPlayer!.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  color: isUserTeam ? Theme.of(context).primaryColor : null,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    decoration: BoxDecoration(
+                      color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Text(
+                      '${pick.teamName} | ${pick.selectedPlayer!.position}',
+                      style: TextStyle(
+                        fontSize: 7,
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Grade badge
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 4, 
+            vertical: 1,
+          ),
+          decoration: BoxDecoration(
+            color: _getGradeColor(grade).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(
+              color: _getGradeColor(grade),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            grade,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 8,
+              color: _getGradeColor(grade),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Helper method for calculating grade based on value differential
+String _calculatePickGrade(int pickNumber, int playerRank) {
+  int diff = pickNumber - playerRank;
+  
+  if (diff >= 20) return 'A+';
+  if (diff >= 15) return 'A';
+  if (diff >= 10) return 'B+';
+  if (diff >= 5) return 'B';
+  if (diff >= 0) return 'C+';
+  if (diff >= -10) return 'C';
+  if (diff >= -20) return 'D';
+  return 'F';
+}
+
+// Helper method for pick number color
+Color _getPickNumberColor(String round) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Different colors for each round with dark mode adjustments
+  switch (round) {
+    case '1':
+      return isDarkMode ? Colors.blue.shade600 : Colors.blue.shade700;
+    case '2':
+      return isDarkMode ? Colors.green.shade600 : Colors.green.shade700;
+    case '3':
+      return isDarkMode ? Colors.orange.shade600 : Colors.orange.shade700;
+    case '4':
+      return isDarkMode ? Colors.purple.shade600 : Colors.purple.shade700;
+    case '5':
+      return isDarkMode ? Colors.red.shade600 : Colors.red.shade700;
+    case '6':
+      return isDarkMode ? Colors.teal.shade600 : Colors.teal.shade700;
+    case '7':
+      return isDarkMode ? Colors.brown.shade600 : Colors.brown.shade700;
+    default:
+      return isDarkMode ? Colors.grey.shade600 : Colors.grey.shade700;
+  }
+}
+
   void _calculateTeamGrades() {
     // Group picks by team
     Map<String, List<DraftPick>> teamPicks = {};
@@ -270,64 +639,70 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
 }
 
   @override
-  Widget build(BuildContext context) {
-    if (widget.completedPicks.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.analytics_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              "No draft data available yet",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "Analytics will appear after the draft begins",
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+Widget build(BuildContext context) {
+  if (widget.completedPicks.isEmpty) {
+    return const Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Team Grades Section
-          _buildSectionHeader("Team Draft Grades"),
-          _buildTeamGradesTable(),
-          
-          const SizedBox(height: 24),
-          
-          // Value Picks Section
-          _buildSectionHeader("Best Value Picks"),
-          _buildValuePicksList(true), // true for value picks
-          
-          const SizedBox(height: 24),
-          
-          // Reach Picks Section
-          _buildSectionHeader("Biggest Reaches"),
-          _buildValuePicksList(false), // false for reach picks
-          
-          const SizedBox(height: 24),
-          
-          // Position Runs Section
-          _buildSectionHeader("Position Runs"),
-          _buildPositionRunsList(),
-          
-          const SizedBox(height: 24),
-          
-          // Position Distribution
-          _buildSectionHeader("Position Distribution"),
-          _buildPositionDistribution(),
+          Icon(Icons.analytics_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "No draft data available yet",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Analytics will appear after the draft begins",
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );
   }
+
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Add the Round Summary section at the top
+        _buildSectionHeader("Round-by-Round Summary"),
+        _buildRoundSummary(),
+        
+        const SizedBox(height: 24),
+        
+        // Team Grades Section
+        _buildSectionHeader("Team Draft Grades"),
+        _buildTeamGradesTable(),
+        
+        const SizedBox(height: 24),
+        
+        // Value Picks Section
+        _buildSectionHeader("Best Value Picks"),
+        _buildValuePicksList(true), // true for value picks
+        
+        const SizedBox(height: 24),
+        
+        // Reach Picks Section
+        _buildSectionHeader("Biggest Reaches"),
+        _buildValuePicksList(false), // false for reach picks
+        
+        const SizedBox(height: 24),
+        
+        // Position Runs Section
+        _buildSectionHeader("Position Runs"),
+        _buildPositionRunsList(),
+        
+        const SizedBox(height: 24),
+        
+        // Position Distribution
+        _buildSectionHeader("Position Distribution"),
+        _buildPositionDistribution(),
+      ],
+    ),
+  );
+}
   
   Widget _buildSectionHeader(String title) {
     return Padding(
