@@ -382,10 +382,18 @@ void _showPlayerDetails(BuildContext context, Player player) {
       }
     }
     
-    // Attempt to parse weight from string to double
+    // Parse weight
     double? weight;
     if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
       weight = double.tryParse(additionalInfo['weight']!);
+    }
+    
+    // Parse 40 time and RAS
+    String? fortyTime = additionalInfo['fortyTime'];
+    
+    double? rasScore;
+    if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
+      rasScore = double.tryParse(additionalInfo['ras']!);
     }
     
     enrichedPlayer = Player(
@@ -397,10 +405,11 @@ void _showPlayerDetails(BuildContext context, Player player) {
       notes: player.notes,
       height: height ?? player.height,
       weight: weight ?? player.weight,
-      rasScore: player.rasScore,
+      rasScore: rasScore ?? player.rasScore,
       description: additionalInfo['description'] ?? player.description,
       strengths: additionalInfo['strengths'] ?? player.strengths,
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
+      fortyTime: fortyTime ?? player.fortyTime,
     );
   } else {
     // Fall back to mock data for players without description

@@ -10,6 +10,8 @@ class PlayerDescriptionsService {
   static bool _isInitialized = false;
   static List<String> _allPlayerNames = []; // Added to keep track of all names
 
+// In lib/services/player_descriptions_service.dart
+
 static Future<void> initialize({int year = 2025}) async {
   if (_isInitialized) return;
   
@@ -43,12 +45,18 @@ static Future<void> initialize({int year = 2025}) async {
         String height = csvTable[i].length > 4 ? csvTable[i][4].toString().trim() : "";
         String weight = csvTable[i].length > 5 ? csvTable[i][5].toString().trim() : "";
         
+        // Get 40 time and RAS if available
+        String fortyTime = csvTable[i].length > 6 ? csvTable[i][6].toString().trim() : "";
+        String ras = csvTable[i].length > 7 ? csvTable[i][7].toString().trim() : "";
+        
         _playerDescriptions[name.toLowerCase()] = {
           'description': description,
           'strengths': strengths,
           'weaknesses': weaknesses,
           'height': height,
           'weight': weight,
+          'fortyTime': fortyTime,
+          'ras': ras,
         };
       }
     }
