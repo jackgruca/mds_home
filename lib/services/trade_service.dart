@@ -802,7 +802,7 @@ double _calculateTradeUpInterest(
     }
     
     // Strategy 3: Single pick if close in value (often happens in 2nd round)
-    if (bestPickValue >= targetValue * 0.95) {
+    if (bestPickValue >= targetValue * 1) {
       packages.add(TradePackage(
         teamOffering: team,
         teamReceiving: targetPick.teamName,
@@ -830,7 +830,7 @@ double _calculateTradeUpInterest(
     List<TradePackage> packages = [];
     
     // Strategy 1: Simple pick swap (common in later rounds)
-    if (bestPickValue >= targetValue * 0.9) {
+    if (bestPickValue >= targetValue * 1) {
       packages.add(TradePackage(
         teamOffering: team,
         teamReceiving: targetPick.teamName,
