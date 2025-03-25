@@ -8,6 +8,8 @@ import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/team_need.dart';
 import '../../services/draft_pick_grade_service.dart';
+import '../../utils/constants.dart';
+import '../../utils/team_logo_utils.dart';
 
 
 class DraftAnalyticsDashboard extends StatefulWidget {
@@ -331,10 +333,10 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
     ),
     child: Row(
       children: [
-        // Pick number
+        // Pick number with team
         Container(
-          width: 18,
-          height: 18,
+          width: 20,
+          height: 20,
           decoration: BoxDecoration(
             color: _getPickNumberColor(pick.round),
             shape: BoxShape.circle,
@@ -352,12 +354,25 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
         ),
         const SizedBox(width: 4),
         
-        // Player name and position
+        // Team abbreviation
+        Text(
+          NFLTeamMappings.fullNameToAbbreviation[pick.teamName] ?? pick.teamName.substring(0, min(3, pick.teamName.length)),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: isUserTeam ? Theme.of(context).primaryColor : null,
+          ),
+        ),
+        
+        const SizedBox(width: 4),
+        
+        // Player name, college logo, and position
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Player name
               Text(
                 pick.selectedPlayer!.name,
                 style: TextStyle(
@@ -368,16 +383,31 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
+              
+              // College logo and position in a row
               Row(
                 children: [
+                  // College logo
+                  if (pick.selectedPlayer!.school.isNotEmpty)
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: TeamLogoUtils.buildCollegeTeamLogo(
+                        pick.selectedPlayer!.school,
+                        size: 12,
+                      ),
+                    ),
+                  const SizedBox(width: 2),
+                  
+                  // Position
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     decoration: BoxDecoration(
                       color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Text(
-                      '${pick.teamName} | ${pick.selectedPlayer!.position}',
+                      pick.selectedPlayer!.position,
                       style: TextStyle(
                         fontSize: 7,
                         color: _getPositionColor(pick.selectedPlayer!.position),
@@ -390,6 +420,17 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
             ],
           ),
         ),
+        
+        // Rank number
+        Text(
+          '#${pick.selectedPlayer!.rank}',
+          style: TextStyle(
+            fontSize: 9,
+            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+          ),
+        ),
+        
+        const SizedBox(width: 2),
         
         // Grade badge with gradient background
         Container(

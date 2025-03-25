@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_value_service.dart';
+import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
 import '../services/draft_pick_grade_service.dart';
 
@@ -147,7 +148,6 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
   }
 
   Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
-
   
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
@@ -182,23 +182,24 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
         ),
         const SizedBox(width: 4),
         
-        // Team logo
-        SizedBox(
-          width: 16,
-          height: 16,
-          child: TeamLogoUtils.buildNFLTeamLogo(
-            pick.teamName,
-            size: 16,
+        // Team abbreviation
+        Text(
+          NFLTeamMappings.fullNameToAbbreviation[pick.teamName] ?? pick.teamName.substring(0, min(3, pick.teamName.length)),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        
         const SizedBox(width: 4),
         
-        // Player name and position
+        // Player name, college logo, and position
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Player name
               Text(
                 pick.selectedPlayer!.name,
                 style: const TextStyle(
@@ -208,69 +209,81 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
+              
+              // College logo and position in a row
               Row(
                 children: [
+                  // College logo
+                  if (pick.selectedPlayer!.school.isNotEmpty)
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: TeamLogoUtils.buildCollegeTeamLogo(
+                        pick.selectedPlayer!.school,
+                        size: 12,
+                      ),
+                    ),
+                  const SizedBox(width: 2),
+                  
+                  // Position
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     decoration: BoxDecoration(
                       color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          pick.selectedPlayer!.position,
-                          style: TextStyle(
-                            fontSize: 7,
-                            color: _getPositionColor(pick.selectedPlayer!.position),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          ' #${pick.selectedPlayer!.rank}',
-                          style: TextStyle(
-                            fontSize: 7,
-                            color: _getPositionColor(pick.selectedPlayer!.position),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      pick.selectedPlayer!.position,
+                      style: TextStyle(
+                        fontSize: 7,
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                 ],
               ),
             ],
           ),
         ),
         
+        // Rank number
+        Text(
+          '#${pick.selectedPlayer!.rank}',
+          style: TextStyle(
+            fontSize: 9,
+            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+          ),
+        ),
+        
+        const SizedBox(width: 2),
+        
         // Grade badge
         Container(
-  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      colors: [
-        _getGradientColor(gradeInfo['colorScore'], 0.2),
-        _getGradientColor(gradeInfo['colorScore'], 0.3),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    borderRadius: BorderRadius.circular(2),
-    border: Border.all(
-      color: _getGradientColor(gradeInfo['colorScore'], 0.8),
-      width: 0.5,
-    ),
-  ),
-  child: Text(
-    gradeInfo['letter'],
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 8,
-      color: _getGradientColor(gradeInfo['colorScore'], 1.0),
-    ),
-  ),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getGradientColor(gradeInfo['colorScore'], 0.2),
+                _getGradientColor(gradeInfo['colorScore'], 0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(
+              color: _getGradientColor(gradeInfo['colorScore'], 0.8),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            gradeInfo['letter'],
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 8,
+              color: _getGradientColor(gradeInfo['colorScore'], 1.0),
+            ),
+          ),
         ),
       ],
     ),
