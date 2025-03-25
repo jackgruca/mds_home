@@ -19,7 +19,7 @@ class DraftValueService {
   
   try {
     debugPrint("Loading draft value chart...");
-    final data = await rootBundle.loadString('assets/draft_value.csv');
+    final data = await rootBundle.loadString('draft_value_chart.csv');
     debugPrint("CSV content length: ${data.length}");
     
     // Show a preview of the CSV data
