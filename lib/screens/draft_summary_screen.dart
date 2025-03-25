@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_value_service.dart';
+import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
 import '../services/draft_pick_grade_service.dart';
 
@@ -147,7 +148,6 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
   }
 
   Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
-
   
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
@@ -161,44 +161,71 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
     ),
     child: Row(
       children: [
-        // Pick number
+        // Combined pick number and team logo in a single graphic
         Container(
-          width: 18,
-          height: 18,
+          height: 20,
           decoration: BoxDecoration(
-            color: _getPickNumberColor(pick.round),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              '${pick.pickNumber}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-              ),
+            borderRadius: BorderRadius.circular(4),
+            gradient: LinearGradient(
+              colors: [
+                _getPickNumberColor(pick.round),
+                _getPickNumberColor(pick.round).withOpacity(0.7),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
           ),
-        ),
-        const SizedBox(width: 4),
-        
-        // Team logo
-        SizedBox(
-          width: 16,
-          height: 16,
-          child: TeamLogoUtils.buildNFLTeamLogo(
-            pick.teamName,
-            size: 16,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Pick number part
+              Container(
+                width: 16,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: _getPickNumberColor(pick.round),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    bottomLeft: Radius.circular(4),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '${pick.pickNumber}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Team logo part
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: TeamLogoUtils.buildNFLTeamLogo(
+                    pick.teamName,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+        
         const SizedBox(width: 4),
         
-        // Player name and position
+        // Player name, position, and college logo
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Player name
               Text(
                 pick.selectedPlayer!.name,
                 style: const TextStyle(
@@ -208,37 +235,39 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
+              
+              // Position and college logo in a row
               Row(
                 children: [
+                  // Position
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     decoration: BoxDecoration(
                       color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          pick.selectedPlayer!.position,
-                          style: TextStyle(
-                            fontSize: 7,
-                            color: _getPositionColor(pick.selectedPlayer!.position),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          ' #${pick.selectedPlayer!.rank}',
-                          style: TextStyle(
-                            fontSize: 7,
-                            color: _getPositionColor(pick.selectedPlayer!.position),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      pick.selectedPlayer!.position,
+                      style: TextStyle(
+                        fontSize: 7,
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  
+                  const SizedBox(width: 3),
+                  
+                  // College logo
+                  if (pick.selectedPlayer!.school.isNotEmpty)
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: TeamLogoUtils.buildCollegeTeamLogo(
+                        pick.selectedPlayer!.school,
+                        size: 12,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -247,35 +276,36 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
         
         // Grade badge
         Container(
-  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      colors: [
-        _getGradientColor(gradeInfo['colorScore'], 0.2),
-        _getGradientColor(gradeInfo['colorScore'], 0.3),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    borderRadius: BorderRadius.circular(2),
-    border: Border.all(
-      color: _getGradientColor(gradeInfo['colorScore'], 0.8),
-      width: 0.5,
-    ),
-  ),
-  child: Text(
-    gradeInfo['letter'],
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 8,
-      color: _getGradientColor(gradeInfo['colorScore'], 1.0),
-    ),
-  ),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getGradientColor(gradeInfo['colorScore'], 0.2),
+                _getGradientColor(gradeInfo['colorScore'], 0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(
+              color: _getGradientColor(gradeInfo['colorScore'], 0.8),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            gradeInfo['letter'],
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 8,
+              color: _getGradientColor(gradeInfo['colorScore'], 1.0),
+            ),
+          ),
         ),
       ],
     ),
   );
 }
+
   // Replace the Dialog.fullscreen with this custom-sized dialog implementation
 // in the DraftSummaryScreen build method
 
@@ -676,208 +706,264 @@ Color _getGradientColor(int score, double opacity) {
 
 
   // New method to build a list of all user picks, including future picks
-  Widget _buildUserPicksList() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // Filter all picks for the user team
-    List<DraftPick> userPicks = widget.allDraftPicks
-        .where((pick) => pick.teamName == _selectedTeam && pick.isActiveInDraft)
-        .toList();
+  // Updated _buildUserPicksList method for more compact cards
+Widget _buildUserPicksList() {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
-    
-    // Sort by pick number
-    userPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  // Filter all picks for the user team
+  List<DraftPick> userPicks = widget.allDraftPicks
+      .where((pick) => pick.teamName == _selectedTeam && pick.isActiveInDraft)
+      .toList();
+  
+  // Sort by pick number
+  userPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
 
-    if (userPicks.isEmpty) {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              'No picks found for $_selectedTeam',
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            ),
+  if (userPicks.isEmpty) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Center(
+          child: Text(
+            'No picks found for $_selectedTeam',
+            style: const TextStyle(fontStyle: FontStyle.italic),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: userPicks.length,
-      itemBuilder: (context, index) {
-        final pick = userPicks[index];
-        final bool pickMade = pick.selectedPlayer != null;
-        
-        Map<String, dynamic> gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
-        String letterGrade = gradeInfo['letter'];
-        int colorScore = gradeInfo['colorScore'];
+  return ListView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: userPicks.length,
+    itemBuilder: (context, index) {
+      final pick = userPicks[index];
+      final bool pickMade = pick.selectedPlayer != null;
+      
+      Map<String, dynamic> gradeInfo = {};
+      if (pickMade) {
+        gradeInfo = _calculateDetailedPickGrade(pick, widget.teamNeeds);
+      }
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          // Highlight picked vs unpicked differently
-          color: pickMade ? 
-              (isDarkMode ? Colors.grey.shade800 : Colors.white) : 
-              (isDarkMode ? Colors.grey.shade900.withOpacity(0.7) : Colors.grey.shade100),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            side: BorderSide(
-              color: pickMade ? 
-                (isDarkMode ? Colors.green.shade700 : Colors.green.shade300) : 
-                (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-              width: pickMade ? 1.5 : 1.0,
-            ),
+      return Card(
+        margin: const EdgeInsets.only(bottom: 4), // Reduced margin
+        // Highlight picked vs unpicked differently
+        color: pickMade ? 
+            (isDarkMode ? Colors.grey.shade800 : Colors.white) : 
+            (isDarkMode ? Colors.grey.shade900.withOpacity(0.7) : Colors.grey.shade100),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6.0), // Smaller radius
+          side: BorderSide(
+            color: pickMade ? 
+              (isDarkMode ? Colors.green.shade700 : Colors.green.shade300) : 
+              (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: pickMade ? 1.0 : 0.5, // Thinner border
           ),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _getPickNumberColor(pick.round),
-              child: Text(
-                '${pick.pickNumber}',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            title: pickMade ? 
-              // If pick was made, show the player name
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      pick.selectedPlayer!.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0), // Reduced padding
+          child: Row(
+            children: [
+              // Combined pick number and round indicator
+              Container(
+                height: 24, // Smaller height
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  gradient: LinearGradient(
+                    colors: [
+                      _getPickNumberColor(pick.round),
+                      _getPickNumberColor(pick.round).withOpacity(0.7),
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                  
-                  Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-      colors: [
-        _getGradientColor(colorScore, 0.2),
-        _getGradientColor(colorScore, 0.3),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    borderRadius: BorderRadius.circular(4),
-    border: Border.all(
-      color: _getGradientColor(colorScore, 0.8),
-    ),
-  ),
-  child: Text(
-    letterGrade,
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      color: _getGradientColor(colorScore, 1.0),
-    ),
-  ),
-),
-                ],
-              ) : 
-              // If pick not yet made, show "Upcoming Pick"
-              Row(
-                children: [
-                  Text(
-                    'Upcoming Pick',
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                  if (pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0),
-                      child: Text(
-                        pick.tradeInfo!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Pick number part
+                    Container(
+                      width: 20, // Smaller width
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _getPickNumberColor(pick.round),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          bottomLeft: Radius.circular(4),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${pick.pickNumber}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                ],
-              ),
-            subtitle: pickMade ? 
-              // For completed picks, show details
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: _getPositionColor(pick.selectedPlayer!.position),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      pick.selectedPlayer!.position,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
+                    
+                    // Round indicator (optional)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        'R${pick.round}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                  // School logo instead of text
-                  if (pick.selectedPlayer!.school.isNotEmpty)
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: _buildSchoolLogo(pick.selectedPlayer!.school),
-                    ),
-                  const Spacer(),
-                  Text(
-                    'Rank: #${pick.selectedPlayer!.rank}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getValueColor(pick.pickNumber - pick.selectedPlayer!.rank),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _getValueText(pick.pickNumber - pick.selectedPlayer!.rank),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getValueColor(pick.pickNumber - pick.selectedPlayer!.rank),
-                    ),
-                  ),
-                ],
-              ) : 
-              // For upcoming picks, show original position or a placeholder
-              Row(
-                children: [
-                  // Round indicator
-                  Text(
-                    'Round ${pick.round}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                  
-                  const Spacer(),
-                  
-                  if (pick.originalPickNumber != null)
-                    Text(
-                      'Original Pick #${pick.originalPickNumber}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            trailing: pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty && pickMade
-                ? Tooltip(
-                    message: pick.tradeInfo!,
-                    child: const Icon(Icons.swap_horiz, color: Colors.orange),
-                  )
-                : null,
+              
+              const SizedBox(width: 8),
+              
+              // Player info or "Upcoming Pick" text
+              Expanded(
+                child: pickMade ?
+                  // Player info when pick was made
+                  Row(
+                    children: [
+                      // Player name and position
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Player name
+                            Text(
+                              pick.selectedPlayer!.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            // Position and school in a row
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    pick.selectedPlayer!.position,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: _getPositionColor(pick.selectedPlayer!.position),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(width: 4),
+                                
+                                // College logo
+                                if (pick.selectedPlayer!.school.isNotEmpty)
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: TeamLogoUtils.buildCollegeTeamLogo(
+                                      pick.selectedPlayer!.school,
+                                      size: 14,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Grade badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5, 
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _getGradientColor(gradeInfo['colorScore'], 0.2),
+                              _getGradientColor(gradeInfo['colorScore'], 0.3),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                            color: _getGradientColor(gradeInfo['colorScore'], 0.8),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Text(
+                          gradeInfo['letter'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            color: _getGradientColor(gradeInfo['colorScore'], 1.0),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ) :
+                  // "Upcoming Pick" when pick not yet made
+                  Row(
+                    children: [
+                      Text(
+                        'Upcoming Pick',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Trade info if available
+                      if (pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.swap_horiz,
+                              size: 12,
+                              color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              'Traded',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+              ),
+              
+              // Trade icon for completed picks that were traded for
+              if (pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty && pickMade)
+                const Icon(
+                  Icons.swap_horiz,
+                  size: 14,
+                  color: Colors.orange,
+                ),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildSummaryContent() {
   if (_selectedTeam == null) {

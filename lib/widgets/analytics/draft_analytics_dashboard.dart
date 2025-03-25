@@ -8,6 +8,8 @@ import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/team_need.dart';
 import '../../services/draft_pick_grade_service.dart';
+import '../../utils/constants.dart';
+import '../../utils/team_logo_utils.dart';
 
 
 class DraftAnalyticsDashboard extends StatefulWidget {
@@ -305,123 +307,184 @@ Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMo
 
 Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
   if (pick.selectedPlayer == null) {
-    return const SizedBox(height: 0);
+    return const SizedBox();
   }
   
   // Calculate detailed pick grade
-  Map<String, dynamic> gradeInfo = _calculatePickGradeInfo(pick);
-  String letterGrade = gradeInfo['letter'];
+  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds);  String letterGrade = gradeInfo['letter'];
   int colorScore = gradeInfo['colorScore'];
   
-  final bool isUserTeam = pick.teamName == widget.userTeam;
-  
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 3.0),
-    decoration: BoxDecoration(
-      color: isUserTeam 
-          ? (isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50) 
-          : (isDarkMode ? Colors.grey.shade800.withOpacity(0.5) : Colors.grey.shade100),
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(
-        color: isUserTeam
-            ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
-            : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-        width: 0.5,
-      ),
-    ),
-    child: Row(
-      children: [
-        // Pick number
-        Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            color: _getPickNumberColor(pick.round),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              '${pick.pickNumber}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+  return GestureDetector(
+    onTap: () => DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds),
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 0.5,
         ),
-        const SizedBox(width: 4),
-        
-        // Player name and position
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                pick.selectedPlayer!.name,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  color: isUserTeam ? Theme.of(context).primaryColor : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 4.0,
+          vertical: 6.0,
+        ),
+        child: Row(
+          children: [
+            // Combined pick number and team logo in a single graphic
+            Container(
+              height: 28,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                gradient: LinearGradient(
+                  colors: [
+                    _getPickNumberColor(pick.round),
+                    _getPickNumberColor(pick.round).withOpacity(0.7),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  )
+                ],
               ),
-              Row(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Pick number part
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    width: 24,
+                    height: 28,
                     decoration: BoxDecoration(
-                      color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(2),
+                      color: _getPickNumberColor(pick.round),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(6),
+                        bottomLeft: Radius.circular(6),
+                      ),
                     ),
-                    child: Text(
-                      '${pick.teamName} | ${pick.selectedPlayer!.position}',
-                      style: TextStyle(
-                        fontSize: 7,
-                        color: _getPositionColor(pick.selectedPlayer!.position),
-                        fontWeight: FontWeight.bold,
+                    child: Center(
+                      child: Text(
+                        '${pick.pickNumber}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Team logo part
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: TeamLogoUtils.buildNFLTeamLogo(
+                        pick.teamName,
+                        size: 20,
                       ),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            
+            const SizedBox(width: 8),
+            
+            // Player name, position, and college logo
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Player name
+                  Text(
+                    pick.selectedPlayer!.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  
+                  // Position and college logo in a row
+                  Row(
+                    children: [
+                      // Position
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          pick.selectedPlayer!.position,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: _getPositionColor(pick.selectedPlayer!.position),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 4),
+                      
+                      // College logo
+                      if (pick.selectedPlayer!.school.isNotEmpty)
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: TeamLogoUtils.buildCollegeTeamLogo(
+                            pick.selectedPlayer!.school,
+                            size: 16,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Grade badge
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 6, 
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _getGradientColor(colorScore, 0.2),
+                    _getGradientColor(colorScore, 0.3),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                  color: _getGradientColor(colorScore, 0.8),
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                letterGrade,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                  color: _getGradientColor(colorScore, 1.0),
+                ),
+              ),
+            ),
+          ],
         ),
-        
-        // Grade badge with gradient background
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 4, 
-            vertical: 1,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                _getGradientColor(colorScore, 0.2),
-                _getGradientColor(colorScore, 0.3),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(2),
-            border: Border.all(
-              color: _getGradientColor(colorScore, 0.8),
-              width: 0.5,
-            ),
-          ),
-          child: Text(
-            letterGrade,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 8,
-              color: _getGradientColor(colorScore, 1.0),
-            ),
-          ),
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -464,8 +527,7 @@ void _findValueAndReachPicks() {
     if (pick.selectedPlayer == null) continue;
     
     // Use the new grading system
-    Map<String, dynamic> gradeInfo = _calculatePickGradeInfo(pick);
-    double score = gradeInfo['grade'];
+    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds);    double score = gradeInfo['grade'];
     
     // Store relevant information
     Map<String, dynamic> pickData = {
