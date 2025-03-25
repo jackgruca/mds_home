@@ -161,39 +161,65 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
     ),
     child: Row(
       children: [
-        // Pick number
+        // Combined pick number and team logo in a single graphic
         Container(
-          width: 18,
-          height: 18,
+          height: 20,
           decoration: BoxDecoration(
-            color: _getPickNumberColor(pick.round),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              '${pick.pickNumber}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-              ),
+            borderRadius: BorderRadius.circular(4),
+            gradient: LinearGradient(
+              colors: [
+                _getPickNumberColor(pick.round),
+                _getPickNumberColor(pick.round).withOpacity(0.7),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
           ),
-        ),
-        const SizedBox(width: 4),
-        
-        // Team abbreviation
-        Text(
-          NFLTeamMappings.fullNameToAbbreviation[pick.teamName] ?? pick.teamName.substring(0, min(3, pick.teamName.length)),
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Pick number part
+              Container(
+                width: 16,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: _getPickNumberColor(pick.round),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    bottomLeft: Radius.circular(4),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '${pick.pickNumber}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Team logo part
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: TeamLogoUtils.buildNFLTeamLogo(
+                    pick.teamName,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         
         const SizedBox(width: 4),
         
-        // Player name, college logo, and position
+        // Player name, position, and college logo
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,21 +236,9 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
                 maxLines: 1,
               ),
               
-              // College logo and position in a row
+              // Position and college logo in a row
               Row(
                 children: [
-                  // College logo
-                  if (pick.selectedPlayer!.school.isNotEmpty)
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: TeamLogoUtils.buildCollegeTeamLogo(
-                        pick.selectedPlayer!.school,
-                        size: 12,
-                      ),
-                    ),
-                  const SizedBox(width: 2),
-                  
                   // Position
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
@@ -241,22 +255,24 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
                       ),
                     ),
                   ),
+                  
+                  const SizedBox(width: 3),
+                  
+                  // College logo
+                  if (pick.selectedPlayer!.school.isNotEmpty)
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: TeamLogoUtils.buildCollegeTeamLogo(
+                        pick.selectedPlayer!.school,
+                        size: 12,
+                      ),
+                    ),
                 ],
               ),
             ],
           ),
         ),
-        
-        // Rank number
-        Text(
-          '#${pick.selectedPlayer!.rank}',
-          style: TextStyle(
-            fontSize: 9,
-            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-          ),
-        ),
-        
-        const SizedBox(width: 2),
         
         // Grade badge
         Container(
@@ -289,6 +305,7 @@ Widget _buildCompactPickRow(DraftPick pick, bool isDarkMode) {
     ),
   );
 }
+
   // Replace the Dialog.fullscreen with this custom-sized dialog implementation
 // in the DraftSummaryScreen build method
 
