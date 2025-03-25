@@ -477,7 +477,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   
   // Add this to the DraftService class - position value tiers
   final Map<String, double> _positionValueWeights = {
-    'QB': 1.5,   // Premium for franchise QBs
+    'QB': 1.6,   // Premium for franchise QBs
     'EDGE': 1.25, // Elite pass rushers
     'OT': 1.20,   // Offensive tackles highly valued
     'CB | WR': 1.2, // Travis Hunter
