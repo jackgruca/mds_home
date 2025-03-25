@@ -91,7 +91,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
     setState(() {});
   }
 
-  Widget _buildRoundSummary() {
+Widget _buildRoundSummary() {
   // Get the maximum round in the completed picks
   int maxRound = 1;
   for (var pick in widget.completedPicks) {
@@ -109,10 +109,18 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
           children: [
             for (int i = 1; i <= maxRound; i++)
               Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+                padding: const EdgeInsets.only(right: 6.0), // Reduced from 8.0
                 child: ChoiceChip(
-                  label: Text('Round $i'),
+                  label: Text(
+                    'Round $i',
+                    style: const TextStyle(fontSize: 12), // Reduced default size
+                  ),
                   selected: _selectedRound == i,
+                  visualDensity: VisualDensity.compact, // Make chips more compact
+                  labelPadding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 0,
+                  ), // Reduced padding
                   onSelected: (bool selected) {
                     if (selected) {
                       setState(() {
@@ -125,7 +133,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
           ],
         ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 10), // Reduced from 16
       
       // Round picks display
       _buildRoundPicksGrid(_selectedRound),
@@ -162,7 +170,7 @@ Widget _buildRoundPicksGrid(int round) {
   return Card(
     elevation: 2,
     child: Padding(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(8.0), // Reduced from 12.0
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -216,7 +224,7 @@ Widget _buildTwoColumnLayout(List<DraftPick> picks, bool isDarkMode) {
           children: [
             ...leftColumnPicks.map((pick) => 
               Padding(
-                padding: const EdgeInsets.only(bottom: 4.0),
+                padding: const EdgeInsets.only(bottom: 2.0), // Reduced from 4.0
                 child: _buildPickRow(pick, isDarkMode),
               )
             ),
@@ -226,7 +234,7 @@ Widget _buildTwoColumnLayout(List<DraftPick> picks, bool isDarkMode) {
       
       // Divider
       Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        margin: const EdgeInsets.symmetric(horizontal: 4.0), // Reduced from 8.0
         width: 1,
         color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
       ),
@@ -238,7 +246,7 @@ Widget _buildTwoColumnLayout(List<DraftPick> picks, bool isDarkMode) {
           children: [
             ...rightColumnPicks.map((pick) => 
               Padding(
-                padding: const EdgeInsets.only(bottom: 4.0),
+                padding: const EdgeInsets.only(bottom: 2.0), // Reduced from 4.0
                 child: _buildPickRow(pick, isDarkMode),
               )
             ),
@@ -307,184 +315,124 @@ Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMo
 
 Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
   if (pick.selectedPlayer == null) {
-    return const SizedBox();
+    return const SizedBox(height: 0);
   }
   
   // Calculate detailed pick grade
-  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds);  String letterGrade = gradeInfo['letter'];
+  Map<String, dynamic> gradeInfo = _calculatePickGradeInfo(pick);
+  String letterGrade = gradeInfo['letter'];
   int colorScore = gradeInfo['colorScore'];
   
-  return GestureDetector(
-    onTap: () => DraftPickGradeService.calculatePickGrade(pick, widget.teamNeeds),
-    child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-          width: 0.5,
-        ),
+  final bool isUserTeam = pick.teamName == widget.userTeam;
+  
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Reduced vertical padding from 3.0 to 2.0
+    margin: const EdgeInsets.only(bottom: 2.0), // Added small margin instead of larger padding
+    decoration: BoxDecoration(
+      color: isUserTeam 
+          ? (isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50) 
+          : (isDarkMode ? Colors.grey.shade800.withOpacity(0.5) : Colors.grey.shade100),
+      borderRadius: BorderRadius.circular(3), // Reduced from 4
+      border: Border.all(
+        color: isUserTeam
+            ? (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300)
+            : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+        width: 0.5,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 4.0,
-          vertical: 6.0,
+    ),
+    child: Row(
+      children: [
+        // Pick number
+        Container(
+          width: 16, // Reduced from 18
+          height: 16, // Reduced from 18
+          decoration: BoxDecoration(
+            color: _getPickNumberColor(pick.round),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              '${pick.pickNumber}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 7, // Reduced from 8
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ),
-        child: Row(
-          children: [
-            // Combined pick number and team logo in a single graphic
-            Container(
-              height: 28,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                gradient: LinearGradient(
-                  colors: [
-                    _getPickNumberColor(pick.round),
-                    _getPickNumberColor(pick.round).withOpacity(0.7),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  )
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Pick number part
-                  Container(
-                    width: 24,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: _getPickNumberColor(pick.round),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(6),
-                        bottomLeft: Radius.circular(6),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${pick.pickNumber}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // Team logo part
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: TeamLogoUtils.buildNFLTeamLogo(
-                        pick.teamName,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(width: 8),
-            
-            // Player name, position, and college logo
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Player name
-                  Text(
-                    pick.selectedPlayer!.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  
-                  // Position and college logo in a row
-                  Row(
-                    children: [
-                      // Position
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          pick.selectedPlayer!.position,
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: _getPositionColor(pick.selectedPlayer!.position),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 4),
-                      
-                      // College logo
-                      if (pick.selectedPlayer!.school.isNotEmpty)
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: TeamLogoUtils.buildCollegeTeamLogo(
-                            pick.selectedPlayer!.school,
-                            size: 16,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Grade badge
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 6, 
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    _getGradientColor(colorScore, 0.2),
-                    _getGradientColor(colorScore, 0.3),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(
-                  color: _getGradientColor(colorScore, 0.8),
-                  width: 0.5,
-                ),
-              ),
-              child: Text(
-                letterGrade,
+        const SizedBox(width: 3), // Reduced from 4
+        
+        // Player name and position
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                pick.selectedPlayer!.name,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  color: _getGradientColor(colorScore, 1.0),
+                  fontSize: 9, // Reduced from 10
+                  color: isUserTeam ? Theme.of(context).primaryColor : null,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
-            ),
-          ],
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    decoration: BoxDecoration(
+                      color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Text(
+                      '${pick.teamName} | ${pick.selectedPlayer!.position}',
+                      style: TextStyle(
+                        fontSize: 6, // Reduced from 7
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
+        
+        // Grade badge with gradient background
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 3, // Reduced from 4
+            vertical: 1,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _getGradientColor(colorScore, 0.2),
+                _getGradientColor(colorScore, 0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(
+              color: _getGradientColor(colorScore, 0.8),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            letterGrade,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 7, // Reduced from 8
+              color: _getGradientColor(colorScore, 1.0),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -727,7 +675,7 @@ Color _getPickNumberColor(String round) {
   });
 }
 
-  @override
+@override
 Widget build(BuildContext context) {
   if (widget.completedPicks.isEmpty) {
     return const Center(
@@ -751,7 +699,7 @@ Widget build(BuildContext context) {
   }
 
   return SingleChildScrollView(
-    padding: const EdgeInsets.all(16.0),
+    padding: const EdgeInsets.all(12.0), // Reduced padding
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -759,31 +707,31 @@ Widget build(BuildContext context) {
         _buildSectionHeader("Round-by-Round Summary"),
         _buildRoundSummary(),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16), // Reduced spacing from 24
         
         // Team Grades Section
         _buildSectionHeader("Team Draft Grades"),
         _buildTeamGradesTable(),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16), // Reduced spacing from 24
         
         // Value Picks Section
         _buildSectionHeader("Best Value Picks"),
         _buildValuePicksList(true), // true for value picks
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16), // Reduced spacing from 24
         
         // Reach Picks Section
         _buildSectionHeader("Biggest Reaches"),
         _buildValuePicksList(false), // false for reach picks
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16), // Reduced spacing from 24
         
         // Position Runs Section
         _buildSectionHeader("Position Runs"),
         _buildPositionRunsList(),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 16), // Reduced spacing from 24
         
         // Position Distribution
         _buildSectionHeader("Position Distribution"),
@@ -792,20 +740,20 @@ Widget build(BuildContext context) {
     ),
   );
 }
-  
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).primaryColor,
-        ),
+
+Widget _buildSectionHeader(String title) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6.0), // Reduced from 8.0
+    child: Text(
+      title,
+      style: TextStyle(
+        fontSize: 16, // Reduced from 18
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).primaryColor,
       ),
-    );
-  }
+    ),
+  );
+}
   
   Widget _buildTeamGradesTable() {
     // Sort teams by grade
