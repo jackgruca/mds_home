@@ -534,6 +534,12 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     }
   }
 
+/// Process a user counter offer with leverage premium applied
+bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // Use the trade service to evaluate the counter offer with leverage premium
+  return _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
+}
+
   // Then, modifying the selectPlayerRStyle method:
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
       const debugMode = true; // Toggle this to enable/disable debugging
