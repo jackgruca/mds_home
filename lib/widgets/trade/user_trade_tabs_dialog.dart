@@ -13,17 +13,19 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final bool isCounterMode;
 
-  const UserTradeTabsDialog({
-    super.key,
-    required this.userTeam,
-    required this.userPicks,
-    required this.targetPicks,
-    required this.pendingOffers,
-    required this.onAcceptOffer,
-    required this.onPropose,
-    required this.onCancel,
-  });
+const UserTradeTabsDialog({
+  super.key,
+  required this.userTeam,
+  required this.userPicks,
+  required this.targetPicks,
+  required this.pendingOffers,
+  required this.onAcceptOffer,
+  required this.onPropose,
+  required this.onCancel,
+  this.isCounterMode = false, // Add this parameter with default value
+});
 
   @override
   _UserTradeTabsDialogState createState() => _UserTradeTabsDialogState();
@@ -35,8 +37,8 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   void initState() {
     super.initState();
-    // Determine initial tab index based on pending offers
-    final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
+    // Determine initial tab index based on context
+    final initialTabIndex = widget.isCounterMode ? 1 : (_getAllPendingOffers().isNotEmpty ? 0 : 1);
     _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
   }
   
@@ -69,35 +71,35 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
           children: [
             // Compact tab bar
             TabBar(
-              controller: _tabController,
-              labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
-                labelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : Colors.black, // Selected tab text color
-                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white70 
-                  : Colors.grey.shade700, // Unselected tab text color
-                indicatorWeight: 3, // Make the indicator more visible
-                indicatorColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.blue.shade300 
-                  : Colors.blue.shade700, // Indicator color
-              tabs: [
-                Tab(
-                  icon: Badge(
-                    isLabelVisible: _getAllPendingOffers().isNotEmpty,
-                    label: Text(_getAllPendingOffers().length.toString()),
-                    child: const Icon(Icons.call_received, size: 16),
-                  ),
-                  text: 'Trade Offers (${_getAllPendingOffers().length})',
-                  iconMargin: const EdgeInsets.only(bottom: 2.0),
-                ),
-                const Tab(
-                  icon: Icon(Icons.call_made, size: 16),
-                  text: 'Create Trade',
-                  iconMargin: EdgeInsets.only(bottom: 2.0),
-                ),
-              ],
-            ),
+  controller: _tabController,
+  labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
+  labelColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.white 
+    : Colors.black, // Selected tab text color
+  unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.white70 
+    : Colors.grey.shade700, // Unselected tab text color
+  indicatorWeight: 3, // Make the indicator more visible
+  indicatorColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.blue.shade300 
+    : Colors.blue.shade700, // Indicator color
+  tabs: [
+    Tab(
+      icon: Badge(
+        isLabelVisible: _getAllPendingOffers().isNotEmpty,
+        label: Text(_getAllPendingOffers().length.toString()),
+        child: const Icon(Icons.call_received, size: 16),
+      ),
+      text: widget.isCounterMode ? 'Original Offer' : 'Trade Offers (${_getAllPendingOffers().length})',
+      iconMargin: const EdgeInsets.only(bottom: 2.0),
+    ),
+    Tab(
+      icon: Icon(widget.isCounterMode ? Icons.edit : Icons.call_made, size: 16),
+      text: widget.isCounterMode ? 'Counter Offer' : 'Create Trade',
+      iconMargin: const EdgeInsets.only(bottom: 2.0),
+    ),
+  ],
+),
             const Divider(height: 1),
             // Tab content
             Expanded(
@@ -536,4 +538,5 @@ SizedBox(
     });
     return allOffers;
   }
+  
 }
