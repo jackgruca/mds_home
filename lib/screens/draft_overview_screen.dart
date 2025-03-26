@@ -754,35 +754,31 @@ void _initiateUserTradeProposal() {
       builder: (context) => TradeDialogWrapper(
         tradeOffer: tradeOffers,
         onAccept: (package) {
-          // Execute the selected trade
+          // Execute the trade
           _draftService!.executeUserSelectedTrade(package);
-          _executedTrades = _draftService!.executedTrades;
           
-          // Update UI
+          // Update UI with trade results
           setState(() {
+            _executedTrades = _draftService!.executedTrades;
             _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-            _statusMessage = _draftService!.statusMessage;
+            _statusMessage = "Trade accepted: ${package.tradeDescription}";
             
             // Reset user pick mode
             _isUserPickMode = false;
             _userNextPick = null;
             
-            // IMPORTANT: Set draft to running to continue automatically
+            // Set draft to running to continue automatically
             _isDraftRunning = true;
           });
           
-          Navigator.pop(context); // Close the dialog
-          
-          // IMPORTANT: Continue the draft after a brief pause
+          // Continue the draft after a brief pause
           Future.delayed(
             Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
             _processDraftPick
           );
         },
         onReject: () {
-          Navigator.pop(context); // Close the dialog
-          
-          // Let the user select a player if this is their pick
+          // If this is user's pick and no trade, show player selection
           if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
             _showPlayerSelectionDialog(pick);
           } else if (_isDraftRunning) {
@@ -794,11 +790,64 @@ void _initiateUserTradeProposal() {
           }
         },
         onCounter: (package) {
-          // Show snackbar for now - counter feature coming in future update
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Counter offers will be available in a future update'),
-              duration: Duration(seconds: 2),
+          // Get all available picks for both teams
+          final receivingTeamPicks = _draftService!.getTeamPicks(package.teamReceiving);
+          final offeringTeamPicks = _draftService!.getTeamPicks(package.teamOffering);
+          
+          // Show counter offer dialog with all picks available and original ones pre-selected
+          showDialog(
+            context: context,
+            builder: (context) => UserTradeProposalDialog(
+              userTeam: package.teamReceiving,
+              userPicks: receivingTeamPicks, // All receiving team's picks
+              targetPicks: offeringTeamPicks, // All offering team's picks
+              initialSelectedUserPicks: [package.targetPick, ...package.additionalTargetPicks], // Pre-select original offer
+              initialSelectedTargetPicks: package.picksOffered, // Pre-select original offer
+              onPropose: (counterPackage) {
+                Navigator.pop(context); // Close dialog
+                
+                // Process the counter offer
+                final accepted = _draftService!.processUserTradeProposal(counterPackage);
+                
+                // Show response dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => TradeResponseDialog(
+                    tradePackage: counterPackage,
+                    wasAccepted: accepted,
+                    rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
+                    onClose: () {
+                      Navigator.pop(context);
+                      
+                      // Update UI if trade was accepted
+                      if (accepted) {
+                        setState(() {
+                          _executedTrades = _draftService!.executedTrades;
+                          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+                          _statusMessage = _draftService!.statusMessage;
+                          
+                          // Reset user pick mode
+                          _isUserPickMode = false;
+                          _userNextPick = null;
+                          
+                          // IMPORTANT: Set draft to running to continue automatically
+                          _isDraftRunning = true;
+                        });
+                        
+                        // Continue the draft after a brief pause
+                        Future.delayed(
+                          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                          _processDraftPick
+                        );
+                      } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+                        // If trade was rejected and this is user's pick, show player selection
+                        _showPlayerSelectionDialog(pick);
+                      }
+                    },
+                  ),
+                );
+              },
+              onCancel: () => Navigator.pop(context),
             ),
           );
         },

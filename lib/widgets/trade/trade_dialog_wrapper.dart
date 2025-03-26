@@ -6,6 +6,7 @@ import 'enhanced_trade_dialog.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/draft_pick.dart';
 import '../../widgets/trade/trade_response_dialog.dart';
+import 'user_trade_dialog.dart';
 
 class TradeDialogWrapper extends StatelessWidget {
   final TradeOffer tradeOffer;
@@ -66,7 +67,8 @@ class TradeDialogWrapper extends StatelessWidget {
           onReject();
         }
       },
-      onCounter: onCounter,
+      // Pass the context along with the package to the counter handler
+      onCounter: onCounter != null ? (package) => onCounter!(package) : null,
       showAnalytics: showAnalytics,
     );
   }
