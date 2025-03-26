@@ -789,28 +789,55 @@ void _showTradeOptions(DraftPick pick) {
             );
           }
         },
-        onCounter: (package) {
+
+onCounter: (package) {
   // Get all available picks for both teams
   final receivingTeamPicks = _draftService!.getTeamPicks(package.teamReceiving);
   final offeringTeamPicks = _draftService!.getTeamPicks(package.teamOffering);
   
-  // Close the current dialog
-  Navigator.pop(context);
+  // Create a Map structure for pendingOffers similar to what UserTradeTabsDialog expects
+  // but we'll pre-fill it with a modified version of the original offer
+  Map<int, List<TradePackage>> counterOffers = {};
   
-  // Show the user trade dialog directly, but with pre-selected picks and counter flag
+  // Store the original offer's target pick number and the offer
+  counterOffers[package.targetPick.pickNumber] = [package];
+  
+  // Show the tabbed trade dialog interface
   showDialog(
     context: context,
-    builder: (ctx) => UserTradeProposalDialog(
+    builder: (context) => UserTradeTabsDialog(
       userTeam: package.teamReceiving,
       userPicks: receivingTeamPicks,
       targetPicks: offeringTeamPicks,
-      initialSelectedUserPicks: [package.targetPick], // Pre-select original picks
-      initialSelectedTargetPicks: package.picksOffered, // Pre-select original picks
-      hasLeverage: true, // Set to true for counter offers to original offers
-      isCounterOffer: true, // Add this to indicate it's a counter offer
-      originalOffer: package, // Pass original offer for reference
+      pendingOffers: counterOffers, // Pass the original offer as a pending offer
+      onAcceptOffer: (offer) {
+        Navigator.pop(context); // Close dialog
+        
+        // Execute the trade
+        _draftService!.executeUserSelectedTrade(offer);
+        
+        // Update UI with trade results
+        setState(() {
+          _executedTrades = _draftService!.executedTrades;
+          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
+          
+          // Reset user pick mode
+          _isUserPickMode = false;
+          _userNextPick = null;
+          
+          // Set draft to running to continue automatically
+          _isDraftRunning = true;
+        });
+        
+        // Continue the draft after a brief pause
+        Future.delayed(
+          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+          _processDraftPick
+        );
+      },
       onPropose: (counterPackage) {
-        Navigator.of(ctx).pop();
+        Navigator.pop(context); // Close dialog
         
         // Process the counter offer with leverage premium
         final originalPackage = package; // Original AI-initiated offer
@@ -854,7 +881,8 @@ void _showTradeOptions(DraftPick pick) {
           ),
         );
       },
-      onCancel: () => Navigator.of(ctx).pop(),
+      onCancel: () => Navigator.pop(context),
+      isCounterMode: true, // Indicate it's a counter offer
     ),
   );
 },

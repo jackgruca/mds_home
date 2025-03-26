@@ -13,19 +13,19 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
-  final bool isCounterMode;
+  final bool isCounterMode; // Add this parameter
 
-const UserTradeTabsDialog({
-  super.key,
-  required this.userTeam,
-  required this.userPicks,
-  required this.targetPicks,
-  required this.pendingOffers,
-  required this.onAcceptOffer,
-  required this.onPropose,
-  required this.onCancel,
-  this.isCounterMode = false, // Add this parameter with default value
-});
+  const UserTradeTabsDialog({
+    super.key,
+    required this.userTeam,
+    required this.userPicks,
+    required this.targetPicks,
+    required this.pendingOffers,
+    required this.onAcceptOffer,
+    required this.onPropose,
+    required this.onCancel,
+    this.isCounterMode = false, // Default to false
+  });
 
   @override
   _UserTradeTabsDialogState createState() => _UserTradeTabsDialogState();
@@ -69,8 +69,9 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
         height: 580, // Give enough height but don't take too much
         child: Column(
           children: [
-            // Compact tab bar
-            TabBar(
+
+// Compact tab bar
+TabBar(
   controller: _tabController,
   labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
   labelColor: Theme.of(context).brightness == Brightness.dark 

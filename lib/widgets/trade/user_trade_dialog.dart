@@ -138,98 +138,42 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                     children: [
                       // Team selection dropdown (made to match size on right)
                       Container(
-                        width: double.infinity,
-                        height: 36.0,
-                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(color: Colors.blue.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.people, size: 16, color: Colors.blue),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Trade with:',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (targetTeams.isNotEmpty)
-                              DropdownButton<String>(
-                                value: targetTeams.contains(_targetTeam) ? _targetTeam : targetTeams.first,
-                                onChanged: (String? newValue) {
-                                  if (newValue != null) {
-                                    setState(() {
-                                      _targetTeam = newValue;
-                                      
-                                      // Only clear selections if they're from a different team
-                                      if (widget.initialSelectedTargetPicks != null) {
-                                        // Keep only the selected picks that belong to the new target team
-                                        _selectedTargetPicks = _selectedTargetPicks
-                                          .where((pick) => pick.teamName == newValue)
-                                          .toList();
-                                      } else {
-                                        // If no initial selections, just clear the list
-                                        _selectedTargetPicks.clear();
-                                      }
-                                      
-                                      // Clear future rounds since they're team-specific
-                                      _selectedTargetFutureRounds.clear();
-                                    });
-                                    
-                                    _updateValues();
-                                  }
-                                },
-                                icon: Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Colors.blue.shade800, // Always use dark blue for visibility
-                                ),
-                                iconSize: 24,
-                                items: targetTeams.map<DropdownMenuItem<String>>((String team) {
-                                  return DropdownMenuItem<String>(
-                                    value: team,
-                                    child: Row(
-                                      children: [
-                                        TeamLogoUtils.buildNFLTeamLogo(
-                                          team,
-                                          size: 24.0,
-
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          team, 
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: Theme.of(context).brightness == Brightness.dark 
-                                              ? Colors.black87 
-                                              : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).brightness == Brightness.dark 
-                                    ? Colors.white 
-                                    : Colors.black87,
-                                ),
-                                underline: Container(height: 0),
-                                dropdownColor: Theme.of(context).brightness == Brightness.dark 
-                                  ? Colors.grey.shade700 
-                                  : Colors.white,
-                              ),
-                          ],
-                        ),
-                      ),
+  width: double.infinity,
+  height: 36.0,
+  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+  decoration: BoxDecoration(
+    color: widget.isCounterOffer 
+      ? Colors.blue.shade50  // For counter offers, use blue styling
+      : Colors.green.shade50,
+    borderRadius: BorderRadius.circular(8.0),
+    border: Border.all(
+      color: widget.isCounterOffer 
+        ? Colors.blue.shade300 
+        : Colors.green.shade300
+    ),
+  ),
+  child: Row(
+    children: [
+      Icon(
+        widget.isCounterOffer ? Icons.edit : Icons.person, 
+        size: 16, 
+        color: widget.isCounterOffer ? Colors.blue : Colors.green
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          'Your team: ${widget.userTeam}',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: widget.isCounterOffer ? Colors.blue : Colors.green,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  ),
+),
                       
                       const SizedBox(height: 8),
                       
@@ -870,13 +814,15 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: _canProposeTrade() ? _proposeTrade : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _getTradeAdviceColor(),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(widget.isCounterOffer ? 'Counter Offer' : 'Propose Trade'),
-                  ),
+  onPressed: _canProposeTrade() ? _proposeTrade : null,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: _getTradeAdviceColor(),
+    foregroundColor: Colors.white,
+  ),
+  child: Text(
+    widget.isCounterOffer ? 'Counter Offer' : 'Propose Trade'
+  ),
+),
                 ],
               ),
             ],
