@@ -9,12 +9,14 @@ class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
   final List<DraftPick> userPicks;
   final List<DraftPick> targetPicks;
-  final List<DraftPick>? initialSelectedUserPicks; // New parameter
-  final List<DraftPick>? initialSelectedTargetPicks; // New parameter
+  final List<DraftPick>? initialSelectedUserPicks;
+  final List<DraftPick>? initialSelectedTargetPicks;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
-  final bool hasLeverage; // New parameter
+  final bool hasLeverage;
+  final bool isCounterOffer; // New parameter
+  final TradePackage? originalOffer; // New parameter to store the original offer
 
   const UserTradeProposalDialog({
     super.key,
@@ -25,8 +27,10 @@ class UserTradeProposalDialog extends StatefulWidget {
     required this.onCancel,
     this.initialSelectedUserPicks,
     this.initialSelectedTargetPicks, 
-    this.hasLeverage = false, // Default to false
+    this.hasLeverage = false,
     this.isEmbedded = false,
+    this.isCounterOffer = false, // Default to false
+    this.originalOffer, // Default to null
   });
 
   @override
@@ -650,99 +654,234 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             ],
           ),
         ),
-        // Simplified trade value analysis + buttons footer
-        // Simplified trade value analysis + buttons footer
-        // Find this section in your build method
-Container(
-  color: Theme.of(context).brightness == Brightness.dark ? 
-         Colors.grey.shade800 : Colors.grey.shade100,
-  padding: const EdgeInsets.all(8),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      // Progress bar, trade values, etc.
-      
-      // Re-added trade likelihood comment
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark ? 
-                 _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              _getTradeAdviceIcon(),
-              size: 16,
-              color: _getTradeAdviceColor(),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                _getTradeAdviceText(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11, 
-                  color: _getTradeAdviceColor(),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-      
-      // Add the leverage indicator right here, after the trade advice container
-      if (widget.hasLeverage) 
+
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          margin: const EdgeInsets.only(top: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark ? 
-                   Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.blue.withOpacity(0.5)),
-          ),
-          child: const Row(
+          color: Theme.of(context).brightness == Brightness.dark ? 
+                Colors.grey.shade800 : Colors.grey.shade100,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.trending_up,
-                size: 16,
-                color: Colors.blue,
-              ),
-              SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11, 
-                    color: Colors.blue,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              // Add this at the top - title for counter offer mode
+              if (widget.isCounterOffer && widget.originalOffer != null) ...[
+                Row(
+                  children: [
+                    Icon(
+                      Icons.swap_horiz, 
+                      size: 16,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Counter Offer to ${widget.originalOffer!.teamOffering}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+              ],
+              
+              // Progress bar, trade values, etc.
+
+              // Value comparison with progress bar
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Value labels with clear visual comparison
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Your Offer: ${_totalOfferedValue.toStringAsFixed(0)} pts',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Their Pick: ${_targetPickValue.toStringAsFixed(0)} pts',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  // Progress bar showing value comparison
+                  Stack(
+                    children: [
+                      // Background bar
+                      Container(
+                        height: 12,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      // Value indicator bar - using LayoutBuilder to get actual width
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Calculate ratio of offer to required value (capped at 150%)
+                          final ratio = (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.5);
+                          // Calculate actual width based on container width
+                          final width = constraints.maxWidth * ratio;
+                          
+                          return Container(
+                            height: 12,
+                            width: width,
+                            decoration: BoxDecoration(
+                              color: _getTradeAdviceColor(),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          );
+                        },
+                      ),
+                      // Center mark for 100% value
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Positioned(
+                            left: constraints.maxWidth * 1.0 - 1,
+                            child: Container(
+                              height: 12,
+                              width: 2,
+                              color: Colors.white,
+                            ),
+                          );
+                        }
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Value difference indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Value Difference: ${(_totalOfferedValue - _targetPickValue) > 0 ? "+" : ""}${(_totalOfferedValue - _targetPickValue).toStringAsFixed(0)} pts',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${((_totalOfferedValue / _targetPickValue) * 100).toStringAsFixed(0)}%)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _totalOfferedValue >= _targetPickValue ? Colors.green.shade700 : Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+
+              // Re-added trade likelihood comment
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? 
+                        _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _getTradeAdviceIcon(),
+                      size: 16,
+                      color: _getTradeAdviceColor(),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _getTradeAdviceText(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11, 
+                          color: _getTradeAdviceColor(),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Add the leverage indicator right here, after the trade advice container
+              if (widget.hasLeverage) 
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark ? 
+                          Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.trending_up,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11, 
+                            color: Colors.blue,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              const SizedBox(height: 8),
+              
+              // Replace the "Button code" comment with actual buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: widget.onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                    ),
+                    child: Text(widget.isCounterOffer ? 'Reject' : 'Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _canProposeTrade() ? _proposeTrade : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getTradeAdviceColor(),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(widget.isCounterOffer ? 'Counter Offer' : 'Propose Trade'),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      
-      const SizedBox(height: 8),
-      
-      // Propose button
-      const Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // Button code
-        ],
-      ),
-    ],
-  ),
-),
       ],
     );
 
@@ -750,15 +889,37 @@ Container(
     if (widget.isEmbedded) {
       return content;
     }
-    
+
     // Otherwise wrap in an AlertDialog
     return AlertDialog(
+      title: widget.isCounterOffer 
+        ? Row(
+            children: [
+              Icon(
+                Icons.reply_all,
+                color: Theme.of(context).primaryColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Counter Offer',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
+          ) 
+        : const Text('Create Trade Offer'),
       contentPadding: EdgeInsets.zero,
       content: SizedBox(
         width: double.maxFinite,
         height: 480,
         child: content,
       ),
+      // No need for actions here as they're included in the content
+      actions: const [],
     );
   }
   
@@ -807,64 +968,75 @@ Container(
   }
   
   void _proposeTrade() {
-    // Create future pick descriptions
-    List<String> futurePickDescriptions = [];
-    double futurePicksValue = 0;
-    
-    for (var round in _selectedFutureRounds) {
-      futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
-      final futurePick = FuturePick.forRound(widget.userTeam, round);
-      futurePicksValue += futurePick.value;
-    }
-    
-    // Create the base package
-    TradePackage package;
-    
-    // Check if we need to handle pure future picks trade
-    if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
-      // Create a virtual draft pick for the first future round
-      final firstRound = _selectedTargetFutureRounds.first;
-      final futurePick = FuturePick.forRound(_targetTeam, firstRound);
-      
-      // Create a dummy DraftPick for the future pick
-      final dummyPick = DraftPick(
-        pickNumber: 1000 + firstRound, // Use a high number that won't conflict
-        teamName: _targetTeam,
-        round: firstRound.toString(),
-      );
-      
-      package = TradePackage(
-        teamOffering: widget.userTeam,
-        teamReceiving: _targetTeam,
-        picksOffered: _selectedUserPicks,
-        targetPick: dummyPick,
-        totalValueOffered: _totalOfferedValue,
-        targetPickValue: _targetPickValue,
-        includesFuturePick: _selectedFutureRounds.isNotEmpty,
-        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-            futurePickDescriptions.join(", ") : null,
-        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      );
-    } else {
-      // Normal trade with current year picks
-      package = TradePackage(
-        teamOffering: widget.userTeam,
-        teamReceiving: _targetTeam,
-        picksOffered: _selectedUserPicks,
-        targetPick: _selectedTargetPicks.first,
-        totalValueOffered: _totalOfferedValue,
-        targetPickValue: _targetPickValue,
-        additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
-            _selectedTargetPicks.sublist(1) : [],
-        includesFuturePick: _selectedFutureRounds.isNotEmpty,
-        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-            futurePickDescriptions.join(", ") : null,
-        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      );
-    }
-    
-    widget.onPropose(package);
+  // Create future pick descriptions
+  List<String> futurePickDescriptions = [];
+  double futurePicksValue = 0;
+  
+  for (var round in _selectedFutureRounds) {
+    futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
+    final futurePick = FuturePick.forRound(widget.userTeam, round);
+    futurePicksValue += futurePick.value;
   }
+  
+  // Create future pick descriptions for target team
+  List<String>? targetFuturePickDescriptions;
+  if (_selectedTargetFutureRounds.isNotEmpty) {
+    targetFuturePickDescriptions = [];
+    for (var round in _selectedTargetFutureRounds) {
+      targetFuturePickDescriptions.add("2026 ${_getRoundText(round)} Round from $_targetTeam");
+    }
+  }
+  
+  // Create the base package
+  TradePackage package;
+  
+  // Check if we need to handle pure future picks trade
+  if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
+    // Create a virtual draft pick for the first future round
+    final firstRound = _selectedTargetFutureRounds.first;
+    final futurePick = FuturePick.forRound(_targetTeam, firstRound);
+    
+    // Create a dummy DraftPick for the future pick
+    final dummyPick = DraftPick(
+      pickNumber: 1000 + firstRound, // Use a high number that won't conflict
+      teamName: _targetTeam,
+      round: firstRound.toString(),
+    );
+    
+    package = TradePackage(
+      teamOffering: widget.userTeam,
+      teamReceiving: _targetTeam,
+      picksOffered: _selectedUserPicks,
+      targetPick: dummyPick,
+      totalValueOffered: _totalOfferedValue,
+      targetPickValue: _targetPickValue,
+      includesFuturePick: _selectedFutureRounds.isNotEmpty,
+      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+          futurePickDescriptions.join(", ") : null,
+      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      targetReceivedFuturePicks: targetFuturePickDescriptions,
+    );
+  } else {
+    // Normal trade with current year picks
+    package = TradePackage(
+      teamOffering: widget.userTeam,
+      teamReceiving: _targetTeam,
+      picksOffered: _selectedUserPicks,
+      targetPick: _selectedTargetPicks.first,
+      totalValueOffered: _totalOfferedValue,
+      targetPickValue: _targetPickValue,
+      additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
+          _selectedTargetPicks.sublist(1) : [],
+      includesFuturePick: _selectedFutureRounds.isNotEmpty,
+      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+          futurePickDescriptions.join(", ") : null,
+      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      targetReceivedFuturePicks: targetFuturePickDescriptions,
+    );
+  }
+  
+  widget.onPropose(package);
+}
 
   String _getRoundText(int round) {
     if (round == 1) return "1st";
