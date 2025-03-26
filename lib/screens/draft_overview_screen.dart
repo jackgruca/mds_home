@@ -633,7 +633,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     // Continue the draft loop with delay
     if (_isDraftRunning) {
       // Adjust delay based on speed factor (lower is faster)
-      int delay = (AppConstants.defaultDraftSpeed / (widget.speedFactor * widget.speedFactor)).round();
+      int delay = (AppConstants.defaultDraftSpeed / (widget.speedFactor * widget.speedFactor)).round(); 
       Future.delayed(Duration(milliseconds: delay), _processDraftPick);
     }
   } catch (e) {
