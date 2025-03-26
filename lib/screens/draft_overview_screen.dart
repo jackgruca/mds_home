@@ -637,7 +637,7 @@ List<Color> _getTeamGradientColors(String teamName) {
       Future.delayed(Duration(milliseconds: delay), _processDraftPick);
     }
   } catch (e) {
-    debugPrint("Error processing this draft pick: $e");
+    debugPrint("Error processing draft pick: $e");
     setState(() {
       _isDraftRunning = false;
       _statusMessage = "Error during draft: $e";
