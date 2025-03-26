@@ -257,18 +257,69 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                 
                 const SizedBox(width: 8),
                 
-                // Accept button
-                SizedBox(
-                  height: 30,
-                  width: 30,
-                  child: IconButton(
-                    onPressed: () => widget.onAcceptOffer(offer),
-                    icon: const Icon(Icons.check_circle, size: 20),
-                    color: Colors.green,
-                    tooltip: 'Accept Offer',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                // Action buttons
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Reject button
+                    SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: IconButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.cancel, size: 20),
+                        color: Colors.red,
+                        tooltip: 'Reject Offer',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ),
+                    
+                    // Counter button
+                    SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: IconButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => UserTradeProposalDialog(
+                              userTeam: offer.teamReceiving,
+                              userPicks: [offer.targetPick], 
+                              targetPicks: offer.picksOffered,
+                              onPropose: (counterPackage) {
+                                Navigator.of(ctx).pop();
+                                widget.onPropose(counterPackage);
+                              },
+                              onCancel: () => Navigator.of(ctx).pop(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit, size: 20),
+                        color: Colors.blue,
+                        tooltip: 'Counter Offer',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ),
+                    
+                    // Accept button (original)
+                    SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: IconButton(
+                        onPressed: () => widget.onAcceptOffer(offer),
+                        icon: const Icon(Icons.check_circle, size: 20),
+                        color: Colors.green,
+                        tooltip: 'Accept Offer',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
