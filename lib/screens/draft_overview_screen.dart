@@ -633,8 +633,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     // Continue the draft loop with delay
     if (_isDraftRunning) {
       // Adjust delay based on speed factor (lower is faster)
-      int delay = (AppConstants.defaultDraftSpeed / widget.speedFactor).round();
-      Future.delayed(Duration(milliseconds: delay), _processDraftPick);
+      int delay = (AppConstants.defaultDraftSpeed / (widget.speedFactor * widget.speedFactor)).round();      Future.delayed(Duration(milliseconds: delay), _processDraftPick);
     }
   } catch (e) {
     debugPrint("Error processing draft pick: $e");
@@ -740,7 +739,7 @@ void _initiateUserTradeProposal() {
   );
 }
 
-  void _showTradeOptions(DraftPick pick) {
+void _showTradeOptions(DraftPick pick) {
   if (_draftService == null) return;
   
   // Generate trade offers for this pick
@@ -754,35 +753,31 @@ void _initiateUserTradeProposal() {
       builder: (context) => TradeDialogWrapper(
         tradeOffer: tradeOffers,
         onAccept: (package) {
-          // Execute the selected trade
+          // Execute the trade
           _draftService!.executeUserSelectedTrade(package);
-          _executedTrades = _draftService!.executedTrades;
           
-          // Update UI
+          // Update UI with trade results
           setState(() {
+            _executedTrades = _draftService!.executedTrades;
             _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-            _statusMessage = _draftService!.statusMessage;
+            _statusMessage = "Trade accepted: ${package.tradeDescription}";
             
             // Reset user pick mode
             _isUserPickMode = false;
             _userNextPick = null;
             
-            // IMPORTANT: Set draft to running to continue automatically
+            // Set draft to running to continue automatically
             _isDraftRunning = true;
           });
           
-          Navigator.pop(context); // Close the dialog
-          
-          // IMPORTANT: Continue the draft after a brief pause
+          // Continue the draft after a brief pause
           Future.delayed(
             Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
             _processDraftPick
           );
         },
         onReject: () {
-          Navigator.pop(context); // Close the dialog
-          
-          // Let the user select a player if this is their pick
+          // If this is user's pick and no trade, show player selection
           if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
             _showPlayerSelectionDialog(pick);
           } else if (_isDraftRunning) {
@@ -793,15 +788,103 @@ void _initiateUserTradeProposal() {
             );
           }
         },
-        onCounter: (package) {
-          // Show snackbar for now - counter feature coming in future update
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Counter offers will be available in a future update'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
+
+onCounter: (package) {
+  // Get all available picks for both teams
+  final receivingTeamPicks = _draftService!.getTeamPicks(package.teamReceiving);
+  final offeringTeamPicks = _draftService!.getTeamPicks(package.teamOffering);
+  
+  // Create a Map structure for pendingOffers similar to what UserTradeTabsDialog expects
+  // but we'll pre-fill it with a modified version of the original offer
+  Map<int, List<TradePackage>> counterOffers = {};
+  
+  // Store the original offer's target pick number and the offer
+  counterOffers[package.targetPick.pickNumber] = [package];
+  
+  // Show the tabbed trade dialog interface
+  showDialog(
+    context: context,
+    builder: (context) => UserTradeTabsDialog(
+      userTeam: package.teamReceiving,
+      userPicks: receivingTeamPicks,
+      targetPicks: offeringTeamPicks,
+      pendingOffers: counterOffers, // Pass the original offer as a pending offer
+      onAcceptOffer: (offer) {
+        Navigator.pop(context); // Close dialog
+        
+        // Execute the trade
+        _draftService!.executeUserSelectedTrade(offer);
+        
+        // Update UI with trade results
+        setState(() {
+          _executedTrades = _draftService!.executedTrades;
+          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
+          
+          // Reset user pick mode
+          _isUserPickMode = false;
+          _userNextPick = null;
+          
+          // Set draft to running to continue automatically
+          _isDraftRunning = true;
+        });
+        
+        // Continue the draft after a brief pause
+        Future.delayed(
+          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+          _processDraftPick
+        );
+      },
+      onPropose: (counterPackage) {
+        Navigator.pop(context); // Close dialog
+        
+        // Process the counter offer with leverage premium
+        final originalPackage = package; // Original AI-initiated offer
+        final accepted = _draftService!.evaluateCounterOffer(originalPackage, counterPackage);
+        
+        // Show response dialog
+        showDialog(
+          context: context,
+          builder: (context) => TradeResponseDialog(
+            tradePackage: counterPackage,
+            wasAccepted: accepted,
+            rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
+            onClose: () {
+              Navigator.pop(context);
+              
+              // Update UI if trade was accepted
+              if (accepted) {
+                setState(() {
+                  _executedTrades = _draftService!.executedTrades;
+                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+                  _statusMessage = _draftService!.statusMessage;
+                  
+                  // Reset user pick mode
+                  _isUserPickMode = false;
+                  _userNextPick = null;
+                  
+                  // IMPORTANT: Set draft to running to continue automatically
+                  _isDraftRunning = true;
+                });
+                
+                // Continue the draft after a brief pause
+                Future.delayed(
+                  Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                  _processDraftPick
+                );
+              } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+                // If trade was rejected and this is user's pick, show player selection
+                _showPlayerSelectionDialog(pick);
+              }
+            },
+          ),
+        );
+      },
+      onCancel: () => Navigator.pop(context),
+      isCounterMode: true, // Indicate it's a counter offer
+    ),
+  );
+},
         showAnalytics: widget.showAnalytics,
       ),
     );

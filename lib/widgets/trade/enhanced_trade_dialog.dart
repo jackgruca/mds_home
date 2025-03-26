@@ -165,18 +165,14 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
                       
                       // Counter offer button (if enabled)
                       if (widget.onCounter != null)
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            if (widget.onCounter != null) {
-                              widget.onCounter!(widget.tradeOffer.packages[_selectedIndex]);
-                            }
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Counter'),
+                        OutlinedButton(
+                          onPressed: widget.onCounter != null 
+                            ? () => widget.onCounter!(widget.tradeOffer.packages[_selectedIndex])
+                            : null,
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300),
                             foregroundColor: Colors.blue,
                           ),
+                          child: const Text('Counter'),
                         ),
                       const SizedBox(width: 8),
                       

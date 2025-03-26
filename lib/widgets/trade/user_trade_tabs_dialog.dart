@@ -13,6 +13,7 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final bool isCounterMode; // Add this parameter
 
   const UserTradeTabsDialog({
     super.key,
@@ -23,6 +24,7 @@ class UserTradeTabsDialog extends StatefulWidget {
     required this.onAcceptOffer,
     required this.onPropose,
     required this.onCancel,
+    this.isCounterMode = false, // Default to false
   });
 
   @override
@@ -35,8 +37,8 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   void initState() {
     super.initState();
-    // Determine initial tab index based on pending offers
-    final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
+    // Determine initial tab index based on context
+    final initialTabIndex = widget.isCounterMode ? 1 : (_getAllPendingOffers().isNotEmpty ? 0 : 1);
     _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
   }
   
@@ -67,37 +69,38 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
         height: 580, // Give enough height but don't take too much
         child: Column(
           children: [
-            // Compact tab bar
-            TabBar(
-              controller: _tabController,
-              labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
-                labelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : Colors.black, // Selected tab text color
-                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white70 
-                  : Colors.grey.shade700, // Unselected tab text color
-                indicatorWeight: 3, // Make the indicator more visible
-                indicatorColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.blue.shade300 
-                  : Colors.blue.shade700, // Indicator color
-              tabs: [
-                Tab(
-                  icon: Badge(
-                    isLabelVisible: _getAllPendingOffers().isNotEmpty,
-                    label: Text(_getAllPendingOffers().length.toString()),
-                    child: const Icon(Icons.call_received, size: 16),
-                  ),
-                  text: 'Trade Offers (${_getAllPendingOffers().length})',
-                  iconMargin: const EdgeInsets.only(bottom: 2.0),
-                ),
-                const Tab(
-                  icon: Icon(Icons.call_made, size: 16),
-                  text: 'Create Trade',
-                  iconMargin: EdgeInsets.only(bottom: 2.0),
-                ),
-              ],
-            ),
+
+// Compact tab bar
+TabBar(
+  controller: _tabController,
+  labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
+  labelColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.white 
+    : Colors.black, // Selected tab text color
+  unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.white70 
+    : Colors.grey.shade700, // Unselected tab text color
+  indicatorWeight: 3, // Make the indicator more visible
+  indicatorColor: Theme.of(context).brightness == Brightness.dark 
+    ? Colors.blue.shade300 
+    : Colors.blue.shade700, // Indicator color
+  tabs: [
+    Tab(
+      icon: Badge(
+        isLabelVisible: _getAllPendingOffers().isNotEmpty,
+        label: Text(_getAllPendingOffers().length.toString()),
+        child: const Icon(Icons.call_received, size: 16),
+      ),
+      text: widget.isCounterMode ? 'Original Offer' : 'Trade Offers (${_getAllPendingOffers().length})',
+      iconMargin: const EdgeInsets.only(bottom: 2.0),
+    ),
+    Tab(
+      icon: Icon(widget.isCounterMode ? Icons.edit : Icons.call_made, size: 16),
+      text: widget.isCounterMode ? 'Counter Offer' : 'Create Trade',
+      iconMargin: const EdgeInsets.only(bottom: 2.0),
+    ),
+  ],
+),
             const Divider(height: 1),
             // Tab content
             Expanded(
@@ -278,33 +281,50 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                     ),
                     
                     // Counter button
-                    SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => UserTradeProposalDialog(
-                              userTeam: offer.teamReceiving,
-                              userPicks: [offer.targetPick], 
-                              targetPicks: offer.picksOffered,
-                              onPropose: (counterPackage) {
-                                Navigator.of(ctx).pop();
-                                widget.onPropose(counterPackage);
-                              },
-                              onCancel: () => Navigator.of(ctx).pop(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.edit, size: 20),
-                        color: Colors.blue,
-                        tooltip: 'Counter Offer',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ),
+SizedBox(
+  height: 30,
+  width: 30,
+  child: IconButton(
+    onPressed: () {
+      Navigator.of(context).pop();
+      
+      // Get all available picks from the offering team
+      List<DraftPick> allOfferingTeamPicks = widget.targetPicks.where(
+        (pick) => pick.teamName == offer.teamOffering
+      ).toList();
+      
+      // If no picks found, fall back to the picks in the offer
+      if (allOfferingTeamPicks.isEmpty) {
+        allOfferingTeamPicks = offer.picksOffered;
+      }
+      
+      // Get all available user team picks
+      List<DraftPick> allUserTeamPicks = widget.userPicks;
+      
+      showDialog(
+        context: context,
+        builder: (ctx) => UserTradeProposalDialog(
+          userTeam: offer.teamReceiving,
+          userPicks: allUserTeamPicks, // Show ALL user team picks
+          targetPicks: allOfferingTeamPicks, // Show ALL offering team picks
+          initialSelectedUserPicks: [offer.targetPick], // Pre-select original picks
+          initialSelectedTargetPicks: offer.picksOffered, // Pre-select original picks
+          hasLeverage: true, // Set to true for counter offers to original offers
+          onPropose: (counterPackage) {
+            Navigator.of(ctx).pop();
+            widget.onPropose(counterPackage);
+          },
+          onCancel: () => Navigator.of(ctx).pop(),
+        ),
+      );
+    },
+    icon: const Icon(Icons.edit, size: 20),
+    color: Colors.blue,
+    tooltip: 'Counter Offer',
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(),
+  ),
+),
                     
                     // Accept button (original)
                     SizedBox(
@@ -519,4 +539,5 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
     });
     return allOffers;
   }
+  
 }
