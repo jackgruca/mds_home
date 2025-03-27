@@ -879,31 +879,32 @@ class DraftExportService {
   }
 
   /// Helper to write compact pick HTML for 2-column layout
-  static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
-    if (pick.selectedPlayer == null) return;
-    
-    // Calculate pick grade
-    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-    String letterGrade = gradeInfo['letter'];
-    
-    // Value differential
-    int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-    String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-    String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
-    
-    // Grade CSS class
-    String gradeClass = letterGrade.replaceAll('+', '-plus').toLowerCase();
-    
-    // Position CSS class
-    String positionClass = pick.selectedPlayer!.position.toLowerCase();
-    
-    // User team highlighting
-    String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-    
-    // Team abbreviation for logo
-    String teamAbbr = _getTeamAbbreviation(pick.teamName);
-    
-    html.write('''
+  /// Helper to write compact pick HTML for 2-column layout
+static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
+  if (pick.selectedPlayer == null) return;
+  
+  // Calculate pick grade
+  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
+  String letterGrade = gradeInfo['letter'];
+  
+  // Value differential
+  int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
+  String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
+  String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
+  
+  // Grade CSS class
+  String gradeClass = letterGrade.replaceAll('+', '-plus').toLowerCase();
+  
+  // Position CSS class
+  String positionClass = pick.selectedPlayer!.position.toLowerCase();
+  
+  // User team highlighting
+  String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
+  
+  // Team abbreviation for logo
+  String teamAbbr = _getTeamAbbreviation(pick.teamName);
+  
+  html.write('''
         <div class="compact-pick $userTeamClass">
           <div class="compact-number round-${pick.round}">${pick.pickNumber}</div>
           <div class="team-logo" style="width: 24px; height: 24px;">
@@ -911,16 +912,17 @@ class DraftExportService {
           </div>
           <div class="compact-details">
             <div class="compact-name">${pick.selectedPlayer!.name}</div>
-            <div>
+            <div style="display: flex; align-items: center; margin-top: 3px;">
               <span class="compact-position pos-$positionClass">${pick.selectedPlayer!.position}</span>
-              <span class="compact-school">${pick.selectedPlayer!.school}</span>
-              <span class="$valueDiffClass" style="font-size: 10px; float: right;">($valueDiffText)</span>
+              <span class="compact-school" style="margin-left: 6px;">${pick.selectedPlayer!.school}</span>
+              <span style="margin-left: 6px; font-size: 10px;">Rank: #${pick.selectedPlayer!.rank}</span>
+              <span class="$valueDiffClass" style="font-size: 10px; margin-left: 4px;">($valueDiffText)</span>
             </div>
           </div>
           <span class="grade-badge grade-$gradeClass" style="font-size: 10px; padding: 2px 4px; margin-left: 4px; display: inline-block; min-width: 16px; text-align: center;">$letterGrade</span>
         </div>
 ''');
-  }
+}
 
   /// Calculate overall draft stats
   static Map<String, dynamic> _calculateOverallStats(
