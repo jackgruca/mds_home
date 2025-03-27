@@ -155,7 +155,7 @@ class DraftPickGradeService {
   /// Convert numeric grade to letter grade
   static String getLetterGrade(double score) {
   // More forgiving grading scale
-  if (score >= 8) return 'A+';  // Was 15
+  if (score >= 8) return 'A+';  // Was 16
   if (score >= 6) return 'A';    // Was 10
   if (score >= 4) return 'A-';   // Was 7
   if (score >= 2) return 'B+';   // Was 5
