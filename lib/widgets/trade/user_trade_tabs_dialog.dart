@@ -279,32 +279,48 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                     
                     // Counter button
                     SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => UserTradeProposalDialog(
-                              userTeam: offer.teamReceiving,
-                              userPicks: [offer.targetPick], 
-                              targetPicks: offer.picksOffered,
-                              onPropose: (counterPackage) {
-                                Navigator.of(ctx).pop();
-                                widget.onPropose(counterPackage);
-                              },
-                              onCancel: () => Navigator.of(ctx).pop(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.edit, size: 20),
-                        color: Colors.blue,
-                        tooltip: 'Counter Offer',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ),
+  height: 30,
+  width: 30,
+  child: IconButton(
+    onPressed: () {
+      Navigator.of(context).pop();
+      
+      // Get all available picks from the offering team
+      List<DraftPick> allOfferingTeamPicks = widget.targetPicks.where(
+        (pick) => pick.teamName == offer.teamOffering
+      ).toList();
+      
+      // If no picks found, fall back to the picks in the offer
+      if (allOfferingTeamPicks.isEmpty) {
+        allOfferingTeamPicks = offer.picksOffered;
+      }
+      
+      // Get all available user team picks
+      List<DraftPick> allUserTeamPicks = widget.userPicks;
+      
+      showDialog(
+        context: context,
+        builder: (ctx) => UserTradeProposalDialog(
+          userTeam: offer.teamReceiving,
+          userPicks: allUserTeamPicks, // Show ALL user team picks
+          targetPicks: allOfferingTeamPicks, // Show ALL offering team picks
+          initialSelectedUserPicks: [offer.targetPick], // Pre-select the original picks
+          initialSelectedTargetPicks: offer.picksOffered, // Pre-select the original picks
+          onPropose: (counterPackage) {
+            Navigator.of(ctx).pop();
+            widget.onPropose(counterPackage);
+          },
+          onCancel: () => Navigator.of(ctx).pop(),
+        ),
+      );
+    },
+    icon: const Icon(Icons.edit, size: 20),
+    color: Colors.blue,
+    tooltip: 'Counter Offer',
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(),
+  ),
+),
                     
                     // Accept button (original)
                     SizedBox(

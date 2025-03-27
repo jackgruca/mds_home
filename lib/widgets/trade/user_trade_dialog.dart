@@ -9,6 +9,8 @@ class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
   final List<DraftPick> userPicks;
   final List<DraftPick> targetPicks;
+  final List<DraftPick>? initialSelectedUserPicks; // New parameter
+  final List<DraftPick>? initialSelectedTargetPicks; // New parameter
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
@@ -20,6 +22,8 @@ class UserTradeProposalDialog extends StatefulWidget {
     required this.targetPicks,
     required this.onPropose,
     required this.onCancel,
+    this.initialSelectedUserPicks, // Add this parameter
+    this.initialSelectedTargetPicks, // Add this parameter
     this.isEmbedded = false,
   });
 
@@ -42,11 +46,23 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     super.initState();
     if (widget.targetPicks.isNotEmpty) {
       _targetTeam = widget.targetPicks.first.teamName;
-      _selectedTargetPicks = [];
-      _selectedUserPicks = [];
     } else {
       _targetTeam = "";
     }
+
+    // Initialize with pre-selected picks if provided
+    if (widget.initialSelectedUserPicks != null) {
+      _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
+    }
+    
+    if (widget.initialSelectedTargetPicks != null) {
+      _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
+    }
+    
+    // Initialize future picks if needed
+    // This would need additional parameters for future picks
+    
+    // Update values based on selections
     _updateValues();
   }
   
@@ -142,7 +158,19 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                                   if (newValue != null) {
                                     setState(() {
                                       _targetTeam = newValue;
-                                      _selectedTargetPicks.clear();
+                                      
+                                      // Only clear selections if they're from a different team
+                                      if (widget.initialSelectedTargetPicks != null) {
+                                        // Keep only the selected picks that belong to the new target team
+                                        _selectedTargetPicks = _selectedTargetPicks
+                                          .where((pick) => pick.teamName == newValue)
+                                          .toList();
+                                      } else {
+                                        // If no initial selections, just clear the list
+                                        _selectedTargetPicks.clear();
+                                      }
+                                      
+                                      // Clear future rounds since they're team-specific
                                       _selectedTargetFutureRounds.clear();
                                     });
                                     _updateValues();
