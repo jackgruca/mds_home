@@ -533,6 +533,12 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
       debugPrint("Position scarcity updated for $position: ${oldScarcity.toStringAsFixed(3)} → ${_positionScarcity[position]!.toStringAsFixed(3)}");
     }
   }
+  
+/// Process a user counter offer with leverage premium applied
+bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // Use the trade service to evaluate the counter offer with leverage premium
+  return _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
+}
 
   // Then, modifying the selectPlayerRStyle method:
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {

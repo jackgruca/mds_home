@@ -304,8 +304,9 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
           userTeam: offer.teamReceiving,
           userPicks: allUserTeamPicks, // Show ALL user team picks
           targetPicks: allOfferingTeamPicks, // Show ALL offering team picks
-          initialSelectedUserPicks: [offer.targetPick], // Pre-select the original picks
-          initialSelectedTargetPicks: offer.picksOffered, // Pre-select the original picks
+          initialSelectedUserPicks: [offer.targetPick], // Pre-select original picks
+          initialSelectedTargetPicks: offer.picksOffered, // Pre-select original picks
+          hasLeverage: true, // Set to true for counter offers to original offers
           onPropose: (counterPackage) {
             Navigator.of(ctx).pop();
             widget.onPropose(counterPackage);

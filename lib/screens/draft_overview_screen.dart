@@ -805,50 +805,52 @@ void _initiateUserTradeProposal() {
               targetPicks: offeringTeamPicks, // All offering team's picks
               initialSelectedUserPicks: [package.targetPick, ...package.additionalTargetPicks], // Pre-select original offer
               initialSelectedTargetPicks: package.picksOffered, // Pre-select original offer
+              hasLeverage: true, // Add this line to indicate leverage
               onPropose: (counterPackage) {
                 Navigator.pop(context); // Close dialog
                 
-                // Process the counter offer
-                final accepted = _draftService!.processUserTradeProposal(counterPackage);
-                
-                // Show response dialog
-                showDialog(
-                  context: context,
-                  builder: (context) => TradeResponseDialog(
-                    tradePackage: counterPackage,
-                    wasAccepted: accepted,
-                    rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
-                    onClose: () {
-                      Navigator.pop(context);
-                      
-                      // Update UI if trade was accepted
-                      if (accepted) {
-                        setState(() {
-                          _executedTrades = _draftService!.executedTrades;
-                          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-                          _statusMessage = _draftService!.statusMessage;
-                          
-                          // Reset user pick mode
-                          _isUserPickMode = false;
-                          _userNextPick = null;
-                          
-                          // IMPORTANT: Set draft to running to continue automatically
-                          _isDraftRunning = true;
-                        });
-                        
-                        // Continue the draft after a brief pause
-                        Future.delayed(
-                          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-                          _processDraftPick
-                        );
-                      } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
-                        // If trade was rejected and this is user's pick, show player selection
-                        _showPlayerSelectionDialog(pick);
-                      }
-                    },
-                  ),
-                );
-              },
+                // Process the counter offer with leverage premium
+                final originalPackage = package; // Original AI-initiated offer
+                final accepted = _draftService!.evaluateCounterOffer(originalPackage, counterPackage);
+
+  // Show response dialog
+  showDialog(
+    context: context,
+    builder: (context) => TradeResponseDialog(
+      tradePackage: counterPackage,
+      wasAccepted: accepted,
+      rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
+      onClose: () {
+        Navigator.pop(context);
+        
+        // Update UI if trade was accepted
+        if (accepted) {
+          setState(() {
+            _executedTrades = _draftService!.executedTrades;
+            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+            _statusMessage = _draftService!.statusMessage;
+            
+            // Reset user pick mode
+            _isUserPickMode = false;
+            _userNextPick = null;
+            
+            // IMPORTANT: Set draft to running to continue automatically
+            _isDraftRunning = true;
+          });
+          
+          // Continue the draft after a brief pause
+          Future.delayed(
+            Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+            _processDraftPick
+          );
+        } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+          // If trade was rejected and this is user's pick, show player selection
+          _showPlayerSelectionDialog(pick);
+        }
+      },
+    ),
+  );
+},
               onCancel: () => Navigator.pop(context),
           
             ),

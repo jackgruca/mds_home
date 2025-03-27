@@ -897,8 +897,67 @@ double _calculateTradeUpInterest(
     }).toList();
   }
   
-  /// Process a proposed trade with realistic acceptance criteria
-  bool evaluateTradeProposal(TradePackage proposal) {
+  /// Determine if a counter offer should include a leverage premium
+  /// Returns the premium multiplier (1.0 means no premium)
+  double calculateLeveragePremium(TradePackage originalOffer, TradePackage counterOffer) {
+    // If this is a counter to an AI-initiated offer, the user has leverage
+    if (originalOffer.teamOffering != counterOffer.teamOffering && 
+        originalOffer.teamReceiving == counterOffer.teamReceiving) {
+      
+      // Base premium is 5-10% additional value acceptance
+      double basePremium = 1.08; // 8% baseline premium
+      
+      // Higher premium for earlier picks (rounds 1-2)
+      if (originalOffer.targetPick.pickNumber <= 64) {
+        // Up to 15% premium for early rounds
+        return basePremium + 0.07; // 15% total
+      }
+      
+      return basePremium;
+    }
+    
+    // No premium for regular offers (not counters)
+    return 1.0;
+  }
+
+  /// Process a counter offer with leverage premium applied
+  bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+    // Calculate the leverage premium
+    double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
+    
+    // Apply the premium to the acceptance probability calculation
+    final valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
+    
+    // The premium effectively reduces the value needed for acceptance
+    final adjustedValueRatio = valueRatio * leveragePremium;
+    
+    // Now use the adjusted ratio for the regular evaluation
+    return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
+  }
+
+  /// Process a user trade proposal with realistic acceptance criteria
+bool evaluateTradeProposal(TradePackage proposal) {
+  // Get team tendencies
+  final tendency = _getTeamTradingTendency(proposal.teamReceiving);
+  
+  // Core decision factors
+  final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
+  final pickNumber = proposal.targetPick.pickNumber;
+  
+  // 1. Value-based acceptance probability
+  double acceptanceProbability = _calculateBaseAcceptanceProbability(valueRatio);
+  
+  // 2. Adjust for pick position premium
+  acceptanceProbability = _adjustForPickPositionPremium(acceptanceProbability, pickNumber);
+  
+  // More adjustments...
+  
+  // Make final decision
+  return _random.nextDouble() < acceptanceProbability;
+}
+
+  /// Overloaded version of evaluateTradeProposal that accepts a pre-calculated value ratio
+  bool evaluateTradeProposalWithAdjustedValue(TradePackage proposal, double preCalculatedValueRatio) {
     // Get team tendencies
     final tendency = _getTeamTradingTendency(proposal.teamReceiving);
     

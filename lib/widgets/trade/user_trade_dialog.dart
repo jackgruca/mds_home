@@ -14,6 +14,7 @@ class UserTradeProposalDialog extends StatefulWidget {
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
+  final bool hasLeverage; // New parameter
 
   const UserTradeProposalDialog({
     super.key,
@@ -22,8 +23,9 @@ class UserTradeProposalDialog extends StatefulWidget {
     required this.targetPicks,
     required this.onPropose,
     required this.onCancel,
-    this.initialSelectedUserPicks, // Add this parameter
-    this.initialSelectedTargetPicks, // Add this parameter
+    this.initialSelectedUserPicks,
+    this.initialSelectedTargetPicks, 
+    this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
   });
 
@@ -645,104 +647,22 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             ],
           ),
         ),
-        // Simplified trade value analysis + buttons footer
-        // Simplified trade value analysis + buttons footer
+        // Find this section in your build method
         Container(
           color: Theme.of(context).brightness == Brightness.dark ? 
-                 Colors.grey.shade800 : Colors.grey.shade100,
+            Colors.grey.shade800 : Colors.grey.shade100,
           padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Simplified progress bar approach
-              Row(
-                children: [
-                  // Label for 'Required Value'
-                  Text(
-                    'Required Value: ${_targetPickValue.toInt()}',
-                    style: TextStyle(
-                      fontSize: 11, 
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).brightness == Brightness.dark ? 
-                             Colors.white : Colors.black,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Your offered value label
-                  Text(
-                    'Your Offer: ${_totalOfferedValue.toInt()}',
-                    style: TextStyle(
-                      fontSize: 11, 
-                      fontWeight: FontWeight.bold,
-                      color: _totalOfferedValue >= _targetPickValue ? 
-                            Colors.green : 
-                            (Theme.of(context).brightness == Brightness.dark ? 
-                             Colors.grey.shade300 : Colors.grey.shade700),
-                    ),
-                  ),
-                ],
-              ),
+              // Progress bar, trade values, etc.
               
-              const SizedBox(height: 4),
-              
-              // Simple progress bar showing how close user is to meeting needed value
-              Stack(
-                children: [
-                  // Background bar (total needed)
-                  Container(
-                    height: 12,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).brightness == Brightness.dark ? 
-                             Colors.grey.shade700 : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  // Progress bar (value offered)
-                  Container(
-                    height: 12,
-                    width: _targetPickValue > 0 
-                        ? (MediaQuery.of(context).size.width - 32) * (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.0)
-                        : 0,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.blue,
-                          _totalOfferedValue >= _targetPickValue ? Colors.green.shade300 : Colors.blue.shade300,
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  // Marker for required value point
-                  if (_totalOfferedValue > _targetPickValue)
-                    Positioned(
-                      left: (MediaQuery.of(context).size.width - 32) * (_targetPickValue / _totalOfferedValue),
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Container(
-                          width: 2,
-                          height: 12,
-                          color: Theme.of(context).brightness == Brightness.dark ? 
-                                 Colors.white : Colors.black,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Re-added trade likelihood comment
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark ? 
-                         _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+                        _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
                 ),
@@ -770,41 +690,49 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                 ),
               ),
               
+              // Add the leverage indicator right here, after the trade advice container
+              if (widget.hasLeverage) 
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark ? 
+                          Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.trending_up,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11, 
+                            color: Colors.blue,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                    ],
+                  ),
+                ),
+                  
               const SizedBox(height: 8),
               
               // Propose button
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton.icon(
-                      onPressed: _canProposeTrade() ? _proposeTrade : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _canProposeTrade() ? 
-                          _totalOfferedValue >= _targetPickValue ? Colors.green : Colors.blue :
-                          Colors.grey,
-                        foregroundColor: Colors.white,
-                        elevation: _canProposeTrade() ? 2 : 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      icon: Icon(
-                        _totalOfferedValue >= _targetPickValue ? 
-                          Icons.thumb_up_alt : Icons.swap_horiz,
-                        size: 16,
-                      ),
-                      label: const Text(
-                        'Propose Trade',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Button code
                 ],
               ),
             ],
