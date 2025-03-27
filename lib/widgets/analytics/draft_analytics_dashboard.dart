@@ -480,27 +480,27 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
 
 // Add this helper method for gradient colors
 Color _getGradientColor(int score, double opacity) {
-  // A grades (green)
-  if (score > 95) return Colors.green.shade700.withOpacity(opacity);  // A+
-  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
-  if (score >= 90) return Colors.green.shade500.withOpacity(opacity);  // A-
+  // A grades (blue)
+  if (score > 95) return Colors.blue.shade900.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.blue.shade700.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.blue.shade600.withOpacity(opacity);  // A-
   
-  // B grades (blue)
-  if (score > 85) return Colors.blue.shade700.withOpacity(opacity);   // B+
-  if (score == 85) return Colors.blue.shade600.withOpacity(opacity);   // B
-  if (score >= 80) return Colors.blue.shade500.withOpacity(opacity);   // B-
+  // B grades (green)
+  if (score > 85) return Colors.green.shade800.withOpacity(opacity);   // B+
+  if (score == 85) return Colors.green.shade700.withOpacity(opacity);   // B
+  if (score >= 80) return Colors.green.shade600.withOpacity(opacity);   // B-
   
-  // C grades (yellow)
-  if (score > 75) return Colors.amber.shade500.withOpacity(opacity);  // C+
+  // C grades (yellow to amber)
+  if (score > 75) return Colors.yellow.shade700.withOpacity(opacity);  // C+
   if (score == 75) return Colors.amber.shade600.withOpacity(opacity);  // C
-  if (score >= 70) return Colors.amber.shade700.withOpacity(opacity);  // C-
+  if (score >= 70) return Colors.amber.shade800.withOpacity(opacity);  // C-
 
   // D grades (orange)
-  if (score >= 60) return Colors.amber.shade900.withOpacity(opacity);  // C-
+  if (score >= 60) return Colors.deepOrange.shade700.withOpacity(opacity);  // D+/D
 
   // F grades (red)
   if (score >= 30) return Colors.red.shade600.withOpacity(opacity);    // D+/D
-  return Colors.red.shade700.withOpacity(opacity);                     // F
+  return Colors.red.shade900.withOpacity(opacity);                     // F
 }
 
 // Helper method for calculating grade based on value differential

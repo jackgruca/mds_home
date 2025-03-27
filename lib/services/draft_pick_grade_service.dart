@@ -43,7 +43,7 @@ static Map<String, dynamic> calculatePickGrade(
 ) {
   if (pick.selectedPlayer == null) {
     return {
-      'grade': 'N/A',
+      'grade': 0.0,
       'letter': 'N/A',
       'value': 0.0,
       'colorScore': 50,
@@ -55,42 +55,71 @@ static Map<String, dynamic> calculatePickGrade(
   final int pickNumber = pick.pickNumber;
   final int playerRank = player.rank;
   final String position = player.position;
+  final int round = DraftValueService.getRoundForPick(pickNumber);
   
-  // STEP 1: Calculate BPA Delta Score - ADJUSTED FOR INVERTED METHOD
-  int bpaDelta = pickNumber - playerRank; // Now negative is good, positive is a reach
-  double bpaScore;
+  // Get draft pick values for comparison
+  double pickValue = DraftValueService.getValueForPick(pickNumber);
+  double projectedPickValue = DraftValueService.getValueForPick(playerRank);
   
-  // REVISED: BPA score calculation for inverted delta
-  if (bpaDelta <= -10) {
-    bpaScore = 100.0; // Excellent value
-  } else if (bpaDelta <= 0) {
-    bpaScore = 80.0 + (bpaDelta * -2.0); // Good value (80-100)
-  } else if (bpaDelta <= 10) {
-    bpaScore = 60.0 + (bpaDelta * -2.0); // Fair value (40-60)
-  } else if (bpaDelta <= 20) {
-    bpaScore = 30.0 + ((bpaDelta - 20) * -1.0); // Reach (30-40)
-  } else {
-    bpaScore = max(20.0, 30.0 + ((bpaDelta - 20) * -0.5)); // Major reach (20-30)
+  // ---- VALUE SCORE CALCULATION ----
+  // Base value differential (traditional calculation)
+  int baseValueDiff = pickNumber - playerRank;
+  
+  // Value ratio (key factor in real draft analysis)
+  double valueRatio = playerRank <= 0 ? 1.0 : pickNumber / playerRank;
+  
+  // Create a value score with more nuanced thresholds
+  double valueScore;
+  
+  // First round has highest standards
+  if (round == 1) {
+    if (baseValueDiff >= 20) valueScore = 98;       // Exceptional value (e.g. #10 pick getting #30 talent)
+    else if (baseValueDiff >= 15) valueScore = 95;  // Excellent value 
+    else if (baseValueDiff >= 10) valueScore = 90;  // Great value
+    else if (baseValueDiff >= 5) valueScore = 85;   // Very good value
+    else if (baseValueDiff >= 0) valueScore = 80;   // Good value
+    else if (baseValueDiff >= -5) valueScore = 75;  // Fair value
+    else if (baseValueDiff >= -10) valueScore = 65; // Slight reach
+    else if (baseValueDiff >= -15) valueScore = 55; // Moderate reach
+    else if (baseValueDiff >= -20) valueScore = 45; // Significant reach
+    else valueScore = 35;                          // Major reach
+  } 
+  // Expectations decrease with each round
+  else if (round == 2) {
+    if (baseValueDiff >= 20) valueScore = 98;
+    else if (baseValueDiff >= 15) valueScore = 95;
+    else if (baseValueDiff >= 10) valueScore = 90;
+    else if (baseValueDiff >= 5) valueScore = 85;
+    else if (baseValueDiff >= 0) valueScore = 80;
+    else if (baseValueDiff >= -10) valueScore = 70;
+    else if (baseValueDiff >= -20) valueScore = 60;
+    else if (baseValueDiff >= -30) valueScore = 50;
+    else valueScore = 40;
+  }
+  else if (round == 3) {
+    if (baseValueDiff >= 25) valueScore = 98;
+    else if (baseValueDiff >= 15) valueScore = 95;
+    else if (baseValueDiff >= 10) valueScore = 90;
+    else if (baseValueDiff >= 0) valueScore = 85;
+    else if (baseValueDiff >= -15) valueScore = 75;
+    else if (baseValueDiff >= -30) valueScore = 65;
+    else valueScore = 55;
+  }
+  else {
+    // Later rounds (4-7) are more forgiving but still have standards
+    if (baseValueDiff >= 30) valueScore = 98;
+    else if (baseValueDiff >= 20) valueScore = 95;
+    else if (baseValueDiff >= 10) valueScore = 90;
+    else if (baseValueDiff >= 0) valueScore = 85;
+    else if (baseValueDiff >= -20) valueScore = 75;
+    else if (baseValueDiff >= -40) valueScore = 65;
+    else valueScore = 55;
   }
   
-  // Add a flat boost to all grades to raise the overall grade distribution
-  bpaScore = min(100.0, bpaScore + 10.0);
-  
-  // Add pick context adjustment: early picks get a boost
-  if (pickNumber <= 5) {
-    // Top 5 picks are often "best player available" rather than pure value plays
-    bpaScore = max(bpaScore, 75.0); // Ensure at least 75 for top 5 picks
-  } else if (pickNumber <= 15) {
-    // Early 1st rounders also get a boost
-    bpaScore = max(bpaScore, 70.0); // Ensure at least 70 for top 15 picks
-  } else if (pickNumber <= 32) {
-    // 1st rounders get a small boost
-    bpaScore = max(bpaScore, 65.0); // Ensure at least 65 for 1st round
-  }
-  
-  // STEP 2: Calculate Team Need Level (0-100) - ENHANCED
-  double teamNeedLevel = 60.0; // Higher neutral default
+  // ---- TEAM NEED SCORE CALCULATION ----
+  double needScore = 65; // Default when not a team need
   int needIndex = -1;
+  double needFactor = 1.0;
   
   if (considerTeamNeeds) {
     // Find team needs
@@ -104,77 +133,141 @@ static Map<String, dynamic> calculatePickGrade(
       needIndex = teamNeed.needs.indexOf(position);
       
       if (needIndex == 0) {
-        teamNeedLevel = 100.0; // Top need
+        needScore = 100; // Top need
+        needFactor = 1.25; // 25% boost
       } else if (needIndex == 1) {
-        teamNeedLevel = 95.0; // Second need
+        needScore = 95; // Second need
+        needFactor = 1.20; // 20% boost
       } else if (needIndex == 2) {
-        teamNeedLevel = 90.0; // Third need
-      } else if (needIndex >= 3 && needIndex <= 5) {
-        teamNeedLevel = 80.0; // Secondary need
-      } else if (needIndex > 5) {
-        teamNeedLevel = 70.0; // Lower priority need
-      } else {
-        teamNeedLevel = 50.0; // Not in needs list
+        needScore = 90; // Third need
+        needFactor = 1.15; // 15% boost
+      } else if (needIndex == 3) {
+        needScore = 85; // Fourth need
+        needFactor = 1.10; // 10% boost
+      } else if (needIndex == 4) {
+        needScore = 80; // Fifth need
+        needFactor = 1.05; // 5% boost
+      } else if (needIndex > 4) {
+        needScore = 75; // Lower priority need
+        needFactor = 1.0; // No boost
       }
     }
   }
   
-  // STEP 3: Calculate Positional Value (0-100) - ENHANCED
-  double positionalValue;
+  // ---- POSITIONAL VALUE CALCULATION ----
+  double positionScore;
+  double positionCoefficient = positionValueCoefficients[position] ?? 1.0;
   
-  // Premium positions
-  if (position == 'QB') {
-    positionalValue = 125.0; // Quarterback premium
-  } else if (['EDGE', 'OT', 'CB | WR'].contains(position)) {
-    positionalValue = 115.0; // Top tier
-  } else if (['CB', 'WR'].contains(position)) {
-    positionalValue = 110.0; // High value
-  } else if (['DT', 'S', 'TE'].contains(position)) {
-    positionalValue = 100.0; // Good value
-  } else if (['LB', 'IOL', 'G', 'C'].contains(position)) {
-    positionalValue = 100.0; // Solid value
-  } else if (position == 'RB') {
-    positionalValue = 100.0; // Lower value
+  // Convert coefficient to score
+  if (positionCoefficient >= 1.4) {
+    positionScore = 98; // QB premium
+  } else if (positionCoefficient >= 1.3) {
+    positionScore = 95; // Elite position (EDGE, OT)
+  } else if (positionCoefficient >= 1.15) {
+    positionScore = 90; // Premium position (CB, WR)
+  } else if (positionCoefficient >= 1.0) {
+    positionScore = 85; // Standard value position
+  } else if (positionCoefficient >= 0.9) {
+    positionScore = 75; // Below average value position
   } else {
-    positionalValue = 80.0; // Specialists
+    positionScore = 70; // Devalued position (RB, etc.)
   }
   
-  // STEP 4: Calculate Weighted Pick Grade Score
-  double pickGradeScore = (bpaScore * 0.5) + (teamNeedLevel * 0.3) + (positionalValue * 0.2);
+  // ---- ROUND-BASED ADJUSTMENTS ----
+  double roundFactor = getRoundExpectationFactor(round);
   
-  // Store all factors for transparency
+  // ---- FINAL GRADE CALCULATION ----
+  // Weighted components (60% value, 30% need, 10% position)
+  Map<String, double> weights = getWeightsByPickContext(pickNumber);
+  
+  // Calculate weighted component scores
+  double weightedValueScore = valueScore * weights['value']!;
+  double weightedNeedScore = needScore * weights['need']!;
+  double weightedPositionScore = positionScore * weights['position']!;
+  
+  // Calculate preliminary numeric grade
+  double numericGrade = weightedValueScore + weightedNeedScore + weightedPositionScore;
+  
+  // Apply need boost for top needs to offset modest reaches
+  if (needIndex >= 0 && needIndex <= 2 && baseValueDiff < 0 && baseValueDiff > -20) {
+    // Apply boost only for top 3 needs when there was a modest reach
+    numericGrade = min(100, numericGrade + (5 - needIndex));
+  }
+  
+  // Apply reach penalty for significant reaches that aren't for top needs
+  if (baseValueDiff < -20 && (needIndex < 0 || needIndex > 2)) {
+    numericGrade = max(40, numericGrade - 10);
+  }
+  
+  // Apply early round premium positions bonus
+  if (round <= 2 && positionCoefficient >= 1.3) {
+    numericGrade = min(100, numericGrade + 2);
+  }
+  
+  // Apply premium for truly exceptional value
+  if (baseValueDiff > 20) {
+    numericGrade = min(100, numericGrade + 3);
+  }
+  
+  // Final round-appropriate floor (worse grades in early rounds, more forgiving later)
+  double roundFloor;
+  if (round == 1) roundFloor = 35; // First round can get D/F for terrible value
+  else if (round == 2) roundFloor = 40;
+  else if (round == 3) roundFloor = 45;
+  else roundFloor = 50; // Later rounds don't go below F
+  
+  numericGrade = max(numericGrade, roundFloor);
+  
+  // Convert to letter grade with NFL draft analyst style distribution
+  String letterGrade = getLetterGrade(numericGrade);
+  
+  // Color score for visualizations (0-100)
+  int colorScore = numericGrade.round();
+  
+  // Store all calculation factors for transparency
   Map<String, dynamic> factors = {
-    'bpaDelta': bpaDelta,
-    'bpaScore': bpaScore,
+    'baseValueDiff': baseValueDiff,
+    'valueRatio': valueRatio,
+    'valueScore': valueScore,
+    'needScore': needScore,
+    'needFactor': needFactor,
     'needIndex': needIndex,
-    'teamNeedLevel': teamNeedLevel,
-    'positionalValue': positionalValue,
-    'pickGradeScore': pickGradeScore
+    'positionScore': positionScore,
+    'positionCoefficient': positionCoefficient,
+    'draftValueDiff': (projectedPickValue / pickValue) - 1.0,
+    'pickValue': pickValue,
+    'projectedPickValue': projectedPickValue,
+    'roundFactor': roundFactor,
+    'round': round,
+    'weightedValueScore': weightedValueScore,
+    'weightedNeedScore': weightedNeedScore,
+    'weightedPositionScore': weightedPositionScore,
+    'roundFloor': roundFloor
   };
   
-  // Convert to letter grade and color score
-  String letterGrade = getLetterGrade(pickGradeScore);
-  
   return {
-    'grade': pickGradeScore,
+    'grade': numericGrade,
     'letter': letterGrade,
-    'value': bpaDelta,
-    'colorScore': pickGradeScore.round(),
+    'value': baseValueDiff,
+    'colorScore': colorScore,
     'factors': factors,
   };
 }
 
 /// Convert score to letter grade
 static String getLetterGrade(double score) {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'A-';
-  if (score >= 80) return 'B+';
-  if (score >= 75) return 'B';
-  if (score >= 70) return 'B-';
-  if (score >= 65) return 'C+';
-  if (score >= 60) return 'C';
-  if (score >= 50) return 'D';
+  if (score >= 97) return 'A+';
+  if (score >= 93) return 'A';
+  if (score >= 90) return 'A-';
+  if (score >= 87) return 'B+';
+  if (score >= 83) return 'B';
+  if (score >= 80) return 'B-';
+  if (score >= 77) return 'C+';
+  if (score >= 73) return 'C';
+  if (score >= 70) return 'C-';
+  if (score >= 67) return 'D+';
+  if (score >= 63) return 'D';
+  if (score >= 60) return 'D-';
   return 'F';
 }
 
@@ -356,14 +449,17 @@ static int _getColorScoreFromScore(double score) {
   
   /// Get color for grade display
   static Color getGradeColor(String grade, [double opacity = 1.0]) {
-    if (grade.startsWith('A+')) return Colors.green.shade700.withOpacity(opacity);
-    if (grade.startsWith('A')) return Colors.green.shade600.withOpacity(opacity);
-    if (grade.startsWith('B+')) return Colors.blue.shade700.withOpacity(opacity);
-    if (grade.startsWith('B')) return Colors.blue.shade600.withOpacity(opacity);
-    if (grade.startsWith('C+')) return Colors.orange.shade700.withOpacity(opacity);
-    if (grade.startsWith('C')) return Colors.orange.shade600.withOpacity(opacity);
+    if (grade.startsWith('A+')) return Colors.blue.shade900.withOpacity(opacity);
+    if (grade.startsWith('A-')) return Colors.blue.shade600.withOpacity(opacity);
+    if (grade.startsWith('A')) return Colors.blue.shade700.withOpacity(opacity);
+    if (grade.startsWith('B+')) return Colors.green.shade800.withOpacity(opacity);
+    if (grade.startsWith('B-')) return Colors.green.shade600.withOpacity(opacity);
+    if (grade.startsWith('B')) return Colors.green.shade700.withOpacity(opacity);
+    if (grade.startsWith('C+')) return Colors.yellow.shade700.withOpacity(opacity);
+    if (grade.startsWith('C-')) return Colors.amber.shade800.withOpacity(opacity);
+    if (grade.startsWith('C')) return Colors.amber.shade600.withOpacity(opacity);
     if (grade.startsWith('D+')) return Colors.deepOrange.shade700.withOpacity(opacity);
-    if (grade.startsWith('D')) return Colors.deepOrange.shade600.withOpacity(opacity);
+    if (grade.startsWith('D')) return Colors.deepOrange.shade900.withOpacity(opacity);
     return Colors.red.shade700.withOpacity(opacity); // F
   }
 }
