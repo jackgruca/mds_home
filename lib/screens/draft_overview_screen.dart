@@ -41,6 +41,7 @@ class DraftApp extends StatefulWidget {
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
   final bool showAnalytics;
+  
 
   const DraftApp({
     super.key,
