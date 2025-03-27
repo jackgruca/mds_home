@@ -110,14 +110,26 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                   _buildPendingOffersTab(_getAllPendingOffers()),
                   
                   // Create trade tab
-                  UserTradeProposalDialog(
-                    userTeam: widget.userTeam,
-                    userPicks: widget.userPicks,
-                    targetPicks: widget.targetPicks,
-                    onPropose: widget.onPropose,
-                    onCancel: () {}, // Empty since we're using the dialog's close button
-                    isEmbedded: true, // This flag makes it fit within the tab
-                  ),
+                  Container(
+  color: Colors.grey.withOpacity(0.1), // Add a background color to see the container
+  child: Column(
+    children: [
+      // Add a debug text to confirm the tab is rendering
+      Text("Debug: Create Trade Tab Content - ${widget.userPicks.length} user picks, ${widget.targetPicks.length} target picks"),
+      // The existing UserTradeProposalDialog
+      Expanded(
+        child: UserTradeProposalDialog(
+          userTeam: widget.userTeam,
+          userPicks: widget.userPicks,
+          targetPicks: widget.targetPicks,
+          onPropose: widget.onPropose,
+          onCancel: () {}, // Empty since we're using the dialog's close button
+          isEmbedded: true, // This flag makes it fit within the tab
+        ),
+      ),
+    ],
+  ),
+),
                 ],
               ),
             ),
