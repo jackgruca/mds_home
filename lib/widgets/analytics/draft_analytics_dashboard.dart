@@ -481,23 +481,23 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
 // Add this helper method for gradient colors
 Color _getGradientColor(int score, double opacity) {
   // A grades (green)
-  if (score > 95) return Colors.green.shade700.withOpacity(opacity);  // A+
-  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
-  if (score >= 90) return Colors.green.shade500.withOpacity(opacity);  // A-
+  if (score > 95) return Colors.blue.shade800.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.blue.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.blue.shade400.withOpacity(opacity);  // A-
   
-  // B grades (blue)
-  if (score > 85) return Colors.blue.shade700.withOpacity(opacity);   // B+
-  if (score == 85) return Colors.blue.shade600.withOpacity(opacity);   // B
-  if (score >= 80) return Colors.blue.shade500.withOpacity(opacity);   // B-
+  // B grades (SHOULD ALL BE GREEN shades)
+  if (score > 86) return Colors.green.shade800.withOpacity(opacity);   // B+
+  if (score >= 84 && score <= 86) return Colors.green.shade600.withOpacity(opacity);   // B
+  if (score >= 80) return Colors.green.shade400.withOpacity(opacity);   // B-
   
-  // C grades (yellow)
-  if (score > 75) return Colors.amber.shade500.withOpacity(opacity);  // C+
-  if (score == 75) return Colors.amber.shade600.withOpacity(opacity);  // C
-  if (score >= 70) return Colors.amber.shade700.withOpacity(opacity);  // C-
+  // C grades (yellow/amber)
+  if (score > 76) return Colors.amber.shade400.withOpacity(opacity);  // C+
+  if (score >= 74 && score <= 76) return Colors.amber.shade600.withOpacity(opacity);  // C
+  if (score >= 70) return Colors.amber.shade800.withOpacity(opacity);  // C-
 
   // D grades (orange)
-  if (score >= 60) return Colors.amber.shade900.withOpacity(opacity);  // C-
-
+  if (score >= 60) return Colors.orange.shade800.withOpacity(opacity);  // D+/D
+  
   // F grades (red)
   if (score >= 30) return Colors.red.shade600.withOpacity(opacity);    // D+/D
   return Colors.red.shade700.withOpacity(opacity);                     // F
