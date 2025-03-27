@@ -1,11 +1,14 @@
 // lib/services/draft_grade_service.dart
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_value_service.dart';
+import 'draft_pick_grade_service.dart';
 
 /// Service responsible for calculating draft pick and team grades
 class DraftGradeService {
@@ -108,98 +111,125 @@ class DraftGradeService {
     };
   }
 
-  /// Calculate team overall grade with a comprehensive approach
-  static Map<String, dynamic> calculateTeamGrade(
-    List<DraftPick> picks,
-    List<TradePackage> trades,
-    List<TeamNeed> teamNeeds
-  ) {
-    if (picks.isEmpty) {
-      return {
-        'grade': 'N/A',
-        'value': 0.0,
-        'description': 'No picks made',
-        'letterGrade': 'N/A',
-        'factors': {},
-      };
-    }
+  // lib/services/draft_grade_service.dart
 
-    // Get team name from first pick
-    String teamName = picks.first.teamName;
-    
-    // 1. Calculate grades for each pick
-    double totalPickValue = 0;
-    double weightedTotal = 0;
-    double weightSum = 0;
-    List<Map<String, dynamic>> pickGrades = [];
-    
-    for (var pick in picks) {
-      if (pick.selectedPlayer == null) continue;
-      
-      // Get the grade for this pick
-      Map<String, dynamic> gradeInfo = calculatePickGrade(pick, teamNeeds);
-      pickGrades.add(gradeInfo);
-      
-      // Calculate the weight based on pick position (earlier picks matter more)
-      double pickWeight = getPickWeight(pick.pickNumber);
-      weightSum += pickWeight;
-      
-      // Add to weighted total
-      weightedTotal += gradeInfo['grade'] * pickWeight;
-      totalPickValue += gradeInfo['grade'];
-    }
-    
-    // Calculate weighted average of pick grades
-    double avgPickValue = weightSum > 0 ? weightedTotal / weightSum : 0;
-    
-    // 2. Calculate trade value
-    double tradeValue = 0;
-    double tradeWeight = 0.3; // How much to weight trades vs. picks
-    
-    for (var trade in trades) {
-      if (trade.teamOffering == teamName) {
-        tradeValue -= trade.valueDifferential / 100; // Scale trade value
-      } else if (trade.teamReceiving == teamName) {
-        tradeValue += trade.valueDifferential / 100;
-      }
-    }
-    
-    // 3. Calculate needs satisfaction score
-    double needsSatisfactionScore = calculateNeedsSatisfactionScore(picks, teamNeeds);
-    double needsWeight = 0.2; // How much to weight needs satisfaction
-    
-    // 4. Combine all factors for final grade
-    double finalGrade = (avgPickValue * (1 - tradeWeight - needsWeight)) + 
-                       (tradeValue * tradeWeight) + 
-                       (needsSatisfactionScore * needsWeight);
-    
-    // Store factors for transparency
-    Map<String, dynamic> factors = {
-      'avgPickValue': avgPickValue,
-      'totalPickValue': totalPickValue,
-      'tradeValue': tradeValue,
-      'tradeWeight': tradeWeight,
-      'needsSatisfactionScore': needsSatisfactionScore,
-      'needsWeight': needsWeight,
-      'pickCount': picks.length,
-      'tradeCount': trades.length,
-    };
-    
-    // Convert to letter grade
-    String letterGrade = getTeamLetterGrade(finalGrade);
-    
-    // Generate description
-    String description = generateTeamGradeDescription(letterGrade, factors);
-    
+/// Calculate team overall grade based on weighted pick scores
+static Map<String, dynamic> calculateTeamGrade(
+  List<DraftPick> picks,
+  List<TradePackage> trades,
+  List<TeamNeed> teamNeeds
+) {
+  if (picks.isEmpty) {
     return {
-      'grade': letterGrade,
-      'value': finalGrade,
-      'description': description,
-      'letterGrade': letterGrade,
-      'pickCount': picks.length,
-      'factors': factors,
+      'grade': 'N/A',
+      'value': 0.0,
+      'description': 'No picks made',
+      'letterGrade': 'N/A',
+      'pickCount': 0,
+      'factors': {},
     };
   }
+
+  // Define round weights
+  Map<int, double> roundWeights = {
+    1: 1.0,
+    2: 0.8,
+    3: 0.6,
+    4: 0.4,
+    5: 0.3,
+    6: 0.2,
+    7: 0.1
+  };
+  
+  // Calculate weighted average of pick grades
+  double totalWeightedScore = 0.0;
+  double totalWeight = 0.0;
+  List<Map<String, dynamic>> pickGrades = [];
+  
+  for (var pick in picks) {
+    if (pick.selectedPlayer == null) continue;
+    
+    // Get individual pick grade
+    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
+    pickGrades.add(gradeInfo);
+    
+    // Get round number (from pick or calculate it)
+    int round = int.tryParse(pick.round) ?? DraftValueService.getRoundForPick(pick.pickNumber);
+    
+    // Get weight for this round (default to 0.1 for later rounds)
+    double weight = roundWeights[round] ?? 0.1;
+    
+    // Add to weighted total
+    totalWeight += weight;
+    totalWeightedScore += gradeInfo['grade'] * weight;
+  }
+  
+  // Calculate final team grade score
+  double teamGradeScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0.0;
+  
+  // Store all factors for transparency
+  Map<String, dynamic> factors = {
+    'pickGrades': pickGrades,
+    'teamGradeScore': teamGradeScore,
+    'pickCount': picks.length,
+    'tradeCount': trades.length,
+  };
+  
+  // Get letter grade and description
+  String letterGrade = DraftPickGradeService.getLetterGrade(teamGradeScore);
+  String description = generateTeamGradeDescription(letterGrade, factors);
+  
+  return {
+    'grade': letterGrade,
+    'value': teamGradeScore,
+    'description': description,
+    'letterGrade': letterGrade,
+    'pickCount': picks.length,
+    'factors': factors,
+  };
+}
+
+/// Generate description based on team grade
+static String generateTeamGradeDescription(
+  String grade, 
+  Map<String, dynamic> factors
+) {
+  if (grade.startsWith('A+')) {
+    return 'Outstanding draft with exceptional value and need fulfillment';
+  } else if (grade.startsWith('A')) {
+    return 'Excellent draft with great value picks and strong team fits';
+  } else if (grade.startsWith('B+')) {
+    return 'Very good draft with solid value and effective need fulfillment';
+  } else if (grade.startsWith('B')) {
+    return 'Good draft with solid picks addressing key team needs';
+  } else if (grade.startsWith('C+')) {
+    return 'Above average draft with some good picks but room for improvement';
+  } else if (grade.startsWith('C')) {
+    return 'Average draft with a mix of good selections and missed opportunities';
+  } else if (grade.startsWith('D')) {
+    return 'Below average draft with several reaches or poor value selections';
+  } else {
+    return 'Poor draft with significant reaches and missed opportunities';
+  }
+}
+
+/// Get weight factor for pick based on position
+/// Earlier picks should have more weight in team grade
+static double getPickWeight(int pickNumber) {
+  if (pickNumber <= 10) return 3.0;      // Top 10 picks
+  if (pickNumber <= 32) return 2.0;      // 1st round
+  if (pickNumber <= 64) return 1.5;      // 2nd round
+  if (pickNumber <= 105) return 1.0;     // 3rd round
+  if (pickNumber <= 148) return 0.7;     // 4th round
+  if (pickNumber <= 179) return 0.5;     // 5th round
+  if (pickNumber <= 220) return 0.3;     // 6th round
+  return 0.2;                            // 7th round and later
+}
+
+/// Convert numeric grade to letter grade for team overall
+static String getTeamLetterGrade(double value) {
+  return DraftPickGradeService.getLetterGrade(value);
+}
 
   /// Calculate how well a team addressed their needs
   static double calculateNeedsSatisfactionScore(
@@ -256,18 +286,6 @@ class DraftGradeService {
     }
   }
 
-  /// Get pick weight for calculating team grade
-  static double getPickWeight(int pickNumber) {
-    // Earlier picks should have more weight in the team grade
-    if (pickNumber <= 32) return 1.0;      // 1st round
-    if (pickNumber <= 64) return 0.8;      // 2nd round
-    if (pickNumber <= 96) return 0.6;      // 3rd round
-    if (pickNumber <= 128) return 0.4;     // 4th round
-    if (pickNumber <= 160) return 0.3;     // 5th round
-    if (pickNumber <= 192) return 0.2;     // 6th round
-    return 0.1;                            // 7th round and later
-  }
-
   /// Convert numeric grade to letter grade for individual picks
   static String getLetterGrade(double value) {
     if (value >= 25) return 'A+';
@@ -278,41 +296,5 @@ class DraftGradeService {
     if (value >= 0) return 'C';
     if (value >= -10) return 'D';
     return 'F';
-  }
-
-  /// Convert numeric grade to letter grade for team overall
-  static String getTeamLetterGrade(double value) {
-    if (value >= 15) return 'A+';
-    if (value >= 10) return 'A';
-    if (value >= 5) return 'B+';
-    if (value >= 0) return 'B';
-    if (value >= -5) return 'C+';
-    if (value >= -10) return 'C';
-    if (value >= -15) return 'D';
-    return 'F';
-  }
-
-  /// Generate description based on team grade
-  static String generateTeamGradeDescription(
-    String grade, 
-    Map<String, dynamic> factors
-  ) {
-    if (grade.startsWith('A+')) {
-      return 'Outstanding draft with exceptional value and need fulfillment';
-    } else if (grade.startsWith('A')) {
-      return 'Excellent draft with great value picks and strategic trades';
-    } else if (grade.startsWith('B+')) {
-      return 'Very good draft with solid value and good need fulfillment';
-    } else if (grade.startsWith('B')) {
-      return 'Solid draft with good value picks addressing team needs';
-    } else if (grade.startsWith('C+')) {
-      return 'Average draft with some good picks but missed opportunities';
-    } else if (grade.startsWith('C')) {
-      return 'Below average draft with several reaches or missed needs';
-    } else if (grade.startsWith('D')) {
-      return 'Poor draft with significant reaches and unfilled needs';
-    } else {
-      return 'Very poor draft with major reaches and strategic errors';
-    }
   }
 }
