@@ -9,6 +9,7 @@ import '../services/draft_value_service.dart';
 import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
 import '../services/draft_pick_grade_service.dart';
+import '../widgets/common/export_button_widget.dart';
 
 
 class DraftSummaryScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class DraftSummaryScreen extends StatefulWidget {
 class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   String? _selectedTeam;
   int _selectedRound = 1; 
+  final GlobalKey _screenshotKey = GlobalKey(); // Add this line
 
   // Calculate pick grade based on value differential
 Map<String, dynamic> _calculateDetailedPickGrade(DraftPick pick, List<TeamNeed> teamNeeds) {
@@ -332,7 +334,9 @@ Widget build(BuildContext context) {
     ),
     elevation: 8,
     backgroundColor: isDarkMode ? Colors.grey.shade900 : Colors.white,
-    child: Container(
+    child: RepaintBoundary( // Add this line
+      key: _screenshotKey, // Add this line
+      child: Container(
       width: dialogWidth,
       height: dialogHeight,
       padding: const EdgeInsets.all(0),
@@ -340,33 +344,46 @@ Widget build(BuildContext context) {
         children: [
           // Custom header with title and close button
           Container(
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.blue.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16.0),
-                topRight: Radius.circular(16.0),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Reduced vertical padding
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Draft Summary',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.0, // Reduced font size
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18), // Smaller icon
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
+  decoration: BoxDecoration(
+    color: isDarkMode ? Colors.grey.shade800 : Colors.blue.shade50,
+    borderRadius: const BorderRadius.only(
+      topLeft: Radius.circular(16.0),
+      topRight: Radius.circular(16.0),
+    ),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      const Text(
+        'Draft Summary',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16.0,
+        ),
+      ),
+      Row(
+        children: [
+          // Add Export Button
+          ExportButtonWidget(
+            completedPicks: widget.completedPicks,
+            teamNeeds: widget.teamNeeds,
+            userTeam: widget.userTeam,
+            executedTrades: widget.executedTrades,
+            filterTeam: _selectedTeam,
           ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+         ],
+      ),
+    ],
+  ),
+),
           
           // More compact team filter dropdown
           Container(
@@ -424,6 +441,7 @@ Widget build(BuildContext context) {
           ),
         ],
       ),
+    ),
     ),
   );
 }
