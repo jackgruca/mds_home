@@ -690,7 +690,59 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   ],
                 ),
               ),
-              
+
+              const SizedBox(height: 8),
+
+              // Progress bar
+              Container(
+                height: 10,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? 
+                        Colors.grey.shade800 : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Stack(
+                  children: [
+                    FractionallySizedBox(
+                      widthFactor: _totalOfferedValue > 0 && _targetPickValue > 0 ? 
+                                  (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.5) : 0.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _getTradeAdviceColor(),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Value info text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Your value: ${_totalOfferedValue.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark ? 
+                              Colors.grey.shade300 : Colors.grey.shade700,
+                      ),
+                    ),
+                    Text(
+                      'Their value: ${_targetPickValue.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark ? 
+                              Colors.grey.shade300 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Add the leverage indicator right here, after the trade advice container
               if (widget.hasLeverage) 
                 Container(
