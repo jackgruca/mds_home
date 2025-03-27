@@ -658,6 +658,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             children: [
               // Progress bar, trade values, etc.
               
+              
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
@@ -729,10 +730,17 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
               const SizedBox(height: 8),
               
               // Propose button
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Button code
+                  ElevatedButton(
+                    onPressed: _canProposeTrade() ? _proposeTrade : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getTradeAdviceColor(),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Propose Trade'),
+                  ),
                 ],
               ),
             ],
