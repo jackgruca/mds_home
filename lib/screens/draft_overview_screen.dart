@@ -1057,9 +1057,9 @@ void _showPlayerSelectionDialog(DraftPick pick) {
 // Helper method to get gradient color based on score
 Color _getGradientColor(int score, double opacity) {
   // A grades (green)
-  if (score > 95) return Colors.green.shade800.withOpacity(opacity);  // A+
-  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
-  if (score >= 90) return Colors.green.shade400.withOpacity(opacity);  // A-
+  if (score > 95) return Colors.blue.shade800.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.blue.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.blue.shade400.withOpacity(opacity);  // A-
   
   // B grades (SHOULD ALL BE GREEN shades)
   if (score > 86) return Colors.green.shade800.withOpacity(opacity);   // B+

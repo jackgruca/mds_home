@@ -705,9 +705,9 @@ Widget _buildRoundSummary(int round) {
 // Add this helper method to get a color for the gradient based on the score
 Color _getGradientColor(int score, double opacity) {
   // A grades (green)
-  if (score > 95) return Colors.green.shade800.withOpacity(opacity);  // A+
-  if (score == 95) return Colors.green.shade600.withOpacity(opacity);  // A
-  if (score >= 90) return Colors.green.shade400.withOpacity(opacity);  // A-
+  if (score > 95) return Colors.blue.shade800.withOpacity(opacity);  // A+
+  if (score == 95) return Colors.blue.shade600.withOpacity(opacity);  // A
+  if (score >= 90) return Colors.blue.shade400.withOpacity(opacity);  // A-
   
   // B grades (SHOULD ALL BE GREEN shades)
   if (score > 86) return Colors.green.shade800.withOpacity(opacity);   // B+

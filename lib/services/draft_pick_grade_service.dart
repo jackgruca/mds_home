@@ -171,19 +171,19 @@ class DraftPickGradeService {
   
   /// Get color score for gradients (0-100)
   static int getColorScore(double score) {
-  // Convert score to 0-100 scale for color gradients with new thresholds
-  if (score >= 8) return 100;      // A+
-  if (score >= 6) return 95;        // A
-  if (score >= 4) return 90;        // A-
-  if (score >= 2) return 85;        // B+
-  if (score >= 0) return 80;        // B
-  if (score >= -2) return 75;        // B-
-  if (score >= -4) return 65;       // C+
-  if (score >= -6) return 60;       // C
-  if (score >= -8) return 55;       // C-
-  if (score >= -10) return 45;       // D+
-  if (score >= -12) return 30;      // D
-  return 10;                        // F
+  // Convert score to 0-100 scale for color gradients
+  if (score >= 8) return 96;       // A+ (>95)
+  if (score >= 6) return 95;       // A (==95)
+  if (score >= 4) return 92;       // A- (>=90)
+  if (score >= 2) return 87;       // B+ (>86)
+  if (score >= 0) return 85;       // B (>=84 && <=86)
+  if (score >= -2) return 82;      // B- (>=80)
+  if (score >= -4) return 77;      // C+ (>76)
+  if (score >= -6) return 75;      // C (>=74 && <=76)
+  if (score >= -8) return 71;      // C- (>=70)
+  if (score >= -10) return 65;     // D+ (>=60)
+  if (score >= -12) return 40;     // D (>=30)
+  return 20;                       // F
 }
 
   /// Generate pick grade description
@@ -235,21 +235,22 @@ class DraftPickGradeService {
   
   /// Get color for grade display
   static Color getGradeColor(String grade, [double opacity = 1.0]) {
-    if (grade.startsWith('A+')) return Colors.green.shade700.withOpacity(opacity);
-    if (grade.startsWith('A')) return Colors.green.shade600.withOpacity(opacity);
-    
-    // Make all B grades green with different shades
-    if (grade.startsWith('B+')) return Colors.green.shade500.withOpacity(opacity);
-    if (grade.startsWith('B-')) return Colors.green.shade300.withOpacity(opacity);
-    if (grade.startsWith('B')) return Colors.green.shade400.withOpacity(opacity);
-    
-    if (grade.startsWith('C+')) return Colors.amber.shade500.withOpacity(opacity);
-    if (grade.startsWith('C-')) return Colors.amber.shade700.withOpacity(opacity);
-    if (grade.startsWith('C')) return Colors.amber.shade600.withOpacity(opacity);
-    
-    if (grade.startsWith('D+')) return Colors.deepOrange.shade700.withOpacity(opacity);
-    if (grade.startsWith('D')) return Colors.deepOrange.shade800.withOpacity(opacity);
-    
-    return Colors.red.shade700.withOpacity(opacity); // F
-  }
+  if (grade.startsWith('A+')) return Colors.blue.shade800.withOpacity(opacity);
+  if (grade.startsWith('A-')) return Colors.blue.shade400.withOpacity(opacity);
+  if (grade.startsWith('A')) return Colors.blue.shade600.withOpacity(opacity);
+  
+  // Make all B grades green with different shades
+  if (grade.startsWith('B+')) return Colors.green.shade800.withOpacity(opacity);
+  if (grade.startsWith('B-')) return Colors.green.shade400.withOpacity(opacity);
+  if (grade.startsWith('B')) return Colors.green.shade600.withOpacity(opacity);
+  
+  if (grade.startsWith('C+')) return Colors.amber.shade400.withOpacity(opacity);
+  if (grade.startsWith('C-')) return Colors.amber.shade800.withOpacity(opacity);
+  if (grade.startsWith('C')) return Colors.amber.shade600.withOpacity(opacity);
+  
+  if (grade.startsWith('D+')) return Colors.orange.shade700.withOpacity(opacity);
+  if (grade.startsWith('D')) return Colors.orange.shade800.withOpacity(opacity);
+  
+  return Colors.red.shade700.withOpacity(opacity); // F
+}
 }
