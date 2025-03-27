@@ -10,6 +10,7 @@ import '../../models/team_need.dart';
 import '../../services/draft_pick_grade_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import '../common/export_button_widget.dart';
 
 
 class DraftAnalyticsDashboard extends StatefulWidget {
@@ -744,7 +745,7 @@ Widget build(BuildContext context) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Add the Round Summary section at the top
-        _buildSectionHeader("Round-by-Round Summary"),
+        _buildSectionHeader("Round-by-Round Summary", showExportButton: true),
         _buildRoundSummary(),
         
         const SizedBox(height: 16), // Reduced spacing from 24
@@ -781,16 +782,29 @@ Widget build(BuildContext context) {
   );
 }
 
-Widget _buildSectionHeader(String title) {
+Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 6.0), // Reduced from 8.0
-    child: Text(
-      title,
-      style: TextStyle(
-        fontSize: 16, // Reduced from 18
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).primaryColor,
-      ),
+    padding: const EdgeInsets.only(bottom: 6.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        if (showExportButton)
+          ExportButtonWidget(
+            completedPicks: widget.completedPicks,
+            teamNeeds: widget.teamNeeds,
+            userTeam: widget.userTeam,
+            executedTrades: widget.executedTrades,
+            filterTeam: "All Teams",
+          ),
+      ],
     ),
   );
 }
