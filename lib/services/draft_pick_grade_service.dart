@@ -237,12 +237,19 @@ class DraftPickGradeService {
   static Color getGradeColor(String grade, [double opacity = 1.0]) {
     if (grade.startsWith('A+')) return Colors.green.shade700.withOpacity(opacity);
     if (grade.startsWith('A')) return Colors.green.shade600.withOpacity(opacity);
-    if (grade.startsWith('B+')) return Colors.blue.shade700.withOpacity(opacity);
-    if (grade.startsWith('B')) return Colors.blue.shade600.withOpacity(opacity);
-    if (grade.startsWith('C+')) return Colors.orange.shade700.withOpacity(opacity);
-    if (grade.startsWith('C')) return Colors.orange.shade600.withOpacity(opacity);
+    
+    // Make all B grades green with different shades
+    if (grade.startsWith('B+')) return Colors.green.shade500.withOpacity(opacity);
+    if (grade.startsWith('B-')) return Colors.green.shade300.withOpacity(opacity);
+    if (grade.startsWith('B')) return Colors.green.shade400.withOpacity(opacity);
+    
+    if (grade.startsWith('C+')) return Colors.amber.shade500.withOpacity(opacity);
+    if (grade.startsWith('C-')) return Colors.amber.shade700.withOpacity(opacity);
+    if (grade.startsWith('C')) return Colors.amber.shade600.withOpacity(opacity);
+    
     if (grade.startsWith('D+')) return Colors.deepOrange.shade700.withOpacity(opacity);
-    if (grade.startsWith('D')) return Colors.deepOrange.shade600.withOpacity(opacity);
+    if (grade.startsWith('D')) return Colors.deepOrange.shade800.withOpacity(opacity);
+    
     return Colors.red.shade700.withOpacity(opacity); // F
   }
 }
