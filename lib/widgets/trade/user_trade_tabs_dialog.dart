@@ -267,7 +267,19 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                       width: 30,
                       child: IconButton(
                         onPressed: () {
-                          Navigator.of(context).pop();
+                          // Remove this offer from the pending offers
+                          if (widget.pendingOffers.containsKey(offer.targetPick.pickNumber)) {
+                            setState(() {
+                              widget.pendingOffers[offer.targetPick.pickNumber]!.removeWhere(
+                                (o) => o.teamOffering == offer.teamOffering && o.targetPick.pickNumber == offer.targetPick.pickNumber
+                              );
+                              
+                              // If no more offers for this pick, remove the entry
+                              if (widget.pendingOffers[offer.targetPick.pickNumber]!.isEmpty) {
+                                widget.pendingOffers.remove(offer.targetPick.pickNumber);
+                              }
+                            });
+                          }
                         },
                         icon: const Icon(Icons.cancel, size: 20),
                         color: Colors.red,
