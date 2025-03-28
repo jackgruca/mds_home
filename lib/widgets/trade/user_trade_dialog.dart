@@ -15,6 +15,7 @@ class UserTradeProposalDialog extends StatefulWidget {
   final VoidCallback onCancel;
   final bool isEmbedded;
   final bool hasLeverage; // New parameter
+  final VoidCallback? onBack;
 
   const UserTradeProposalDialog({
     super.key,
@@ -27,6 +28,7 @@ class UserTradeProposalDialog extends StatefulWidget {
     this.initialSelectedTargetPicks, 
     this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
+    this.onBack,
   });
 
   @override
@@ -657,8 +659,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Progress bar, trade values, etc.
-              
-              
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
@@ -694,27 +694,29 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
               const SizedBox(height: 8),
 
               // Progress bar
-              Container(
-                height: 10,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? 
-                        Colors.grey.shade800 : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Stack(
-                  children: [
-                    FractionallySizedBox(
-                      widthFactor: _totalOfferedValue > 0 && _targetPickValue > 0 ? 
-                                  (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.5) : 0.0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _getTradeAdviceColor(),
-                          borderRadius: BorderRadius.circular(5),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark ? 
+                          Colors.grey.shade800 : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Stack(
+                    children: [
+                      FractionallySizedBox(
+                        widthFactor: _totalOfferedValue > 0 && _targetPickValue > 0 ? 
+                                    (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.5) : 0.0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _getTradeAdviceColor(),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -814,6 +816,18 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
         height: 480,
         child: content,
       ),
+      // Use these buttons instead to avoid duplication
+      actions: [
+        if (widget.onBack != null)
+          TextButton(
+            onPressed: widget.onBack,
+            child: const Text('Back to Offers'),
+          ),
+        TextButton(
+          onPressed: widget.onCancel,
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
   
