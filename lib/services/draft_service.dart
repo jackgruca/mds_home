@@ -17,7 +17,34 @@ import 'rival_detector.dart';
 import 'trade_dialog_generator.dart';
 import '../models/trade_motivation.dart';
 
-// ... Keep the rest of the imports
+class TradeHistoryEntry {
+  final TradePackage tradePackage;
+  final DateTime timestamp;
+  final String narrative;
+  final TradeMotivation? motivation;
+  
+  TradeHistoryEntry({
+    required this.tradePackage,
+    required this.timestamp,
+    required this.narrative,
+    this.motivation,
+  });
+  
+  // Get a formatted timestamp
+  String get formattedTime {
+    return "${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}";
+  }
+  
+  // Get a short summary
+  String get summary {
+    return "Pick #${tradePackage.targetPick.pickNumber}: ${tradePackage.teamOffering} ↔ ${tradePackage.teamReceiving}";
+  }
+  
+  // Get the primary motivation
+  String get primaryMotivation {
+    return motivation?.primaryMotivation ?? "General trade interest";
+  }
+}
 
 /// Handles the logic for the draft simulation with enhanced trade integration
 class DraftService {
@@ -64,6 +91,8 @@ class DraftService {
   
   // Random instance
   final Random _random = Random();
+
+  final List<TradeHistoryEntry> _tradeHistory = [];
 
   DraftService({
     required this.availablePlayers,
@@ -265,8 +294,102 @@ class DraftService {
       }
     }
     
-    _executedTrades.add(package);
+  TradeMotivation? motivation = _tradeManager.getTradeMotivation(package.teamOffering);
+  String narrative = _dialogueGenerator.generateAITradeDialogue(package, motivation);
+  
+  // Add to trade history
+  _tradeHistory.add(TradeHistoryEntry(
+    tradePackage: package,
+    timestamp: DateTime.now(),
+    narrative: narrative,
+    motivation: motivation,
+  ));
+  
+  _executedTrades.add(package);
+}
+
+// Add this getter
+List<TradeHistoryEntry> get tradeHistory => _tradeHistory;
+
+// Add this method to get detailed trade info
+Map<String, dynamic> getTradeDetails(TradePackage package) {
+  // Get motivation if available
+  TradeMotivation? motivation = _tradeManager.getTradeMotivation(package.teamOffering);
+  
+  // Get pros and cons
+  Map<String, List<String>> prosCons = _generateTradeProsCons(package);
+  
+  return {
+    'package': package,
+    'motivation': motivation,
+    'recommendation': getRecommendedAction(package),
+    'valueRatio': (package.totalValueOffered / package.targetPickValue).toStringAsFixed(2),
+    'pros': prosCons['pros'] ?? [],
+    'cons': prosCons['cons'] ?? [],
+    'isUserInvolved': (userTeams?.contains(package.teamOffering) ?? false) || (userTeams?.contains(package.teamReceiving) ?? false),
+  };
+}
+
+// Add a method to generate pros and cons
+Map<String, List<String>> _generateTradeProsCons(TradePackage package) {
+  List<String> pros = [];
+  List<String> cons = [];
+  
+  // Calculate key metrics
+  double valueRatio = package.totalValueOffered / package.targetPickValue;
+  int pickGap = package.picksOffered.isEmpty ? 0 : 
+                package.picksOffered.first.pickNumber - package.targetPick.pickNumber;
+  int picksGiven = package.picksOffered.length;
+  int picksReceived = 1 + package.additionalTargetPicks.length;
+  
+  // Value-based analysis
+  if (valueRatio >= 1.15) {
+    pros.add("Receiving ${((valueRatio - 1.0) * 100).toInt()}% more draft value than giving up");
+  } else if (valueRatio >= 1.0) {
+    pros.add("Receiving fair value according to standard draft charts");
+  } else if (valueRatio >= 0.9) {
+    cons.add("Giving up ${((1.0 - valueRatio) * 100).toInt()}% more draft value than receiving");
+  } else {
+    cons.add("Significant value loss of ${((1.0 - valueRatio) * 100).toInt()}% according to standard draft charts");
   }
+  
+  // Pick position analysis
+  if (package.targetPick.pickNumber <= 10) {
+    pros.add("Acquiring a premium top-10 pick with blue-chip potential");
+  } else if (package.targetPick.pickNumber <= 32) {
+    pros.add("Acquiring a first-round pick with potential starter value");
+  }
+  
+  if (package.picksOffered.any((pick) => pick.pickNumber <= 15)) {
+    cons.add("Trading away a valuable early pick (#${package.picksOffered.firstWhere((pick) => pick.pickNumber <= 15).pickNumber})");
+  }
+  
+  // Pick quantity analysis
+  if (picksGiven > picksReceived) {
+    cons.add("Giving up $picksGiven picks to receive $picksReceived picks");
+  } else if (picksReceived > picksGiven) {
+    pros.add("Receiving $picksReceived picks for only $picksGiven picks");
+  }
+  
+  // Future pick analysis
+  if (package.includesFuturePick) {
+    cons.add("Sacrificing future draft capital (${package.futurePickDescription})");
+  }
+  
+  // Add at least one pro and con if empty
+  if (pros.isEmpty) {
+    pros.add("Opportunity to target a specific player of need");
+  }
+  
+  if (cons.isEmpty) {
+    cons.add("Standard opportunity cost of the traded assets");
+  }
+  
+  return {
+    'pros': pros,
+    'cons': cons,
+  };
+}
   
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
@@ -281,6 +404,9 @@ class DraftService {
     
     // Update window detector
     _windowDetector.recordSelection(player);
+
+    // Update trade manager with selection
+    _tradeManager.recordPlayerSelection(player);
     
     // Remove player from available players
     availablePlayers.remove(player);
@@ -290,11 +416,51 @@ class DraftService {
     
     // Track completed picks
     _completedPicks++;
+    _tradeManager.recordPickCompleted();
     
     // Set status message
     _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
   }
-  
+
+  /// Get trade analytics for the current draft state
+  Map<String, dynamic> getTradeAnalytics() {
+    Map<String, dynamic> analytics = {
+      'completedPicks': _completedPicks,
+      'totalPicks': draftOrder.length,
+      'trades': _executedTrades.length,
+      'tradePercentage': _completedPicks > 0 
+          ? '${(_executedTrades.length / _completedPicks * 100).toStringAsFixed(1)}%' 
+          : '0%',
+      'positionHeatMap': _positionTracker.getPositionHeatMap(),
+      'activeTradeWindows': _windowDetector.getActivePositionRuns(),
+      'tradeFrequencyStats': _tradeManager.getTradeFrequencyStats(),
+    };
+    
+    return analytics;
+  }
+
+  /// Get the recommended action for a trade package
+  String getRecommendedAction(TradePackage package) {
+    double valueRatio = package.totalValueOffered / package.targetPickValue;
+    
+    if (valueRatio >= 1.1) {
+      return "Accept - This is a very favorable deal";
+    } else if (valueRatio >= 1.0) {
+      return "Accept - This is a fair value deal";
+    } else if (valueRatio >= 0.95) {
+      return "Consider - The value is slightly below market rate";
+    } else if (valueRatio >= 0.9) {
+      return "Use Caution - The offer is below standard value charts";
+    } else {
+      return "Reject - This offer significantly undervalues your pick";
+    }
+  }
+
+  /// Get detailed trade log
+  String getTradeOperationLog() {
+    return _tradeManager.getTradeOperationLog();
+  }
+    
   /// Process a user trade proposal with enhanced system
   bool processUserTradeProposal(TradePackage proposal) {
     // Determine if the AI team should accept

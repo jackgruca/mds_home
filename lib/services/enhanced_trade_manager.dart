@@ -135,6 +135,10 @@ class EnhancedTradeManager {
       }
     }
   
+  TradeMotivation? getTradeMotivation(String team) {
+  return _cachedMotivations[team];
+}
+
   /// Generate trade offers for a specific pick with improved motivation and packaging
   TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
     _logTradeOperation('Generating offers for pick #$pickNumber${qbSpecific ? " (QB-specific)" : ""}', force: true);

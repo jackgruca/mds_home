@@ -45,6 +45,25 @@ class TradeWindowDetector {
     // Clear cached windows since they're now outdated
     _cachedWindows.clear();
   }
+
+  /// Get all active position runs
+  Map<String, int> getActivePositionRuns() {
+    Map<String, int> positionCounts = {};
+    int recentChecks = 0;
+    
+    // Count positions in the last 7 picks
+    for (var player in _recentSelections.toList().reversed) {
+      if (recentChecks >= 7) break;
+      recentChecks++;
+      
+      positionCounts[player.position] = (positionCounts[player.position] ?? 0) + 1;
+    }
+    
+    // Filter to only positions with 2+ selections
+    return Map.fromEntries(
+      positionCounts.entries.where((e) => e.value >= 2)
+    );
+  }
   
   /// Get active trade windows for the current pick
   List<TradeWindow> getTradeWindows(int pickNumber, List<Player> availablePlayers) {
