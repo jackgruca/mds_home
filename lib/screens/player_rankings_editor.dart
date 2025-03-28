@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/player.dart';
 import '../utils/team_logo_utils.dart';
+import '../services/csv_export_service.dart';
+import '../services/csv_import_service.dart';
 
 class PlayerRankingsEditor extends StatefulWidget {
   final List<List<dynamic>> playerRankings;
@@ -264,16 +266,50 @@ Widget build(BuildContext context) {
                 
                 const SizedBox(width: 8),
                 
-                // Batch adjustment button
+                // Import Button
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.tune, size: 16),
-                  label: const Text('Batch'),
+                  onPressed: _importFromCSV,
+                  icon: const Icon(Icons.upload_file, size: 12),
+                  label: const Text('Import'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
                     visualDensity: VisualDensity.compact,
                   ),
-                  onPressed: _showBatchAdjustmentDialog,
                 ),
+                const SizedBox(width: 8),
+                // Export Button
+                // ElevatedButton.icon(
+                //   onPressed: _exportToCSV,
+                //   icon: const Icon(Icons.download, size: 12),
+                //   label: const Text('Export'),
+                //   style: ElevatedButton.styleFrom(
+                //     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                //     visualDensity: VisualDensity.compact,
+                //   ),
+                // ),
+                // Help Button
+                IconButton(
+                  onPressed: _showFormatGuideDialog,
+                  icon: const Icon(Icons.help_outline),
+                  tooltip: 'CSV Format Guide',
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // Batch adjustment button
+                // ElevatedButton.icon(
+                //   icon: const Icon(Icons.tune, size: 16),
+                //   label: const Text('Batch'),
+                //   style: ElevatedButton.styleFrom(
+                //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                //     visualDensity: VisualDensity.compact,
+                //   ),
+                //   onPressed: _showBatchAdjustmentDialog,
+                // ),
                 
                 const SizedBox(width: 8),
                 
@@ -661,7 +697,7 @@ Widget build(BuildContext context) {
                   const Text('Direction:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 16),
                   ChoiceChip(
-                    label: const Text('Better Rank ↑'),
+                    label: const Text('Better ↑'),
                     selected: increaseRank,
                     onSelected: (selected) {
                       setState(() {
@@ -671,7 +707,7 @@ Widget build(BuildContext context) {
                   ),
                   const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('Worse Rank ↓'),
+                    label: const Text('Worse ↓'),
                     selected: !increaseRank,
                     onSelected: (selected) {
                       setState(() {
@@ -905,6 +941,180 @@ void _applyBatchAdjustment({
         ],
       );
     },
+  );
+}
+
+void _exportToCSV() {
+  if (!CsvExportService.isWebPlatform) {
+    CsvExportService.showPlatformWarning(context);
+    return;
+  }
+  
+  CsvExportService.exportToCsv(
+    data: _editablePlayerRankings,
+    filename: 'custom_player_rankings.csv',
+  );
+}
+
+Future<void> _importFromCSV() async {
+  List<List<dynamic>>? importedData = await CsvImportService.importFromCsv();
+  
+  if (importedData == null || importedData.isEmpty) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data imported')),
+      );
+    }
+    return;
+  }
+  
+  // Validate format
+  if (!CsvImportService.validatePlayerRankingsFormat(importedData)) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid player rankings format')),
+      );
+    }
+    return;
+  }
+  
+  // Show preview dialog with confirmation
+  if (mounted) {
+    _showCsvPreviewDialog(importedData, 'Player Rankings');
+    
+    // Ask user to confirm the import
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Import'),
+        content: Text('Import ${importedData.length - 1} player rankings?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              
+              setState(() {
+                _editablePlayerRankings = importedData;
+                _initializePlayers(); // Rebuild players from imported data
+              });
+              
+              // Notify parent
+              widget.onPlayerRankingsChanged(_editablePlayerRankings);
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Imported ${importedData.length - 1} player rankings')),
+              );
+            },
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showFormatGuideDialog() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Player Rankings CSV Format Guide'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Required columns:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('• ID - Player identifier number'),
+            const Text('• Name - Player full name'),
+            const Text('• Position - Player position code (e.g., "QB", "WR")'),
+            const Text('• School - Player college/school'),
+            const Text('• Rank - Player overall ranking'),
+            const SizedBox(height: 16),
+            const Text('Example format:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'ID,Name,Position,School,Notes,Rank\n'
+                '1,John Smith,QB,Alabama,,1\n'
+                '2,Mike Johnson,WR,Ohio State,,2\n'
+                '3,Chris Williams,EDGE,Georgia,,3',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _downloadTemplate() {
+  final templateData = [
+    ['ID', 'Name', 'Position', 'School', 'Notes', 'Rank'],
+    [1, 'Player Name', 'QB', 'University', '', 1],
+    [2, 'Another Player', 'WR', 'College', '', 2],
+  ];
+  
+  CsvExportService.exportToCsv(
+    data: templateData,
+    filename: 'player_rankings_template.csv',
+  );
+}
+
+// Add this to both editor classes
+void _showCsvPreviewDialog(List<List<dynamic>> data, String title) {
+  if (data.isEmpty) return;
+  
+  final headers = data[0];
+  final rows = data.sublist(1, min(11, data.length)); // Show up to 10 data rows
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Preview: $title'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SingleChildScrollView(
+            child: DataTable(
+              columns: headers.map<DataColumn>((header) => 
+                DataColumn(label: Text(header.toString()))
+              ).toList(),
+              rows: rows.map<DataRow>((row) => 
+                DataRow(
+                  cells: List.generate(
+                    min(row.length, headers.length),
+                    (index) => DataCell(Text(row[index].toString())),
+                  ),
+                ),
+              ).toList(),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
   );
 }
 

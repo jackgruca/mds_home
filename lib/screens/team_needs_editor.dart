@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
+import '../services/csv_export_service.dart';
+import '../services/csv_import_service.dart';
 
 class TeamNeedsEditor extends StatefulWidget {
   final List<List<dynamic>> teamNeeds;
@@ -61,57 +63,90 @@ class _TeamNeedsEditorState extends State<TeamNeedsEditor> {
       children: [
         // Search and info header
         Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search Teams...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
-                    isDense: true,
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search Teams...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12.0),
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Reset to Default',
-                icon: const Icon(Icons.restore),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Reset Team Needs'),
-                      content: const Text('Are you sure you want to reset all team needs to their default values?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            setState(() {
-                              _initializeTeamNeeds();
-                              _selectedTeamIndex = null;
-                            });
-                            widget.onTeamNeedsChanged(_editableTeamNeeds);
-                          },
-                          child: const Text('Reset'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+            ),
+            const SizedBox(width: 8),
+            // Import Button
+            ElevatedButton.icon(
+              onPressed: _importFromCSV,
+              icon: const Icon(Icons.upload_file, size: 12),
+              label: const Text('Import'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                visualDensity: VisualDensity.compact,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            // Export Button
+            // ElevatedButton.icon(
+            //   onPressed: _exportToCSV,
+            //   icon: const Icon(Icons.download, size: 12),
+            //   label: const Text('Export'),
+            //   style: ElevatedButton.styleFrom(
+            //     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+            //     visualDensity: VisualDensity.compact,
+            //   ),
+            // ),
+            // Help Button
+            IconButton(
+              onPressed: _showFormatGuideDialog,
+              icon: const Icon(Icons.help_outline),
+              tooltip: 'CSV Format Guide',
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Reset to Default',
+              icon: const Icon(Icons.restore),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Reset Team Needs'),
+                    content: const Text('Are you sure you want to reset all team needs to their default values?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _initializeTeamNeeds();
+                            _selectedTeamIndex = null;
+                          });
+                          widget.onTeamNeedsChanged(_editableTeamNeeds);
+                        },
+                        child: const Text('Reset'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
+      ),
+
         
         // Main content
         Expanded(
@@ -460,6 +495,152 @@ class _TeamNeedsEditorState extends State<TeamNeedsEditor> {
     // Notify parent of changes
     widget.onTeamNeedsChanged(_editableTeamNeeds);
   }
+
+  void _exportToCSV() {
+  if (!CsvExportService.isWebPlatform) {
+    CsvExportService.showPlatformWarning(context);
+    return;
+  }
+  
+  CsvExportService.exportToCsv(
+    data: _editableTeamNeeds,
+    filename: 'custom_player_rankings.csv',
+  );
+}
+
+Future<void> _importFromCSV() async {
+  List<List<dynamic>>? importedData = await CsvImportService.importFromCsv();
+  
+  if (importedData == null || importedData.isEmpty) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data imported')),
+      );
+    }
+    return;
+  }
+  
+  // Validate format
+  if (!CsvImportService.validateTeamNeedsFormat(importedData)) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid team needs format')),
+      );
+    }
+    return;
+  }
+
+  setState(() {
+    _editableTeamNeeds = importedData;
+    _selectedTeamIndex = null;
+  });
+  
+  // Notify parent
+  widget.onTeamNeedsChanged(_editableTeamNeeds);
+  
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Imported ${importedData.length - 1} team needs')),
+    );
+  }
+}
+
+void _showFormatGuideDialog() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Team Needs CSV Format Guide'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Required columns:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('• ID - Team identifier number'),
+            const Text('• Team - Team name (e.g., "Dallas Cowboys")'),
+            const Text('• Need1 through Need7 - Position needs in priority order'),
+            const SizedBox(height: 16),
+            const Text('Example format:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade500,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'ID,Team,Need1,Need2,Need3,Need4,Need5,Need6,Need7\n'
+                '1,Dallas Cowboys,WR,EDGE,DT,CB,S,-,-\n'
+                '2,Philadelphia Eagles,CB,LB,S,DT,WR,RB,-',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _downloadTemplate() {
+  final templateData = [
+    ['ID', 'Team', 'Need1', 'Need2', 'Need3', 'Need4', 'Need5', 'Need6', 'Need7', 'Selected'],
+    [1, 'Team Name Here', 'QB', 'WR', 'OT', 'CB', 'EDGE', '-', '-', ''],
+  ];
+  
+  CsvExportService.exportToCsv(
+    data: templateData,
+    filename: 'team_needs_template.csv',
+  );
+}
+
+// Add this to both editor classes
+void _showCsvPreviewDialog(List<List<dynamic>> data, String title) {
+  if (data.isEmpty) return;
+  
+  final headers = data[0];
+  final rows = data.sublist(1, min(11, data.length)); // Show up to 10 data rows
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Preview: $title'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SingleChildScrollView(
+            child: DataTable(
+              columns: headers.map<DataColumn>((header) => 
+                DataColumn(label: Text(header.toString()))
+              ).toList(),
+              rows: rows.map<DataRow>((row) => 
+                DataRow(
+                  cells: List.generate(
+                    min(row.length, headers.length),
+                    (index) => DataCell(Text(row[index].toString())),
+                  ),
+                ),
+              ).toList(),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
 
   Color _getPositionColor(String position) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;

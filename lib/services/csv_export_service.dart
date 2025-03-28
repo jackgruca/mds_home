@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:csv/csv.dart';
+import 'package:flutter/material.dart';
 
 class CsvExportService {
   /// Export data as a CSV file
@@ -35,4 +36,23 @@ class CsvExportService {
       debugPrint('Error exporting CSV: $e');
     }
   }
+  /// Generate a template CSV file
+  static void generateTemplate({
+    required List<List<dynamic>> templateData,
+    required String filename,
+  }) {
+    exportToCsv(data: templateData, filename: filename);
+  }
+
+  static bool get isWebPlatform => kIsWeb;
+
+static void showPlatformWarning(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('CSV import/export is currently only supported on web platforms'),
+      duration: Duration(seconds: 3),
+    ),
+  );
+}
+
 }
