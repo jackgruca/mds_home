@@ -1,6 +1,8 @@
 // lib/screens/draft_settings_screen.dart
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../utils/theme_config.dart';
+import '../widgets/auth/auth_dialog.dart';
 import 'customize_draft_tab.dart';
 import '../services/data_service.dart';
 import '../widgets/draft/custom_data_manager_dialog.dart';
@@ -186,18 +188,26 @@ void _showQuickLoadDialog() {
             Tab(text: 'General Settings'),
             Tab(text: 'Customize Draft Data'),
           ],
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: AppTheme.gold, // Or AppTheme.brightBlue
         ),
         actions: [
-          // Quick Load button
+          // Login button next to save
           Consumer<AuthProvider>(
             builder: (context, authProvider, _) => 
-              authProvider.isLoggedIn
-                ? IconButton(
-                    tooltip: 'Quick Load Saved Data',
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: _showQuickLoadDialog,
+              !authProvider.isLoggedIn
+                ? TextButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const AuthDialog(initialMode: AuthMode.signIn),
+                      );
+                    },
+                    icon: const Icon(Icons.login, size: 16, color: Colors.white),
+                    label: const Text('Login', style: TextStyle(color: Colors.white)),
                   )
-                : const SizedBox(),
+                : const SizedBox.shrink(),
           ),
           TextButton(
             onPressed: _saveSettings,
@@ -513,31 +523,31 @@ void _showQuickLoadDialog() {
   : Column(
       children: [
         // Add this indicator section at the top of the customize tab
-        if (_customTeamNeeds != null || _customPlayerRankings != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, size: 16),
-                const SizedBox(width: 8),
-                if (_customTeamNeeds != null)
-                  Chip(
-                    label: const Text('Custom Needs'),
-                    backgroundColor: Colors.blue.shade100,
-                    labelStyle: TextStyle(color: Colors.blue.shade800),
-                    avatar: const Icon(Icons.edit, size: 12),
-                  ),
-                const SizedBox(width: 8),
-                if (_customPlayerRankings != null)
-                  Chip(
-                    label: const Text('Custom Rankings'),
-                    backgroundColor: Colors.green.shade100,
-                    labelStyle: TextStyle(color: Colors.green.shade800),
-                    avatar: const Icon(Icons.edit, size: 12),
-                  ),
-              ],
-            ),
-          ),
+        // if (_customTeamNeeds != null || _customPlayerRankings != null)
+        //   Padding(
+        //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        //     child: Row(
+        //       children: [
+        //         const Icon(Icons.info_outline, size: 16),
+        //         const SizedBox(width: 8),
+        //         if (_customTeamNeeds != null)
+        //           Chip(
+        //             label: const Text('Custom Needs'),
+        //             backgroundColor: Colors.blue.shade100,
+        //             labelStyle: TextStyle(color: Colors.blue.shade800),
+        //             avatar: const Icon(Icons.edit, size: 12),
+        //           ),
+        //         const SizedBox(width: 8),
+        //         if (_customPlayerRankings != null)
+        //           Chip(
+        //             label: const Text('Custom Rankings'),
+        //             backgroundColor: Colors.green.shade100,
+        //             labelStyle: TextStyle(color: Colors.green.shade800),
+        //             avatar: const Icon(Icons.edit, size: 12),
+        //           ),
+        //       ],
+        //     ),
+        //   ),
         
         // The existing CustomizeDraftTabView
         Expanded(

@@ -1482,7 +1482,7 @@ Widget build(BuildContext context) {
     child: Scaffold(
       appBar: AppBar(
         title: const Text(
-          'NFL Draft',
+          'StickToTheModel Draft Sim',
           style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
         ),
         toolbarHeight: 48,

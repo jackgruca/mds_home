@@ -1,6 +1,7 @@
 // lib/screens/customize_draft_tab.dart
 import 'package:flutter/material.dart';
 import '../models/custom_draft_data.dart';
+import '../widgets/auth/auth_dialog.dart';
 import 'team_needs_editor.dart';
 import 'player_rankings_editor.dart';
 import '../services/data_service.dart';
@@ -205,68 +206,98 @@ Widget build(BuildContext context) {
   return Column(
     children: [
       // Add a row for the save/load button
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // Padding(
+      //   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      //   child: Row(
+      //     mainAxisAlignment: MainAxisAlignment.end,
+      //     children: [
+      //       Consumer<AuthProvider>(
+      //         builder: (context, authProvider, _) => 
+      //           authProvider.isLoggedIn 
+      //             ? ElevatedButton.icon(
+      //                 onPressed: _showDataManagerDialog,
+      //                 icon: const Icon(Icons.save_alt),
+      //                 label: const Text('Save/Load Custom Data'),
+      //               )
+      //             : TextButton.icon(
+      //                 onPressed: () {
+      //                   ScaffoldMessenger.of(context).showSnackBar(
+      //                     const SnackBar(
+      //                       content: Text('Log in to save your custom data'),
+      //                     ),
+      //                   );
+      //                 },
+      //                 icon: const Icon(Icons.login),
+      //                 label: const Text('Login to Save Settings'),
+      //               ),
+      //       ),
+      //     ],
+      //   ),
+      // ),
+      
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade800 
+            : Colors.grey.shade100,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Draft Year on the left
+            Text(
+              'Draft Year: ${widget.selectedYear}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.grey.shade300 
+                    : Colors.grey.shade700,
+              ),
+            ),
+            
+            // Login message on the right
             Consumer<AuthProvider>(
               builder: (context, authProvider, _) => 
-                authProvider.isLoggedIn 
-                  ? ElevatedButton.icon(
-                      onPressed: _showDataManagerDialog,
-                      icon: const Icon(Icons.save_alt),
-                      label: const Text('Save/Load Custom Data'),
-                    )
-                  : TextButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Log in to save your custom data'),
-                          ),
+                !authProvider.isLoggedIn
+                  ? GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const AuthDialog(initialMode: AuthMode.signIn),
                         );
                       },
-                      icon: const Icon(Icons.login),
-                      label: const Text('Login to Save Settings'),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.login, 
+                            size: 12,
+                            color: Colors.blue,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Login to save your settings',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const Text(
+                      'Settings will be saved to your account',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
             ),
           ],
         ),
       ),
-      Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.blue.shade900.withOpacity(0.2) 
-              : Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.info_outline, size: 16),
-            const SizedBox(width: 8),
-            Text(
-              'Year: ${widget.selectedYear}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 16),
-            if (_teamNeeds != null) ...[
-              Text(
-                'Team Needs: ${_teamNeeds!.length - 1} teams',
-                style: const TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ],
-            const SizedBox(width: 16),
-            if (_playerRankings != null) ...[
-              Text(
-                'Player Rankings: ${_playerRankings!.length - 1} players',
-                style: const TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ],
-          ],
-        ),
-      ),
-      
+
       TabBar(
         controller: _tabController,
         tabs: const [
