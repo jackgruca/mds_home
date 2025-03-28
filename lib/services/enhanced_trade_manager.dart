@@ -10,10 +10,13 @@ import '../models/trade_offer.dart';
 import '../models/trade_motivation.dart';
 import 'draft_value_service.dart';
 import 'team_classification.dart';
-import 'trade_package_optimizer.dart';
+import 'position_value_tracker.dart';
 import 'trade_window_detector.dart';
 import 'rival_detector.dart';
 import 'trade_dialog_generator.dart';
+import 'advanced_package_generator.dart';
+import 'counter_offer_evaluator.dart';
+import 'trade_frequency_calibrator.dart';
 
 /// Results of the trade interest assessment including motivation
 class TradeInterestResult {
@@ -30,7 +33,7 @@ class TradeInterestResult {
   });
 }
 
-/// Enhanced trade management with motivation-based interest detection
+/// Enhanced trade management with Phase 3 improvements
 class EnhancedTradeManager {
   // Core data
   final List<DraftPick> draftOrder;
@@ -39,10 +42,13 @@ class EnhancedTradeManager {
   final List<String>? userTeams;
   
   // Enhanced services
-  final TradePackageOptimizer _packageOptimizer;
+  final PositionValueTracker _positionTracker;
   final TradeWindowDetector _windowDetector;
   final RivalDetector _rivalDetector;
   final TradeDialogueGenerator _dialogueGenerator;
+  final AdvancedPackageGenerator _packageGenerator;
+  final CounterOfferEvaluator _counterOfferEvaluator;
+  final TradeFrequencyCalibrator _frequencyCalibrator;
   
   // Random for probability calculations
   final Random _random = Random();
@@ -51,6 +57,7 @@ class EnhancedTradeManager {
   final Map<String, Set<int>> _recentlyConsideredPicks = {};
   final Map<String, List<String>> _previousTradePartners = {};
   final Map<String, List<int>> _completedTradePickNumbers = {};
+  final Map<String, TradeMotivation> _cachedMotivations = {};
   
   // Configuration parameters
   final double baseTradeFrequency;
@@ -58,6 +65,12 @@ class EnhancedTradeManager {
   final bool enableQBPremium;
   final bool enablePositionPremium;
   final bool enableDivisionRivalDetection;
+  final bool enableRealisticPackages;
+  final bool enableDetailedRejectionReasons;
+  
+  // Constants
+  static const int _maxTrackedPicksPerTeam = 10;
+  static const int _maxTrackedTradePartners = 5;
   
   EnhancedTradeManager({
     required this.draftOrder,
@@ -69,18 +82,30 @@ class EnhancedTradeManager {
     this.enableQBPremium = true,
     this.enablePositionPremium = true,
     this.enableDivisionRivalDetection = true,
-    bool enableUserTradeProposals = true, // Add this parameter
-    TradePackageOptimizer? packageOptimizer,
+    this.enableRealisticPackages = true,
+    this.enableDetailedRejectionReasons = true,
+    PositionValueTracker? positionTracker,
     TradeWindowDetector? windowDetector,
     RivalDetector? rivalDetector,
     TradeDialogueGenerator? dialogueGenerator,
+    AdvancedPackageGenerator? packageGenerator,
+    CounterOfferEvaluator? counterOfferEvaluator,
+    TradeFrequencyCalibrator? frequencyCalibrator,
   }) : 
-    _packageOptimizer = packageOptimizer ?? TradePackageOptimizer(),
+    _positionTracker = positionTracker ?? PositionValueTracker(),
     _windowDetector = windowDetector ?? TradeWindowDetector(),
     _rivalDetector = rivalDetector ?? RivalDetector(),
-    _dialogueGenerator = dialogueGenerator ?? TradeDialogueGenerator();
+    _dialogueGenerator = dialogueGenerator ?? TradeDialogueGenerator(),
+    _packageGenerator = packageGenerator ?? AdvancedPackageGenerator(),
+    _counterOfferEvaluator = counterOfferEvaluator ?? CounterOfferEvaluator(),
+    _frequencyCalibrator = frequencyCalibrator ?? TradeFrequencyCalibrator(
+      baseFrequency: baseTradeFrequency
+    ) {
+      // Initialize frequency calibrator with total pick count
+      _frequencyCalibrator.initialize(totalPicks: draftOrder.length);
+    }
   
-  /// Generate trade offers for a specific pick
+  /// Generate trade offers for a specific pick with improved motivation and packaging
   TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
     // Get the target pick
     DraftPick? targetPick = _findPickByNumber(pickNumber);
@@ -88,9 +113,25 @@ class EnhancedTradeManager {
       return TradeOffer(packages: [], pickNumber: pickNumber);
     }
     
+    // Check if this is a user team's pick
+    final bool isUserTeamPick = userTeams?.contains(targetPick.teamName) ?? false;
+    
     // First, determine if the team with the pick is open to trading down
     bool isWillingToTrade = _isTeamWillingToTradeDown(targetPick);
-    if (!isWillingToTrade) {
+    if (!isWillingToTrade && !isUserTeamPick) {
+      return TradeOffer(packages: [], pickNumber: pickNumber);
+    }
+    
+    // Calibrate trade frequency - skip evaluation sometimes for realism
+    bool shouldEvaluate = _frequencyCalibrator.shouldGenerateTrade(
+      pickNumber: pickNumber,
+      availablePlayers: availablePlayers,
+      isUserTeamPick: isUserTeamPick,
+      isQBDriven: qbSpecific,
+    );
+    
+    // For user team picks, always evaluate (user decides)
+    if (!isUserTeamPick && !shouldEvaluate && !qbSpecific) {
       return TradeOffer(packages: [], pickNumber: pickNumber);
     }
     
@@ -110,14 +151,17 @@ class EnhancedTradeManager {
       // Skip if team has no picks to trade
       if (teamPicks.isEmpty) continue;
       
+      // Cache motivation for later use
+      _cachedMotivations[result.teamName] = result.motivation;
+      
       // Create trade packages based on motivation
-      List<TradePackage> teamPackages = _packageOptimizer.generatePackages(
+      List<TradePackage> teamPackages = _packageGenerator.generatePackages(
         teamOffering: result.teamName,
         teamReceiving: targetPick.teamName,
         availablePicks: teamPicks,
         targetPick: targetPick,
-        isQBDriven: qbSpecific || result.motivation.targetedPosition == 'QB',
         motivation: result.motivation,
+        isQBDriven: qbSpecific || result.motivation.targetedPosition == 'QB',
       );
       
       // Add to our collection
@@ -126,9 +170,6 @@ class EnhancedTradeManager {
       // Record that this team has considered this pick
       _recordPickConsideration(result.teamName, pickNumber);
     }
-    
-    // Check if this is a user team's pick for tracking
-    final bool isUserTeamPick = userTeams?.contains(targetPick.teamName) ?? false;
     
     return TradeOffer(
       packages: packages,
@@ -220,7 +261,7 @@ class EnhancedTradeManager {
     return results;
   }
   
-  /// Generate a motivation for a team to trade up
+  /// Generate a trade motivation for a team to trade up
   TradeMotivation _generateTradeMotivation(
     String team,
     TeamNeed teamNeed,
@@ -380,7 +421,7 @@ class EnhancedTradeManager {
       );
     }
     
-    // Default minimal motivation - exploiting value opportunity
+    // Default to minimal interest in trading up
     return TradeMotivation(
       teamStatus: status,
       isExploitingValue: true,
@@ -555,6 +596,93 @@ class EnhancedTradeManager {
     return slidingPlayers.isNotEmpty;
   }
   
+  /// Evaluate a trade proposal with enhanced logic
+  bool evaluateTradeProposal(TradePackage proposal) {
+    final teamReceiving = proposal.teamReceiving;
+    final teamOffering = proposal.teamOffering;
+    
+    // If we have a cached motivation, use it for context
+    TradeMotivation? motivation = _cachedMotivations[teamOffering];
+    
+    // Consider team relationship context
+    bool teamsHaveRecentTrade = _havePreviouslyTraded(teamOffering, teamReceiving);
+    bool isDivisionRival = TeamClassification.areDivisionRivals(teamOffering, teamReceiving);
+    
+    // Check if this is a counter offer
+    bool isCounterOffer = false; // Would need context from previous offers
+    
+    // Evaluate with enhanced counter offer evaluator
+    EvaluationResult result = _counterOfferEvaluator.evaluateCounterOffer(
+      originalOffer: proposal, // Not a real counter, but using same method
+      counterOffer: proposal,
+      motivation: motivation,
+      isUserInitiated: userTeams?.contains(teamOffering) ?? false,
+    );
+    
+    return result.isAccepted;
+  }
+  
+  /// Evaluate a counter offer with proper leverage dynamics
+  EvaluationResult evaluateCounterOffer(
+    TradePackage originalOffer,
+    TradePackage counterOffer,
+    {int negotiationRound = 1}
+  ) {
+    // Get motivation if available
+    TradeMotivation? motivation;
+    if (_cachedMotivations.containsKey(counterOffer.teamOffering)) {
+      motivation = _cachedMotivations[counterOffer.teamOffering];
+    } else if (_cachedMotivations.containsKey(counterOffer.teamReceiving)) {
+      motivation = _cachedMotivations[counterOffer.teamReceiving];
+    }
+    
+    // Check if this is user initiated
+    bool isUserInitiated = userTeams?.contains(counterOffer.teamOffering) ?? false;
+    
+    // Use the counter offer evaluator
+    return _counterOfferEvaluator.evaluateCounterOffer(
+      originalOffer: originalOffer,
+      counterOffer: counterOffer,
+      motivation: motivation,
+      isUserInitiated: isUserInitiated,
+      negotiationRound: negotiationRound,
+    );
+  }
+  
+  /// Get a rejection reason with suggested improvements
+  Map<String, dynamic> getRejectionDetails(TradePackage proposal) {
+    // Get motivation if available
+    TradeMotivation? motivation = _cachedMotivations[proposal.teamOffering];
+    
+    // Evaluate with counter offer evaluator to get detailed rejection
+    EvaluationResult result = _counterOfferEvaluator.evaluateCounterOffer(
+      originalOffer: proposal,
+      counterOffer: proposal,
+      motivation: motivation,
+      isUserInitiated: userTeams?.contains(proposal.teamOffering) ?? false,
+    );
+    
+    // Create response with details
+    return {
+      'reason': result.reason,
+      'adjustedValueRatio': result.adjustedValueRatio,
+      'acceptanceThreshold': result.acceptanceThreshold,
+      'improvements': result.suggestedImprovements,
+    };
+  }
+  
+  /// Generate a trade narrative
+  String generateTradeNarrative(TradePackage package) {
+    // Get motivation if available
+    TradeMotivation? motivation;
+    if (_cachedMotivations.containsKey(package.teamOffering)) {
+      motivation = _cachedMotivations[package.teamOffering];
+    }
+    
+    // Use dialogue generator
+    return _dialogueGenerator.generateAITradeDialogue(package, motivation);
+  }
+  
   /// Get a team's next pick after specified number
   DraftPick? _getTeamNextPickAfter(String team, int afterPickNumber) {
     List<DraftPick> laterPicks = draftOrder.where((pick) =>
@@ -596,11 +724,11 @@ class EnhancedTradeManager {
     _recentlyConsideredPicks[team]!.add(pickNumber);
     
     // Limit the number of recorded picks per team
-    if (_recentlyConsideredPicks[team]!.length > 10) {
+    if (_recentlyConsideredPicks[team]!.length > _maxTrackedPicksPerTeam) {
       // Remove oldest entries (we don't have timestamps, so this is an approximation)
       List<int> picks = _recentlyConsideredPicks[team]!.toList();
       picks.sort();
-      _recentlyConsideredPicks[team] = picks.skip(picks.length - 10).toSet();
+      _recentlyConsideredPicks[team] = picks.skip(picks.length - _maxTrackedPicksPerTeam).toSet();
     }
   }
   
@@ -608,55 +736,6 @@ class EnhancedTradeManager {
   bool _hasRecentlyConsideredPick(String team, int pickNumber) {
     return _recentlyConsideredPicks.containsKey(team) &&
            _recentlyConsideredPicks[team]!.contains(pickNumber);
-  }
-  
-  /// Evaluate a trade proposal
-  bool evaluateTradeProposal(TradePackage proposal) {
-    final teamReceiving = proposal.teamReceiving;
-    final teamOffering = proposal.teamOffering;
-    
-    // Calculate basic value ratio
-    double valueRatio = proposal.totalValueOffered / proposal.targetPickValue;
-    
-    // Create a base acceptance probability
-    double probability = _calculateBaseAcceptanceProbability(valueRatio);
-    
-    // Consider team relationship context
-    bool teamsHaveRecentTrade = _havePreviouslyTraded(teamOffering, teamReceiving);
-    bool isDivisionRival = TeamClassification.areDivisionRivals(teamOffering, teamReceiving);
-    
-    // Apply contextual adjustments
-    if (teamsHaveRecentTrade) {
-      probability += 0.1; // Previous trade partners more likely to trade again
-    }
-    
-    if (isDivisionRival && enableDivisionRivalDetection) {
-      probability -= 0.15; // Division rivals less likely to accept
-    }
-    
-    // Make random decision based on final probability
-    return _random.nextDouble() < probability;
-  }
-  
-  /// Calculate base acceptance probability from value ratio
-  double _calculateBaseAcceptanceProbability(double valueRatio) {
-    if (valueRatio >= 1.2) {
-      return 0.9;  // Excellent value (90% acceptance)
-    } else if (valueRatio >= 1.1) {
-      return 0.8;  // Very good value (80% acceptance)
-    } else if (valueRatio >= 1.05) {
-      return 0.7;  // Good value (70% acceptance)
-    } else if (valueRatio >= 1.0) {
-      return 0.6;  // Fair value (60% acceptance)
-    } else if (valueRatio >= 0.95) {
-      return 0.5;  // Slightly below value (50% acceptance)
-    } else if (valueRatio >= 0.9) {
-      return 0.3;  // Below value (30% acceptance)
-    } else if (valueRatio >= 0.85) {
-      return 0.15; // Poor value (15% acceptance)
-    } else {
-      return 0.05; // Very poor value (5% acceptance)
-    }
   }
   
   /// Check if teams have previously traded
@@ -683,10 +762,51 @@ class EnhancedTradeManager {
     _previousTradePartners[offering]!.add(receiving);
     _previousTradePartners[receiving]!.add(offering);
     
+    // Maintain limited history
+    if (_previousTradePartners[offering]!.length > _maxTrackedTradePartners) {
+      _previousTradePartners[offering] = _previousTradePartners[offering]!
+          .sublist(_previousTradePartners[offering]!.length - _maxTrackedTradePartners);
+    }
+    if (_previousTradePartners[receiving]!.length > _maxTrackedTradePartners) {
+      _previousTradePartners[receiving] = _previousTradePartners[receiving]!
+          .sublist(_previousTradePartners[receiving]!.length - _maxTrackedTradePartners);
+    }
+    
     // Record completed trade for pick
     if (!_completedTradePickNumbers.containsKey(receiving)) {
       _completedTradePickNumbers[receiving] = [];
     }
     _completedTradePickNumbers[receiving]!.add(package.targetPick.pickNumber);
+    
+    // Update calibrator for tracking trade frequency
+    _frequencyCalibrator.recordTradeExecuted();
+  }
+  
+  /// Record a pick was completed without a trade
+  void recordPickCompleted() {
+    _frequencyCalibrator.recordPickCompleted();
+  }
+  
+  /// Get trade frequency statistics
+  Map<String, dynamic> getTradeFrequencyStats() {
+    return _frequencyCalibrator.getTradeStats();
+  }
+  
+  /// Record player selection for position tracking
+  void recordPlayerSelection(Player player) {
+    _positionTracker.recordSelection(player);
+    _windowDetector.recordSelection(player);
+  }
+  
+  /// Reset state for a new draft
+  void reset() {
+    _recentlyConsideredPicks.clear();
+    _previousTradePartners.clear();
+    _completedTradePickNumbers.clear();
+    _cachedMotivations.clear();
+    _positionTracker.reset();
+    _windowDetector.reset();
+    _frequencyCalibrator.reset();
+    _counterOfferEvaluator.resetNegotiationHistory();
   }
 }
