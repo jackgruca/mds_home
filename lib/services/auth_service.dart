@@ -262,6 +262,13 @@ class AuthService {
     }
   }
 
+
+static Future<User> updateUser(User user) async {
+  // Implementation depends on how your auth service is set up
+  // Here's a simple placeholder that just returns the user
+  return user;
+}
+
   // Generate and store a password reset token
   static Future<String> generatePasswordResetToken(String email) async {
     try {

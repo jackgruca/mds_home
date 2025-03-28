@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import 'customize_draft_tab.dart';
 import '../services/data_service.dart';
+import '../widgets/draft/custom_data_manager_dialog.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 /// A screen for configuring draft simulation settings
 class DraftSettingsScreen extends StatefulWidget {
@@ -134,6 +137,44 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   Navigator.pop(context);
 }
 
+void _showQuickLoadDialog() {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  if (!authProvider.isLoggedIn) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('You need to be logged in to load saved data')),
+    );
+    return;
+  }
+  
+  showDialog(
+    context: context,
+    builder: (context) => CustomDataManagerDialog(
+      currentYear: _selectedYear,
+      currentTeamNeeds: _customTeamNeeds,
+      currentPlayerRankings: _customPlayerRankings,
+      onDataSelected: (customData) {
+        setState(() {
+          if (customData.teamNeeds != null) {
+            _customTeamNeeds = customData.teamNeeds;
+          }
+          
+          if (customData.playerRankings != null) {
+            _customPlayerRankings = customData.playerRankings;
+          }
+        });
+        
+        // Switch to the customize tab
+        _tabController.animateTo(1);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Loaded "${customData.name}" data set')),
+        );
+      },
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,6 +188,17 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
           ],
         ),
         actions: [
+          // Quick Load button
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) => 
+              authProvider.isLoggedIn
+                ? IconButton(
+                    tooltip: 'Quick Load Saved Data',
+                    icon: const Icon(Icons.folder_open),
+                    onPressed: _showQuickLoadDialog,
+                  )
+                : const SizedBox(),
+          ),
           TextButton(
             onPressed: _saveSettings,
             child: const Text(
@@ -457,26 +509,60 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
           
           // Tab 2: Customize Draft Data
           _isLoadingData 
-            ? const Center(child: CircularProgressIndicator())
-            : CustomizeDraftTabView(
-                selectedYear: _selectedYear,
-                initialTeamNeeds: _customTeamNeeds,
-                initialPlayerRankings: _customPlayerRankings,
-                onTeamNeedsChanged: (updatedNeeds) {
-                  setState(() {
-                    _customTeamNeeds = updatedNeeds;
-                  });
-                },
-                onPlayerRankingsChanged: (updatedRankings) {
-                  setState(() {
-                    _customPlayerRankings = updatedRankings;
-                  });
-                },
-              ),
-        ],
-      ),
-    );
-  }
+  ? const Center(child: CircularProgressIndicator())
+  : Column(
+      children: [
+        // Add this indicator section at the top of the customize tab
+        if (_customTeamNeeds != null || _customPlayerRankings != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16),
+                const SizedBox(width: 8),
+                if (_customTeamNeeds != null)
+                  Chip(
+                    label: const Text('Custom Needs'),
+                    backgroundColor: Colors.blue.shade100,
+                    labelStyle: TextStyle(color: Colors.blue.shade800),
+                    avatar: const Icon(Icons.edit, size: 12),
+                  ),
+                const SizedBox(width: 8),
+                if (_customPlayerRankings != null)
+                  Chip(
+                    label: const Text('Custom Rankings'),
+                    backgroundColor: Colors.green.shade100,
+                    labelStyle: TextStyle(color: Colors.green.shade800),
+                    avatar: const Icon(Icons.edit, size: 12),
+                  ),
+              ],
+            ),
+          ),
+        
+        // The existing CustomizeDraftTabView
+        Expanded(
+          child: CustomizeDraftTabView(
+            selectedYear: _selectedYear,
+            initialTeamNeeds: _customTeamNeeds,
+            initialPlayerRankings: _customPlayerRankings,
+            onTeamNeedsChanged: (updatedNeeds) {
+              setState(() {
+                _customTeamNeeds = updatedNeeds;
+              });
+            },
+            onPlayerRankingsChanged: (updatedRankings) {
+              setState(() {
+                _customPlayerRankings = updatedRankings;
+              });
+            },
+          ),
+        ),
+      ],
+    ),
+      ],
+    ),
+  );
+}
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
