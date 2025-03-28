@@ -696,26 +696,32 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
               // Progress bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark ? 
-                          Colors.grey.shade800 : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Stack(
-                    children: [
-                      FractionallySizedBox(
-                        widthFactor: _totalOfferedValue > 0 && _targetPickValue > 0 ? 
-                                    (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.5) : 0.0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: _getTradeAdviceColor(),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: Container(
+                    height: 10,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark ? 
+                            Colors.grey.shade800 : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Stack(
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Container(
+                              width: constraints.maxWidth * (_totalOfferedValue > 0 && _targetPickValue > 0 ? 
+                                        (_totalOfferedValue / _targetPickValue).clamp(0.0, 1.0) : 0.0),
+                              decoration: BoxDecoration(
+                                color: _getTradeAdviceColor(),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            );
+                          }
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -783,10 +789,16 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   
               const SizedBox(height: 8),
               
-              // Propose button
+              // Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (widget.onBack != null && widget.isEmbedded)
+                    TextButton(
+                      onPressed: widget.onBack,
+                      child: const Text('Back to Offers'),
+                    ),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _canProposeTrade() ? _proposeTrade : null,
                     style: ElevatedButton.styleFrom(
@@ -816,13 +828,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
         height: 480,
         child: content,
       ),
-      // Use these buttons instead to avoid duplication
+      // Only show Cancel in the dialog actions
       actions: [
-        if (widget.onBack != null)
-          TextButton(
-            onPressed: widget.onBack,
-            child: const Text('Back to Offers'),
-          ),
         TextButton(
           onPressed: widget.onCancel,
           child: const Text('Cancel'),
@@ -876,64 +883,77 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   }
   
   void _proposeTrade() {
-    // Create future pick descriptions
-    List<String> futurePickDescriptions = [];
-    double futurePicksValue = 0;
-    
-    for (var round in _selectedFutureRounds) {
-      futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
-      final futurePick = FuturePick.forRound(widget.userTeam, round);
-      futurePicksValue += futurePick.value;
-    }
-    
-    // Create the base package
-    TradePackage package;
-    
-    // Check if we need to handle pure future picks trade
-    if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
-      // Create a virtual draft pick for the first future round
-      final firstRound = _selectedTargetFutureRounds.first;
-      final futurePick = FuturePick.forRound(_targetTeam, firstRound);
-      
-      // Create a dummy DraftPick for the future pick
-      final dummyPick = DraftPick(
-        pickNumber: 1000 + firstRound, // Use a high number that won't conflict
-        teamName: _targetTeam,
-        round: firstRound.toString(),
-      );
-      
-      package = TradePackage(
-        teamOffering: widget.userTeam,
-        teamReceiving: _targetTeam,
-        picksOffered: _selectedUserPicks,
-        targetPick: dummyPick,
-        totalValueOffered: _totalOfferedValue,
-        targetPickValue: _targetPickValue,
-        includesFuturePick: _selectedFutureRounds.isNotEmpty,
-        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-            futurePickDescriptions.join(", ") : null,
-        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      );
-    } else {
-      // Normal trade with current year picks
-      package = TradePackage(
-        teamOffering: widget.userTeam,
-        teamReceiving: _targetTeam,
-        picksOffered: _selectedUserPicks,
-        targetPick: _selectedTargetPicks.first,
-        totalValueOffered: _totalOfferedValue,
-        targetPickValue: _targetPickValue,
-        additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
-            _selectedTargetPicks.sublist(1) : [],
-        includesFuturePick: _selectedFutureRounds.isNotEmpty,
-        futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-            futurePickDescriptions.join(", ") : null,
-        futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      );
-    }
-    
-    widget.onPropose(package);
+  // Create future pick descriptions
+  List<String> futurePickDescriptions = [];
+  double futurePicksValue = 0;
+  
+  for (var round in _selectedFutureRounds) {
+    futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
+    final futurePick = FuturePick.forRound(widget.userTeam, round);
+    futurePicksValue += futurePick.value;
   }
+  
+  // Create the base package
+  TradePackage package;
+  
+  // Check if we need to handle pure future picks trade
+  if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
+    // Create a virtual draft pick for the first future round
+    final firstRound = _selectedTargetFutureRounds.first;
+    final futurePick = FuturePick.forRound(_targetTeam, firstRound);
+    
+    // Create a dummy DraftPick for the future pick
+    final dummyPick = DraftPick(
+      pickNumber: 1000 + firstRound, // Use a high number that won't conflict
+      teamName: _targetTeam,
+      round: firstRound.toString(),
+    );
+    
+    package = TradePackage(
+      teamOffering: widget.userTeam,
+      teamReceiving: _targetTeam,
+      picksOffered: _selectedUserPicks,
+      targetPick: dummyPick,
+      totalValueOffered: _totalOfferedValue,
+      targetPickValue: _targetPickValue,
+      includesFuturePick: _selectedFutureRounds.isNotEmpty,
+      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+          futurePickDescriptions.join(", ") : null,
+      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+    );
+  } else {
+    // Normal trade with current year picks
+    package = TradePackage(
+      teamOffering: widget.userTeam,
+      teamReceiving: _targetTeam,
+      picksOffered: _selectedUserPicks,
+      targetPick: _selectedTargetPicks.isNotEmpty 
+        ? _selectedTargetPicks.first 
+        : _selectedTargetFutureRounds.isNotEmpty
+            ? DraftPick(
+                pickNumber: 1000 + _selectedTargetFutureRounds.first,
+                teamName: _targetTeam,
+                round: _selectedTargetFutureRounds.first.toString(),
+              )
+            : DraftPick(
+                pickNumber: 999,
+                teamName: _targetTeam,
+                round: "1",
+              ),
+      totalValueOffered: _totalOfferedValue,
+      targetPickValue: _targetPickValue,
+      additionalTargetPicks: _selectedTargetPicks.length > 1 ? 
+          _selectedTargetPicks.sublist(1) : [],
+      includesFuturePick: _selectedFutureRounds.isNotEmpty,
+      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
+          futurePickDescriptions.join(", ") : null,
+      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+    );
+  }
+  
+  // Call the propose callback with the package
+  widget.onPropose(package);
+}
 
   String _getRoundText(int round) {
     if (round == 1) return "1st";
