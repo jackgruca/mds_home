@@ -452,12 +452,26 @@ List<Color> _getTeamGradientColors(String teamName) {
   try {
     await DraftValueService.initialize();
 
-    // Determine if we should use custom data
+    // Variables to store loaded data
+    List<Player> players;
+    List<DraftPick> allDraftPicks;
+    List<TeamNeed> teamNeeds;
+    
+    // Load default draft order
+    allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
+    
+    // Mark which picks are active in the current draft (based on selected rounds)
+    for (var pick in allDraftPicks) {
+      int round = DraftValueService.getRoundForPick(pick.pickNumber);
+      pick.isActiveInDraft = round <= widget.numberOfRounds;
+    }
+    
+    // Use custom team needs if provided
     if (widget.customTeamNeeds != null) {
       debugPrint("Using custom team needs data");
       
       // Convert team needs lists back to model objects
-      List<TeamNeed> customTeamNeeds = [];
+      teamNeeds = [];
       
       // Skip header row (index 0)
       for (int i = 1; i < widget.customTeamNeeds!.length; i++) {
@@ -476,113 +490,119 @@ List<Color> _getTeamGradientColors(String teamName) {
             }
           }
           
-          customTeamNeeds.add(TeamNeed(teamName: teamName, needs: needs));
+          teamNeeds.add(TeamNeed(teamName: teamName, needs: needs));
         } catch (e) {
           debugPrint("Error parsing custom team need: $e");
         }
       }
-      
-      // Use custom team needs but load other data normally
-      final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
-      final allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
-      
-      // Mark which picks are active in the current draft (based on selected rounds)
-      for (var pick in allDraftPicks) {
-        int round = DraftValueService.getRoundForPick(pick.pickNumber);
-        pick.isActiveInDraft = round <= widget.numberOfRounds;
-      }
-      
-      // Filter display picks for draft order tab
-      final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
-      
-      // Create draft service with custom team needs
-      final draftService = DraftService(
-        availablePlayers: List.from(players),
-        draftOrder: allDraftPicks,
-        teamNeeds: customTeamNeeds, // Use custom team needs
-        randomnessFactor: widget.randomnessFactor,
-        userTeams: widget.selectedTeams,
-        numberRounds: widget.numberOfRounds,
-        enableTrading: widget.enableTrading,
-        enableUserTradeProposals: widget.enableUserTradeProposals,
-        enableQBPremium: widget.enableQBPremium,
-      );
-
-      // Convert models to lists for the existing UI components
-      final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
-      final availablePlayersLists = DataService.playersToLists(players);
-      final teamNeedsLists = widget.customTeamNeeds!; // Use original custom data
-
-      setState(() {
-        _players = players;
-        _draftPicks = allDraftPicks;
-        _teamNeeds = customTeamNeeds;
-        _draftService = draftService;
-        
-        // Reset trade tracking
-        _executedTrades = [];
-        
-        // Set list versions for UI compatibility
-        _draftOrderLists = draftOrderLists;
-        _availablePlayersLists = availablePlayersLists;
-        _teamNeedsLists = teamNeedsLists;
-        
-        _isDataLoaded = true;
-        _statusMessage = "Draft data loaded successfully (custom team needs)";
-      });
     } else {
-      // Original loading code when no custom data is provided
-      final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
-      final allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
-      final teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
+      // Load default team needs
+      teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
+    }
+    
+    // Use custom player rankings if provided
+    if (widget.customPlayerRankings != null) {
+      debugPrint("Using custom player rankings data");
       
-      // ... (rest of the original method) ...
+      // Convert player rankings back to model objects
+      players = [];
       
-      // Mark which picks are active in the current draft (based on selected rounds)
-      for (var pick in allDraftPicks) {
-        int round = DraftValueService.getRoundForPick(pick.pickNumber);
-        pick.isActiveInDraft = round <= widget.numberOfRounds;
+      // Get column indices from header row
+      Map<String, int> columnIndices = {};
+      if (widget.customPlayerRankings!.isNotEmpty) {
+        List<String> headers = widget.customPlayerRankings![0].map<String>((dynamic col) => 
+            col.toString().toUpperCase()).toList();
+        
+        for (int i = 0; i < headers.length; i++) {
+          columnIndices[headers[i]] = i;
+        }
       }
       
-      // Filter display picks for draft order tab
-      final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
+      // Skip header row (index 0)
+      for (int i = 1; i < widget.customPlayerRankings!.length; i++) {
+        try {
+          List<dynamic> row = widget.customPlayerRankings![i];
+          if (row.isEmpty) continue;
+          
+          // Get indices for required columns
+          int idIndex = columnIndices['ID'] ?? 0;
+          int nameIndex = columnIndices['NAME'] ?? 1;
+          int positionIndex = columnIndices['POSITION'] ?? 2;
+          int schoolIndex = columnIndices['SCHOOL'] ?? 3;
+          int rankIndex = columnIndices['RANK_COMBINED'] ?? columnIndices['RANK'] ?? 
+                          (row.length > 10 ? row.length - 1 : 5); // Default to last column
+          
+          // Parse values
+          int id = idIndex < row.length ? 
+                  (int.tryParse(row[idIndex].toString()) ?? 0) : 0;
+          
+          String name = nameIndex < row.length ? row[nameIndex].toString() : "";
+          String position = positionIndex < row.length ? row[positionIndex].toString() : "";
+          String school = schoolIndex < row.length ? row[schoolIndex].toString() : "";
+          
+          int rank = rankIndex < row.length ? 
+                    (int.tryParse(row[rankIndex].toString()) ?? 999) : 999;
+          
+          // Skip empty or invalid rows
+          if (name.isEmpty || position.isEmpty) continue;
+          
+          players.add(Player(
+            id: id,
+            name: name,
+            position: position,
+            rank: rank,
+            school: school,
+          ));
+        } catch (e) {
+          debugPrint("Error parsing custom player: $e");
+        }
+      }
       
-      // Create draft service
-      final draftService = DraftService(
-        availablePlayers: List.from(players),
-        draftOrder: allDraftPicks,
-        teamNeeds: teamNeeds,
-        randomnessFactor: widget.randomnessFactor,
-        userTeams: widget.selectedTeams,
-        numberRounds: widget.numberOfRounds,
-        enableTrading: widget.enableTrading,
-        enableUserTradeProposals: widget.enableUserTradeProposals,
-        enableQBPremium: widget.enableQBPremium,
-      );
-
-      // Convert models to lists for the existing UI components
-      final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
-      final availablePlayersLists = DataService.playersToLists(players);
-      final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
-
-      setState(() {
-        _players = players;
-        _draftPicks = allDraftPicks;
-        _teamNeeds = teamNeeds;
-        _draftService = draftService;
-        
-        // Reset trade tracking
-        _executedTrades = [];
-        
-        // Set list versions for UI compatibility
-        _draftOrderLists = draftOrderLists;
-        _availablePlayersLists = availablePlayersLists;
-        _teamNeedsLists = teamNeedsLists;
-        
-        _isDataLoaded = true;
-        _statusMessage = "Draft data loaded successfully";
-      });
+      // Sort players by rank
+      players.sort((a, b) => a.rank.compareTo(b.rank));
+    } else {
+      // Load default player rankings
+      players = await DataService.loadAvailablePlayers(year: widget.draftYear);
     }
+    
+    // Filter display picks for draft order tab
+    final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
+    
+    // Create draft service 
+    final draftService = DraftService(
+      availablePlayers: List.from(players),
+      draftOrder: allDraftPicks,
+      teamNeeds: teamNeeds,
+      randomnessFactor: widget.randomnessFactor,
+      userTeams: widget.selectedTeams,
+      numberRounds: widget.numberOfRounds,
+      enableTrading: widget.enableTrading,
+      enableUserTradeProposals: widget.enableUserTradeProposals,
+      enableQBPremium: widget.enableQBPremium,
+    );
+
+    // Convert models to lists for the existing UI components
+    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
+    final availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
+    final teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
+
+    setState(() {
+      _players = players;
+      _draftPicks = allDraftPicks;
+      _teamNeeds = teamNeeds;
+      _draftService = draftService;
+      
+      // Reset trade tracking
+      _executedTrades = [];
+      
+      // Set list versions for UI compatibility
+      _draftOrderLists = draftOrderLists;
+      _availablePlayersLists = availablePlayersLists;
+      _teamNeedsLists = teamNeedsLists;
+      
+      _isDataLoaded = true;
+      _statusMessage = "Draft data loaded successfully";
+    });
 
     // Update active user team after loading data
     _updateActiveUserTeam();

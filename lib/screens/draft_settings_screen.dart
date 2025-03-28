@@ -109,26 +109,30 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   }
   
   void _saveSettings() {
-    // Collect all settings in a map
-    final settings = {
-      'numberOfRounds': _numberOfRounds,
-      'randomnessFactor': _randomnessFactor,
-      'draftSpeed': _draftSpeed,
-      'enableTrading': _enableTrading,
-      'enableUserTradeProposals': _enableUserTradeProposals,
-      'enableQBPremium': _enableQBPremium,
-      'showAnalytics': _showAnalytics,
-      'selectedYear': _selectedYear,
-      'customTeamNeeds': _customTeamNeeds,
-      'customPlayerRankings': _customPlayerRankings,
-    };
-    
-    // Call the callback
-    widget.onSettingsSaved(settings);
-    
-    // Close the screen
-    Navigator.pop(context);
-  }
+  // Remove null values from collections
+  final customTeamNeeds = _customTeamNeeds;
+  final customPlayerRankings = _customPlayerRankings;
+  
+  // Collect all settings in a map
+  final settings = {
+    'numberOfRounds': _numberOfRounds,
+    'randomnessFactor': _randomnessFactor,
+    'draftSpeed': _draftSpeed,
+    'enableTrading': _enableTrading,
+    'enableUserTradeProposals': _enableUserTradeProposals,
+    'enableQBPremium': _enableQBPremium,
+    'showAnalytics': _showAnalytics,
+    'selectedYear': _selectedYear,
+    'customTeamNeeds': customTeamNeeds,
+    'customPlayerRankings': customPlayerRankings,
+  };
+  
+  // Call the callback
+  widget.onSettingsSaved(settings);
+  
+  // Close the screen
+  Navigator.pop(context);
+}
 
   @override
   Widget build(BuildContext context) {

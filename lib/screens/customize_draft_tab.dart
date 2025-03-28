@@ -1,6 +1,8 @@
+// lib/screens/customize_draft_tab.dart
 import 'package:flutter/material.dart';
 import 'team_needs_editor.dart';
-//import 'player_rankings_editor.dart';
+import 'player_rankings_editor.dart';
+import '../services/data_service.dart';
 
 class CustomizeDraftTabView extends StatefulWidget {
   final int selectedYear;
@@ -53,13 +55,28 @@ class _CustomizeDraftTabViewState extends State<CustomizeDraftTabView> with Sing
       _isLoading = true;
     });
     
-    // For now we'll just use the initialTeamNeeds
-    // In Phase 1, we'll only implement team needs editing
-    _teamNeeds ??= widget.initialTeamNeeds ?? [];
-    
-    setState(() {
-      _isLoading = false;
-    });
+    try {
+      // Load team needs if not provided
+      if (_teamNeeds == null) {
+        final teamNeeds = await DataService.loadTeamNeeds(year: widget.selectedYear);
+        _teamNeeds = DataService.teamNeedsToLists(teamNeeds);
+      }
+      
+      // Load player rankings if not provided
+      if (_playerRankings == null) {
+        final players = await DataService.loadAvailablePlayers(year: widget.selectedYear);
+        _playerRankings = DataService.playersToLists(players);
+      }
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error loading data for customization: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -92,9 +109,15 @@ class _CustomizeDraftTabViewState extends State<CustomizeDraftTabView> with Sing
                 },
               ),
               
-              // Player Rankings Editor Tab (Placeholder for Phase 2)
-              const Center(
-                child: Text('Player Rankings Editor - Coming in Phase 2'),
+              // Player Rankings Editor Tab
+              PlayerRankingsEditor(
+                playerRankings: _playerRankings ?? [],
+                onPlayerRankingsChanged: (updatedRankings) {
+                  setState(() {
+                    _playerRankings = updatedRankings;
+                  });
+                  widget.onPlayerRankingsChanged(updatedRankings);
+                },
               ),
             ],
           ),
