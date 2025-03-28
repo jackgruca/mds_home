@@ -343,51 +343,55 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
     ),
     child: Row(
       children: [
-        // COMBINED pick number and team logo
+        // Pick number and team logo in a block layout
         Container(
-  width: 24,
-  height: 24,
-  clipBehavior: Clip.antiAlias,
-  decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    border: Border.all(
-      color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
-      width: 0.5,
-    ),
-  ),
-  child: Stack(
-    children: [
-      // Team logo filling the circle
-      SizedBox(
-        width: 24,
-        height: 24,
-        child: TeamLogoUtils.buildNFLTeamLogo(
-          pick.teamName,
-          size: 24,
-        ),
-      ),
-      // Pick number with transparent background and outlined text
-      Align(
-        alignment: Alignment.center,
-        child: Text(
-          '${pick.pickNumber}',
-          style: TextStyle(
-            color: isDarkMode ? Colors.black : Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            shadows: [
-              // Create outline effect with shadows in all directions
-              Shadow(color: isDarkMode ? Colors.white : Colors.black, offset: const Offset(1, 1)),
-              Shadow(color: isDarkMode ? Colors.white : Colors.black, offset: const Offset(-1, -1)),
-              Shadow(color: isDarkMode ? Colors.white : Colors.black, offset: const Offset(1, -1)),
-              Shadow(color: isDarkMode ? Colors.white : Colors.black, offset: const Offset(-1, 1)),
+          height: 24,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Pick number
+              Container(
+                width: 18,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: _getPickNumberColor(pick.round),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(3.5),
+                    bottomLeft: Radius.circular(3.5),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '${pick.pickNumber}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              // Team logo
+              SizedBox(
+                width: 20,
+                height: 24,
+                child: Center(
+                  child: TeamLogoUtils.buildNFLTeamLogo(
+                    pick.teamName,
+                    size: 16,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      ),
-    ],
-  ),
-),
         const SizedBox(width: 3),
         
         // Player name, position, and college logo

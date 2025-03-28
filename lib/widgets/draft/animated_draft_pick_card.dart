@@ -166,15 +166,32 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            // School
+                            // School with logo
                             if (widget.draftPick.selectedPlayer!.school.isNotEmpty)
-                              Text(
-                                widget.draftPick.selectedPlayer!.school,
-                                style: TextStyle(
-                                  fontSize: 12.0,
-                                  color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  // College Logo
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: TeamLogoUtils.buildCollegeTeamLogo(
+                                      widget.draftPick.selectedPlayer!.school,
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // School name
+                                  Expanded(
+                                    child: Text(
+                                      widget.draftPick.selectedPlayer!.school,
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                           ],
                         ) :
