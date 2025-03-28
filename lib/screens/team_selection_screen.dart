@@ -31,6 +31,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   bool _enableQBPremium = true;
   bool _showAnalytics = true;
   bool _showFeedbackBanner = true;  // Define this in your state class
+  List<List<dynamic>>? _customTeamNeeds;
+  List<List<dynamic>>? _customPlayerRankings;
 
   void _toggleSelectAll() {
     setState(() {
@@ -126,7 +128,11 @@ Future<void> _loadUserPreferences() async {
             _enableUserTradeProposals = settings['enableUserTradeProposals'];
             _enableQBPremium = settings['enableQBPremium'];
             _showAnalytics = settings['showAnalytics'];
-            _selectedYear = settings['selectedYear']; // Update selectedYear
+            _selectedYear = settings['selectedYear'];
+            
+            // Store custom data
+            _customTeamNeeds = settings['customTeamNeeds'];
+            _customPlayerRankings = settings['customPlayerRankings'];
           });
         },
       ),
@@ -1102,34 +1108,36 @@ Future<void> _loadUserPreferences() async {
   }
   
   void _startDraft() {
-    // Log analytics
-    AnalyticsService.logEvent('draft_started', parameters: {
-      'teams': _selectedTeams.join(','),
-      'team_count': _selectedTeams.length,
-      'rounds': _numberOfRounds,
-      'year': _selectedYear,
-    });
+  // Log analytics
+  AnalyticsService.logEvent('draft_started', parameters: {
+    'teams': _selectedTeams.join(','),
+    'team_count': _selectedTeams.length,
+    'rounds': _numberOfRounds,
+    'year': _selectedYear,
+  });
 
-    // Convert to list of team identifiers
-    List<String> teamIdentifiers = _selectedTeams.map((team) {
-      return NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
-    }).toList();
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DraftApp(
-          randomnessFactor: _randomness,
-          numberOfRounds: _numberOfRounds,
-          speedFactor: _speed,
-          selectedTeams: teamIdentifiers, // Pass list instead of single team
-          draftYear: _selectedYear,
-          enableTrading: _enableTrading,
-          enableUserTradeProposals: _enableUserTradeProposals,
-          enableQBPremium: _enableQBPremium,
-          showAnalytics: _showAnalytics,
-        ),
+  // Convert to list of team identifiers
+  List<String> teamIdentifiers = _selectedTeams.map((team) {
+    return NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
+  }).toList();
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => DraftApp(
+        randomnessFactor: _randomness,
+        numberOfRounds: _numberOfRounds,
+        speedFactor: _speed,
+        selectedTeams: teamIdentifiers, // Pass list instead of single team
+        draftYear: _selectedYear,
+        enableTrading: _enableTrading,
+        enableUserTradeProposals: _enableUserTradeProposals,
+        enableQBPremium: _enableQBPremium,
+        showAnalytics: _showAnalytics,
+        customTeamNeeds: _customTeamNeeds,
+        customPlayerRankings: _customPlayerRankings,
       ),
-    );
-  }
+    ),
+  );
+}
 }

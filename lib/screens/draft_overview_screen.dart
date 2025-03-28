@@ -41,19 +41,23 @@ class DraftApp extends StatefulWidget {
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
   final bool showAnalytics;
+  final List<List<dynamic>>? customTeamNeeds;
+  final List<List<dynamic>>? customPlayerRankings;
 
   const DraftApp({
-    super.key,
-    this.randomnessFactor = AppConstants.defaultRandomnessFactor,
-    this.numberOfRounds = 1,
-    this.speedFactor = 1.0,
-    this.selectedTeams,
-    this.draftYear = 2025, // Add this line with default
-    this.enableTrading = true,
-    this.enableUserTradeProposals = true,
-    this.enableQBPremium = true,
-    this.showAnalytics = true,
-  });
+  super.key,
+  this.randomnessFactor = AppConstants.defaultRandomnessFactor,
+  this.numberOfRounds = 1,
+  this.speedFactor = 1.0,
+  this.selectedTeams,
+  this.draftYear = 2025,
+  this.enableTrading = true,
+  this.enableUserTradeProposals = true,
+  this.enableQBPremium = true,
+  this.showAnalytics = true,
+  this.customTeamNeeds,
+  this.customPlayerRankings,
+});
 
   @override
   DraftAppState createState() => DraftAppState();
@@ -448,35 +452,129 @@ List<Color> _getTeamGradientColors(String teamName) {
   try {
     await DraftValueService.initialize();
 
-    // Load data using our DataService
-    final players = await DataService.loadAvailablePlayers(year: widget.draftYear);
-    final allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
-    final teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
+    // Variables to store loaded data
+    List<Player> players;
+    List<DraftPick> allDraftPicks;
+    List<TeamNeed> teamNeeds;
+    
+    // Load default draft order
+    allDraftPicks = await DataService.loadDraftOrder(year: widget.draftYear);
     
     // Mark which picks are active in the current draft (based on selected rounds)
-    // but keep all picks for trading purposes
     for (var pick in allDraftPicks) {
-      // Calculate the round using the accurate method instead of relying on the stored round
       int round = DraftValueService.getRoundForPick(pick.pickNumber);
       pick.isActiveInDraft = round <= widget.numberOfRounds;
     }
     
+    // Use custom team needs if provided
+    if (widget.customTeamNeeds != null) {
+      debugPrint("Using custom team needs data");
+      
+      // Convert team needs lists back to model objects
+      teamNeeds = [];
+      
+      // Skip header row (index 0)
+      for (int i = 1; i < widget.customTeamNeeds!.length; i++) {
+        try {
+          List<dynamic> row = widget.customTeamNeeds![i];
+          if (row.length < 2) continue;
+          
+          String teamName = row[1].toString();
+          List<String> needs = [];
+          
+          // Get needs from columns 2 onwards (need1, need2, etc.)
+          for (int j = 2; j < row.length && j < 9; j++) {
+            String need = row[j].toString();
+            if (need.isNotEmpty && need != "-") {
+              needs.add(need);
+            }
+          }
+          
+          teamNeeds.add(TeamNeed(teamName: teamName, needs: needs));
+        } catch (e) {
+          debugPrint("Error parsing custom team need: $e");
+        }
+      }
+    } else {
+      // Load default team needs
+      teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
+    }
+    
+    // Use custom player rankings if provided
+    if (widget.customPlayerRankings != null) {
+      debugPrint("Using custom player rankings data");
+      
+      // Convert player rankings back to model objects
+      players = [];
+      
+      // Get column indices from header row
+      Map<String, int> columnIndices = {};
+      if (widget.customPlayerRankings!.isNotEmpty) {
+        List<String> headers = widget.customPlayerRankings![0].map<String>((dynamic col) => 
+            col.toString().toUpperCase()).toList();
+        
+        for (int i = 0; i < headers.length; i++) {
+          columnIndices[headers[i]] = i;
+        }
+      }
+      
+      // Skip header row (index 0)
+      for (int i = 1; i < widget.customPlayerRankings!.length; i++) {
+        try {
+          List<dynamic> row = widget.customPlayerRankings![i];
+          if (row.isEmpty) continue;
+          
+          // Get indices for required columns
+          int idIndex = columnIndices['ID'] ?? 0;
+          int nameIndex = columnIndices['NAME'] ?? 1;
+          int positionIndex = columnIndices['POSITION'] ?? 2;
+          int schoolIndex = columnIndices['SCHOOL'] ?? 3;
+          int rankIndex = columnIndices['RANK_COMBINED'] ?? columnIndices['RANK'] ?? 
+                          (row.length > 10 ? row.length - 1 : 5); // Default to last column
+          
+          // Parse values
+          int id = idIndex < row.length ? 
+                  (int.tryParse(row[idIndex].toString()) ?? 0) : 0;
+          
+          String name = nameIndex < row.length ? row[nameIndex].toString() : "";
+          String position = positionIndex < row.length ? row[positionIndex].toString() : "";
+          String school = schoolIndex < row.length ? row[schoolIndex].toString() : "";
+          
+          int rank = rankIndex < row.length ? 
+                    (int.tryParse(row[rankIndex].toString()) ?? 999) : 999;
+          
+          // Skip empty or invalid rows
+          if (name.isEmpty || position.isEmpty) continue;
+          
+          players.add(Player(
+            id: id,
+            name: name,
+            position: position,
+            rank: rank,
+            school: school,
+          ));
+        } catch (e) {
+          debugPrint("Error parsing custom player: $e");
+        }
+      }
+      
+      // Sort players by rank
+      players.sort((a, b) => a.rank.compareTo(b.rank));
+    } else {
+      // Load default player rankings
+      players = await DataService.loadAvailablePlayers(year: widget.draftYear);
+    }
+    
     // Filter display picks for draft order tab
     final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
-
-    // After loading draftPicks
-    debugPrint("Teams in draft order:");
-    for (var pick in displayDraftPicks.take(10)) {
-      debugPrint("Pick #${pick.pickNumber}: Team '${pick.teamName}'");
-    }
-
-    // Create the draft service with ALL picks (not just filtered ones)
+    
+    // Create draft service 
     final draftService = DraftService(
       availablePlayers: List.from(players),
-      draftOrder: allDraftPicks,  // Use all picks for the draft service
+      draftOrder: allDraftPicks,
       teamNeeds: teamNeeds,
       randomnessFactor: widget.randomnessFactor,
-      userTeams: widget.selectedTeams,  // Pass the list of selected teams
+      userTeams: widget.selectedTeams,
       numberRounds: widget.numberOfRounds,
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
@@ -484,13 +582,13 @@ List<Color> _getTeamGradientColors(String teamName) {
     );
 
     // Convert models to lists for the existing UI components
-    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks); // Only filtered picks for display
-    final availablePlayersLists = DataService.playersToLists(players);
-    final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
+    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
+    final availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
+    final teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
 
     setState(() {
       _players = players;
-      _draftPicks = allDraftPicks;  // Store all picks
+      _draftPicks = allDraftPicks;
       _teamNeeds = teamNeeds;
       _draftService = draftService;
       
@@ -506,7 +604,8 @@ List<Color> _getTeamGradientColors(String teamName) {
       _statusMessage = "Draft data loaded successfully";
     });
 
-     _updateActiveUserTeam();
+    // Update active user team after loading data
+    _updateActiveUserTeam();
 
     // Ensure proper scrolling after loading data
     if (_tabController.index == 0) {
@@ -1383,7 +1482,7 @@ Widget build(BuildContext context) {
     child: Scaffold(
       appBar: AppBar(
         title: const Text(
-          'NFL Draft',
+          'StickToTheModel Draft Sim',
           style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
         ),
         toolbarHeight: 48,

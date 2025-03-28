@@ -10,6 +10,8 @@ class User {
   final DateTime? resetTokenExpiry;
   final List<String>? favoriteTeams;
   final Map<String, dynamic>? draftPreferences;
+  List<dynamic>? customDraftData; // Add this field
+
 
   User({
     required this.id,

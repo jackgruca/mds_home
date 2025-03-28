@@ -1,30 +1,29 @@
 // lib/models/player.dart
 import 'package:flutter/material.dart';
 
+// lib/models/player.dart (update to make properties mutable)
 class Player {
   final int id;
-  final String name;
-  final String position;
-  final int rank;
-  final String school;
-  final String? notes;
-  
-  // Add new fields
-  final double? height;       // in inches or formatted as 6'2"
-  final double? weight;       // in lbs
-  final double? rasScore;     // Relative Athletic Score (0-10)
-  final String? description;  // Player analysis/write-up
-  final String? strengths;    // Key strengths
-  final String? weaknesses;   // Areas for improvement
-  final String? fortyTime;    // 40-yard dash time
-  
-  const Player({
+  String name;
+  String position;
+  int rank;
+  String school;
+  String? notes;
+  double? height;
+  double? weight;
+  double? rasScore;
+  String? description;
+  String? strengths;
+  String? weaknesses;
+  String? fortyTime;
+
+  Player({
     required this.id,
     required this.name,
     required this.position,
     required this.rank,
     this.school = '',
-    this.notes,
+    this.notes = '',
     this.height,
     this.weight,
     this.rasScore,
@@ -40,7 +39,7 @@ class Player {
       // Make sure row has enough elements
       if (row.length < 3) {
         debugPrint("Warning: Player row has insufficient columns: $row");
-        return const Player(
+        return  Player(
           id: 0,
           name: "Unknown Player",
           position: "NA",
@@ -85,7 +84,7 @@ class Player {
       );
     } catch (e) {
       debugPrint("Error creating Player from row: $e");
-      return const Player(
+      return  Player(
         id: 0,
         name: "Error Player",
         position: "NA",
@@ -254,7 +253,7 @@ class Player {
       );
     } catch (e) {
       debugPrint("Error creating Player from row with headers: $e");
-      return const Player(
+      return  Player(
         id: 0,
         name: "Error Player",
         position: "UNK",
