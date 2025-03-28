@@ -643,7 +643,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     return;
   }
 
-  if (_draftService!.isDraftComplete()) {
+  if (_draftService!.isDraftComplete) {
   setState(() {
     _isDraftRunning = false;
     _statusMessage = "Draft complete!";
@@ -1371,7 +1371,7 @@ void didUpdateWidget(DraftApp oldWidget) {
   super.didUpdateWidget(oldWidget);
   
   if (_draftService != null && 
-      _draftService!.isDraftComplete() && 
+      _draftService!.isDraftComplete && 
       !_isDraftRunning && 
       _isDataLoaded &&
       !_summaryShown) {
