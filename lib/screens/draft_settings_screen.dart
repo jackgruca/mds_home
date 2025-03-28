@@ -1,6 +1,8 @@
 // lib/screens/draft_settings_screen.dart
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import 'customize_draft_tab.dart';
+import '../services/data_service.dart';
 
 /// A screen for configuring draft simulation settings
 class DraftSettingsScreen extends StatefulWidget {
@@ -40,7 +42,7 @@ class DraftSettingsScreen extends StatefulWidget {
   State<DraftSettingsScreen> createState() => _DraftSettingsScreenState();
 }
 
-class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
+class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTickerProviderStateMixin {
   late int _numberOfRounds;
   late double _randomnessFactor;
   late double _draftSpeed;
@@ -48,7 +50,14 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
   late bool _enableUserTradeProposals;
   late bool _enableQBPremium;
   late bool _showAnalytics;
-  late int _selectedYear; // Add this
+  late int _selectedYear;
+  
+  late TabController _tabController;
+  
+  // Data customization
+  List<List<dynamic>>? _customTeamNeeds;
+  List<List<dynamic>>? _customPlayerRankings;
+  bool _isLoadingData = false;
   
   @override
   void initState() {
@@ -62,7 +71,41 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
     _enableUserTradeProposals = widget.enableUserTradeProposals;
     _enableQBPremium = widget.enableQBPremium;
     _showAnalytics = widget.showAnalytics;
-    _selectedYear = widget.selectedYear; // Initialize year
+    _selectedYear = widget.selectedYear;
+    
+    // Initialize tab controller
+    _tabController = TabController(length: 2, vsync: this);
+    
+    // Load team needs data for customization
+    _loadDataForCustomization();
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _loadDataForCustomization() async {
+    setState(() {
+      _isLoadingData = true;
+    });
+    
+    try {
+      // Load team needs
+      final teamNeeds = await DataService.loadTeamNeeds(year: _selectedYear);
+      final teamNeedsLists = DataService.teamNeedsToLists(teamNeeds);
+      
+      setState(() {
+        _customTeamNeeds = teamNeedsLists;
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      debugPrint("Error loading data for customization: $e");
+      setState(() {
+        _isLoadingData = false;
+      });
+    }
   }
   
   void _saveSettings() {
@@ -75,7 +118,9 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
       'enableUserTradeProposals': _enableUserTradeProposals,
       'enableQBPremium': _enableQBPremium,
       'showAnalytics': _showAnalytics,
-      'selectedYear': _selectedYear, // Add year to settings
+      'selectedYear': _selectedYear,
+      'customTeamNeeds': _customTeamNeeds,
+      'customPlayerRankings': _customPlayerRankings,
     };
     
     // Call the callback
@@ -90,6 +135,13 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Draft Settings'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'General Settings'),
+            Tab(text: 'Customize Draft Data'),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: _saveSettings,
@@ -103,291 +155,321 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Section: Basic Settings
-            _buildSectionHeader('Basic Settings', Icons.settings),
-            const SizedBox(height: 16.0),
-            
-            // Number of rounds and draft year in same row
-            _buildSettingItem(
-              'Number of Rounds',
-              'How many rounds of the draft to simulate',
-              child: Row(
-                children: [
-                  // Rounds dropdown
-                  Expanded(
-                    flex: 3,
-                    child: DropdownButton<int>(
-                      value: _numberOfRounds,
-                      onChanged: (int? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _numberOfRounds = newValue;
-                          });
-                        }
-                      },
-                      items: List.generate(AppConstants.maxRounds, (index) => index + 1)
-                          .map<DropdownMenuItem<int>>((int value) {
-                        return DropdownMenuItem<int>(
-                          value: value,
-                          child: Text('$value ${value == 1 ? 'Round' : 'Rounds'}'),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Draft Year section
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Draft Year:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        DropdownButton<int>(
-                          value: _selectedYear,
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: General Settings
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Section: Basic Settings
+                _buildSectionHeader('Basic Settings', Icons.settings),
+                const SizedBox(height: 16.0),
+                
+                // Number of rounds and draft year in same row
+                _buildSettingItem(
+                  'Number of Rounds',
+                  'How many rounds of the draft to simulate',
+                  child: Row(
+                    children: [
+                      // Rounds dropdown
+                      Expanded(
+                        flex: 3,
+                        child: DropdownButton<int>(
+                          value: _numberOfRounds,
                           onChanged: (int? newValue) {
                             if (newValue != null) {
                               setState(() {
-                                _selectedYear = newValue;
+                                _numberOfRounds = newValue;
                               });
                             }
                           },
-                          items: widget.availableYears.map<DropdownMenuItem<int>>((int year) {
+                          items: List.generate(AppConstants.maxRounds, (index) => index + 1)
+                              .map<DropdownMenuItem<int>>((int value) {
                             return DropdownMenuItem<int>(
-                              value: year,
-                              child: Text(year.toString()),
+                              value: value,
+                              child: Text('$value ${value == 1 ? 'Round' : 'Rounds'}'),
                             );
                           }).toList(),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 16),
+                      // Draft Year section
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Draft Year:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            DropdownButton<int>(
+                              value: _selectedYear,
+                              onChanged: (int? newValue) {
+                                if (newValue != null && newValue != _selectedYear) {
+                                  setState(() {
+                                    _selectedYear = newValue;
+                                    // Reset customizations when year changes
+                                    _customTeamNeeds = null;
+                                    _customPlayerRankings = null;
+                                  });
+                                  // Reload data for the new year
+                                  _loadDataForCustomization();
+                                }
+                              },
+                              items: widget.availableYears.map<DropdownMenuItem<int>>((int year) {
+                                return DropdownMenuItem<int>(
+                                  value: year,
+                                  child: Text(year.toString()),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Randomness Factor
+                _buildSettingItem(
+                  'Draft Randomness',
+                  'How much randomness to add to team selections and trades',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _randomnessFactor * 5, // Convert to 1-5 scale for UI
+                              min: 1.0,
+                              max: 5.0,
+                              divisions: 4,
+                              label: '${(_randomnessFactor * 5).toInt()}',
+                              onChanged: (value) {
+                                setState(() {
+                                  _randomnessFactor = value / 5.0; // Convert back to 0-1 scale
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 30,
+                            child: Text(
+                              '${(_randomnessFactor * 5).toInt()}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Predictable',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            'Chaotic',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Draft Speed
+                _buildSettingItem(
+                  'Simulation Speed',
+                  'How quickly the draft progresses when simulating',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _draftSpeed,
+                              min: 1.0,
+                              max: 5.0,
+                              divisions: 4,
+                              label: '${_draftSpeed.toInt()}',
+                              onChanged: (value) {
+                                setState(() {
+                                  _draftSpeed = value;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 30,
+                            child: Text(
+                              '${_draftSpeed.toInt()}',
+                               textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Slower',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            'Faster',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24.0),
+                
+                // Section: Trade Settings
+                _buildSectionHeader('Trade Settings', Icons.swap_horiz),
+                const SizedBox(height: 16.0),
+                
+                // Enable Trading
+                _buildSettingItem(
+                  'Enable Trading',
+                  'Allow CPU teams to make trades during the draft',
+                  trailing: Switch(
+                    value: _enableTrading,
+                    onChanged: (value) {
+                      setState(() {
+                        _enableTrading = value;
+                        // If trading is disabled, disable user trade proposals too
+                        if (!value) {
+                          _enableUserTradeProposals = false;
+                        }
+                      });
+                    },
+                  ),
+                ),
+                
+                // Enable User Trade Proposals
+                _buildSettingItem(
+                  'User Trade Proposals',
+                  'Allow you to propose trades to CPU teams',
+                  trailing: Switch(
+                    value: _enableUserTradeProposals,
+                    onChanged: _enableTrading
+                        ? (value) {
+                            setState(() {
+                              _enableUserTradeProposals = value;
+                            });
+                          }
+                        : null,
+                  ),
+                ),
+                
+                // QB Premium
+                _buildSettingItem(
+                  'QB Premium',
+                  'Teams value QBs more highly in trades (more realistic)',
+                  trailing: Switch(
+                    value: _enableQBPremium,
+                    onChanged: _enableTrading
+                        ? (value) {
+                            setState(() {
+                              _enableQBPremium = value;
+                            });
+                          }
+                        : null,
+                  ),
+                ),
+                
+                const SizedBox(height: 24.0),
+                
+                // Section: UI Settings
+                _buildSectionHeader('Display Settings', Icons.visibility),
+                const SizedBox(height: 16.0),
+                
+                // Show Analytics
+                _buildSettingItem(
+                  'Show Analytics',
+                  'Display analytics and insights during the draft',
+                  trailing: Switch(
+                    value: _showAnalytics,
+                    onChanged: (value) {
+                      setState(() {
+                        _showAnalytics = value;
+                      });
+                    },
+                  ),
+                ),
+                
+                const SizedBox(height: 32.0),
+                
+                // Reset to Defaults button
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _numberOfRounds = 7;
+                        _randomnessFactor = AppConstants.defaultRandomnessFactor;
+                        _draftSpeed = 3.0;
+                        _enableTrading = true;
+                        _enableUserTradeProposals = true;
+                        _enableQBPremium = true;
+                        _showAnalytics = true;
+                      });
+                    },
+                    icon: const Icon(Icons.restore),
+                    label: const Text('Reset to Defaults'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade100,
+                      foregroundColor: Colors.red.shade900,
                     ),
                   ),
-                ],
-              ),
-            ),
-            
-            // Randomness Factor
-            _buildSettingItem(
-              'Draft Randomness',
-              'How much randomness to add to team selections and trades',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _randomnessFactor * 5, // Convert to 1-5 scale for UI
-                          min: 1.0,
-                          max: 5.0,
-                          divisions: 4,
-                          label: '${(_randomnessFactor * 5).toInt()}',
-                          onChanged: (value) {
-                            setState(() {
-                              _randomnessFactor = value / 5.0; // Convert back to 0-1 scale
-                            });
-                          },
-                        ),
-                      ),
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          '${(_randomnessFactor * 5).toInt()}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Predictable',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        'Chaotic',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Draft Speed
-            _buildSettingItem(
-              'Simulation Speed',
-              'How quickly the draft progresses when simulating',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _draftSpeed,
-                          min: 1.0,
-                          max: 5.0,
-                          divisions: 4,
-                          label: '${_draftSpeed.toInt()}',
-                          onChanged: (value) {
-                            setState(() {
-                              _draftSpeed = value;
-                            });
-                          },
-                        ),
-                      ),
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          '${_draftSpeed.toInt()}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Slower',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      Text(
-                        'Faster',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 24.0),
-            
-            // Section: Trade Settings
-            _buildSectionHeader('Trade Settings', Icons.swap_horiz),
-            const SizedBox(height: 16.0),
-            
-            // Enable Trading
-            _buildSettingItem(
-              'Enable Trading',
-              'Allow CPU teams to make trades during the draft',
-              trailing: Switch(
-                value: _enableTrading,
-                onChanged: (value) {
-                  setState(() {
-                    _enableTrading = value;
-                    // If trading is disabled, disable user trade proposals too
-                    if (!value) {
-                      _enableUserTradeProposals = false;
-                    }
-                  });
-                },
-              ),
-            ),
-            
-            // Enable User Trade Proposals
-            _buildSettingItem(
-              'User Trade Proposals',
-              'Allow you to propose trades to CPU teams',
-              trailing: Switch(
-                value: _enableUserTradeProposals,
-                onChanged: _enableTrading
-                    ? (value) {
-                        setState(() {
-                          _enableUserTradeProposals = value;
-                        });
-                      }
-                    : null,
-              ),
-            ),
-            
-            // QB Premium
-            _buildSettingItem(
-              'QB Premium',
-              'Teams value QBs more highly in trades (more realistic)',
-              trailing: Switch(
-                value: _enableQBPremium,
-                onChanged: _enableTrading
-                    ? (value) {
-                        setState(() {
-                          _enableQBPremium = value;
-                        });
-                      }
-                    : null,
-              ),
-            ),
-            
-            const SizedBox(height: 24.0),
-            
-            // Section: UI Settings
-            _buildSectionHeader('Display Settings', Icons.visibility),
-            const SizedBox(height: 16.0),
-            
-            // Show Analytics
-            _buildSettingItem(
-              'Show Analytics',
-              'Display analytics and insights during the draft',
-              trailing: Switch(
-                value: _showAnalytics,
-                onChanged: (value) {
-                  setState(() {
-                    _showAnalytics = value;
-                  });
-                },
-              ),
-            ),
-            
-            const SizedBox(height: 32.0),
-            
-            // Reset to Defaults button
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _numberOfRounds = 7;
-                    _randomnessFactor = AppConstants.defaultRandomnessFactor;
-                    _draftSpeed = 3.0;
-                    _enableTrading = true;
-                    _enableUserTradeProposals = true;
-                    _enableQBPremium = true;
-                    _showAnalytics = true;
-                  });
-                },
-                icon: const Icon(Icons.restore),
-                label: const Text('Reset to Defaults'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade100,
-                  foregroundColor: Colors.red.shade900,
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          
+          // Tab 2: Customize Draft Data
+          _isLoadingData 
+            ? const Center(child: CircularProgressIndicator())
+            : CustomizeDraftTabView(
+                selectedYear: _selectedYear,
+                initialTeamNeeds: _customTeamNeeds,
+                initialPlayerRankings: _customPlayerRankings,
+                onTeamNeedsChanged: (updatedNeeds) {
+                  setState(() {
+                    _customTeamNeeds = updatedNeeds;
+                  });
+                },
+                onPlayerRankingsChanged: (updatedRankings) {
+                  setState(() {
+                    _customPlayerRankings = updatedRankings;
+                  });
+                },
+              ),
+        ],
       ),
     );
   }
