@@ -31,8 +31,8 @@ class CounterOfferEvaluator {
     this.enablePositionalValueAdjustments = true,
     this.maxNegotiationRounds = 3,
   });
-  
-  /// Evaluate a counter offer, applying leverage and context
+
+  /// Evaluate a counter offer with enhanced criteria
   EvaluationResult evaluateCounterOffer({
     required TradePackage originalOffer,
     required TradePackage counterOffer,
@@ -54,41 +54,83 @@ class CounterOfferEvaluator {
     
     debugPrint('Evaluating counter offer with raw value ratio: $valueRatio');
     
-    // Apply counter-offer leverage adjustment
-    double adjustedValueRatio = _applyLeverageAdjustments(
-      valueRatio,
-      originalOffer,
-      counterOffer,
-      motivation,
-      isUserInitiated,
-      negotiationRound
-    );
+    // Apply context-sensitive adjustments
+    double adjustedValueRatio = valueRatio;
     
-    debugPrint('Adjusted value ratio after leverage: $adjustedValueRatio');
-    
-    // Apply positional adjustments if enabled
-    if (enablePositionalValueAdjustments && motivation != null && motivation.targetedPosition.isNotEmpty) {
-      adjustedValueRatio = _applyPositionalAdjustments(
-        adjustedValueRatio,
-        motivation.targetedPosition
-      );
+    // 1. Urgency-based adjustments
+    if (motivation != null) {
+      // Higher urgency = lower threshold for acceptance
+      if (motivation.isPositionRun) {
+        adjustedValueRatio += 0.05; // 5% boost during position runs
+        debugPrint('Applied position run urgency boost: +0.05');
+      }
       
-      debugPrint('Adjusted value ratio after position factors: $adjustedValueRatio');
+      if (motivation.isTierDropoff) {
+        adjustedValueRatio += 0.07; // 7% boost during talent tier dropoffs
+        debugPrint('Applied tier dropoff urgency boost: +0.07');
+      }
+      
+      if (motivation.isPreventingRival) {
+        adjustedValueRatio += 0.06; // 6% boost when preventing a rival
+        debugPrint('Applied rival prevention boost: +0.06');
+        
+        // Even more urgency for division rivals
+        if (motivation.isDivisionRival) {
+          adjustedValueRatio += 0.04; // Additional 4%
+          debugPrint('Applied division rival boost: +0.04');
+        }
+      }
+      
+      if (motivation.isWinNowMove && motivation.teamStatus == TeamBuildStatus.winNow) {
+        adjustedValueRatio += 0.05; // 5% boost for win-now teams making win-now moves
+        debugPrint('Applied win-now team boost: +0.05');
+      }
+      
+      // Premium position targeting (especially QB)
+      if (motivation.isTargetingSpecificPlayer) {
+        if (motivation.targetedPosition == 'QB') {
+          adjustedValueRatio += 0.08; // 8% boost for QB targeting
+          debugPrint('Applied QB targeting boost: +0.08');
+        } else if (['OT', 'EDGE', 'CB'].contains(motivation.targetedPosition)) {
+          adjustedValueRatio += 0.04; // 4% boost for premium positions
+          debugPrint('Applied premium position boost: +0.04');
+        }
+      }
     }
     
-    // Apply division rival premium if applicable
+    // 2. Leverage-based adjustments
+    if (isUserInitiated) {
+      adjustedValueRatio += 0.08; // 8% boost when user initiates (they have leverage)
+      debugPrint('Applied user leverage boost: +0.08');
+    }
+    
+    // For counter offers, the original receiver has leverage
+    if (negotiationRound > 1 && counterOffer.teamOffering == originalOffer.teamReceiving) {
+      adjustedValueRatio += 0.05; // 5% boost for counter offers from original receiver
+      debugPrint('Applied counter offer leverage boost: +0.05');
+    }
+    
+    // 3. Negotiation fatigue (teams more willing to accept after prolonged negotiation)
+    if (negotiationRound > 1) {
+      double fatigueBoost = (negotiationRound - 1) * 0.03; // +3% per round after first
+      adjustedValueRatio += fatigueBoost;
+      debugPrint('Applied negotiation fatigue boost: +$fatigueBoost');
+    }
+    
+    // 4. Division rival premium (harder to trade within division)
     bool isDivisionRival = TeamClassification.areDivisionRivals(
       counterOffer.teamOffering,
       counterOffer.teamReceiving
     );
     
     if (isDivisionRival) {
-      adjustedValueRatio -= rivalPremium;
-      debugPrint('Applied division rival premium: -$rivalPremium');
-      debugPrint('Final adjusted ratio: $adjustedValueRatio');
+      adjustedValueRatio -= 0.1; // 10% penalty for division rivals
+      debugPrint('Applied division rival penalty: -0.1');
     }
     
-    // Determine acceptance threshold
+    debugPrint('Final adjusted value ratio: $adjustedValueRatio');
+    
+    // Determine acceptance threshold based on context
     double acceptanceThreshold = _determineAcceptanceThreshold(
       originalOffer,
       counterOffer,
@@ -106,12 +148,17 @@ class CounterOfferEvaluator {
     Map<String, dynamic>? suggestedImprovements;
     
     if (accepted) {
-      reason = "Accepted: The counter offer provides sufficient value.";
+      reason = "Accepted";
+      if (motivation != null) {
+        reason += ": ${motivation.generateDialogue(isAccepting: true)}";
+      } else {
+        reason += ": The value works for our team's needs.";
+      }
     } else {
       // Calculate value gap
       double valueMissing = (acceptanceThreshold - adjustedValueRatio) * counterOffer.targetPickValue;
       
-      // Generate reason and suggestion
+      // Generate reason and suggestion based on context
       reason = _generateRejectionReason(
         counterOffer,
         adjustedValueRatio,
@@ -122,7 +169,8 @@ class CounterOfferEvaluator {
       suggestedImprovements = _generateImprovementSuggestions(
         counterOffer,
         valueMissing,
-        negotiationRound
+        negotiationRound,
+        motivation
       );
     }
     
@@ -283,65 +331,119 @@ class CounterOfferEvaluator {
     return min(0.98, max(0.85, threshold));
   }
   
-  /// Generate a rejection reason based on context
-  String _generateRejectionReason(
-    TradePackage counterOffer,
-    double adjustedValueRatio,
-    double acceptanceThreshold,
-    TradeMotivation? motivation
-  ) {
-    double valueDelta = acceptanceThreshold - adjustedValueRatio;
-    
-    // Very close to acceptance
+  /// Generate a contextual rejection reason based on motivation
+String _generateRejectionReason(
+  TradePackage counterOffer,
+  double adjustedValueRatio,
+  double acceptanceThreshold,
+  TradeMotivation? motivation
+) {
+  double valueDelta = acceptanceThreshold - adjustedValueRatio;
+  
+  // If we have motivation context, use it
+  if (motivation != null) {
+    // Value is very close to threshold
     if (valueDelta < 0.03) {
-      return "We're getting closer, but we still need a bit more value to make this work.";
+      if (motivation.isTargetingSpecificPlayer) {
+        return "We're close, but we need a bit more value to move up for our targeted ${motivation.targetedPosition}.";
+      } else if (motivation.isPreventingRival) {
+        return "The offer is close, but we'd need slightly more to make this move ahead of our competitor.";
+      } else if (motivation.isTierDropoff) {
+        return "We're seeing a talent dropoff after this pick, so we'd need a bit more to make this work.";
+      } else {
+        return "We're getting closer, but we still need a bit more value to make this work.";
+      }
     }
     // Moderate gap
     else if (valueDelta < 0.08) {
-      return "The offer still undervalues our pick. We would need more compensation to consider this deal.";
+      if (motivation.isTargetingSpecificPlayer) {
+        String position = motivation.targetedPosition.isNotEmpty ? motivation.targetedPosition : "player";
+        return "This offer undervalues our interest in selecting a $position at this position. We need more compensation.";
+      } else if (motivation.isPreventingRival) {
+        return "We're motivated to make this move, but the offer needs to be more substantial to justify jumping ahead of ${motivation.rivalTeam}.";
+      } else {
+        return "The offer still undervalues our pick. We would need more compensation to consider this deal.";
+      }
     }
     // Large gap
     else {
-      return "This offer falls significantly short of our valuation. We need substantially more to move forward.";
+      if (motivation.isWinNowMove) {
+        return "As a win-now team, we're looking for much more immediate value to make this deal work.";
+      } else if (motivation.isPositionRun) {
+        return "With the current run on ${motivation.targetedPosition}, this offer falls well short of what we'd need.";
+      } else {
+        return "This offer falls significantly short of our valuation. We need substantially more to move forward.";
+      }
     }
   }
   
-  /// Generate suggestions for improving the counter offer
-  Map<String, dynamic> _generateImprovementSuggestions(
-    TradePackage counterOffer,
-    double valueMissing,
-    int negotiationRound
-  ) {
-    // Convert missing value to point approximation
-    int pointsMissing = valueMissing.round();
-    
-    // Determine which round would provide approximately the missing value
-    int suggestedRound = 7; // Default to 7th round
-    
-    if (pointsMissing > 300) {
-      suggestedRound = 2; // Need a 2nd rounder
-    } else if (pointsMissing > 150) {
-      suggestedRound = 3; // Need a 3rd rounder
-    } else if (pointsMissing > 80) {
-      suggestedRound = 4; // Need a 4th rounder
-    } else if (pointsMissing > 40) {
-      suggestedRound = 5; // Need a 5th rounder
-    } else if (pointsMissing > 20) {
-      suggestedRound = 6; // Need a 6th rounder
-    }
-    
-    // Determine if a future pick would be acceptable
-    bool futurePickAcceptable = negotiationRound >= 2 && _random.nextDouble() < 0.7;
-    
-    return {
-      'pointsMissing': pointsMissing,
-      'suggestedRound': suggestedRound,
-      'futurePickAcceptable': futurePickAcceptable,
-      'suggestionText': "Adding a ${suggestedRound}th round pick would likely make this deal acceptable.",
-      'futureText': futurePickAcceptable ? 
-        "We would also consider a future ${suggestedRound + 1}th round pick instead." : null,
-    };
+  // Generic reasons if no motivation context
+  if (valueDelta < 0.03) {
+    return "We're close, but we need a bit more value to make this work.";
+  } else if (valueDelta < 0.08) {
+    return "The offer still undervalues our pick. We would need more compensation to consider this deal.";
+  } else {
+    return "This offer falls significantly short of our valuation. We need substantially more to move forward.";
   }
+}
+
+/// Generate suggestions for improving the counter offer
+Map<String, dynamic> _generateImprovementSuggestions(
+  TradePackage counterOffer,
+  double valueMissing,
+  int negotiationRound,
+  TradeMotivation? motivation
+) {
+  // Convert missing value to point approximation
+  int pointsMissing = valueMissing.round();
+  
+  // Determine which round would provide approximately the missing value
+  int suggestedRound = 7; // Default to 7th round
+  
+  if (pointsMissing > 300) {
+    suggestedRound = 2; // Need a 2nd rounder
+  } else if (pointsMissing > 150) {
+    suggestedRound = 3; // Need a 3rd rounder
+  } else if (pointsMissing > 80) {
+    suggestedRound = 4; // Need a 4th rounder
+  } else if (pointsMissing > 40) {
+    suggestedRound = 5; // Need a 5th rounder
+  } else if (pointsMissing > 20) {
+    suggestedRound = 6; // Need a 6th rounder
+  }
+  
+  // Determine if a future pick would be acceptable
+  bool futurePickAcceptable = negotiationRound >= 2 || 
+                             (motivation != null && motivation.teamStatus == TeamBuildStatus.rebuilding);
+  
+  // Create suggestion message with context
+  String suggestionText;
+  if (motivation != null && motivation.isTargetingSpecificPlayer) {
+    suggestionText = "To move up for a ${motivation.targetedPosition}, adding a ${suggestedRound}th round pick would likely make this deal acceptable.";
+  } else if (motivation != null && motivation.isPreventingRival) {
+    suggestionText = "To make this trade ahead of ${motivation.rivalTeam}, you'd need to add approximately a ${suggestedRound}th round value.";
+  } else {
+    suggestionText = "Adding a ${suggestedRound}th round pick would likely make this deal acceptable.";
+  }
+  
+  // Future pick suggestion with context
+  String? futureText;
+  if (futurePickAcceptable) {
+    if (motivation != null && motivation.teamStatus == TeamBuildStatus.rebuilding) {
+      futureText = "As a rebuilding team, we would also strongly consider a future ${suggestedRound}th round pick instead.";
+    } else {
+      futureText = "We would also consider a future ${suggestedRound}th round pick instead.";
+    }
+  }
+  
+  return {
+    'pointsMissing': pointsMissing,
+    'suggestedRound': suggestedRound,
+    'futurePickAcceptable': futurePickAcceptable,
+    'suggestionText': suggestionText,
+    'futureText': futureText,
+  };
+}
   
   /// Reset negotiation history for testing/debugging
   void resetNegotiationHistory() {

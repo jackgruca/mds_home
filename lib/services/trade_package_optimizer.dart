@@ -686,69 +686,68 @@ class TradePackageOptimizer {
       ));
     }
   }
-  
   /// Apply parity helper for unbalanced trades
-  List<TradePackage> _applyParityHelper(List<TradePackage> packages, double targetValue) {
-    List<TradePackage> adjustedPackages = [];
-    
-    for (var package in packages) {
-      // Check if the offered value is much higher than needed (>120%)
-      double valueRatio = package.totalValueOffered / targetValue;
-      if (valueRatio > 1.2) {
-        // Try to find a smaller pick from the receiving team to balance
-        DraftPick targetPick = package.targetPick;
-        String receivingTeam = package.teamReceiving;
+List<TradePackage> _applyParityHelper(List<TradePackage> packages, double targetValue) {
+  List<TradePackage> adjustedPackages = [];
+  
+  for (var package in packages) {
+    // Check if the offered value is much higher than needed (>120%)
+    double valueRatio = package.totalValueOffered / targetValue;
+    if (valueRatio > 1.2) {
+      // Try to find a smaller pick from the receiving team to balance
+      DraftPick targetPick = package.targetPick;
+      String receivingTeam = package.teamReceiving;
+      
+      // Create hypothetical parity picks (don't actually have pick database here)
+      // In real implementation, you'd search through available picks
+      List<DraftPick> parityOptions = [
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 100, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 3).toString()
+        ),
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 70, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 2).toString()
+        ),
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 40, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 1).toString()
+        ),
+      ];
+      
+      // Find the best pick that brings ratio closest to 1.0
+      for (var parityPick in parityOptions) {
+        double parityValue = DraftValueService.getValueForPick(parityPick.pickNumber);
+        double adjustedValue = package.totalValueOffered - parityValue;
+        double newRatio = adjustedValue / targetValue;
         
-        // Create hypothetical parity picks (don't actually have pick database here)
-        // In real implementation, you'd search through available picks
-        List<DraftPick> parityOptions = [
-          DraftPick(
-            pickNumber: targetPick.pickNumber + 100, 
-            teamName: receivingTeam, 
-            round: (targetPick.pickNumber ~/ 32 + 3).toString()
-          ),
-          DraftPick(
-            pickNumber: targetPick.pickNumber + 70, 
-            teamName: receivingTeam, 
-            round: (targetPick.pickNumber ~/ 32 + 2).toString()
-          ),
-          DraftPick(
-            pickNumber: targetPick.pickNumber + 40, 
-            teamName: receivingTeam, 
-            round: (targetPick.pickNumber ~/ 32 + 1).toString()
-          ),
-        ];
-        
-        // Find the best pick that brings ratio closest to 1.0
-        for (var parityPick in parityOptions) {
-          double parityValue = DraftValueService.getValueForPick(parityPick.pickNumber);
-          double adjustedValue = package.totalValueOffered - parityValue;
-          double newRatio = adjustedValue / targetValue;
-          
-          // If this brings us closer to 1.0 ratio but still >= 1.0
-          if (newRatio >= 1.0 && newRatio < valueRatio) {
-            adjustedPackages.add(TradePackage(
-              teamOffering: package.teamOffering,
-              teamReceiving: package.teamReceiving,
-              picksOffered: package.picksOffered,
-              targetPick: package.targetPick,
-              additionalTargetPicks: [...package.additionalTargetPicks, parityPick],
-              totalValueOffered: adjustedValue,
-              targetPickValue: targetValue,
-              includesFuturePick: package.includesFuturePick,
-              futurePickDescription: package.futurePickDescription,
-              futurePickValue: package.futurePickValue,
-              targetReceivedFuturePicks: package.targetReceivedFuturePicks,
-            ));
-            break;
-          }
-          }
+        // If this brings us closer to 1.0 ratio but still >= 1.0
+        if (newRatio >= 1.0 && newRatio < valueRatio) {
+          adjustedPackages.add(TradePackage(
+            teamOffering: package.teamOffering,
+            teamReceiving: package.teamReceiving,
+            picksOffered: package.picksOffered,
+            targetPick: package.targetPick,
+            additionalTargetPicks: [...package.additionalTargetPicks, parityPick],
+            totalValueOffered: adjustedValue,
+            targetPickValue: targetValue,
+            includesFuturePick: package.includesFuturePick,
+            futurePickDescription: package.futurePickDescription,
+            futurePickValue: package.futurePickValue,
+            targetReceivedFuturePicks: package.targetReceivedFuturePicks,
+          ));
+          break;
+        }
+      }
     }
     
     // Always keep the original package too
     adjustedPackages.add(package);
-    }
-    
-    return adjustedPackages;
   }
+  
+  return adjustedPackages;
+}
 }

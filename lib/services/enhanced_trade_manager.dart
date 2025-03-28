@@ -40,6 +40,8 @@ class EnhancedTradeManager {
   final List<TeamNeed> teamNeeds;
   final List<Player> availablePlayers;
   final List<String>? userTeams;
+  final bool enableVerboseLogging;
+  final StringBuffer _logBuffer = StringBuffer();
   
   // Enhanced services
   final PositionValueTracker _positionTracker;
@@ -67,10 +69,16 @@ class EnhancedTradeManager {
   final bool enableDivisionRivalDetection;
   final bool enableRealisticPackages;
   final bool enableDetailedRejectionReasons;
+  final Map<String, double> _valueCache = {};
+  final Map<int, List<TradeWindow>> _windowCache = {};
+  final Map<String, List<TradeInterestResult>> _interestCache = {};
   
   // Constants
   static const int _maxTrackedPicksPerTeam = 10;
   static const int _maxTrackedTradePartners = 5;
+
+  int _completedPicks = 0;
+  int _currentPick = 0;
   
   EnhancedTradeManager({
     required this.draftOrder,
@@ -84,6 +92,7 @@ class EnhancedTradeManager {
     this.enableDivisionRivalDetection = true,
     this.enableRealisticPackages = true,
     this.enableDetailedRejectionReasons = true,
+    this.enableVerboseLogging = false,
     PositionValueTracker? positionTracker,
     TradeWindowDetector? windowDetector,
     RivalDetector? rivalDetector,
@@ -103,13 +112,40 @@ class EnhancedTradeManager {
     ) {
       // Initialize frequency calibrator with total pick count
       _frequencyCalibrator.initialize(totalPicks: draftOrder.length);
+      _logTradeOperation('Trade system initialized with ${draftOrder.length} picks and ${teamNeeds.length} teams');
+    }
+
+    /// Log a trade operation with timestamp
+    void _logTradeOperation(String message, {bool isError = false, bool force = false}) {
+      if (!enableVerboseLogging && !force && !isError) return;
+      
+      final timestamp = DateTime.now().toString().substring(11, 19);
+      final prefix = isError ? '❌ ERROR' : '🔄 INFO';
+      final logMessage = '[$timestamp] $prefix: $message';
+      
+      _logBuffer.writeln(logMessage);
+      
+      // Also print to console for immediate feedback
+      if (isError) {
+        debugPrint('\x1B[31m$logMessage\x1B[0m'); // Red for errors
+      } else if (force) {
+        debugPrint('\x1B[33m$logMessage\x1B[0m'); // Yellow for important events
+      } else if (enableVerboseLogging) {
+        debugPrint(logMessage);
+      }
     }
   
   /// Generate trade offers for a specific pick with improved motivation and packaging
   TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
+    _logTradeOperation('Generating offers for pick #$pickNumber${qbSpecific ? " (QB-specific)" : ""}', force: true);
+
+  // Update current pick tracking
+  _currentPick = pickNumber;
+
     // Get the target pick
     DraftPick? targetPick = _findPickByNumber(pickNumber);
     if (targetPick == null) {
+      _logTradeOperation('Pick #$pickNumber not found in draft order', isError: true);
       return TradeOffer(packages: [], pickNumber: pickNumber);
     }
     
@@ -171,11 +207,25 @@ class EnhancedTradeManager {
       _recordPickConsideration(result.teamName, pickNumber);
     }
     
+    _logTradeOperation('Generated ${packages.length} trade packages for pick #$pickNumber', force: true);
+
     return TradeOffer(
       packages: packages,
       pickNumber: pickNumber,
       isUserInvolved: isUserTeamPick,
     );
+  }
+
+  /// Get cached pick value or calculate and store it
+  double _getCachedPickValue(int pickNumber) {
+    final cacheKey = 'pick_value_$pickNumber';
+    if (_valueCache.containsKey(cacheKey)) {
+      return _valueCache[cacheKey]!;
+    }
+    
+    final value = DraftValueService.getValueForPick(pickNumber);
+    _valueCache[cacheKey] = value;
+    return value;
   }
   
   /// Find teams that have a motivation to trade up to the given pick
@@ -184,8 +234,15 @@ class EnhancedTradeManager {
     bool qbSpecific = false,
   }) {
     List<TradeInterestResult> results = [];
-    int pickNumber = targetPick.pickNumber;
+    final int pickNumber = targetPick.pickNumber;
     String targetTeam = targetPick.teamName;
+    final cacheKey = 'interest_${pickNumber}_${qbSpecific ? 'qb' : 'std'}_$_completedPicks';
+    
+    // Return cached results if available (and not stale)
+    if (_interestCache.containsKey(cacheKey)) {
+      _logTradeOperation('Using cached interest results for pick #$pickNumber');
+      return _interestCache[cacheKey]!;
+    }
     
     // Determine if we're in an active trade window
     List<TradeWindow> activeWindows = _windowDetector.getTradeWindows(
@@ -258,9 +315,36 @@ class EnhancedTradeManager {
       }
     }
     
+    // Cache the results before returning
+    _interestCache[cacheKey] = results;
+    
     return results;
   }
   
+  /// Apply memory optimization techniques
+  void _optimizeMemoryUsage() {
+    // Limit cache sizes
+    if (_valueCache.length > 1000) {
+      // Remove oldest entries
+      final keysToKeep = _valueCache.keys.toList().sublist(_valueCache.length - 500);
+      _valueCache.removeWhere((key, _) => !keysToKeep.contains(key));
+    }
+    
+    if (_windowCache.length > 20) {
+      // Only keep recent windows
+      final keysToRemove = _windowCache.keys.toList()
+          .where((pick) => pick < _currentPick - 10)
+          .toList();
+      for (var key in keysToRemove) {
+        _windowCache.remove(key);
+      }
+    }
+    
+    if (_interestCache.length > 10) {
+      _interestCache.clear(); // Interest data can change a lot, so clear rather than partial removal
+    }
+  }
+
   /// Generate a trade motivation for a team to trade up
   TradeMotivation _generateTradeMotivation(
     String team,
@@ -782,11 +866,6 @@ class EnhancedTradeManager {
     _frequencyCalibrator.recordTradeExecuted();
   }
   
-  /// Record a pick was completed without a trade
-  void recordPickCompleted() {
-    _frequencyCalibrator.recordPickCompleted();
-  }
-  
   /// Get trade frequency statistics
   Map<String, dynamic> getTradeFrequencyStats() {
     return _frequencyCalibrator.getTradeStats();
@@ -808,5 +887,32 @@ class EnhancedTradeManager {
     _windowDetector.reset();
     _frequencyCalibrator.reset();
     _counterOfferEvaluator.resetNegotiationHistory();
+  }
+  /// Get the trade operation log
+  String getTradeOperationLog() {
+    return _logBuffer.toString();
+  }
+  
+  /// Clear the log buffer
+  void clearLog() {
+    _logBuffer.clear();
+  }
+
+    /// Reset all caches
+  void _resetCaches() {
+    _valueCache.clear();
+    _windowCache.clear();
+    _interestCache.clear();
+  }
+  
+  /// Record pick completion - call this after each pick
+  void recordPickCompleted() {
+    _completedPicks++;
+    _frequencyCalibrator.recordPickCompleted();
+    
+    // Periodically optimize memory
+    if (_completedPicks % 10 == 0) {
+      _optimizeMemoryUsage();
+    }
   }
 }

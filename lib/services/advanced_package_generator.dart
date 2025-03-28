@@ -806,4 +806,246 @@ class AdvancedPackageGenerator {
       }
     }
   }
+  /// Generate Day 2 future pick packages (picks 33-105)
+void _generateDayTwoFuturePackages(
+  List<TradePackage> packages,
+  String teamOffering,
+  String teamReceiving,
+  List<DraftPick> sortedPicks,
+  DraftPick targetPick,
+  List<DraftPick> additionalTargetPicks,
+  double targetValue,
+  double minValue,
+  double maxValue
+) {
+  if (sortedPicks.isEmpty) return;
+  
+  // Find team's best pick
+  DraftPick bestPick = sortedPicks.first;
+  double bestPickValue = DraftValueService.getValueForPick(bestPick.pickNumber);
+  
+  // For day 2, common to include future mid-round picks (3rd-4th)
+  int futureRound = _random.nextInt(2) + 3; // 3rd or 4th round
+  FuturePick futurePick = FuturePick.forRound(teamOffering, futureRound);
+  
+  // Check if best pick + future pick is enough
+  double packageValue = bestPickValue + futurePick.value;
+  if (packageValue >= minValue && packageValue <= maxValue) {
+    packages.add(TradePackage(
+      teamOffering: teamOffering,
+      teamReceiving: teamReceiving,
+      picksOffered: [bestPick],
+      targetPick: targetPick,
+      additionalTargetPicks: additionalTargetPicks,
+      totalValueOffered: packageValue,
+      targetPickValue: targetValue,
+      includesFuturePick: true,
+      futurePickDescription: futurePick.description,
+      futurePickValue: futurePick.value,
+    ));
+  }
+  
+  // If that's not enough and we have more picks, try adding a second current pick
+  if (packageValue < minValue && sortedPicks.length > 1) {
+    for (int i = 1; i < min(sortedPicks.length, 5); i++) {
+      DraftPick secondPick = sortedPicks[i];
+      double secondValue = DraftValueService.getValueForPick(secondPick.pickNumber);
+      double totalValue = packageValue + secondValue;
+      
+      if (totalValue >= minValue && totalValue <= maxValue) {
+        packages.add(TradePackage(
+          teamOffering: teamOffering,
+          teamReceiving: teamReceiving,
+          picksOffered: [bestPick, secondPick],
+          targetPick: targetPick,
+          additionalTargetPicks: additionalTargetPicks,
+          totalValueOffered: totalValue,
+          targetPickValue: targetValue,
+          includesFuturePick: true,
+          futurePickDescription: futurePick.description,
+          futurePickValue: futurePick.value,
+        ));
+        break; // Found a good combination
+      }
+    }
+  }
+}
+
+/// Generate Day 3 future pick packages (picks 106+)
+void _generateDayThreeFuturePackages(
+  List<TradePackage> packages,
+  String teamOffering,
+  String teamReceiving,
+  List<DraftPick> sortedPicks,
+  DraftPick targetPick,
+  List<DraftPick> additionalTargetPicks,
+  double targetValue,
+  double minValue,
+  double maxValue
+) {
+  if (sortedPicks.isEmpty) return;
+  
+  // Find a reasonable day 3 pick to offer
+  DraftPick? dayThreePick;
+  for (var pick in sortedPicks) {
+    if (pick.pickNumber > 105) {
+      dayThreePick = pick;
+      break;
+    }
+  }
+  
+  // If no day 3 pick, use best available
+  dayThreePick ??= sortedPicks.first;
+  
+  // For day 3, common to include future late-round picks (5th-7th)
+  int futureRound = _random.nextInt(3) + 5; // 5th, 6th, or 7th round
+  FuturePick futurePick = FuturePick.forRound(teamOffering, futureRound);
+  
+  // Check if pick + future pick is enough
+  double pickValue = DraftValueService.getValueForPick(dayThreePick.pickNumber);
+  double packageValue = pickValue + futurePick.value;
+  
+  if (packageValue >= minValue && packageValue <= maxValue) {
+    packages.add(TradePackage(
+      teamOffering: teamOffering,
+      teamReceiving: teamReceiving,
+      picksOffered: [dayThreePick],
+      targetPick: targetPick,
+      additionalTargetPicks: additionalTargetPicks,
+      totalValueOffered: packageValue,
+      targetPickValue: targetValue,
+      includesFuturePick: true,
+      futurePickDescription: futurePick.description,
+      futurePickValue: futurePick.value,
+    ));
+  }
+  
+  // For day 3, sometimes a single future pick is used (especially for late rounds)
+  if (targetPick.pickNumber > 150) {
+    // Just a future 4th or 5th for a late pick
+    int soloFutureRound = _random.nextInt(2) + 4; // 4th or 5th
+    FuturePick soloFuturePick = FuturePick.forRound(teamOffering, soloFutureRound);
+    
+    // No current picks, just the future pick
+    if (soloFuturePick.value >= minValue && soloFuturePick.value <= maxValue) {
+      packages.add(TradePackage(
+        teamOffering: teamOffering,
+        teamReceiving: teamReceiving,
+        picksOffered: [],
+        targetPick: targetPick,
+        additionalTargetPicks: additionalTargetPicks,
+        totalValueOffered: soloFuturePick.value,
+        targetPickValue: targetValue,
+        includesFuturePick: true,
+        futurePickDescription: soloFuturePick.description,
+        futurePickValue: soloFuturePick.value,
+      ));
+    }
+  }
+}
+/// Filter packages to reasonable range and sort by realism/quality
+List<TradePackage> _filterAndRankPackages(List<TradePackage> packages, double targetValue) {
+  if (packages.isEmpty) return [];
+
+  // Filter to acceptable value range
+  List<TradePackage> filtered = packages.where((package) {
+    double valueRatio = package.totalValueOffered / targetValue;
+    return valueRatio >= minValueRatio && valueRatio <= maxValueRatio;
+  }).toList();
+  
+  if (filtered.isEmpty) return [];
+  
+  // Sort packages by criteria:
+  // 1. Value proximity to ideal ratio
+  // 2. Fewer picks preferred (simpler trades)
+  // 3. No future picks preferred (more concrete)
+  filtered.sort((a, b) {
+    // Primary sort: proximity to ideal ratio
+    double ratioA = a.totalValueOffered / targetValue;
+    double ratioB = b.totalValueOffered / targetValue;
+    double diffA = (ratioA - idealValueRatio).abs();
+    double diffB = (ratioB - idealValueRatio).abs();
+    
+    int compValue = diffA.compareTo(diffB);
+    if (compValue != 0) return compValue;
+    
+    // Secondary sort: fewer picks preferred
+    int picksA = a.picksOffered.length;
+    int picksB = b.picksOffered.length;
+    if (picksA != picksB) return picksA.compareTo(picksB);
+    
+    // Tertiary sort: no future picks preferred
+    if (a.includesFuturePick != b.includesFuturePick) {
+      return a.includesFuturePick ? 1 : -1;
+    }
+    
+    return 0;
+  });
+  
+  return filtered;
+}
+/// Apply parity helper for unbalanced trades
+List<TradePackage> _applyParityHelper(List<TradePackage> packages, double targetValue) {
+  List<TradePackage> adjustedPackages = [];
+  
+  for (var package in packages) {
+    // Check if the offered value is much higher than needed (>120%)
+    double valueRatio = package.totalValueOffered / targetValue;
+    if (valueRatio > 1.2) {
+      // Try to find a smaller pick from the receiving team to balance
+      DraftPick targetPick = package.targetPick;
+      String receivingTeam = package.teamReceiving;
+      
+      // Create hypothetical parity picks (don't actually have pick database here)
+      // In real implementation, you'd search through available picks
+      List<DraftPick> parityOptions = [
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 100, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 3).toString()
+        ),
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 70, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 2).toString()
+        ),
+        DraftPick(
+          pickNumber: targetPick.pickNumber + 40, 
+          teamName: receivingTeam, 
+          round: (targetPick.pickNumber ~/ 32 + 1).toString()
+        ),
+      ];
+      
+      // Find the best pick that brings ratio closest to 1.0
+      for (var parityPick in parityOptions) {
+        double parityValue = DraftValueService.getValueForPick(parityPick.pickNumber);
+        double adjustedValue = package.totalValueOffered - parityValue;
+        double newRatio = adjustedValue / targetValue;
+        
+        // If this brings us closer to 1.0 ratio but still >= 1.0
+        if (newRatio >= 1.0 && newRatio < valueRatio) {
+          adjustedPackages.add(TradePackage(
+            teamOffering: package.teamOffering,
+            teamReceiving: package.teamReceiving,
+            picksOffered: package.picksOffered,
+            targetPick: package.targetPick,
+            additionalTargetPicks: [...package.additionalTargetPicks, parityPick],
+            totalValueOffered: adjustedValue,
+            targetPickValue: targetValue,
+            includesFuturePick: package.includesFuturePick,
+            futurePickDescription: package.futurePickDescription,
+            futurePickValue: package.futurePickValue,
+            targetReceivedFuturePicks: package.targetReceivedFuturePicks,
+          ));
+          break;
+        }
+      }
+    }
+    
+    // Always keep the original package too
+    adjustedPackages.add(package);
+  }
+  
+  return adjustedPackages;
+}
 }

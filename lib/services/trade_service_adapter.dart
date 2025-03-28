@@ -32,14 +32,14 @@ class TradeServiceAdapter {
     bool enableQBPremium = true,
   }) : 
     _manager = EnhancedTradeManager(
-      draftOrder: draftOrder,
-      teamNeeds: teamNeeds,
-      availablePlayers: availablePlayers,
-      userTeams: userTeams,
-      baseTradeFrequency: tradeRandomnessFactor,
-      enableQBPremium: enableQBPremium,
-      enableUserTradeProposals: enableUserTradeConfirmation,
-    ),
+    draftOrder: draftOrder,
+    teamNeeds: teamNeeds,
+    availablePlayers: availablePlayers,
+    userTeams: userTeams,
+    baseTradeFrequency: tradeRandomnessFactor,
+    enableQBPremium: enableQBPremium,
+),
+
     _dialogueGenerator = TradeDialogueGenerator();
   
   /// Generate trade offers for a specific pick (implements original API)
