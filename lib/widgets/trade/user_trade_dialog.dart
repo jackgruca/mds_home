@@ -693,6 +693,42 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
 
               const SizedBox(height: 8),
 
+              // Add the leverage indicator right here, after the trade advice container
+if (widget.hasLeverage) 
+  Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    margin: const EdgeInsets.only(top: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).brightness == Brightness.dark ? 
+            Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: Colors.blue.withOpacity(0.5)),
+    ),
+    child: const Row(
+      children: [
+        Icon(
+          Icons.trending_up,
+          size: 16,
+          color: Colors.blue,
+        ),
+        SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11, 
+              color: Colors.blue,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+
+      ],
+    ),
+  ),
+
               // Progress bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),

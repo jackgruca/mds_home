@@ -140,85 +140,90 @@ class EnhancedTradeManager {
 }
 
   /// Generate trade offers for a specific pick with improved motivation and packaging
-  TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
-    _logTradeOperation('Generating offers for pick #$pickNumber${qbSpecific ? " (QB-specific)" : ""}', force: true);
+TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
+  _logTradeOperation('Generating offers for pick #$pickNumber${qbSpecific ? " (QB-specific)" : ""}', force: true);
 
   // Update current pick tracking
   _currentPick = pickNumber;
 
-    // Get the target pick
-    DraftPick? targetPick = _findPickByNumber(pickNumber);
-    if (targetPick == null) {
-      _logTradeOperation('Pick #$pickNumber not found in draft order', isError: true);
-      return TradeOffer(packages: [], pickNumber: pickNumber);
-    }
-    
-    // Check if this is a user team's pick
-    final bool isUserTeamPick = userTeams?.contains(targetPick.teamName) ?? false;
-    
-    // First, determine if the team with the pick is open to trading down
-    bool isWillingToTrade = _isTeamWillingToTradeDown(targetPick);
-    if (!isWillingToTrade && !isUserTeamPick) {
-      return TradeOffer(packages: [], pickNumber: pickNumber);
-    }
-    
-    // Calibrate trade frequency - skip evaluation sometimes for realism
-    bool shouldEvaluate = _frequencyCalibrator.shouldGenerateTrade(
-      pickNumber: pickNumber,
-      availablePlayers: availablePlayers,
-      isUserTeamPick: isUserTeamPick,
-      isQBDriven: qbSpecific,
-    );
-    
-    // For user team picks, always evaluate (user decides)
-    if (!isUserTeamPick && !shouldEvaluate && !qbSpecific) {
-      return TradeOffer(packages: [], pickNumber: pickNumber);
-    }
-    
-    // Find teams interested in trading up to this pick
-    List<TradeInterestResult> interestedTeams = _findTeamsWithTradeMotivation(
-      targetPick: targetPick,
-      qbSpecific: qbSpecific
-    );
-    
-    // Generate trade packages for interested teams
-    List<TradePackage> packages = [];
-    
-    for (var result in interestedTeams) {
-      // Get available picks for this team
-      List<DraftPick> teamPicks = _getAvailableTeamPicks(result.teamName);
-      
-      // Skip if team has no picks to trade
-      if (teamPicks.isEmpty) continue;
-      
-      // Cache motivation for later use
-      _cachedMotivations[result.teamName] = result.motivation;
-      
-      // Create trade packages based on motivation
-      List<TradePackage> teamPackages = _packageGenerator.generatePackages(
-        teamOffering: result.teamName,
-        teamReceiving: targetPick.teamName,
-        availablePicks: teamPicks,
-        targetPick: targetPick,
-        motivation: result.motivation,
-        isQBDriven: qbSpecific || result.motivation.targetedPosition == 'QB',
-      );
-      
-      // Add to our collection
-      packages.addAll(teamPackages);
-      
-      // Record that this team has considered this pick
-      _recordPickConsideration(result.teamName, pickNumber);
-    }
-    
-    _logTradeOperation('Generated ${packages.length} trade packages for pick #$pickNumber', force: true);
-
-    return TradeOffer(
-      packages: packages,
-      pickNumber: pickNumber,
-      isUserInvolved: isUserTeamPick,
-    );
+  // Get the target pick
+  DraftPick? targetPick = _findPickByNumber(pickNumber);
+  if (targetPick == null) {
+    _logTradeOperation('Pick #$pickNumber not found in draft order', isError: true);
+    return TradeOffer(packages: [], pickNumber: pickNumber);
   }
+  
+  // Check if this is a user team's pick
+  final bool isUserTeamPick = userTeams?.contains(targetPick.teamName) ?? false;
+  
+  // First, determine if the team with the pick is open to trading down
+  bool isWillingToTrade = _isTeamWillingToTradeDown(targetPick);
+  if (!isWillingToTrade && !isUserTeamPick) {
+    return TradeOffer(packages: [], pickNumber: pickNumber);
+  }
+  
+  // Calibrate trade frequency - skip evaluation sometimes for realism
+  bool shouldEvaluate = _frequencyCalibrator.shouldGenerateTrade(
+    pickNumber: pickNumber,
+    availablePlayers: availablePlayers,
+    isUserTeamPick: isUserTeamPick,
+    isQBDriven: qbSpecific,
+  );
+  
+  // For user team picks, always evaluate (user decides)
+  if (!isUserTeamPick && !shouldEvaluate && !qbSpecific) {
+    return TradeOffer(packages: [], pickNumber: pickNumber);
+  }
+  
+  // Find teams interested in trading up to this pick
+  List<TradeInterestResult> interestedTeams = _findTeamsWithTradeMotivation(
+    targetPick: targetPick,
+    qbSpecific: qbSpecific
+  );
+  
+  // Generate trade packages for interested teams
+  List<TradePackage> packages = [];
+  TradeMotivation? primaryMotivation;
+  
+  for (var result in interestedTeams) {
+    // Get available picks for this team
+    List<DraftPick> teamPicks = _getAvailableTeamPicks(result.teamName);
+    
+    // Skip if team has no picks to trade
+    if (teamPicks.isEmpty) continue;
+    
+    // Cache motivation for later use
+    _cachedMotivations[result.teamName] = result.motivation;
+    
+    // Save the first team's motivation as primary (typically the best offer)
+    primaryMotivation ??= result.motivation;
+    
+    // Create trade packages based on motivation
+    List<TradePackage> teamPackages = _packageGenerator.generatePackages(
+      teamOffering: result.teamName,
+      teamReceiving: targetPick.teamName,
+      availablePicks: teamPicks,
+      targetPick: targetPick,
+      motivation: result.motivation,
+      isQBDriven: qbSpecific || result.motivation.targetedPosition == 'QB',
+    );
+    
+    // Add to our collection
+    packages.addAll(teamPackages);
+    
+    // Record that this team has considered this pick
+    _recordPickConsideration(result.teamName, pickNumber);
+  }
+  
+  _logTradeOperation('Generated ${packages.length} trade packages for pick #$pickNumber', force: true);
+
+  return TradeOffer(
+    packages: packages,
+    pickNumber: pickNumber,
+    isUserInvolved: isUserTeamPick,
+    motivation: primaryMotivation, // Include the primary motivation
+  );
+}
 
   /// Get cached pick value or calculate and store it
   double _getCachedPickValue(int pickNumber) {

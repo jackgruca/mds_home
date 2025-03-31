@@ -951,12 +951,15 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     return selectedPlayer;
   }
   /// Process a user trade proposal with more detailed response
+  /// Process a user trade proposal with more detailed response
 Map<String, dynamic> processUserTradeProposalWithDetails(TradePackage proposal) {
   // Determine if the AI team should accept
   final shouldAccept = _tradeManager.evaluateTradeProposal(proposal);
   
   // Get detailed information
   Map<String, dynamic> rejectionDetails = {};
+  TradeMotivation? motivation = _tradeManager.getTradeMotivation(proposal.teamReceiving);
+  
   if (!shouldAccept) {
     rejectionDetails = _tradeManager.getRejectionDetails(proposal);
   }
@@ -970,11 +973,10 @@ Map<String, dynamic> processUserTradeProposalWithDetails(TradePackage proposal) 
     // Generate narrative for the trade
     String tradeNarrative = _dialogueGenerator.generateAcceptanceDialogue(
       proposal, 
-      _tradeManager.getTradeMotivation(proposal.teamReceiving)
+      motivation
     );
     
     // Add to trade history with appropriate motivation
-    TradeMotivation? motivation = _tradeManager.getTradeMotivation(proposal.teamReceiving);
     _tradeHistory.add(TradeHistoryEntry(
       tradePackage: proposal,
       timestamp: DateTime.now(),
@@ -991,6 +993,7 @@ Map<String, dynamic> processUserTradeProposalWithDetails(TradePackage proposal) 
     'improvements': rejectionDetails['improvements'],
     'adjustedValueRatio': rejectionDetails['adjustedValueRatio'],
     'acceptanceThreshold': rejectionDetails['acceptanceThreshold'],
+    'motivation': motivation, // Include motivation
   };
 }
 

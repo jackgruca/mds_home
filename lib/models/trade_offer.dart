@@ -1,16 +1,19 @@
 // lib/models/trade_offer.dart
 import 'trade_package.dart';
+import 'trade_motivation.dart';
 
 /// Represents a collection of trade packages offered for a pick
 class TradeOffer {
   final List<TradePackage> packages;
   final int pickNumber;
   final bool isUserInvolved;
+  final TradeMotivation? motivation; // New field
 
   const TradeOffer({
     required this.packages,
     required this.pickNumber,
     this.isUserInvolved = false,
+    this.motivation, // New parameter
   });
 
   /// Get the best trade package by value

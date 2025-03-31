@@ -28,64 +28,64 @@ class TradeDialogWrapper extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Check if the offer is empty or contains already handled picks
-    if (tradeOffer.packages.isEmpty) {
-      return AlertDialog(
-        title: const Text('No Trade Offers'),
-        content: const Text('There are no trade offers available for this pick.'),
-        actions: [
-          TextButton(
-            onPressed: onReject,
-            child: const Text('Close'),
-          ),
-        ],
-      );
-    }
-
-    // Use the enhanced trade dialog
-    return EnhancedTradeDialog(
-      tradeOffer: tradeOffer,
-      onAccept: (package) {
-        // First accept the trade
-        onAccept(package);
-        
-        // Then show a response dialog confirming the trade
-        _showTradeResponseDialog(context, package, true);
-      },
-      onReject: () {
-        // Generate a rejection reason
-        final package = tradeOffer.packages.first;
-        Map<String, dynamic>? rejectionDetails;
-        
-        // Try to get detailed rejection if trade manager available
-        if (tradeManager != null) {
-          rejectionDetails = tradeManager!.getRejectionDetails(package);
-        }
-        
-        String rejectionReason = rejectionDetails != null ? 
-                               rejectionDetails['reason'] : 
-                               _generateRejectionReason(package);
-        
-        // Show rejection dialog first
-        if (tradeOffer.isUserInvolved) {
-          _showTradeResponseDialog(
-            context, 
-            package, 
-            false, 
-            rejectionReason,
-            rejectionDetails?['improvements']
-          );
-        } else {
-          // Just close the dialog
-          onReject();
-        }
-      },
-      // Pass the context along with the package to the counter handler
-      onCounter: onCounter != null ? (package) => onCounter!(package) : null,
-      showAnalytics: showAnalytics,
+Widget build(BuildContext context) {
+  // Check if the offer is empty or contains already handled picks
+  if (tradeOffer.packages.isEmpty) {
+    return AlertDialog(
+      title: const Text('No Trade Offers'),
+      content: const Text('There are no trade offers available for this pick.'),
+      actions: [
+        TextButton(
+          onPressed: onReject,
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
+
+  // Use the enhanced trade dialog with motivation
+  return EnhancedTradeDialog(
+    tradeOffer: tradeOffer,
+    onAccept: (package) {
+      // First accept the trade
+      onAccept(package);
+      
+      // Then show a response dialog confirming the trade
+      _showTradeResponseDialog(context, package, true);
+    },
+    onReject: () {
+      // Generate a rejection reason
+      final package = tradeOffer.packages.first;
+      Map<String, dynamic>? rejectionDetails;
+      
+      // Try to get detailed rejection if trade manager available
+      if (tradeManager != null) {
+        rejectionDetails = tradeManager!.getRejectionDetails(package);
+      }
+      
+      String rejectionReason = rejectionDetails != null ? 
+                             rejectionDetails['reason'] : 
+                             _generateRejectionReason(package);
+      
+      // Show rejection dialog first
+      if (tradeOffer.isUserInvolved) {
+        _showTradeResponseDialog(
+          context, 
+          package, 
+          false, 
+          rejectionReason,
+          rejectionDetails?['improvements']
+        );
+      } else {
+        // Just close the dialog
+        onReject();
+      }
+    },
+    // Pass the context along with the package to the counter handler
+    onCounter: onCounter != null ? (package) => onCounter!(package) : null,
+    showAnalytics: showAnalytics,
+  );
+}
   
   // Show a response dialog after trade is accepted or rejected
   void _showTradeResponseDialog(

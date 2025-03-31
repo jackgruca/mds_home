@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
+import '../../models/trade_motivation.dart';
 
 class TradeResponseDialog extends StatelessWidget {
   final TradePackage tradePackage;
@@ -9,7 +10,7 @@ class TradeResponseDialog extends StatelessWidget {
   final String? rejectionReason;
   final VoidCallback onClose;
   final Map<String, dynamic>? improvements;
-
+  final TradeMotivation? motivation;
 
   const TradeResponseDialog({
     super.key,
@@ -18,6 +19,7 @@ class TradeResponseDialog extends StatelessWidget {
     this.rejectionReason,
     required this.onClose,
     this.improvements,
+    this.motivation,
   });
 
   @override
@@ -74,6 +76,39 @@ class TradeResponseDialog extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              
+              // Motivation section if available
+if (motivation != null) ...[
+  const SizedBox(height: 16),
+  const Text(
+    'Team Motivation:',
+    style: TextStyle(fontWeight: FontWeight.bold),
+  ),
+  const SizedBox(height: 8),
+  Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: wasAccepted ? Colors.green.shade50 : Colors.blue.shade50,
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: wasAccepted ? Colors.green.shade200 : Colors.blue.shade200
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          motivation.primaryMotivation,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        if (motivation.motivationDescription.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(motivation.motivationDescription),
+        ]
+      ],
+    ),
+  ),
+],
               
               // Rejection reason if applicable
               if (!wasAccepted && rejectionReason != null) ...[

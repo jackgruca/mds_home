@@ -567,4 +567,30 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
     });
     return allOffers;
   }
+
+  Widget _buildLeverageIndicator(bool hasLeverage) {
+  if (!hasLeverage) return const SizedBox();
+  
+  return Container(
+    margin: const EdgeInsets.only(bottom: 8.0),
+    padding: const EdgeInsets.all(8.0),
+    decoration: BoxDecoration(
+      color: Colors.blue.shade50,
+      borderRadius: BorderRadius.circular(6.0),
+      border: Border.all(color: Colors.blue.shade200),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.trending_up, size: 16, color: Colors.blue.shade700),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            "You have negotiating leverage. Teams that initiate trade proposals are often willing to accept less than standard value.",
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }

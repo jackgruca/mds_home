@@ -453,154 +453,199 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
   }
 
   Widget _buildValueAnalysis() {
-    final package = widget.tradeOffer.packages[_selectedIndex];
-    
-    // Calculate some analytics for the trade
-    final valueRatio = package.totalValueOffered / package.targetPickValue;
-    final fairnessPercentage = (valueRatio * 100).clamp(0.0, 200.0);
-    final bool isGoodDeal = valueRatio > 1.0;
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+  final package = widget.tradeOffer.packages[_selectedIndex];
+  
+  // Calculate some analytics for the trade
+  final valueRatio = package.totalValueOffered / package.targetPickValue;
+  final fairnessPercentage = (valueRatio * 100).clamp(0.0, 200.0);
+  final bool isGoodDeal = valueRatio > 1.0;
+  
+  // Get trade motivation if available through the TradeOffer
+  final hasMotivation = widget.tradeOffer.motivation != null;
+  final motivation = widget.tradeOffer.motivation;
+  
+  return SingleChildScrollView(
+    padding: const EdgeInsets.symmetric(vertical: 12.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Value gauge
+        Center(
+          child: Column(
+            children: [
+              Text(
+                isGoodDeal ? 'Good Deal' : 'Poor Deal',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _getValueColor(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 120,
+                width: 120,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: fairnessPercentage / 100,
+                      strokeWidth: 12,
+                      backgroundColor: Colors.grey.withOpacity(0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(_getValueColor()),
+                    ),
+                    Text(
+                      '${fairnessPercentage.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        
+        // Motivation section (if available)
+if (hasMotivation) 
+  Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Value gauge
-          Center(
-            child: Column(
-              children: [
-                Text(
-                  isGoodDeal ? 'Good Deal' : 'Poor Deal',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: _getValueColor(),
-                  ),
+          const Text(
+            'Trade Motivation',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const Divider(),
+          Text(
+            motivation?.primaryMotivation ?? "General trade interest",
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (motivation?.motivationDescription.isNotEmpty ?? false) 
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                motivation!.motivationDescription,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark ? 
+                        Colors.grey.shade300 : Colors.grey.shade700,
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 120,
-                  width: 120,
-                  child: Stack(
-                    alignment: Alignment.center,
+              ),
+            ),
+        ],
+      ),
+    ),
+  ),
+        
+        const SizedBox(height: 16),
+        
+        // Pro/Con analysis
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Trade Analysis',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Divider(),
+                
+                // Pros
+                const Text(
+                  'Pros:',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                ),
+                const SizedBox(height: 4),
+                ...(_getProPoints(package).map((point) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircularProgressIndicator(
-                        value: fairnessPercentage / 100,
-                        strokeWidth: 12,
-                        backgroundColor: Colors.grey.withOpacity(0.2),
-                        valueColor: AlwaysStoppedAnimation<Color>(_getValueColor()),
-                      ),
-                      Text(
-                        '${fairnessPercentage.toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(point)),
                     ],
                   ),
+                ))),
+                
+                const SizedBox(height: 16),
+                
+                // Cons
+                const Text(
+                  'Cons:',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
                 ),
+                const SizedBox(height: 4),
+                ...(_getConPoints(package).map((point) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.cancel, color: Colors.red, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(point)),
+                    ],
+                  ),
+                ))),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          
-          // Pro/Con analysis
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Trade Analysis',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Divider(),
-                  
-                  // Pros
-                  const Text(
-                    'Pros:',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                  const SizedBox(height: 4),
-                  ...(_getProPoints(package).map((point) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(point)),
-                      ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Recommendation
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: _getValueColor().withOpacity(0.1),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isGoodDeal ? Icons.thumb_up : Icons.thumb_down,
+                      color: _getValueColor(),
                     ),
-                  ))),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Cons
-                  const Text(
-                    'Cons:',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
-                  const SizedBox(height: 4),
-                  ...(_getConPoints(package).map((point) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.cancel, color: Colors.red, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(point)),
-                      ],
-                    ),
-                  ))),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Recommendation
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            color: _getValueColor().withOpacity(0.1),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        isGoodDeal ? Icons.thumb_up : Icons.thumb_down,
+                    const SizedBox(width: 8),
+                    Text(
+                      'Recommendation',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                         color: _getValueColor(),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Recommendation',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: _getValueColor(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(_getRecommendation(package)),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(_getRecommendation(package)),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildEnhancedPicksTable(TradePackage package) {
     return Card(
