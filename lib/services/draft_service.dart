@@ -311,25 +311,6 @@ class DraftService {
 // Add this getter
 List<TradeHistoryEntry> get tradeHistory => _tradeHistory;
 
-// Add this method to get detailed trade info
-Map<String, dynamic> getTradeDetails(TradePackage package) {
-  // Get motivation if available
-  TradeMotivation? motivation = _tradeManager.getTradeMotivation(package.teamOffering);
-  
-  // Get pros and cons
-  Map<String, List<String>> prosCons = _generateTradeProsCons(package);
-  
-  return {
-    'package': package,
-    'motivation': motivation,
-    'recommendation': getRecommendedAction(package),
-    'valueRatio': (package.totalValueOffered / package.targetPickValue).toStringAsFixed(2),
-    'pros': prosCons['pros'] ?? [],
-    'cons': prosCons['cons'] ?? [],
-    'isUserInvolved': (userTeams?.contains(package.teamOffering) ?? false) || (userTeams?.contains(package.teamReceiving) ?? false),
-  };
-}
-
 // Add a method to generate pros and cons
 Map<String, List<String>> _generateTradeProsCons(TradePackage package) {
   List<String> pros = [];
@@ -969,6 +950,54 @@ Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
     
     return selectedPlayer;
   }
+  /// Process a user trade proposal with more detailed response
+Map<String, dynamic> processUserTradeProposalWithDetails(TradePackage proposal) {
+  // Determine if the AI team should accept
+  final shouldAccept = _tradeManager.evaluateTradeProposal(proposal);
+  
+  // Get detailed information
+  Map<String, dynamic> rejectionDetails = {};
+  if (!shouldAccept) {
+    rejectionDetails = _tradeManager.getRejectionDetails(proposal);
+  }
+  
+  // Execute the trade if accepted
+  if (shouldAccept) {
+    _executeTrade(proposal);
+    _statusMessage = "Trade accepted: ${proposal.tradeDescription}";
+    _tradeManager.recordCompletedTrade(proposal);
+    
+    // Generate narrative for the trade
+    String tradeNarrative = _dialogueGenerator.generateAcceptanceDialogue(
+      proposal, 
+      _tradeManager.getTradeMotivation(proposal.teamReceiving)
+    );
+    
+    // Add to trade history with appropriate motivation
+    TradeMotivation? motivation = _tradeManager.getTradeMotivation(proposal.teamReceiving);
+    _tradeHistory.add(TradeHistoryEntry(
+      tradePackage: proposal,
+      timestamp: DateTime.now(),
+      narrative: tradeNarrative,
+      motivation: motivation,
+    ));
+  }
+  
+  return {
+    'accepted': shouldAccept,
+    'reason': shouldAccept ? 
+      "Trade accepted" : 
+      (rejectionDetails['reason'] ?? getTradeRejectionReason(proposal)),
+    'improvements': rejectionDetails['improvements'],
+    'adjustedValueRatio': rejectionDetails['adjustedValueRatio'],
+    'acceptanceThreshold': rejectionDetails['acceptanceThreshold'],
+  };
+}
+
+/// Get detailed information about a trade
+Map<String, dynamic> getTradeDetails(TradePackage package) {
+  return _tradeManager.getTradeDetails(package);
+}
   
   /// Select the best player available from the list
   Player _selectBestPlayerAvailable(int pickNumber) {

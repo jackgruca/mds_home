@@ -919,4 +919,100 @@ class EnhancedTradeManager {
       _optimizeMemoryUsage();
     }
   }
+  /// Get detailed trade info
+Map<String, dynamic> getTradeDetails(TradePackage package) {
+  // Get motivation if available
+  TradeMotivation? motivation = _cachedMotivations[package.teamOffering];
+  
+  // Get pros and cons
+  Map<String, List<String>> prosCons = _generateTradeProsCons(package);
+  
+  return {
+    'package': package,
+    'motivation': motivation,
+    'recommendation': _getRecommendedAction(package),
+    'valueRatio': (package.totalValueOffered / package.targetPickValue).toStringAsFixed(2),
+    'pros': prosCons['pros'] ?? [],
+    'cons': prosCons['cons'] ?? [],
+    'isUserInvolved': (userTeams?.contains(package.teamOffering) ?? false) || (userTeams?.contains(package.teamReceiving) ?? false),
+  };
+}
+
+/// Get the recommended action for a trade package
+String _getRecommendedAction(TradePackage package) {
+  double valueRatio = package.totalValueOffered / package.targetPickValue;
+  
+  if (valueRatio >= 1.1) {
+    return "Accept - This is a very favorable deal";
+  } else if (valueRatio >= 1.0) {
+    return "Accept - This is a fair value deal";
+  } else if (valueRatio >= 0.95) {
+    return "Consider - The value is slightly below market rate";
+  } else if (valueRatio >= 0.9) {
+    return "Use Caution - The offer is below standard value charts";
+  } else {
+    return "Reject - This offer significantly undervalues your pick";
+  }
+}
+
+/// Generate pros and cons for a trade
+Map<String, List<String>> _generateTradeProsCons(TradePackage package) {
+  List<String> pros = [];
+  List<String> cons = [];
+  
+  // Calculate key metrics
+  double valueRatio = package.totalValueOffered / package.targetPickValue;
+  int pickGap = package.picksOffered.isEmpty ? 0 : 
+                package.picksOffered.first.pickNumber - package.targetPick.pickNumber;
+  int picksGiven = package.picksOffered.length;
+  int picksReceived = 1 + package.additionalTargetPicks.length;
+  
+  // Value-based analysis
+  if (valueRatio >= 1.15) {
+    pros.add("Receiving ${((valueRatio - 1.0) * 100).toInt()}% more draft value than giving up");
+  } else if (valueRatio >= 1.0) {
+    pros.add("Receiving fair value according to standard draft charts");
+  } else if (valueRatio >= 0.9) {
+    cons.add("Giving up ${((1.0 - valueRatio) * 100).toInt()}% more draft value than receiving");
+  } else {
+    cons.add("Significant value loss of ${((1.0 - valueRatio) * 100).toInt()}% according to standard draft charts");
+  }
+  
+  // Pick position analysis
+  if (package.targetPick.pickNumber <= 10) {
+    pros.add("Acquiring a premium top-10 pick with blue-chip potential");
+  } else if (package.targetPick.pickNumber <= 32) {
+    pros.add("Acquiring a first-round pick with potential starter value");
+  }
+  
+  if (package.picksOffered.any((pick) => pick.pickNumber <= 15)) {
+    cons.add("Trading away a valuable early pick (#${package.picksOffered.firstWhere((pick) => pick.pickNumber <= 15).pickNumber})");
+  }
+  
+  // Pick quantity analysis
+  if (picksGiven > picksReceived) {
+    cons.add("Giving up $picksGiven picks to receive $picksReceived picks");
+  } else if (picksReceived > picksGiven) {
+    pros.add("Receiving $picksReceived picks for only $picksGiven picks");
+  }
+  
+  // Future pick analysis
+  if (package.includesFuturePick) {
+    cons.add("Sacrificing future draft capital (${package.futurePickDescription})");
+  }
+  
+  // Add at least one pro and con if empty
+  if (pros.isEmpty) {
+    pros.add("Opportunity to target a specific player of need");
+  }
+  
+  if (cons.isEmpty) {
+    cons.add("Standard opportunity cost of the traded assets");
+  }
+  
+  return {
+    'pros': pros,
+    'cons': cons,
+  };
+}
 }

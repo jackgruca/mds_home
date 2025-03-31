@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../models/trade_package.dart';
 import '../../models/trade_offer.dart';
+import '../../services/enhanced_trade_manager.dart';
 import 'enhanced_trade_dialog.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/draft_pick.dart';
@@ -14,6 +15,7 @@ class TradeDialogWrapper extends StatelessWidget {
   final VoidCallback onReject;
   final Function(TradePackage)? onCounter;
   final bool showAnalytics;
+  final EnhancedTradeManager? tradeManager;
 
   const TradeDialogWrapper({
     super.key,
@@ -22,6 +24,7 @@ class TradeDialogWrapper extends StatelessWidget {
     required this.onReject,
     this.onCounter,
     this.showAnalytics = true,
+    this.tradeManager,
   });
 
   @override
@@ -52,15 +55,26 @@ class TradeDialogWrapper extends StatelessWidget {
       },
       onReject: () {
         // Generate a rejection reason
-        final rejectionReason = _generateRejectionReason(tradeOffer.packages.first);
+        final package = tradeOffer.packages.first;
+        Map<String, dynamic>? rejectionDetails;
+        
+        // Try to get detailed rejection if trade manager available
+        if (tradeManager != null) {
+          rejectionDetails = tradeManager!.getRejectionDetails(package);
+        }
+        
+        String rejectionReason = rejectionDetails != null ? 
+                               rejectionDetails['reason'] : 
+                               _generateRejectionReason(package);
         
         // Show rejection dialog first
         if (tradeOffer.isUserInvolved) {
           _showTradeResponseDialog(
             context, 
-            tradeOffer.packages.first, 
+            package, 
             false, 
-            rejectionReason
+            rejectionReason,
+            rejectionDetails?['improvements']
           );
         } else {
           // Just close the dialog
@@ -78,7 +92,8 @@ class TradeDialogWrapper extends StatelessWidget {
     BuildContext context, 
     TradePackage tradePackage, 
     bool wasAccepted,
-    [String? rejectionReason]
+    [String? rejectionReason,
+    Map<String, dynamic>? improvements]
   ) {
     // First dismiss the current trade dialog
     Navigator.of(context).pop();
@@ -90,6 +105,7 @@ class TradeDialogWrapper extends StatelessWidget {
         tradePackage: tradePackage,
         wasAccepted: wasAccepted,
         rejectionReason: rejectionReason,
+        improvements: improvements,
         onClose: onReject,
       ),
     );

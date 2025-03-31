@@ -1,13 +1,16 @@
 // lib/widgets/trade/trade_history.dart
 import 'package:flutter/material.dart';
 import '../../models/trade_package.dart';
+import '../../services/draft_service.dart';
 
 class TradeHistoryWidget extends StatelessWidget {
   final List<TradePackage> trades;
+  final List<TradeHistoryEntry>? tradeHistory;
 
   const TradeHistoryWidget({
     super.key,
     required this.trades,
+    this.tradeHistory,
   });
 
   @override
@@ -22,6 +25,20 @@ class TradeHistoryWidget extends StatelessWidget {
       itemCount: trades.length,
       itemBuilder: (context, index) {
         final trade = trades[index];
+        
+        // Find corresponding history entry if available
+        TradeHistoryEntry? historyEntry;
+        if (tradeHistory != null) {
+          for (var entry in tradeHistory!) {
+            if (entry.tradePackage.targetPick.pickNumber == trade.targetPick.pickNumber &&
+                entry.tradePackage.teamOffering == trade.teamOffering &&
+                entry.tradePackage.teamReceiving == trade.teamReceiving) {
+              historyEntry = entry;
+              break;
+            }
+          }
+        }
+        
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: Padding(
@@ -69,6 +86,32 @@ class TradeHistoryWidget extends StatelessWidget {
                     fontStyle: FontStyle.italic,
                   ),
                 ),
+                
+                // Trade motivation if available
+                if (historyEntry != null && historyEntry.motivation != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Motivation: ${historyEntry.motivation!.primaryMotivation}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(historyEntry.narrative),
+                      ],
+                    ),
+                  ),
+                ],
                 
                 // Future pick info if applicable
                 if (trade.includesFuturePick) ...[

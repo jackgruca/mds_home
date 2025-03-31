@@ -256,6 +256,8 @@ void _handleTabChange() {
   }
 }
 
+
+
 /// Builds the content for the status bar based on context
 Widget _buildStatusBarContent() {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
