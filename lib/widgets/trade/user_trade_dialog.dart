@@ -9,12 +9,14 @@ class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
   final List<DraftPick> userPicks;
   final List<DraftPick> targetPicks;
-  final List<DraftPick>? initialSelectedUserPicks; // New parameter
-  final List<DraftPick>? initialSelectedTargetPicks; // New parameter
+  final List<DraftPick>? initialSelectedUserPicks; // For current year picks
+  final List<DraftPick>? initialSelectedTargetPicks; // For current year picks
+  final List<int>? initialSelectedUserFutureRounds; // For future picks
+  final List<int>? initialSelectedTargetFutureRounds; // For future picks
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
-  final bool hasLeverage; // New parameter
+  final bool hasLeverage; // For counter offers
   final VoidCallback? onBack;
 
   const UserTradeProposalDialog({
@@ -26,6 +28,8 @@ class UserTradeProposalDialog extends StatefulWidget {
     required this.onCancel,
     this.initialSelectedUserPicks,
     this.initialSelectedTargetPicks, 
+    this.initialSelectedUserFutureRounds,
+    this.initialSelectedTargetFutureRounds,
     this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
     this.onBack,
@@ -39,36 +43,42 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
-  final List<int> _selectedTargetFutureRounds = [];
+  List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  final List<int> _selectedFutureRounds = [];
+  List<int> _selectedFutureRounds = [];
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   
   @override
-  void initState() {
-    super.initState();
-    if (widget.targetPicks.isNotEmpty) {
-      _targetTeam = widget.targetPicks.first.teamName;
-    } else {
-      _targetTeam = "";
-    }
-
-    // Initialize with pre-selected picks if provided
-    if (widget.initialSelectedUserPicks != null) {
-      _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
-    }
-    
-    if (widget.initialSelectedTargetPicks != null) {
-      _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
-    }
-    
-    // Initialize future picks if needed
-    // This would need additional parameters for future picks
-    
-    // Update values based on selections
-    _updateValues();
+void initState() {
+  super.initState();
+  if (widget.targetPicks.isNotEmpty) {
+    _targetTeam = widget.targetPicks.first.teamName;
+  } else {
+    _targetTeam = "";
   }
+
+  // Initialize with pre-selected picks if provided
+  if (widget.initialSelectedUserPicks != null) {
+    _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
+  }
+  
+  if (widget.initialSelectedTargetPicks != null) {
+    _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
+  }
+  
+  // Initialize future picks if provided
+  if (widget.initialSelectedUserFutureRounds != null) {
+    _selectedFutureRounds = List.from(widget.initialSelectedUserFutureRounds!);
+  }
+  
+  if (widget.initialSelectedTargetFutureRounds != null) {
+    _selectedTargetFutureRounds = List.from(widget.initialSelectedTargetFutureRounds!);
+  }
+  
+  // Update values based on selections
+  _updateValues();
+}
   
   void _updateValues() {
     double userValue = 0;
