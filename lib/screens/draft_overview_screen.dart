@@ -650,20 +650,15 @@ List<Color> _getTeamGradientColors(String teamName) {
   });
   
   if (widget.showAnalytics) {
-    // Instead of showing the summary popup, switch to the Stats tab
-    _tabController.animateTo(3); // Index 3 is the Stats tab
+    // First change to the analytics tab
+    _tabController.animateTo(3); 
     
-    // Show a snackbar notification
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-  if (mounted) {  // Check if widget is still mounted to avoid errors
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Draft complete! View your draft analytics.'),
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-});
+    // Force showing the summary immediately
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _showDraftSummary(draftComplete: true);
+      }
+    });
   }
   return;
 }
@@ -983,28 +978,28 @@ void _showDraftSummary({bool draftComplete = false}) {
   allTeams.sort();
   
   // Determine initial filter
-  // - If draft is complete, use "All Teams"
+  // - If draft is complete, use user team instead of "All Teams"
   // - Otherwise, use user team if available
-  String? initialFilter = draftComplete 
-      ? "All Teams" 
+  String? initialFilter = draftComplete && widget.selectedTeams?.isNotEmpty == true 
+      ? widget.selectedTeams!.first
       : (widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null);
   
   // Show the dialog with the appropriate filter
   showDialog(
-  context: context,
-  barrierDismissible: true,
-  builder: (context) => DraftSummaryScreen(
-    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-    draftedPlayers: _players.where((player) => 
-      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-    executedTrades: _executedTrades,
-    allTeams: allTeams,
-    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-    allDraftPicks: _draftPicks,
-    initialFilter: initialFilter,
-    teamNeeds: _teamNeeds, // Add this line
-  ),
-);
+    context: context,
+    barrierDismissible: true,
+    builder: (context) => DraftSummaryScreen(
+      completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+      draftedPlayers: _players.where((player) => 
+        _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+      executedTrades: _executedTrades,
+      allTeams: allTeams,
+      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+      allDraftPicks: _draftPicks,
+      initialFilter: initialFilter,
+      teamNeeds: _teamNeeds,
+    ),
+  );
 }
 
 void _showPlayerSelectionDialog(DraftPick pick) {
@@ -1377,22 +1372,18 @@ void didUpdateWidget(DraftApp oldWidget) {
       !_summaryShown) {
     _summaryShown = true;
     
-    // Navigate to the Stats tab instead of showing the summary popup
+    // First switch to the Recap tab
     if (widget.showAnalytics) {
       _tabController.animateTo(3); // Index 3 is the Stats tab
-      
-      // Use post-frame callback to display SnackBar
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Draft complete! View your draft analytics.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      });
     }
+    
+    // Then immediately trigger the "Your Picks" dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // This is specifically showing the "Your Picks" dialog
+        _showDraftSummary(draftComplete: true);
+      }
+    });
   }
 }
 
