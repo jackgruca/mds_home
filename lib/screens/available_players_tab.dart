@@ -571,7 +571,17 @@ void _showPlayerDetails(BuildContext context, Player player) {
     );
   } else {
     // Fall back to mock data for players without description
-    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+    enrichedPlayer = Player(
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      rank: player.rank,
+      school: player.school,
+      notes: player.notes,
+      description: "No detailed player information available yet for ${player.name}.",
+      strengths: "Information not available",
+      weaknesses: "Information not available",
+    );
   }
   
   // Show the dialog with enriched player data

@@ -70,7 +70,6 @@ static Future<void> initialize({int year = 2025}) async {
   }
 }
   
-// lib/services/player_descriptions_service.dart
 // Update the getPlayerDescription method to include height and weight
 
 static Map<String, String>? getPlayerDescription(String playerName) {
@@ -106,35 +105,35 @@ static Map<String, String>? getPlayerDescription(String playerName) {
   }
   
   // Try to find the most similar name
-  String? bestMatch = _findBestMatch(normalizedName, _allPlayerNames);
-  if (bestMatch != null) {
-    debugPrint("Found best match: $playerName -> $bestMatch (similarity: ${_calculateSimilarity(normalizedName, bestMatch)})");
-    return _playerDescriptions[bestMatch];
-  }
+  // String? bestMatch = _findBestMatch(normalizedName, _allPlayerNames);
+  // if (bestMatch != null) {
+  //   debugPrint("Found best match: $playerName -> $bestMatch (similarity: ${_calculateSimilarity(normalizedName, bestMatch)})");
+  //   return _playerDescriptions[bestMatch];
+  // }
   
-  // Try matching parts of the name (first name or last name)
-  for (var entry in _playerDescriptions.entries) {
-    List<String> playerNameParts = normalizedName.split(' ');
-    List<String> csvNameParts = entry.key.split(' ');
+  // // Try matching parts of the name (first name or last name)
+  // for (var entry in _playerDescriptions.entries) {
+  //   List<String> playerNameParts = normalizedName.split(' ');
+  //   List<String> csvNameParts = entry.key.split(' ');
     
-    // Check if last names match (usually more unique)
-    if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
-        playerNameParts.last == csvNameParts.last) {
-      debugPrint("Found match by last name: $playerName -> ${entry.key}");
-      return entry.value;
-    }
+  //   // Check if last names match (usually more unique)
+  //   if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
+  //       playerNameParts.last == csvNameParts.last) {
+  //     debugPrint("Found match by last name: $playerName -> ${entry.key}");
+  //     return entry.value;
+  //   }
     
-    // Check if first names match
-    if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
-        playerNameParts.first == csvNameParts.first) {
-      // Only use first name match if the names are otherwise similar
-      double similarity = _calculateSimilarity(normalizedName, entry.key);
-      if (similarity > 0.6) {
-        debugPrint("Found match by first name with high similarity: $playerName -> ${entry.key}");
-        return entry.value;
-      }
-    }
-  }
+  //   // Check if first names match
+  //   if (playerNameParts.isNotEmpty && csvNameParts.isNotEmpty &&
+  //       playerNameParts.first == csvNameParts.first) {
+  //     // Only use first name match if the names are otherwise similar
+  //     double similarity = _calculateSimilarity(normalizedName, entry.key);
+  //     if (similarity > 0.6) {
+  //       debugPrint("Found match by first name with high similarity: $playerName -> ${entry.key}");
+  //       return entry.value;
+  //     }
+  //   }
+  // }
   
   debugPrint("No match found for player: $playerName");
   return null;
