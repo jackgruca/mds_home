@@ -78,6 +78,15 @@ void initState() {
   
   // Update values based on selections
   _updateValues();
+  
+  // Debug information for counter offer
+  if (widget.hasLeverage) {
+    debugPrint("Counter offer dialog initialized with leverage");
+    debugPrint("User picks selected: ${_selectedUserPicks.length}");
+    debugPrint("Target picks selected: ${_selectedTargetPicks.length}");
+    debugPrint("User future rounds: $_selectedFutureRounds");
+    debugPrint("Target future rounds: $_selectedTargetFutureRounds");
+  }
 }
   
   void _updateValues() {
@@ -983,8 +992,15 @@ if (widget.hasLeverage)
   debugPrint("Created trade package: ${package.tradeDescription}"); // Debug print
   debugPrint("Calling onPropose callback"); // Debug print
   
-  // Call the propose callback with the package
-  widget.onPropose(package);
+  // First close the dialog to avoid navigation issues
+  if (Navigator.canPop(context)) {
+    Navigator.of(context).pop();
+  }
+  
+  // Call the propose callback after navigation
+  Future.microtask(() {
+    widget.onPropose(package);
+  });
 }
 
   String _getRoundText(int round) {

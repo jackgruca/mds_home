@@ -534,15 +534,14 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
     }
   }
   
-/// Process a user counter offer with leverage premium applied
+/// Evaluate a counter offer with leverage premium
 bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
-  // Use the trade service to evaluate the counter offer with leverage premium
+  // Use trade service to evaluate
   bool accepted = _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
   
-  // If accepted, actually execute the trade
+  // If accepted, execute the trade
   if (accepted) {
-    _executeTrade(counterOffer);
-    _statusMessage = "Counter offer accepted: ${counterOffer.tradeDescription}";
+    executeUserSelectedTrade(counterOffer);
   }
   
   return accepted;
@@ -1110,4 +1109,26 @@ void generateUserPickOffers() {
   bool isDraftComplete() {
     return draftOrder.where((pick) => pick.isActiveInDraft).every((pick) => pick.isSelected);
   }
+  /// Execute a counter offer with leverage premium applied
+bool executeCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  try {
+    debugPrint("Executing counter offer evaluation in DraftService");
+    
+    // First, evaluate the counter offer
+    final accepted = _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
+    
+    // If accepted, execute the trade
+    if (accepted) {
+      executeUserSelectedTrade(counterOffer);
+      _statusMessage = "Counter offer accepted: ${counterOffer.tradeDescription}";
+    } else {
+      _statusMessage = "Counter offer rejected";
+    }
+    
+    return accepted;
+  } catch (e) {
+    debugPrint("ERROR executing counter offer: $e");
+    return false;
+  }
+}
 }

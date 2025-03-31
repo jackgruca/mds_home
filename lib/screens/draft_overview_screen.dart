@@ -791,34 +791,94 @@ void _initiateUserTradeProposal() {
         // Handle accept offer...
       },
       onPropose: (proposal) {
-        debugPrint("Trade proposal received in draft_overview_screen: ${proposal.tradeDescription}"); // Debug print
-        Navigator.pop(context); // Close dialog
+  debugPrint("Trade proposal received in draft_overview_screen: ${proposal.tradeDescription}");
+  
+  bool accepted = false;
+  String? rejectionReason;
+  bool isCounterOffer = false;
+  
+  try {
+    // Try to determine if this is a counter offer by checking team relationships
+    // User team offering picks to receive the target pick would be a counter offer
+    for (var offers in _draftService!.pendingUserOffers.values) {
+      for (var originalOffer in offers) {
+        // If team roles are reversed, this is likely a counter offer
+        if (originalOffer.teamOffering == proposal.teamReceiving && 
+            originalOffer.teamReceiving == proposal.teamOffering) {
+          isCounterOffer = true;
+          debugPrint("Detected as counter offer to original offer: ${originalOffer.tradeDescription}");
+          
+          // The key change: use evaluateCounterOffer for leverage
+          accepted = _draftService!.evaluateCounterOffer(originalOffer, proposal);
+          break;
+        }
+      }
+      if (isCounterOffer) break;
+    }
+    
+    // If not a counter offer, process as regular proposal
+    if (!isCounterOffer) {
+      accepted = _draftService!.processUserTradeProposal(proposal);
+    }
+    
+    rejectionReason = accepted ? null : _draftService!.getTradeRejectionReason(proposal);
+  } catch (e) {
+    debugPrint("Error processing proposal: $e");
+    accepted = false;
+    rejectionReason = "An error occurred: $e";
+  }
+  
+  // Show response dialog
+  showDialog(
+    context: context,
+    builder: (context) => TradeResponseDialog(
+      tradePackage: proposal,
+      wasAccepted: accepted,
+      rejectionReason: rejectionReason,
+      onClose: () {
+        Navigator.pop(context);
         
-        // Process the proposal using DraftService
-        final accepted = _draftService!.processUserTradeProposal(proposal);
-        
-        // Show response dialog
-        showDialog(
-          context: context,
-          builder: (context) => TradeResponseDialog(
-            tradePackage: proposal,
-            wasAccepted: accepted,
-            rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(proposal),
-            onClose: () {
-              Navigator.pop(context);
-              
-              // Update UI if trade was accepted
-              if (accepted) {
-                setState(() {
-                  _executedTrades = _draftService!.executedTrades;
-                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-                  _statusMessage = _draftService!.statusMessage;
-                });
+        // Update UI if trade was accepted
+        if (accepted) {
+          setState(() {
+            _executedTrades = _draftService!.executedTrades;
+            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+            _statusMessage = isCounterOffer ? 
+              "Counter offer accepted: ${proposal.tradeDescription}" :
+              "Trade accepted: ${proposal.tradeDescription}";
+            
+            // Check if we need to reset the UI state
+            DraftPick? nextPick = _draftService!.getNextPick();
+            if (nextPick != null) {
+              // If this affects the current pick, update UI state
+              for (var pick in proposal.picksOffered) {
+                if (pick.pickNumber == nextPick.pickNumber) {
+                  _isUserPickMode = false;
+                  _userNextPick = null;
+                  _isDraftRunning = true;
+                  break;
+                }
               }
-            },
-          ),
-        );
+              if (proposal.targetPick.pickNumber == nextPick.pickNumber) {
+                _isUserPickMode = false;
+                _userNextPick = null;
+                _isDraftRunning = true;
+              }
+            }
+            
+            if (_isDraftRunning) {
+              // Continue the draft if it's running
+              Future.delayed(
+                Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                _processDraftPick
+              );
+            }
+          });
+        }
       },
+    ),
+  );
+},
       onCancel: () {
         Navigator.pop(context);
       },
@@ -878,70 +938,99 @@ void _initiateUserTradeProposal() {
           }
         },
         onCounter: (package) {
-          // Get all available picks for both teams
-          final receivingTeamPicks = _draftService!.getTeamPicks(package.teamReceiving);
-          final offeringTeamPicks = _draftService!.getTeamPicks(package.teamOffering);
-          
-          // Show counter offer dialog with all picks available and original ones pre-selected
-          showDialog(
-            context: context,
-            builder: (context) => UserTradeProposalDialog(
-              userTeam: package.teamReceiving,
-              userPicks: receivingTeamPicks, // All receiving team's picks
-              targetPicks: offeringTeamPicks, // All offering team's picks
-              initialSelectedUserPicks: [package.targetPick, ...package.additionalTargetPicks], // Pre-select original offer
-              initialSelectedTargetPicks: package.picksOffered, // Pre-select original offer
-              hasLeverage: true, // Add this line to indicate leverage
-              onPropose: (counterPackage) {
-                Navigator.pop(context); // Close dialog
-                
-                // Process the counter offer with leverage premium
-                final originalPackage = package; // Original AI-initiated offer
-                final accepted = _draftService!.evaluateCounterOffer(originalPackage, counterPackage);
-
-  // Show response dialog
+  // Get all available picks for both teams
+  final receivingTeamPicks = _draftService!.getTeamPicks(package.teamReceiving);
+  final offeringTeamPicks = _draftService!.getTeamPicks(package.teamOffering);
+  
+  // Show counter offer dialog with all picks available and original ones pre-selected
   showDialog(
     context: context,
-    builder: (context) => TradeResponseDialog(
-      tradePackage: counterPackage,
-      wasAccepted: accepted,
-      rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
-      onClose: () {
-        Navigator.pop(context);
+    builder: (context) => UserTradeProposalDialog(
+      userTeam: package.teamReceiving,
+      userPicks: receivingTeamPicks, // All receiving team's picks
+      targetPicks: offeringTeamPicks, // All offering team's picks
+      initialSelectedUserPicks: [package.targetPick, ...package.additionalTargetPicks], // Pre-select original offer
+      initialSelectedTargetPicks: package.picksOffered, // Pre-select original offer
+      hasLeverage: true, // Add this line to indicate leverage
+      onPropose: (counterPackage) {
+        debugPrint("Processing counter offer in the dialog callback");
+        Navigator.of(context).pop(); // Close the counter offer dialog
         
-        // Update UI if trade was accepted
-        if (accepted) {
-          setState(() {
-            _executedTrades = _draftService!.executedTrades;
-            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-            _statusMessage = _draftService!.statusMessage;
-            
-            // Reset user pick mode
-            _isUserPickMode = false;
-            _userNextPick = null;
-            
-            // IMPORTANT: Set draft to running to continue automatically
-            _isDraftRunning = true;
-          });
+        // Process the counter offer with leverage premium
+        final originalPackage = package; // Original AI-initiated offer
+        debugPrint("Original offer: ${originalPackage.tradeDescription}");
+        debugPrint("Counter offer: ${counterPackage.tradeDescription}");
+        
+        try {
+          final accepted = _draftService!.evaluateCounterOffer(originalPackage, counterPackage);
+          debugPrint("Counter offer evaluation result: ${accepted ? 'ACCEPTED' : 'REJECTED'}");
           
-          // Continue the draft after a brief pause
-          Future.delayed(
-            Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-            _processDraftPick
+          // Show response dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => TradeResponseDialog(
+              tradePackage: counterPackage,
+              wasAccepted: accepted,
+              rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(counterPackage),
+              onClose: () {
+                Navigator.pop(context); // Close the trade response dialog
+                
+                // Update UI if trade was accepted
+                if (accepted) {
+                  setState(() {
+                    _executedTrades = _draftService!.executedTrades;
+                    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+                    _statusMessage = _draftService!.statusMessage;
+                    
+                    // Reset user pick mode
+                    _isUserPickMode = false;
+                    _userNextPick = null;
+                    
+                    // Set draft to running to continue automatically
+                    _isDraftRunning = true;
+                  });
+                  
+                  // Continue the draft after a brief pause
+                  Future.delayed(
+                    Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+                    _processDraftPick
+                  );
+                } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+                  // If trade was rejected and this is user's pick, show player selection
+                  _showPlayerSelectionDialog(pick);
+                }
+              },
+            ),
           );
-        } else if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
-          // If trade was rejected and this is user's pick, show player selection
-          _showPlayerSelectionDialog(pick);
+        } catch (e) {
+          debugPrint("ERROR evaluating counter offer: $e");
+          // Show error dialog
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Error Processing Trade'),
+              content: Text('An error occurred while processing your counter offer: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Return to player selection if this is user's pick
+                    if (widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName)) {
+                      _showPlayerSelectionDialog(pick);
+                    }
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
         }
       },
+      onCancel: () => Navigator.of(context).pop(),
     ),
   );
 },
-              onCancel: () => Navigator.pop(context),
-          
-            ),
-          );
-        },
         showAnalytics: widget.showAnalytics,
       ),
     );

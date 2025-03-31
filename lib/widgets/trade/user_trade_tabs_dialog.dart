@@ -13,6 +13,8 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final int initialTabIndex;
+  final TradePackage? initialCounterOffer;
 
   const UserTradeTabsDialog({
     super.key,
@@ -23,6 +25,8 @@ class UserTradeTabsDialog extends StatefulWidget {
     required this.onAcceptOffer,
     required this.onPropose,
     required this.onCancel,
+    this.initialTabIndex = 0,
+    this.initialCounterOffer,
   });
 
   @override
@@ -35,9 +39,12 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   @override
   void initState() {
     super.initState();
-    // Determine initial tab index based on pending offers
-    final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
-    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
+    // Determine initial tab index
+    final initialTab = widget.initialTabIndex != 0 ? 
+                      widget.initialTabIndex : 
+                      (_getAllPendingOffers().isNotEmpty ? 0 : 1);
+                      
+    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTab);
   }
   
   @override
@@ -108,14 +115,33 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                   _buildPendingOffersTab(_getAllPendingOffers()),
                   
                   // Create trade tab
-                  UserTradeProposalDialog(
-                    userTeam: widget.userTeam,
-                    userPicks: widget.userPicks,
-                    targetPicks: widget.targetPicks,
-                    onPropose: widget.onPropose,
-                    onCancel: () {}, // Empty since we're using the dialog's close button
-                    isEmbedded: true, // This flag makes it fit within the tab
-                  ),
+UserTradeProposalDialog(
+  userTeam: widget.userTeam,
+  userPicks: widget.userPicks,
+  targetPicks: widget.targetPicks,
+  onPropose: (proposal) {
+    // Mark as counter offer if it came from initialCounterOffer
+    final isCounterOffer = widget.initialCounterOffer != null;
+    if (isCounterOffer) {
+      debugPrint("Processing as counter offer");
+      // Add counter offer flag to proposal metadata if needed
+    }
+    
+    // Close dialog and process proposal
+    Navigator.pop(context);
+    widget.onPropose(proposal);
+  },
+  onCancel: () {}, // Empty since we're using the dialog's close button
+  isEmbedded: true, // This flag makes it fit within the tab
+  // Pass initial selections if this is a counter offer
+  initialSelectedTargetPicks: widget.initialCounterOffer?.picksOffered,
+  initialSelectedUserPicks: widget.initialCounterOffer != null ? 
+    [widget.initialCounterOffer!.targetPick, ...widget.initialCounterOffer!.additionalTargetPicks] : null,
+  initialSelectedUserFutureRounds: const [], // Future picks data if needed
+  initialSelectedTargetFutureRounds: const [], // Future picks data if needed
+  // If initialCounterOffer is set, this is a counter offer
+  hasLeverage: widget.initialCounterOffer != null,
+),
                 ],
               ),
             ),
@@ -295,20 +321,16 @@ SizedBox(
   width: 30,
   child: IconButton(
     onPressed: () {
-      Navigator.of(context).pop();
+      debugPrint("Counter offer initiated for: ${offer.tradeDescription}");
+      Navigator.of(context).pop(); // Close the current dialog
       
-      // Get all available picks from the offering team
-      List<DraftPick> allOfferingTeamPicks = widget.targetPicks.where(
+      // Filter only picks from the offering team (for target team selections)
+      final offeringTeamPicks = widget.targetPicks.where(
         (pick) => pick.teamName == offer.teamOffering
       ).toList();
       
-      // If no picks found, fall back to the picks in the offer
-      if (allOfferingTeamPicks.isEmpty) {
-        allOfferingTeamPicks = offer.picksOffered;
-      }
-      
       // Get all available user team picks
-      List<DraftPick> allUserTeamPicks = widget.userPicks;
+      final userTeamPicks = widget.userPicks;
       
       // Create lists to track future picks
       List<int> initialUserFutureRounds = [];
@@ -340,44 +362,26 @@ SizedBox(
         }
       }
       
+      // Show the trade dialog with pre-filled values
       showDialog(
         context: context,
         builder: (ctx) => UserTradeProposalDialog(
           userTeam: offer.teamReceiving,
-          userPicks: allUserTeamPicks,
-          targetPicks: allOfferingTeamPicks,
+          userPicks: userTeamPicks,
+          targetPicks: offeringTeamPicks,
           initialSelectedUserPicks: [offer.targetPick, ...offer.additionalTargetPicks],
           initialSelectedTargetPicks: offer.picksOffered,
           initialSelectedUserFutureRounds: initialUserFutureRounds,
           initialSelectedTargetFutureRounds: initialTargetFutureRounds,
           hasLeverage: true,
           onPropose: (counterPackage) {
-            debugPrint("Counter offer proposed: ${counterPackage.tradeDescription}"); // Debug print
+            debugPrint("Counter offer proposed: ${counterPackage.tradeDescription}");
             Navigator.of(ctx).pop(); // Close the dialog
             
-            // Call the parent onPropose callback to process the counter offer
+            // Process as a counter offer
             widget.onPropose(counterPackage);
           },
           onCancel: () => Navigator.of(ctx).pop(),
-          onBack: () {
-            // Don't close the dialog, just go back
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => UserTradeTabsDialog(
-                userTeam: widget.userTeam,
-                userPicks: widget.userPicks,
-                targetPicks: widget.targetPicks,
-                pendingOffers: widget.pendingOffers,
-                onAcceptOffer: widget.onAcceptOffer,
-                onPropose: widget.onPropose,
-                onCancel: widget.onCancel,
-              ),
-            ).then((_) {
-              // After the new dialog is closed, close the original dialog
-              Navigator.of(ctx).pop();
-            });
-          },
         ),
       );
     },

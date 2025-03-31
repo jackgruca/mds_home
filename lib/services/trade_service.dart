@@ -921,7 +921,11 @@ double _calculateTradeUpInterest(
   }
 
   /// Process a counter offer with leverage premium applied
-  bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  /// Process a counter offer with leverage premium applied
+bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  try {
+    debugPrint("COUNTER OFFER EVALUATION STARTED");
+    
     // Calculate the leverage premium
     double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
     
@@ -931,9 +935,38 @@ double _calculateTradeUpInterest(
     // The premium effectively reduces the value needed for acceptance
     final adjustedValueRatio = valueRatio * leveragePremium;
     
-    // Now use the adjusted ratio for the regular evaluation
-    return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
+    debugPrint("Original value ratio: $valueRatio");
+    debugPrint("Leverage premium: $leveragePremium");
+    debugPrint("Adjusted value ratio: $adjustedValueRatio");
+    
+    // For counter offers with strong leverage and minimal value loss, ensure high acceptance
+    if (counterOffer.teamOffering == originalOffer.teamReceiving && 
+        valueRatio >= 0.85 && leveragePremium > 1.0) {
+      
+      final double baseProb = _calculateBaseAcceptanceProbability(adjustedValueRatio);
+      debugPrint("Base acceptance probability: $baseProb");
+      
+      // Higher minimum threshold for counter offers
+      final finalProb = max(0.7, baseProb);
+      debugPrint("Final acceptance probability: $finalProb");
+      
+      // Make final decision
+      final decision = _random.nextDouble() < finalProb;
+      debugPrint("Counter offer decision: $decision");
+      return decision;
+    }
+    
+    // Standard evaluation for other cases
+    final result = evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
+    debugPrint("Counter offer standard evaluation result: $result");
+    return result;
+  } catch (e) {
+    debugPrint("ERROR in evaluateCounterOffer: $e");
+    // Default to accepting reasonable counter offers in case of errors
+    final valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
+    return valueRatio >= 0.9; // Reasonable threshold for errors
   }
+}
 
   /// Process a user trade proposal with realistic acceptance criteria
 bool evaluateTradeProposal(TradePackage proposal) {
