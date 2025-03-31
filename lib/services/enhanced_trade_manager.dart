@@ -184,8 +184,13 @@ TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false})
   // Generate trade packages for interested teams
   List<TradePackage> packages = [];
   TradeMotivation? primaryMotivation;
+
+  Set<String> teamsWithOffers = {};
   
   for (var result in interestedTeams) {
+    // Skip if we already have an offer from this team
+    if (teamsWithOffers.contains(result.teamName)) continue;
+    
     // Get available picks for this team
     List<DraftPick> teamPicks = _getAvailableTeamPicks(result.teamName);
     
@@ -195,7 +200,7 @@ TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false})
     // Cache motivation for later use
     _cachedMotivations[result.teamName] = result.motivation;
     
-    // Save the first team's motivation as primary (typically the best offer)
+    // Save the first team's motivation as primary
     primaryMotivation ??= result.motivation;
     
     // Create trade packages based on motivation
@@ -208,8 +213,19 @@ TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false})
       isQBDriven: qbSpecific || result.motivation.targetedPosition == 'QB',
     );
     
-    // Add to our collection
-    packages.addAll(teamPackages);
+    // Take only the best package from this team
+    if (teamPackages.isNotEmpty) {
+      // Sort by value ratio
+      teamPackages.sort((a, b) => 
+        (b.totalValueOffered / b.targetPickValue)
+          .compareTo(a.totalValueOffered / a.targetPickValue));
+      
+      // Add only the best offer from this team
+      packages.add(teamPackages.first);
+      
+      // Mark team as processed
+      teamsWithOffers.add(result.teamName);
+    }
     
     // Record that this team has considered this pick
     _recordPickConsideration(result.teamName, pickNumber);
@@ -221,7 +237,7 @@ TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false})
     packages: packages,
     pickNumber: pickNumber,
     isUserInvolved: isUserTeamPick,
-    motivation: primaryMotivation, // Include the primary motivation
+    motivation: primaryMotivation,
   );
 }
 

@@ -78,37 +78,7 @@ class TradeResponseDialog extends StatelessWidget {
               ),
               
               // Motivation section if available
-if (motivation != null) ...[
-  const SizedBox(height: 16),
-  const Text(
-    'Team Motivation:',
-    style: TextStyle(fontWeight: FontWeight.bold),
-  ),
-  const SizedBox(height: 8),
-  Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(
-      color: wasAccepted ? Colors.green.shade50 : Colors.blue.shade50,
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(
-        color: wasAccepted ? Colors.green.shade200 : Colors.blue.shade200
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          motivation.primaryMotivation,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        if (motivation.motivationDescription.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(motivation.motivationDescription),
-        ]
-      ],
-    ),
-  ),
-],
+              _buildMotivationSection(),
               
               // Rejection reason if applicable
               if (!wasAccepted && rejectionReason != null) ...[
@@ -244,6 +214,17 @@ if (motivation != null) ...[
         ),
       ),
       actions: [
+        if (!wasAccepted)
+          TextButton(
+            onPressed: () {
+              // Close this dialog
+              Navigator.of(context).pop();
+              
+              // Show the counter offer dialog here
+              // You'll need to implement this in your main trade flow
+            },
+            child: const Text('Make Counter Offer'),
+          ),
         TextButton(
           onPressed: onClose,
           child: const Text('Close'),
@@ -251,4 +232,86 @@ if (motivation != null) ...[
       ],
     );
   }
+  // Helper methods to safely access motivation properties
+String _getPrimaryMotivation(TradeMotivation? motiv) {
+  if (motiv == null) return "General trade interest";
+  
+  try {
+    final primary = motiv.primaryMotivation;
+    return primary;
+  } catch (e) {
+    return "Trade opportunity";
+  }
+}
+
+String _getMotivationDescription(TradeMotivation? motiv) {
+  if (motiv == null) return "";
+  
+  try {
+    final desc = motiv.motivationDescription;
+    return desc ?? "";
+  } catch (e) {
+    return "";
+  }
+}
+// Helper method to safely render motivation
+Widget _buildMotivationSection() {
+  if (motivation == null) return const SizedBox.shrink();
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 16),
+      const Text(
+        'Team Motivation:',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: wasAccepted ? Colors.green.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: wasAccepted ? Colors.green.shade200 : Colors.blue.shade200
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _getSafeMotivationPrimary(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (_getSafeMotivationDescription().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(_getSafeMotivationDescription()),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+// Helper methods to safely access motivation properties
+String _getSafeMotivationPrimary() {
+  if (motivation == null) return "General trade interest";
+  
+  try {
+    return motivation!.primaryMotivation;
+  } catch (e) {
+    return "Trade opportunity";
+  }
+}
+
+String _getSafeMotivationDescription() {
+  if (motivation == null) return "";
+  
+  try {
+    return motivation!.motivationDescription;
+  } catch (e) {
+    return "";
+  }
+}
 }

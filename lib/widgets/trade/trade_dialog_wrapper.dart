@@ -1,5 +1,6 @@
 // lib/widgets/trade/trade_dialog_wrapper.dart
 import 'package:flutter/material.dart';
+import '../../models/trade_motivation.dart';
 import '../../models/trade_package.dart';
 import '../../models/trade_offer.dart';
 import '../../services/enhanced_trade_manager.dart';
@@ -88,28 +89,35 @@ Widget build(BuildContext context) {
 }
   
   // Show a response dialog after trade is accepted or rejected
-  void _showTradeResponseDialog(
-    BuildContext context, 
-    TradePackage tradePackage, 
-    bool wasAccepted,
-    [String? rejectionReason,
-    Map<String, dynamic>? improvements]
-  ) {
-    // First dismiss the current trade dialog
-    Navigator.of(context).pop();
-    
-    // Then show the response dialog
-    showDialog(
-      context: context,
-      builder: (context) => TradeResponseDialog(
-        tradePackage: tradePackage,
-        wasAccepted: wasAccepted,
-        rejectionReason: rejectionReason,
-        improvements: improvements,
-        onClose: onReject,
-      ),
-    );
+void _showTradeResponseDialog(
+  BuildContext context, 
+  TradePackage tradePackage, 
+  bool wasAccepted,
+  [String? rejectionReason,
+  Map<String, dynamic>? improvements]
+) {
+  // First dismiss the current trade dialog
+  Navigator.of(context).pop();
+  
+  // Get motivation from the trade manager if available
+  TradeMotivation? motivation;
+  if (tradeManager != null) {
+    motivation = tradeManager!.getTradeMotivation(tradePackage.teamOffering);
   }
+  
+  // Then show the response dialog
+  showDialog(
+    context: context,
+    builder: (context) => TradeResponseDialog(
+      tradePackage: tradePackage,
+      wasAccepted: wasAccepted,
+      rejectionReason: rejectionReason,
+      improvements: improvements,
+      motivation: motivation,
+      onClose: onReject,
+    ),
+  );
+}
   
   // Generate a realistic rejection reason
   String _generateRejectionReason(TradePackage package) {

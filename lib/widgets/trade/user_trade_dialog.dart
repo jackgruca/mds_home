@@ -102,6 +102,63 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     });
   }
 
+  // Function to suggest additional picks to balance the trade
+void _suggestAdditionalPicks() {
+  // Calculate the current value ratio
+  double valueRatio = _totalOfferedValue / _targetPickValue;
+  
+  // If the trade is already fair or better, don't suggest anything
+  if (valueRatio >= 0.95) return;
+  
+  // Calculate how much more value is needed
+  double valueMissing = (_targetPickValue * 0.95) - _totalOfferedValue;
+  
+  // Sort available user picks by value (ascending)
+  List<DraftPick> availablePicks = widget.userPicks
+    .where((p) => !_selectedUserPicks.contains(p))
+    .toList();
+  
+  if (availablePicks.isEmpty) return;
+  
+  availablePicks.sort((a, b) => 
+    DraftValueService.getValueForPick(a.pickNumber)
+      .compareTo(DraftValueService.getValueForPick(b.pickNumber)));
+  
+  // Try to find a pick or combination close to the missing value
+  for (var pick in availablePicks) {
+    double pickValue = DraftValueService.getValueForPick(pick.pickNumber);
+    
+    // If this pick helps but doesn't overshoot too much, suggest it
+    if (pickValue >= valueMissing * 0.7 && pickValue <= valueMissing * 1.3) {
+      setState(() {
+        _selectedUserPicks.add(pick);
+      });
+      _updateValues();
+      return;
+    }
+  }
+  
+  // If no single pick works well, try adding the smallest pick that helps
+  for (var pick in availablePicks) {
+    double pickValue = DraftValueService.getValueForPick(pick.pickNumber);
+    if (pickValue >= valueMissing * 0.3) {
+      setState(() {
+        _selectedUserPicks.add(pick);
+      });
+      _updateValues();
+      return;
+    }
+  }
+  
+  // If still no match, add the smallest pick available
+  if (availablePicks.isNotEmpty) {
+    setState(() {
+      _selectedUserPicks.add(availablePicks.first);
+    });
+    _updateValues();
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     // Get unique teams from target picks
@@ -763,30 +820,45 @@ if (widget.hasLeverage)
               ),
 
               // Value info text
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Your value: ${_totalOfferedValue.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark ? 
-                              Colors.grey.shade300 : Colors.grey.shade700,
-                      ),
-                    ),
-                    Text(
-                      'Their value: ${_targetPickValue.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark ? 
-                              Colors.grey.shade300 : Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+  child: Column(
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Your value: ${_totalOfferedValue.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).brightness == Brightness.dark ? 
+                    Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+          Text(
+            'Their value: ${_targetPickValue.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).brightness == Brightness.dark ? 
+                    Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ],
+      ),
+      // Add suggestion button if trade doesn't meet minimum value
+      if (_totalOfferedValue < _targetPickValue * 0.95)
+        TextButton.icon(
+          onPressed: _suggestAdditionalPicks,
+          icon: const Icon(Icons.auto_fix_high, size: 16),
+          label: const Text('Suggest fair offer', style: TextStyle(fontSize: 12)),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minimumSize: Size.zero,
+          ),
+        ),
+    ],
+  ),
+),
               // Add the leverage indicator right here, after the trade advice container
               if (widget.hasLeverage) 
                 Container(
