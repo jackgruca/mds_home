@@ -537,7 +537,15 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
 /// Process a user counter offer with leverage premium applied
 bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
   // Use the trade service to evaluate the counter offer with leverage premium
-  return _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
+  bool accepted = _tradeService.evaluateCounterOffer(originalOffer, counterOffer);
+  
+  // If accepted, actually execute the trade
+  if (accepted) {
+    _executeTrade(counterOffer);
+    _statusMessage = "Counter offer accepted: ${counterOffer.tradeDescription}";
+  }
+  
+  return accepted;
 }
 
   // Then, modifying the selectPlayerRStyle method:
@@ -1059,7 +1067,7 @@ void generateUserPickOffers() {
   
   /// Process a user trade proposal with realistic acceptance criteria
   bool processUserTradeProposal(TradePackage proposal) {
-    // Determine if the AI team should accept
+    // Use the trade service to evaluate if the proposal should be accepted
     final shouldAccept = _tradeService.evaluateTradeProposal(proposal);
     
     // Execute the trade if accepted

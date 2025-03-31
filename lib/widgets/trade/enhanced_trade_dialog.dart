@@ -10,7 +10,7 @@ class EnhancedTradeDialog extends StatefulWidget {
   final TradeOffer tradeOffer;
   final Function(TradePackage) onAccept;
   final VoidCallback onReject;
-  final Function(TradePackage)? onCounter; // New callback for counter offer
+  final Function(TradePackage)? onCounter; 
   final bool showAnalytics;
 
   const EnhancedTradeDialog({
@@ -18,7 +18,7 @@ class EnhancedTradeDialog extends StatefulWidget {
     required this.tradeOffer,
     required this.onAccept,
     required this.onReject,
-    this.onCounter, // New optional parameter
+    this.onCounter, 
     this.showAnalytics = true,
   });
 
@@ -937,5 +937,27 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
     } else {
       return 'Not recommended. This trade offers significantly less value than what draft analytics would suggest is fair compensation.';
     }
+  }
+
+  /// Adjusted evaluation for counter offers with leverage premium
+  double calculateLeveragePremium(TradePackage originalOffer, TradePackage counterOffer) {
+    // If this is a counter to an AI-initiated offer, the user has leverage
+    if (originalOffer.teamOffering != counterOffer.teamOffering && 
+        originalOffer.teamReceiving == counterOffer.teamReceiving) {
+      
+      // Base premium is 5-10% additional value acceptance
+      double basePremium = 1.08; // 8% baseline premium
+      
+      // Higher premium for earlier picks (rounds 1-2)
+      if (originalOffer.targetPick.pickNumber <= 64) {
+        // Up to 15% premium for early rounds
+        return basePremium + 0.07; // 15% total
+      }
+      
+      return basePremium;
+    }
+    
+    // No premium for regular offers (not counters)
+    return 1.0;
   }
 }

@@ -1021,7 +1021,7 @@ bool evaluateTradeProposal(TradePackage proposal) {
     // Make final decision
     return _random.nextDouble() < acceptanceProbability;
   }
-  
+
   // Get base acceptance probability based on value ratio
   double _calculateBaseAcceptanceProbability(double valueRatio) {
     if (valueRatio >= 1.2) {

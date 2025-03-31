@@ -762,40 +762,54 @@ void initState() {
                 ),
               ),
               // Add the leverage indicator right here, after the trade advice container
-              if (widget.hasLeverage) 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark ? 
-                          Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.trending_up,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11, 
-                            color: Colors.blue,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    ],
-                  ),
+if (widget.hasLeverage) 
+  Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    margin: const EdgeInsets.only(top: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).brightness == Brightness.dark ? 
+            Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(color: Colors.blue.withOpacity(0.5)),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.trending_up,
+              size: 16,
+              color: Colors.blue,
+            ),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                "Counter Offer Leverage",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12, 
+                  color: Colors.blue,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4),
+        Text(
+          "You have leverage in this negotiation. The offering team is eager to acquire your pick, giving you 5-15% better acceptance rates for the same value.",
+          style: TextStyle(
+            fontSize: 11, 
+            color: Colors.blue,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  ),
                   
               const SizedBox(height: 8),
               
