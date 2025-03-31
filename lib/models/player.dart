@@ -156,6 +156,11 @@ class Player {
           .firstWhere((entry) => entry.key.contains('WEAKNESS'), 
               orElse: () => const MapEntry('', -1))
           .value;
+
+      int fortyTimeIndex = columnIndices['FORTY_TIME'] ?? columnIndices['40_TIME'] ?? columnIndices['40TIME'] ?? columnIndices.entries
+        .firstWhere((entry) => entry.key.contains('FORTY') || entry.key.contains('40_TIME'), 
+            orElse: () => const MapEntry('', -1))
+        .value;
       
       // Parse values safely
       int id = idIndex >= 0 && idIndex < row.length
@@ -236,6 +241,12 @@ class Player {
         weaknesses = row[weaknessesIndex].toString().trim();
         if (weaknesses.isEmpty) weaknesses = null;
       }
+
+      String? fortyTime;
+      if (fortyTimeIndex >= 0 && fortyTimeIndex < row.length) {
+        fortyTime = row[fortyTimeIndex].toString().trim();
+        if (fortyTime.isEmpty) fortyTime = null;
+      }
       
       return Player(
         id: id,
@@ -250,6 +261,7 @@ class Player {
         description: description,
         strengths: strengths,
         weaknesses: weaknesses,
+        fortyTime: fortyTime,
       );
     } catch (e) {
       debugPrint("Error creating Player from row with headers: $e");

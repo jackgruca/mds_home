@@ -25,10 +25,7 @@ class PlayerDetailsDialog extends StatelessWidget {
       child: contentBox(context, isDarkMode),
     );
   }
-  
-// In lib/widgets/player/player_details_dialog.dart
 
-// In lib/widgets/player/player_details_dialog.dart
 
 Widget contentBox(BuildContext context, bool isDarkMode) {
   final headerColor = _getPositionColor(player.position);
