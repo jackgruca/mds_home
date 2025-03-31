@@ -788,21 +788,13 @@ void _initiateUserTradeProposal() {
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
       onAcceptOffer: (offer) {
-        Navigator.pop(context); // Close dialog
-        
-        // Execute the trade
-        _draftService!.executeUserSelectedTrade(offer);
-        
-        setState(() {
-          _executedTrades = _draftService!.executedTrades;
-          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
-        });
+        // Handle accept offer...
       },
       onPropose: (proposal) {
+        debugPrint("Trade proposal received in draft_overview_screen: ${proposal.tradeDescription}"); // Debug print
         Navigator.pop(context); // Close dialog
         
-        // Process the proposal
+        // Process the proposal using DraftService
         final accepted = _draftService!.processUserTradeProposal(proposal);
         
         // Show response dialog

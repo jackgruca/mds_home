@@ -344,15 +344,18 @@ SizedBox(
         context: context,
         builder: (ctx) => UserTradeProposalDialog(
           userTeam: offer.teamReceiving,
-          userPicks: allUserTeamPicks, // Show ALL user team picks
-          targetPicks: allOfferingTeamPicks, // Show ALL offering team picks
-          initialSelectedUserPicks: [offer.targetPick, ...offer.additionalTargetPicks], // Pre-select original picks
-          initialSelectedTargetPicks: offer.picksOffered, // Pre-select original picks
-          initialSelectedUserFutureRounds: initialUserFutureRounds, // Pre-select user future picks
-          initialSelectedTargetFutureRounds: initialTargetFutureRounds, // Pre-select target future picks
-          hasLeverage: true, // Set to true for counter offers to original offers
+          userPicks: allUserTeamPicks,
+          targetPicks: allOfferingTeamPicks,
+          initialSelectedUserPicks: [offer.targetPick, ...offer.additionalTargetPicks],
+          initialSelectedTargetPicks: offer.picksOffered,
+          initialSelectedUserFutureRounds: initialUserFutureRounds,
+          initialSelectedTargetFutureRounds: initialTargetFutureRounds,
+          hasLeverage: true,
           onPropose: (counterPackage) {
-            Navigator.of(ctx).pop();
+            debugPrint("Counter offer proposed: ${counterPackage.tradeDescription}"); // Debug print
+            Navigator.of(ctx).pop(); // Close the dialog
+            
+            // Call the parent onPropose callback to process the counter offer
             widget.onPropose(counterPackage);
           },
           onCancel: () => Navigator.of(ctx).pop(),

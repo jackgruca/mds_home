@@ -907,6 +907,8 @@ if (widget.hasLeverage)
   }
   
   void _proposeTrade() {
+  debugPrint("Propose Trade button clicked"); // Debug print
+  
   // Create future pick descriptions
   List<String> futurePickDescriptions = [];
   double futurePicksValue = 0;
@@ -972,8 +974,14 @@ if (widget.hasLeverage)
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      // Add target future picks if any are selected
+      targetReceivedFuturePicks: _selectedTargetFutureRounds.isNotEmpty ? 
+          _selectedTargetFutureRounds.map((round) => "2026 ${_getRoundText(round)} Round").toList() : null,
     );
   }
+  
+  debugPrint("Created trade package: ${package.tradeDescription}"); // Debug print
+  debugPrint("Calling onPropose callback"); // Debug print
   
   // Call the propose callback with the package
   widget.onPropose(package);
