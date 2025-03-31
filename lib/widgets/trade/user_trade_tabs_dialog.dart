@@ -31,6 +31,17 @@ class UserTradeTabsDialog extends StatefulWidget {
 
 class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  bool isCounterMode = false;
+  String? counter_userTeam;
+  String? counter_targetTeam;
+  List<DraftPick>? counter_userPicks;
+  List<DraftPick>? counter_targetPicks;
+  List<DraftPick>? counter_initialSelectedUserPicks;
+  List<DraftPick>? counter_initialSelectedTargetPicks;
+  List<int>? counter_initialUserFutureRounds;
+  List<int>? counter_initialTargetFutureRounds;
+  TradePackage? counter_originalOffer;
   
   @override
   void initState() {
@@ -82,43 +93,71 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
                   ? Colors.blue.shade300 
                   : Colors.blue.shade700, // Indicator color
               tabs: [
-                Tab(
-                  icon: Badge(
-                    isLabelVisible: _getAllPendingOffers().isNotEmpty,
-                    label: Text(_getAllPendingOffers().length.toString()),
-                    child: const Icon(Icons.call_received, size: 16),
-                  ),
-                  text: 'Trade Offers (${_getAllPendingOffers().length})',
-                  iconMargin: const EdgeInsets.only(bottom: 2.0),
-                ),
-                const Tab(
-                  icon: Icon(Icons.call_made, size: 16),
-                  text: 'Create Trade',
-                  iconMargin: EdgeInsets.only(bottom: 2.0),
-                ),
-              ],
+  Tab(
+    icon: Badge(
+      isLabelVisible: _getAllPendingOffers().isNotEmpty,
+      label: Text(_getAllPendingOffers().length.toString()),
+      child: const Icon(Icons.call_received, size: 16),
+    ),
+    text: 'Trade Offers (${_getAllPendingOffers().length})',
+    iconMargin: const EdgeInsets.only(bottom: 2.0),
+  ),
+  Tab(
+    icon: Icon(isCounterMode ? Icons.reply : Icons.call_made, size: 16),
+    text: isCounterMode ? 'Counter Offer' : 'Create Trade',
+    iconMargin: const EdgeInsets.only(bottom: 2.0),
+  ),
+],
             ),
             const Divider(height: 1),
             // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // Pending offers tab
-                  _buildPendingOffersTab(_getAllPendingOffers()),
-                  
-                  // Create trade tab
-                  UserTradeProposalDialog(
-                    userTeam: widget.userTeam,
-                    userPicks: widget.userPicks,
-                    targetPicks: widget.targetPicks,
-                    onPropose: widget.onPropose,
-                    onCancel: () {}, // Empty since we're using the dialog's close button
-                    isEmbedded: true, // This flag makes it fit within the tab
-                  ),
-                ],
-              ),
-            ),
+Expanded(
+  child: TabBarView(
+    controller: _tabController,
+    children: [
+      // Pending offers tab
+      _buildPendingOffersTab(_getAllPendingOffers()),
+      
+      // Create trade tab - changes based on counter mode
+      isCounterMode 
+        ? UserTradeProposalDialog(
+            userTeam: counter_userTeam!,
+            userPicks: counter_userPicks!,
+            targetPicks: counter_targetPicks!,
+            initialSelectedUserPicks: counter_initialSelectedUserPicks,
+            initialSelectedTargetPicks: counter_initialSelectedTargetPicks,
+            initialSelectedUserFutureRounds: counter_initialUserFutureRounds,
+            initialSelectedTargetFutureRounds: counter_initialTargetFutureRounds,
+            onPropose: (counterPackage) {
+              // Handle the counter package - add leverage metadata
+              widget.onPropose(counterPackage);
+              // Reset counter mode
+              setState(() {
+                isCounterMode = false;
+                _tabController.animateTo(0); // Return to offers tab
+              });
+            },
+            onCancel: () {
+              // Reset counter mode and go back to offers tab
+              setState(() {
+                isCounterMode = false;
+                _tabController.animateTo(0); 
+              });
+            },
+            hasLeverage: true, // Flag that this is a counter offer
+            isEmbedded: true,
+          )
+        : UserTradeProposalDialog(
+            userTeam: widget.userTeam,
+            userPicks: widget.userPicks,
+            targetPicks: widget.targetPicks,
+            onPropose: widget.onPropose,
+            onCancel: () {}, // Empty since we're using the dialog's close button
+            isEmbedded: true, // This flag makes it fit within the tab
+          ),
+    ],
+  ),
+),
           ],
         ),
       ),
@@ -295,8 +334,6 @@ SizedBox(
   width: 30,
   child: IconButton(
     onPressed: () {
-      Navigator.of(context).pop();
-      
       // Get all available picks from the offering team
       List<DraftPick> allOfferingTeamPicks = widget.targetPicks.where(
         (pick) => pick.teamName == offer.teamOffering
@@ -307,10 +344,7 @@ SizedBox(
         allOfferingTeamPicks = offer.picksOffered;
       }
       
-      // Get all available user team picks
-      List<DraftPick> allUserTeamPicks = widget.userPicks;
-      
-      // Create lists to track future picks
+      // Create lists to track future picks for the dialog
       List<int> initialUserFutureRounds = [];
       List<int> initialTargetFutureRounds = [];
       
@@ -340,43 +374,45 @@ SizedBox(
         }
       }
       
-      showDialog(
-        context: context,
-        builder: (ctx) => UserTradeProposalDialog(
-          userTeam: offer.teamReceiving,
-          userPicks: allUserTeamPicks, // Show ALL user team picks
-          targetPicks: allOfferingTeamPicks, // Show ALL offering team picks
-          initialSelectedUserPicks: [offer.targetPick, ...offer.additionalTargetPicks], // Pre-select original picks
-          initialSelectedTargetPicks: offer.picksOffered, // Pre-select original picks
-          initialSelectedUserFutureRounds: initialUserFutureRounds, // Pre-select user future picks
-          initialSelectedTargetFutureRounds: initialTargetFutureRounds, // Pre-select target future picks
-          hasLeverage: true, // Set to true for counter offers to original offers
-          onPropose: (counterPackage) {
-            Navigator.of(ctx).pop();
-            widget.onPropose(counterPackage);
-          },
-          onCancel: () => Navigator.of(ctx).pop(),
-          onBack: () {
-            // Don't close the dialog, just go back
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => UserTradeTabsDialog(
-                userTeam: widget.userTeam,
-                userPicks: widget.userPicks,
-                targetPicks: widget.targetPicks,
-                pendingOffers: widget.pendingOffers,
-                onAcceptOffer: widget.onAcceptOffer,
-                onPropose: widget.onPropose,
-                onCancel: widget.onCancel,
-              ),
-            ).then((_) {
-              // After the new dialog is closed, close the original dialog
-              Navigator.of(ctx).pop();
-            });
-          },
-        ),
-      );
+      // Set up the state for the counter trade
+      setState(() {
+        // Save all counter offer data to UserTradeProposalDialog that will be in tab 1
+        counter_userTeam = offer.teamReceiving;
+        counter_targetTeam = offer.teamOffering;
+        
+        // Make sure we're including ALL user picks
+        counter_userPicks = widget.userPicks;
+        
+        // Make sure we're including ALL target team picks
+        counter_targetPicks = allOfferingTeamPicks;
+        
+        // Important: Make sure these are separate lists to avoid reference issues
+        counter_initialSelectedUserPicks = [];
+        if (offer.targetPick.pickNumber > 0) {
+          counter_initialSelectedUserPicks!.add(offer.targetPick);
+        }
+        if (offer.additionalTargetPicks.isNotEmpty) {
+          counter_initialSelectedUserPicks!.addAll(offer.additionalTargetPicks);
+        }
+        
+        // Make a fresh copy of the target picks list
+        counter_initialSelectedTargetPicks = List<DraftPick>.from(offer.picksOffered);
+        
+        counter_initialUserFutureRounds = initialUserFutureRounds;
+        counter_initialTargetFutureRounds = initialTargetFutureRounds;
+        counter_originalOffer = offer;
+        isCounterMode = true;
+        
+        // Debug info to help diagnose the issue
+        print("Counter mode activated");
+        print("User picks count: ${counter_userPicks!.length}");
+        print("Target picks count: ${counter_targetPicks!.length}");
+        print("Selected user picks: ${counter_initialSelectedUserPicks!.length}");
+        print("Selected target picks: ${counter_initialSelectedTargetPicks!.length}");
+        
+        // Switch to the "Create Trade" tab
+        _tabController.animateTo(1);
+      });
     },
     icon: const Icon(Icons.edit, size: 20),
     color: Colors.blue,
