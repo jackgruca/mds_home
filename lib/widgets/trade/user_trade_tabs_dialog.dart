@@ -334,85 +334,7 @@ SizedBox(
   width: 30,
   child: IconButton(
     onPressed: () {
-      // Get all available picks from the offering team
-      List<DraftPick> allOfferingTeamPicks = widget.targetPicks.where(
-        (pick) => pick.teamName == offer.teamOffering
-      ).toList();
-      
-      // If no picks found, fall back to the picks in the offer
-      if (allOfferingTeamPicks.isEmpty) {
-        allOfferingTeamPicks = offer.picksOffered;
-      }
-      
-      // Create lists to track future picks for the dialog
-      List<int> initialUserFutureRounds = [];
-      List<int> initialTargetFutureRounds = [];
-      
-      // Check for future picks in the original offer
-      if (offer.includesFuturePick && offer.futurePickDescription != null) {
-        // Parse future pick description to extract rounds
-        String desc = offer.futurePickDescription!;
-        if (desc.contains("1st")) initialTargetFutureRounds.add(1);
-        if (desc.contains("2nd")) initialTargetFutureRounds.add(2);
-        if (desc.contains("3rd")) initialTargetFutureRounds.add(3);
-        if (desc.contains("4th")) initialTargetFutureRounds.add(4);
-        if (desc.contains("5th")) initialTargetFutureRounds.add(5);
-        if (desc.contains("6th")) initialTargetFutureRounds.add(6);
-        if (desc.contains("7th")) initialTargetFutureRounds.add(7);
-      }
-      
-      // Check for future picks received by target
-      if (offer.targetReceivedFuturePicks != null && offer.targetReceivedFuturePicks!.isNotEmpty) {
-        for (String desc in offer.targetReceivedFuturePicks!) {
-          if (desc.contains("1st")) initialUserFutureRounds.add(1);
-          if (desc.contains("2nd")) initialUserFutureRounds.add(2);
-          if (desc.contains("3rd")) initialUserFutureRounds.add(3);
-          if (desc.contains("4th")) initialUserFutureRounds.add(4);
-          if (desc.contains("5th")) initialUserFutureRounds.add(5);
-          if (desc.contains("6th")) initialUserFutureRounds.add(6);
-          if (desc.contains("7th")) initialUserFutureRounds.add(7);
-        }
-      }
-      
-      // Set up the state for the counter trade
-      setState(() {
-        // Save all counter offer data to UserTradeProposalDialog that will be in tab 1
-        counter_userTeam = offer.teamReceiving;
-        counter_targetTeam = offer.teamOffering;
-        
-        // Make sure we're including ALL user picks
-        counter_userPicks = widget.userPicks;
-        
-        // Make sure we're including ALL target team picks
-        counter_targetPicks = allOfferingTeamPicks;
-        
-        // Important: Make sure these are separate lists to avoid reference issues
-        counter_initialSelectedUserPicks = [];
-        if (offer.targetPick.pickNumber > 0) {
-          counter_initialSelectedUserPicks!.add(offer.targetPick);
-        }
-        if (offer.additionalTargetPicks.isNotEmpty) {
-          counter_initialSelectedUserPicks!.addAll(offer.additionalTargetPicks);
-        }
-        
-        // Make a fresh copy of the target picks list
-        counter_initialSelectedTargetPicks = List<DraftPick>.from(offer.picksOffered);
-        
-        counter_initialUserFutureRounds = initialUserFutureRounds;
-        counter_initialTargetFutureRounds = initialTargetFutureRounds;
-        counter_originalOffer = offer;
-        isCounterMode = true;
-        
-        // Debug info to help diagnose the issue
-        print("Counter mode activated");
-        print("User picks count: ${counter_userPicks!.length}");
-        print("Target picks count: ${counter_targetPicks!.length}");
-        print("Selected user picks: ${counter_initialSelectedUserPicks!.length}");
-        print("Selected target picks: ${counter_initialSelectedTargetPicks!.length}");
-        
-        // Switch to the "Create Trade" tab
-        _tabController.animateTo(1);
-      });
+      _setupCounterOffer(offer);
     },
     icon: const Icon(Icons.edit, size: 20),
     color: Colors.blue,
@@ -635,4 +557,103 @@ SizedBox(
     });
     return allOffers;
   }
+  
+  void _setupCounterOffer(TradePackage offer) {
+  debugPrint("Setting up counter offer for ${offer.teamOffering} -> ${offer.teamReceiving}");
+  
+  // 1. Get all the offering team's picks from targetPicks
+  List<DraftPick> allOfferingTeamPicks = widget.targetPicks
+      .where((pick) => pick.teamName == offer.teamOffering)
+      .toList();
+  
+  debugPrint("Found ${allOfferingTeamPicks.length} picks for ${offer.teamOffering}");
+  
+  // If we don't have any picks from widget.targetPicks, use the ones from the offer
+  if (allOfferingTeamPicks.isEmpty) {
+    debugPrint("No picks found in widget.targetPicks, using offer.picksOffered");
+    allOfferingTeamPicks = offer.picksOffered;
+  }
+  
+  // 2. Get all user's picks from widget.userPicks
+  List<DraftPick> allUserPicks = List<DraftPick>.from(widget.userPicks);
+  
+  // 3. Setup future picks arrays
+  List<int> initialUserFutureRounds = [];
+  List<int> initialTargetFutureRounds = [];
+  
+  // Check for future picks in the original offer
+  if (offer.includesFuturePick && offer.futurePickDescription != null) {
+    String desc = offer.futurePickDescription!.toLowerCase();
+    debugPrint("Found future pick description: $desc");
+    if (desc.contains("1st")) initialTargetFutureRounds.add(1);
+    if (desc.contains("2nd")) initialTargetFutureRounds.add(2);
+    if (desc.contains("3rd")) initialTargetFutureRounds.add(3);
+    if (desc.contains("4th")) initialTargetFutureRounds.add(4);
+    if (desc.contains("5th")) initialTargetFutureRounds.add(5);
+    if (desc.contains("6th")) initialTargetFutureRounds.add(6);
+    if (desc.contains("7th")) initialTargetFutureRounds.add(7);
+  }
+  
+  // 4. Create the ACTUAL selected picks lists by finding matching picks from the available lists
+  List<DraftPick> selectedUserPicks = [];
+  
+  // Find the matching user picks (the receiving team's pick in the original offer)
+  for (var availablePick in allUserPicks) {
+    // Check if this available pick matches the target pick
+    if (availablePick.pickNumber == offer.targetPick.pickNumber && 
+        availablePick.teamName == offer.targetPick.teamName) {
+      selectedUserPicks.add(availablePick);
+      debugPrint("Found matching user pick: #${availablePick.pickNumber}");
+    }
+    
+    // Check if this available pick matches any of the additional target picks
+    for (var additionalPick in offer.additionalTargetPicks) {
+      if (availablePick.pickNumber == additionalPick.pickNumber && 
+          availablePick.teamName == additionalPick.teamName) {
+        selectedUserPicks.add(availablePick);
+        debugPrint("Found matching additional user pick: #${availablePick.pickNumber}");
+      }
+    }
+  }
+  
+  // Find the matching target picks (the offering team's picks in the original offer)
+  List<DraftPick> selectedTargetPicks = [];
+  
+  for (var availablePick in allOfferingTeamPicks) {
+    for (var offeredPick in offer.picksOffered) {
+      if (availablePick.pickNumber == offeredPick.pickNumber && 
+          availablePick.teamName == offeredPick.teamName) {
+        selectedTargetPicks.add(availablePick);
+        debugPrint("Found matching target pick: #${availablePick.pickNumber}");
+      }
+    }
+  }
+  
+  debugPrint("Counter setup summary:");
+  debugPrint("- User team: ${offer.teamReceiving}");
+  debugPrint("- Target team: ${offer.teamOffering}");
+  debugPrint("- All user picks: ${allUserPicks.length}");
+  debugPrint("- All target picks: ${allOfferingTeamPicks.length}");
+  debugPrint("- Selected user picks: ${selectedUserPicks.length}");
+  debugPrint("- Selected target picks: ${selectedTargetPicks.length}");
+  
+  // Update the state all at once
+  setState(() {
+    isCounterMode = true;
+    counter_userTeam = offer.teamReceiving;
+    counter_targetTeam = offer.teamOffering;
+    counter_userPicks = allUserPicks;
+    counter_targetPicks = allOfferingTeamPicks;
+    counter_initialSelectedUserPicks = selectedUserPicks;
+    counter_initialSelectedTargetPicks = selectedTargetPicks;
+    counter_initialUserFutureRounds = initialUserFutureRounds;
+    counter_initialTargetFutureRounds = initialTargetFutureRounds;
+    counter_originalOffer = offer;
+  });
+  
+  // Change to the counter tab after a brief delay to ensure state is updated
+  Future.delayed(const Duration(milliseconds: 50), () {
+    _tabController.animateTo(1);
+  });
+}
 }
