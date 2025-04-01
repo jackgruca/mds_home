@@ -358,6 +358,9 @@ class DraftExportService {
       width: 20px;
       height: 20px;
       margin-right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .school-logo img {
@@ -412,7 +415,8 @@ class DraftExportService {
     .grade-a-minus { background-color: rgba(76, 175, 80, 0.2); color: #388e3c; border: 1px solid #388e3c; }
     .grade-b-minus { background-color: rgba(33, 150, 243, 0.2); color: #1976d2; border: 1px solid #1976d2; }
     .grade-c-minus { background-color: rgba(255, 152, 0, 0.2); color: #ef6c00; border: 1px solid #ef6c00; }
-
+    .grade-d-plus { background-color: rgba(244, 67, 54, 0.2); color: #d32f2f; border: 1px solid #d32f2f; }
+    .grade-f { background-color: rgba(244, 67, 54, 0.2); color: #d32f2f; border: 1px solid #d32f2f; }
 
     .value-positive { color: #2e7d32; }
     .value-negative { color: #d32f2f; }
@@ -471,6 +475,12 @@ class DraftExportService {
       margin-bottom: 2px;
     }
     
+    .player-meta {
+      display: flex;
+      align-items: center;
+      margin-top: 2px;
+    }
+    
     .compact-position {
       display: inline-block;
       padding: 1px 4px;
@@ -483,20 +493,27 @@ class DraftExportService {
     .compact-school {
       font-size: 11px;
       color: #6c757d;
+      display: flex;
+      align-items: center;
     }
     
     .draft-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
       margin-top: 15px;
+      margin-bottom: 15px;
     }
     
-    .stat-card {
+    .stat-item {
+      flex: 1;
       background-color: white;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 15px;
+      padding: 10px 15px;
+      min-width: 100px;
+      text-align: center;
     }
     
     .stat-title {
@@ -506,9 +523,17 @@ class DraftExportService {
     }
     
     .stat-value {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
       color: var(--secondary-color);
+    }
+    
+    .stat-value.positive {
+      color: #2e7d32;
+    }
+    
+    .stat-value.negative {
+      color: #d32f2f;
     }
     
     .grade-summary {
@@ -551,6 +576,12 @@ class DraftExportService {
       font-size: 12px;
     }
     
+    .trade-icon {
+      color: #FF9800;
+      font-size: 14px;
+      margin-left: 5px;
+    }
+    
     @media (max-width: 768px) {
       .first-round-grid {
         grid-template-columns: 1fr;
@@ -565,7 +596,7 @@ class DraftExportService {
       }
       
       .draft-stats {
-        grid-template-columns: 1fr;
+        flex-direction: column;
       }
     }
     .compact-first-round-grid {
@@ -647,6 +678,7 @@ class DraftExportService {
       width: 14px;
       height: 14px;
       display: inline-block;
+      margin-left: 3px;
       margin-right: 3px;
     }
     
@@ -672,42 +704,6 @@ class DraftExportService {
       text-align: center;
       flex-shrink: 0;
     }
-
-    /* Ensure consistent appearance for all grade types */
-    .grade-a-plus, .grade-a, .grade-a-minus,
-    .grade-b-plus, .grade-b, .grade-b-minus,
-    .grade-c-plus, .grade-c, .grade-c-minus,
-    .grade-d-plus, .grade-d, .grade-d-minus,
-    .grade-f {
-      display: inline-block !important;
-      text-align: center;
-    }
-    
-    /* Specific styles for different grade types */
-    .grade-a-plus, .grade-a, .grade-a-minus { 
-      background-color: rgba(76, 175, 80, 0.2); 
-      color: #2e7d32; 
-      border: 1px solid #2e7d32; 
-    }
-    
-    .grade-b-plus, .grade-b, .grade-b-minus { 
-      background-color: rgba(33, 150, 243, 0.2); 
-      color: #1976d2; 
-      border: 1px solid #1976d2; 
-    }
-    
-    .grade-c-plus, .grade-c, .grade-c-minus { 
-      background-color: rgba(255, 152, 0, 0.2); 
-      color: #f57c00; 
-      border: 1px solid #f57c00; 
-    }
-    
-    .grade-d-plus, .grade-d, .grade-d-minus { 
-      background-color: rgba(244, 67, 54, 0.2); 
-      color: #d32f2f; 
-      border: 1px solid #d32f2f; 
-    }
-
   </style>
 </head>
 <body>
@@ -720,22 +716,20 @@ class DraftExportService {
     // Add overall stats if showing all teams
     if (showAllTeams) {
       html.write('''
-  <div class="overview-bar">
-    <div class="overview-stat">
-      <span class="stat-label">Total Picks:</span>
-      <span class="stat-value">${draftStats['totalPicks']}</span>
+  <div class="draft-stats">
+    <div class="stat-item">
+      <div class="stat-title">Total Picks</div>
+      <div class="stat-value">${draftStats['totalPicks']}</div>
     </div>
-    <div class="overview-divider"></div>
-    <div class="overview-stat">
-      <span class="stat-label">Total Trades:</span>
-      <span class="stat-value">${draftStats['totalTrades']}</span>
+    <div class="stat-item">
+      <div class="stat-title">Total Trades</div>
+      <div class="stat-value">${draftStats['totalTrades']}</div>
     </div>
-    <div class="overview-divider"></div>
-    <div class="overview-stat">
-      <span class="stat-label">Average Value:</span>
-      <span class="stat-value" ${draftStats['avgValueDiff'] >= 0 ? 'style="color:#2e7d32"' : 'style="color:#d32f2f"'}>
+    <div class="stat-item">
+      <div class="stat-title">Average Value</div>
+      <div class="stat-value ${draftStats['avgValueDiff'] >= 0 ? 'positive' : 'negative'}">
         ${draftStats['avgValueDiff'] >= 0 ? '+' : ''}${draftStats['avgValueDiff'].toStringAsFixed(1)}
-      </span>
+      </div>
     </div>
   </div>
 ''');
@@ -837,6 +831,9 @@ class DraftExportService {
         // Team abbreviation for logo
         String teamAbbr = _getTeamAbbreviation(pick.teamName);
         
+        // Check if this pick was traded
+        bool wasTradedPick = pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty;
+        
         html.write('''
     <div class="pick-row $userTeamClass">
       <div class="pick-number round-${pick.round}">#${pick.pickNumber}</div>
@@ -844,11 +841,11 @@ class DraftExportService {
         <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName} logo">
       </div>
       <div class="pick-details">
-        <div class="player-name">${pick.selectedPlayer!.name}</div>
+        <div class="player-name">${pick.selectedPlayer!.name}${wasTradedPick ? '<span class="trade-icon">&#8644;</span>' : ''}</div>
         <div class="player-info">
           <span class="position-badge pos-$positionClass">${pick.selectedPlayer!.position}</span>
           <span class="school-logo">
-            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
+          <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
                  alt="" 
                  onerror="this.onerror=null; this.src=''; this.parentElement.style.display='none';">
           </span>
@@ -856,7 +853,7 @@ class DraftExportService {
           <span class="$valueDiffClass" style="margin-left: auto;">$valueDiffText</span>
         </div>
       </div>
-      <span class="grade-badge grade-$gradeClass" style="display: inline-block; min-width: 24px; text-align: center;">$letterGrade</span>
+      <span class="grade-badge grade-$gradeClass">$letterGrade</span>
     </div>
 ''');
       }
@@ -869,7 +866,7 @@ class DraftExportService {
     // Footer
     html.write('''
   <div class="footer">
-    <p>Generated by StickToTheModel Mock Draft Simulator </p>
+    <p>Generated by StickToTheModel Mock Draft Simulator</p>
   </div>
 </body>
 </html>
@@ -878,7 +875,6 @@ class DraftExportService {
     return html.toString();
   }
 
-  /// Helper to write compact pick HTML for 2-column layout
   /// Helper to write compact pick HTML for 2-column layout
 static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
   if (pick.selectedPlayer == null) return;
@@ -912,14 +908,20 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
           </div>
           <div class="compact-details">
             <div class="compact-name">${pick.selectedPlayer!.name}</div>
-            <div style="display: flex; align-items: center; margin-top: 3px;">
+            <div class="player-meta">
               <span class="compact-position pos-$positionClass">${pick.selectedPlayer!.position}</span>
-              <span class="compact-school" style="margin-left: 6px;">${pick.selectedPlayer!.school}</span>
-              <span style="margin-left: 6px; font-size: 10px;">Rank: #${pick.selectedPlayer!.rank}</span>
-              <span class="$valueDiffClass" style="font-size: 10px; margin-left: 4px;">($valueDiffText)</span>
+              <span class="compact-school">
+                <span class="school-small-logo">
+                  <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
+                       alt="" 
+                       onerror="this.onerror=null; this.src=''; this.parentElement.style.display='none';">
+                </span>
+                Rank: #${pick.selectedPlayer!.rank}
+                <span class="$valueDiffClass" style="margin-left: 4px;">($valueDiffText)</span>
+              </span>
             </div>
           </div>
-          <span class="grade-badge grade-$gradeClass" style="font-size: 10px; padding: 2px 4px; margin-left: 4px; display: inline-block; min-width: 16px; text-align: center;">$letterGrade</span>
+          <span class="grade-badge grade-$gradeClass" style="font-size: 10px; padding: 2px 4px; margin-left: 4px;">$letterGrade</span>
         </div>
 ''');
 }
@@ -1080,7 +1082,8 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
     if (teamMap.containsKey(teamName)) {
       return teamMap[teamName]!;
     }
-      // For unknown teams or if the map fails, generate a simple abbreviation
+    
+    // For unknown teams or if the map fails, generate a simple abbreviation
     if (teamName.length <= 3) {
       return teamName;
     }
@@ -1108,6 +1111,8 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
     // Fallback to placeholder
     return 'placeholder';
   }
+
+  /// Helper to write compact first round pick HTML
   static void _writeCompactFirstRoundPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
     if (pick.selectedPlayer == null) return;
     
@@ -1135,6 +1140,9 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
     // Team abbreviation for logo
     String teamAbbr = _getTeamAbbreviation(pick.teamName);
     
+    // Check if this pick was traded
+    bool wasTradedPick = pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty;
+    
     html.write('''
       <div class="compact-first-pick $userTeamClass">
         <div class="pick-circle">${pick.pickNumber}</div>
@@ -1142,7 +1150,7 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
           <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}">
         </div>
         <div class="pick-info">
-          <div class="player-title">${pick.selectedPlayer!.name}</div>
+          <div class="player-title">${pick.selectedPlayer!.name}${wasTradedPick ? ' &#8644;' : ''}</div>
           <div class="pick-details">
             <span class="small-position pos-$positionClass">${pick.selectedPlayer!.position}</span>
             <span class="school-small-logo">
@@ -1157,5 +1165,4 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
       </div>
 ''');
   }
-
 }
