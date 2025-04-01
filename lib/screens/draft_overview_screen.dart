@@ -1607,9 +1607,13 @@ Widget build(BuildContext context) {
                 ),
                AvailablePlayersTab(
   availablePlayers: _availablePlayersLists,
-  selectionEnabled: _isUserPickMode,
-  userTeam: _userNextPick?.teamName, // Use the current picking team
-  teamSelectedPositions: _getTeamSelectedPositions(), // Pass the team positions map
+  // This is the key change - do a real-time check if it's the user's turn
+  selectionEnabled: _isUserPickMode && _draftService != null && 
+                   _userNextPick != null && 
+                   widget.selectedTeams != null &&
+                   widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+  userTeam: _userNextPick?.teamName,
+  teamSelectedPositions: _getTeamSelectedPositions(),
   onPlayerSelected: (playerIndex) {
     // Fix selection logic to work with multiple teams
     if (_isUserPickMode && _userNextPick != null) {

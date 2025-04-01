@@ -456,7 +456,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         ),
                         
                         // Draft button (if enabled)
-                        if (widget.selectionEnabled)
+                        if (widget.selectionEnabled && widget.userTeam != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 4.0),
                             child: SizedBox(
