@@ -504,6 +504,162 @@ class DraftExportService {
     min-width: 28px;
   }
 
+/* Player card styling for first round and full export */
+.player-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid var(--light-border);
+}
+
+.player-card.user-team {
+  border: 1px solid var(--primary-color);
+}
+
+.player-card-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+.pick-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #4285F4;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.team-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.team-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.player-card-name {
+  font-weight: bold;
+  font-size: 16px;
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-card-details {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.player-card-position {
+  display: flex;
+  align-items: center;
+}
+
+.position-pill {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.player-card-school {
+  display: flex;
+  align-items: center;
+  color: #6c757d;
+  font-size: 14px;
+  gap: 4px;
+}
+
+.school-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.school-icon img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.player-card-rank {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* First round specific grid layout */
+.first-round-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+@media (min-width: 992px) {
+  .first-round-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Condensed player card for first round */
+.first-round-card {
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+}
+
+.first-round-header {
+  padding: 6px 8px;
+}
+
+.first-round-details {
+  padding: 3px 8px 6px;
+}
+
+.value-pill {
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.value-pill.positive {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.value-pill.negative {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: #d32f2f;
+}
+
   /* Player meta layout styles */
 .player-meta {
   display: flex;
@@ -907,6 +1063,155 @@ class DraftExportService {
     text-align: center;
     flex-shrink: 0;
   }
+
+  /* New card style matching the design in screenshots */
+  .draft-card {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  
+  .draft-card.user-team {
+    background-color: #e7f5ff;
+    border-color: #74c0fc;
+  }
+  
+  .pick-circle {
+    width: 36px;
+    height: 36px;
+    background-color: #4dabf7;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  
+  .team-logo-small {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+  
+  .team-logo-small img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  
+  .player-content {
+    flex-grow: 1;
+    min-width: 0;
+    margin-right: 8px;
+  }
+  
+  .player-name {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .grade-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .rank-small {
+    font-size: 10px;
+    text-align: center;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  
+  .card-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 12px;
+  }
+  
+  .position-pill {
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    font-size: 11px;
+  }
+  
+  .school-logo-sm {
+    width: 16px;
+    height: 16px;
+    margin: 0 4px;
+  }
+  
+  .school-logo-sm img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  
+  .school-text {
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+  }
+  
+  .rank-value {
+    margin-left: auto;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  
+  .grade-badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  
+  /* First round grid with new card styling */
+  .compact-first-round-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  @media (min-width: 992px) {
+    .compact-first-round-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .compact-first-round-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .school-text {
+      max-width: 60px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1013,73 +1318,12 @@ class DraftExportService {
 ''');
 
       // Write each pick with details
-      for (var pick in picks) {
-        if (pick.selectedPlayer == null) continue;
+  for (var pick in picks) {
+    if (pick.selectedPlayer == null) continue;
 
-        if (showPickCards) {
-        _writeCompactPickHtml(html, pick, teamNeeds, userTeam);
-      } else {
-        
-        // Calculate pick grade
-        Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-        String letterGrade = gradeInfo['letter'];
-        
-        // Value differential
-        int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-        String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-        String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
-        
-        // Grade CSS class - Fix for minus grades
-        String gradeClass = letterGrade.toLowerCase();
-        if (gradeClass.contains('+')) {
-          gradeClass = gradeClass.replaceAll('+', '-plus');
-        } else if (gradeClass.contains('-')) {
-          gradeClass = gradeClass.replaceAll('-', '-minus');
-        }
-        
-        // Position CSS class
-        String positionClass = pick.selectedPlayer!.position.toLowerCase();
-        
-        // User team highlighting
-        String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-        
-        // Team abbreviation for logo
-        String teamAbbr = _getTeamAbbreviation(pick.teamName);
-        
-        // Check if this pick was traded
-        bool wasTradedPick = pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty;
-        
-        html.write('''
-    <div class="pick-row $userTeamClass">
-  <div class="pick-number round-${pick.round}">#${pick.pickNumber}</div>
-  <div class="team-logo">
-    <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName} logo" style="width: 36px; height: 36px; object-fit: contain;">
-  </div>
-  <div class="pick-details">
-    <div class="player-name">${pick.selectedPlayer!.name}${wasTradedPick ? '<span class="trade-icon">&#8644;</span>' : ''}</div>
-    <div class="player-meta">
-      <div class="meta-row">
-        <span class="position-badge pos-$positionClass">${pick.selectedPlayer!.position}</span>
-        <span class="school-container">
-          <span class="school-logo">
-            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
-              alt="" 
-              onerror="this.style.display='none';" style="width: 20px; height: 20px; object-fit: contain; vertical-align: middle;">
-          </span>
-          <span class="school-name">${pick.selectedPlayer!.school}</span>
-        </span>
-      </div>
-      <div class="rank-row">
-        <span class="rank-info">Rank: #${pick.selectedPlayer!.rank}</span>
-        <span class="$valueDiffClass value-tag">$valueDiffText</span>
-      </div>
-    </div>
-  </div>
-  <div class="grade-badge grade-$gradeClass">$letterGrade</div>
-</div>
-''');
-      }
-    }
+    // Always use the card style
+    _writeCompactPickHtml(html, pick, teamNeeds, userTeam);
+  }
 
       html.write('''
   </div>
@@ -1112,7 +1356,12 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
   String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
   
   // Grade CSS class
-  String gradeClass = letterGrade.replaceAll('+', '-plus').toLowerCase();
+  String gradeClass = letterGrade.toLowerCase();
+  if (gradeClass.contains('+')) {
+    gradeClass = gradeClass.replaceAll('+', '-plus');
+  } else if (gradeClass.contains('-')) {
+    gradeClass = gradeClass.replaceAll('-', '-minus');
+  }
   
   // Position CSS class
   String positionClass = pick.selectedPlayer!.position.toLowerCase();
@@ -1124,27 +1373,26 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
   String teamAbbr = _getTeamAbbreviation(pick.teamName);
   
   html.write('''
-    <div class="pick-card $userTeamClass">
-      <div class="pick-card-header">
-        <div class="pick-number-badge round-${pick.round}">${pick.pickNumber}</div>
-        <div class="team-badge">
-          <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}" style="width: 24px; height: 24px; object-fit: contain;">
-        </div>
-        <div class="pick-player-name">${pick.selectedPlayer!.name}</div>
-        <div class="grade-pill grade-$gradeClass">$letterGrade</div>
+    <div class="draft-card $userTeamClass">
+      <div class="pick-circle round-${pick.round}">${pick.pickNumber}</div>
+      <div class="team-logo-small">
+        <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}">
       </div>
-      <div class="pick-card-details">
-        <div class="position-pill pos-$positionClass">${pick.selectedPlayer!.position}</div>
-        <div class="school-info">
-          <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
-               alt="" style="width: 20px; height: 20px; object-fit: contain; margin-right: 4px;"
-               onerror="this.style.display='none'">
-          <span>${pick.selectedPlayer!.school}</span>
+      <div class="player-content">
+        <div class="player-name">${pick.selectedPlayer!.name}</div>
+        <div class="card-details">
+          <div class="position-pill pos-$positionClass">${pick.selectedPlayer!.position}</div>
+          <div class="school-logo-sm">
+            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
+                 alt="" onerror="this.style.display='none';">
+          </div>
+          <div class="school-text">${pick.selectedPlayer!.school}</div>
+          <div class="rank-value $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</div>
         </div>
-        <div class="value-text $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</div>
       </div>
+      <div class="grade-badge grade-$gradeClass">$letterGrade</div>
     </div>
-''');
+  ''');
 }
 
   /// Calculate overall draft stats
@@ -1333,59 +1581,57 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
     return 'placeholder';
   }
 
-  /// Helper to write compact first round pick HTML
-  static void _writeCompactFirstRoundPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
-    if (pick.selectedPlayer == null) return;
-    
-    // Calculate pick grade
-    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-    String letterGrade = gradeInfo['letter'];
-    
-    // Value differential
-    int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-    String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-    String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
-    
-    // Grade CSS class - Fix for minus grades
-    String gradeClass = letterGrade.toLowerCase();
-      if (gradeClass.contains('+')) {
-        gradeClass = gradeClass.replaceAll('+', '-plus');
-      } else if (gradeClass.contains('-')) {
-        gradeClass = gradeClass.replaceAll('-', '-minus');
-      }
-    
-    // Position CSS class
-    String positionClass = pick.selectedPlayer!.position.toLowerCase();
-    
-    // User team highlighting
-    String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-    
-    // Team abbreviation for logo
-    String teamAbbr = _getTeamAbbreviation(pick.teamName);
-    
-    // Check if this pick was traded
-    bool wasTradedPick = pick.tradeInfo != null && pick.tradeInfo!.isNotEmpty;
-    
-    html.write('''
-      <div class="compact-first-pick $userTeamClass">
-        <div class="pick-circle">${pick.pickNumber}</div>
-        <div class="team-small-logo">
-          <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}" style="width: 20px; height: 20px; object-fit: contain;">
-        </div>
-        <div class="pick-info">
-          <div class="player-title">${pick.selectedPlayer!.name}${wasTradedPick ? ' &#8644;' : ''}</div>
-          <div class="pick-details">
-            <span class="small-position pos-$positionClass">${pick.selectedPlayer!.position}</span>
-            <span class="school-small-logo">
-              <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
-                   alt=""
-                   onerror="this.style.display='none'" style="width: 14px; height: 14px; object-fit: contain;">
-            </span>
-            <span class="small-value $valueDiffClass">$valueDiffText</span>
+/// Helper to write compact first round pick HTML
+static void _writeCompactFirstRoundPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
+  if (pick.selectedPlayer == null) return;
+  
+  // Calculate pick grade
+  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
+  String letterGrade = gradeInfo['letter'];
+  
+  // Value differential
+  int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
+  String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
+  String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
+  
+  // Grade CSS class - Fix for minus grades
+  String gradeClass = letterGrade.toLowerCase();
+  if (gradeClass.contains('+')) {
+    gradeClass = gradeClass.replaceAll('+', '-plus');
+  } else if (gradeClass.contains('-')) {
+    gradeClass = gradeClass.replaceAll('-', '-minus');
+  }
+  
+  // Position CSS class
+  String positionClass = pick.selectedPlayer!.position.toLowerCase();
+  
+  // User team highlighting
+  String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
+  
+  // Team abbreviation for logo
+  String teamAbbr = _getTeamAbbreviation(pick.teamName);
+  
+  html.write('''
+    <div class="draft-card $userTeamClass">
+      <div class="pick-circle">${pick.pickNumber}</div>
+      <div class="team-logo-small">
+        <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}">
+      </div>
+      <div class="player-content">
+        <div class="player-name">${pick.selectedPlayer!.name}</div>
+        <div class="card-details">
+          <div class="position-pill pos-$positionClass">${pick.selectedPlayer!.position}</div>
+          <div class="school-logo-sm">
+            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
+                 alt="" onerror="this.style.display='none';">
           </div>
         </div>
-        <span class="small-grade grade-$gradeClass">$letterGrade</span>
       </div>
-''');
-  }
+      <div class="grade-column">
+        <div class="grade-badge grade-$gradeClass">$letterGrade</div>
+        <div class="rank-small $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</div>
+      </div>
+    </div>
+  ''');
+}
 }
