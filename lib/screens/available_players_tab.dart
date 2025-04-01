@@ -329,7 +329,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                   ),
                   // Apply visual styling for previously drafted positions
                   color: isSelected ? 
-                      (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100) : 
+                      (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
                       (positionDrafted ? 
                         (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
                         (isDarkMode ? Colors.grey.shade800 : Colors.white)),
@@ -447,7 +447,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                           icon: Icon(
                             Icons.info_outline,
                             size: 18,
-                            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                            color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade600,
                           ),
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.all(4),
@@ -471,7 +471,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   // Visual indication of previously drafted position
-                                  backgroundColor: positionDrafted ? Colors.green.shade200 : Colors.green,
+                                  backgroundColor: positionDrafted ? Colors.green : Colors.green,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   minimumSize: const Size(0, 28),
                                 ),
@@ -479,7 +479,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                                   // Change text to indicate if this is a duplicate position
                                   positionDrafted ? 'Draft' : 'Draft',
                                   style: TextStyle(
-                                    color: positionDrafted ? Colors.grey.shade800 : Colors.white,
+                                    color: positionDrafted ? Colors.white : Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),

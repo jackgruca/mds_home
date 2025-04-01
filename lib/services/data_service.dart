@@ -1,5 +1,7 @@
 // lib/services/data_service.dart
 
+import 'dart:math';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
@@ -56,7 +58,6 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
 }
 
 // Updated part of the loadAvailablePlayers method in DataService
-
 static Future<List<Player>> loadAvailablePlayers({required int year}) async {
   try {
     final data = await rootBundle.loadString('assets/$year/available_players.csv');
@@ -81,31 +82,27 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
     // Debug the headers to see what's available
     debugPrint("Available players CSV headers: $headers");
     
-    // Explicitly look for "COMBINED_RANK" or similar column
+    // Get the exact index for "RANK_COMBINED" - must match exactly
     int rankIndex = -1;
-    for (String key in columnIndices.keys) {
-      if (key.contains("COMBINED_RANK") || key.contains("COMBINED") || key.contains("RANK_COMBINED")) {
-        rankIndex = columnIndices[key]!;
-        debugPrint("Found Combined Rank column: $key at index $rankIndex");
-        break;
-      }
-    }
-    
-    // If not found, try to find any rank column
-    if (rankIndex == -1) {
-      for (String key in columnIndices.keys) {
-        if (key.contains("RANK")) {
-          rankIndex = columnIndices[key]!;
-          debugPrint("Using Rank column: $key at index $rankIndex");
+    if (columnIndices.containsKey("RANK_COMBINED")) {
+      rankIndex = columnIndices["RANK_COMBINED"]!;
+      debugPrint("Found RANK_COMBINED column at index $rankIndex");
+    } else {
+      // If uppercase doesn't work, try the original case
+      for (int i = 0; i < headers.length; i++) {
+        if (headers[i].toUpperCase() == "RANK_COMBINED" || 
+            headers[i] == "Rank_combined") {
+          rankIndex = i;
+          debugPrint("Found Rank_combined column at index $rankIndex");
           break;
         }
       }
     }
     
-    // If still not found, default to the last column
+    // If still not found, notify in logs but continue with last column as fallback
     if (rankIndex == -1) {
       rankIndex = headers.length - 1;
-      debugPrint("No rank column found. Defaulting to last column at index $rankIndex");
+      debugPrint("ERROR: RANK_COMBINED column not found! Defaulting to last column at index $rankIndex");
     }
     
     // Skip the header row (index 0)
@@ -116,7 +113,7 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
         var row = csvTable[i];
         
         // Make sure we have enough data
-        if (row.length <= columnIndices['NAME']!) {
+        if (row.length <= 2 || row.length <= rankIndex) {
           debugPrint("Row $i has insufficient columns: $row");
           continue;
         }
@@ -145,9 +142,9 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
           position = row[2].toString(); // Fallback to third column
         }
         
-        // Get player rank with proper error handling
+        // Get Rank_combined value with proper error handling
         int rank = 999;
-        if (rankIndex < row.length) {
+        if (rankIndex >= 0 && rankIndex < row.length) {
           String rankStr = row[rankIndex].toString().trim();
           if (rankStr.isNotEmpty) {
             rank = int.tryParse(rankStr) ?? 999;
@@ -179,6 +176,12 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
     
     // Sort players by rank to ensure consistent ordering
     players.sort((a, b) => a.rank.compareTo(b.rank));
+    
+    // Log the top 10 players for debugging
+    debugPrint("Top 10 players by rank:");
+    for (int i = 0; i < min(10, players.length); i++) {
+      debugPrint("Player #${i+1}: ${players[i].name} - Rank: ${players[i].rank}");
+    }
     
     debugPrint("Successfully loaded ${players.length} players");
     return players;
