@@ -9,12 +9,14 @@ class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
   final List<DraftPick> userPicks;
   final List<DraftPick> targetPicks;
-  final List<DraftPick>? initialSelectedUserPicks; // New parameter
-  final List<DraftPick>? initialSelectedTargetPicks; // New parameter
+  final List<DraftPick>? initialSelectedUserPicks; // For current year picks
+  final List<DraftPick>? initialSelectedTargetPicks; // For current year picks
+  final List<int>? initialSelectedUserFutureRounds; // For future picks
+  final List<int>? initialSelectedTargetFutureRounds; // For future picks
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
-  final bool hasLeverage; // New parameter
+  final bool hasLeverage; // For counter offers
   final VoidCallback? onBack;
 
   const UserTradeProposalDialog({
@@ -26,6 +28,8 @@ class UserTradeProposalDialog extends StatefulWidget {
     required this.onCancel,
     this.initialSelectedUserPicks,
     this.initialSelectedTargetPicks, 
+    this.initialSelectedUserFutureRounds,
+    this.initialSelectedTargetFutureRounds,
     this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
     this.onBack,
@@ -39,36 +43,42 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
-  final List<int> _selectedTargetFutureRounds = [];
+  List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  final List<int> _selectedFutureRounds = [];
+  List<int> _selectedFutureRounds = [];
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   
   @override
-  void initState() {
-    super.initState();
-    if (widget.targetPicks.isNotEmpty) {
-      _targetTeam = widget.targetPicks.first.teamName;
-    } else {
-      _targetTeam = "";
-    }
-
-    // Initialize with pre-selected picks if provided
-    if (widget.initialSelectedUserPicks != null) {
-      _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
-    }
-    
-    if (widget.initialSelectedTargetPicks != null) {
-      _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
-    }
-    
-    // Initialize future picks if needed
-    // This would need additional parameters for future picks
-    
-    // Update values based on selections
-    _updateValues();
+void initState() {
+  super.initState();
+  if (widget.targetPicks.isNotEmpty) {
+    _targetTeam = widget.targetPicks.first.teamName;
+  } else {
+    _targetTeam = "";
   }
+
+  // Initialize with pre-selected picks if provided
+  if (widget.initialSelectedUserPicks != null) {
+    _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
+  }
+  
+  if (widget.initialSelectedTargetPicks != null) {
+    _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
+  }
+  
+  // Initialize future picks if provided
+  if (widget.initialSelectedUserFutureRounds != null) {
+    _selectedFutureRounds = List.from(widget.initialSelectedUserFutureRounds!);
+  }
+  
+  if (widget.initialSelectedTargetFutureRounds != null) {
+    _selectedTargetFutureRounds = List.from(widget.initialSelectedTargetFutureRounds!);
+  }
+  
+  // Update values based on selections
+  _updateValues();
+}
   
   void _updateValues() {
     double userValue = 0;
@@ -660,36 +670,75 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
             children: [
               // Progress bar, trade values, etc.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  decoration: BoxDecoration(
+    color: Theme.of(context).brightness == Brightness.dark ? 
+          _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+  ),
+  child: Row(
+    children: [
+      Icon(
+        _getTradeAdviceIcon(),
+        size: 16,
+        color: _getTradeAdviceColor(),
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          _getTradeAdviceText(),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11, 
+            color: _getTradeAdviceColor(),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      // Add leverage indicator here if applicable
+      if (widget.hasLeverage)
+        Tooltip(
+          message: "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+          waitDuration: const Duration(milliseconds: 500),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? 
-                        _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+                  border: Border.all(color: Colors.blue, width: 0.5),
                 ),
-                child: Row(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _getTradeAdviceIcon(),
-                      size: 16,
-                      color: _getTradeAdviceColor(),
+                      Icons.trending_up,
+                      size: 12,
+                      color: Colors.blue,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _getTradeAdviceText(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11, 
-                          color: _getTradeAdviceColor(),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    SizedBox(width: 2),
+                    Text(
+                      "Leverage",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+    ],
+  ),
+),
 
               const SizedBox(height: 8),
 
@@ -751,41 +800,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
                   ],
                 ),
               ),
-              // Add the leverage indicator right here, after the trade advice container
-              if (widget.hasLeverage) 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark ? 
-                          Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.trending_up,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11, 
-                            color: Colors.blue,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    ],
-                  ),
-                ),
                   
               const SizedBox(height: 8),
               
@@ -853,17 +867,17 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
     }
   }
   
-  String _getTradeAdviceText() {
-    if (_totalOfferedValue >= _targetPickValue * 1.2) {
-      return 'Great offer - they\'ll likely accept!';
-    } else if (_totalOfferedValue >= _targetPickValue) {
-      return 'Fair offer - they may accept.';
-    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
-      return 'Slightly below market value - but still possible.';
-    } else {
-      return 'Poor value - they\'ll likely reject.';
-    }
+String _getTradeAdviceText() {
+  if (_totalOfferedValue >= _targetPickValue * 1.2) {
+    return widget.hasLeverage ? 'Great offer - they\'ll accept!' : 'Great offer - they\'ll likely accept!';
+  } else if (_totalOfferedValue >= _targetPickValue) {
+    return widget.hasLeverage ? 'Fair offer - they\'ll accept.' : 'Fair offer - they may accept.';
+  } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
+    return widget.hasLeverage ? 'Below value - but still acceptable.' : 'Slightly below market value - but still possible.';
+  } else {
+    return widget.hasLeverage ? 'Poor value - but they might accept.' : 'Poor value - they\'ll likely reject.';
   }
+}
   
   Color _getTradeAdviceColor() {
     if (_totalOfferedValue >= _targetPickValue * 1.2) {

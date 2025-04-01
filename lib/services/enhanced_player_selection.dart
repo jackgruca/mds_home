@@ -11,7 +11,7 @@ class EnhancedPlayerSelection {
   
   // Position tiers based on NFL draft data
   final Map<String, double> _positionPremium = {
-    'QB': 1.7,     // Premium for QBs - highest value
+    'QB': 2,     // Premium for QBs - highest value
     'OT': 1.2,     // Premium tackles
     'EDGE': 1.2,   // Edge rushers
     'CB': 1.15,    // Cornerbacks
@@ -115,7 +115,7 @@ class EnhancedPlayerSelection {
     
     // Early round QB premium - teams reach for QBs early
     if (player.position == 'QB' && pickNumber <= 15 && player.rank <= 20) {
-      baseGrade *= 1.2; // 20% boost for potential franchise QBs
+      baseGrade *= 1.25; // 20% boost for potential franchise QBs
     }
     
     // Add some controlled randomness (±10%)
