@@ -932,7 +932,12 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   debugPrint("===== EVALUATING COUNTER OFFER =====");
   debugPrint("Original offer from ${originalOffer.teamOffering} to ${originalOffer.teamReceiving}");
   debugPrint("Counter offer from ${counterOffer.teamOffering} to ${counterOffer.teamReceiving}");
-  
+ 
+ // Force accept if enabled
+  if (counterOffer.forceAccept) {
+    return true;
+  }
+
   // Check teams are flipped (basic sanity check)
   if (originalOffer.teamOffering == counterOffer.teamReceiving &&
       originalOffer.teamReceiving == counterOffer.teamOffering) {
@@ -1080,6 +1085,11 @@ bool _arePicksEquivalent(List<DraftPick> setA, DraftPick mainPick, List<DraftPic
 
   /// Process a user trade proposal with realistic acceptance criteria
 bool evaluateTradeProposal(TradePackage proposal) {
+  // If force accept is enabled, automatically return true
+  if (proposal.forceAccept) {
+    return true;
+  }
+  
   // Get team tendencies
   final tendency = _getTeamTradingTendency(proposal.teamReceiving);
   

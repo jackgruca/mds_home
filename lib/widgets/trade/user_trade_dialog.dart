@@ -48,6 +48,8 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   double _targetPickValue = 0;
   List<int> _selectedFutureRounds = [];
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
+  bool _forceTradeEnabled = false;
+
   
   @override
 void initState() {
@@ -813,6 +815,40 @@ void initState() {
                       child: const Text('Back to Offers'),
                     ),
                   const SizedBox(width: 8),
+                  // Add the force trade checkbox here
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: Checkbox(
+                          value: _forceTradeEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              _forceTradeEnabled = value ?? false;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _forceTradeEnabled = !_forceTradeEnabled;
+                          });
+                        },
+                        child: Text(
+                          "Force Trade",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).brightness == Brightness.dark ? 
+                                  Colors.grey.shade300 : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: _canProposeTrade() ? _proposeTrade : null,
                     style: ElevatedButton.styleFrom(
@@ -934,6 +970,8 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      // Add this line to include the force trade flag
+      forceAccept: _forceTradeEnabled,
     );
   } else {
     // Normal trade with current year picks
@@ -962,6 +1000,8 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+      // Add this line to include the force trade flag
+      forceAccept: _forceTradeEnabled,
     );
   }
   

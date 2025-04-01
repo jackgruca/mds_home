@@ -7,27 +7,32 @@ class TradePackage {
   final String teamReceiving;
   final List<DraftPick> picksOffered;
   final DraftPick targetPick;
-  final List<DraftPick> additionalTargetPicks; // Add this field
+  final List<DraftPick> additionalTargetPicks;
   final double totalValueOffered;
   final double targetPickValue;
   final bool includesFuturePick;
   final String? futurePickDescription;
   final double? futurePickValue;
-  final List<String>? targetReceivedFuturePicks; // Added field for future picks received by target team
+  final List<String>? targetReceivedFuturePicks;
+  // Add this property
+  final bool forceAccept;
 
   const TradePackage({
     required this.teamOffering,
     required this.teamReceiving,
     required this.picksOffered,
     required this.targetPick,
-    this.additionalTargetPicks = const [], // Default to empty list
+    this.additionalTargetPicks = const [],
     required this.totalValueOffered,
     required this.targetPickValue,
     this.includesFuturePick = false,
     this.futurePickDescription,
     this.futurePickValue,
-    this.targetReceivedFuturePicks, // Initialize the new field
+    this.targetReceivedFuturePicks,
+    // Add this parameter with default value
+    this.forceAccept = false,
   });
+
 
   /// Calculate the value differential between offer and target
   double get valueDifferential => totalValueOffered - targetPickValue;
