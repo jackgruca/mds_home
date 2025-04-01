@@ -352,6 +352,7 @@ class CollegeTeamESPNIds {
     "Connecticut Huskies": "41",
     "Villanova": "222",
     "Villanova Wildcats": "222",
+    "Utah State": "328",
   };
 
   

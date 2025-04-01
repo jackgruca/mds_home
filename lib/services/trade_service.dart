@@ -179,6 +179,25 @@ class TradeService {
       _teamSpecificGrades[teamName] = grades;
     }
   }
+
+  void _logTradeOffers(
+    int pickNumber, 
+    String teamName, 
+    List<TradeInterest> interestedTeams, 
+    bool qbSpecific
+  ) {
+    debugPrint("\n==== TRADE OFFER DEBUG ====");
+    debugPrint("Pick #$pickNumber | Team: $teamName | QB Specific: $qbSpecific");
+    debugPrint("Interested Teams: ${interestedTeams.length}");
+    
+    for (var interest in interestedTeams) {
+      debugPrint("- ${interest.teamName}:");
+      debugPrint("  Player: ${interest.targetPlayer.name} (${interest.targetPlayer.position})");
+      debugPrint("  Player Rank: ${interest.targetPlayer.rank}");
+      debugPrint("  Interest Level: ${interest.interestLevel.toStringAsFixed(2)}");
+    }
+    debugPrint("==========================\n");
+  }
   
   /// Generate trade offers for a specific pick with realistic behavior
   TradeOffer generateTradeOffersForPick(int pickNumber, {bool qbSpecific = false}) {
@@ -227,6 +246,8 @@ class TradeService {
     
     // Step 3: Find teams that might want to trade up
     List<TradeInterest> interestedTeams = _findTeamsInterestedInTradingUp(pickNumber, valuablePlayers, qbSpecific);
+
+    _logTradeOffers(pickNumber, currentPick.teamName, interestedTeams, qbSpecific);
     
     if (interestedTeams.isEmpty) {
       return TradeOffer(

@@ -268,32 +268,41 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     return null;
   }
 
-  // Get team needs
+  // Enhanced QB need check
   TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
-  
-  // Check for QB needs within relevant threshold (round+3)
   int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
   int needsToConsider = min(round + 3, teamNeeds?.needs.length ?? 0);
   
-  // Check if QB is within the needs to consider
   bool teamNeedsQB = false;
+  int qbNeedIndex = -1;
   for (int i = 0; i < needsToConsider; i++) {
-    if (teamNeeds != null && i < teamNeeds.needs.length && teamNeeds.needs[i] == "QB") {
+    if (teamNeeds != null && teamNeeds.needs[i] == "QB") {
       teamNeedsQB = true;
+      qbNeedIndex = i;
       break;
     }
   }
   
+  debugPrint("\n==== TRADE EVALUATION DEBUG ====");
+  debugPrint("Team: ${nextPick.teamName}");
+  debugPrint("Needs QB: $teamNeedsQB");
   if (teamNeedsQB) {
-    // Check for valuable QBs available
-    bool valuableQBAvailable = availablePlayers
-        .any((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 15);
-    
-    if (valuableQBAvailable) {
-      // 98% chance to stay and draft the QB
-      if (_random.nextDouble() < 0.98) {
-        return null;
-      }
+    debugPrint("QB Need Index: $qbNeedIndex");
+  }
+  
+  // More verbose QB prospect check
+  bool valuableQBAvailable = availablePlayers
+      .where((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 15)
+      .toList()
+      .isNotEmpty;
+  
+  debugPrint("Valuable QB Prospects Available: $valuableQBAvailable");
+  
+  if (teamNeedsQB && valuableQBAvailable) {
+    // 98% chance to stay and draft the QB
+    if (_random.nextDouble() < 0.98) {
+      debugPrint("Highly likely to draft QB - skipping trade");
+      return null;
     }
   }
 
@@ -477,7 +486,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   
   // Add this to the DraftService class - position value tiers
   final Map<String, double> _positionValueWeights = {
-    'QB': 1.7,   // Premium for franchise QBs
+    'QB': 2.0,   // Premium for franchise QBs
     'EDGE': 1.25, // Elite pass rushers
     'OT': 1.20,   // Offensive tackles highly valued
     'CB | WR': 1.2, // Travis Hunter
@@ -632,8 +641,8 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
           
           // Store all scoring components for debugging
           Map<String, double> scoreComponents = {
-            'needFactor': needFactor * 0.4,
-            'valueScore': valueScore * 0.3,
+            'needFactor': needFactor * 0.3,
+            'valueScore': valueScore * 0.4,
             'positionWeight': posWeight * 0.2,
             'scarcityFactor': scarcityFactor * 0.1,
             'pickFactor': pickFactor
@@ -680,7 +689,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
           : max(-0.5, valueGap / 20);
       
       // BPA gets a boost but need factor is low
-      double needFactor = 0.4; // Low since not in needs list
+      double needFactor = 0.5; // Low since not in needs list
       
       // Store all scoring components for debugging
       Map<String, double> scoreComponents = {
