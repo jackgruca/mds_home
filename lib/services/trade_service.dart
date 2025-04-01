@@ -10,6 +10,12 @@ import '../models/trade_offer.dart';
 import '../models/future_pick.dart';
 import 'draft_value_service.dart';
 
+extension NumExtension on double {
+  bool between(double min, double max) {
+    return this >= min && this <= max;
+  }
+}
+
 /// Service responsible for generating and evaluating trade offers with improved realism
 class TradeService {
   final List<DraftPick> draftOrder;
@@ -898,42 +904,112 @@ double _calculateTradeUpInterest(
   }
   
   /// Determine if a counter offer should include a leverage premium
-  /// Returns the premium multiplier (1.0 means no premium)
-  double calculateLeveragePremium(TradePackage originalOffer, TradePackage counterOffer) {
-    // If this is a counter to an AI-initiated offer, the user has leverage
-    if (originalOffer.teamOffering != counterOffer.teamOffering && 
-        originalOffer.teamReceiving == counterOffer.teamReceiving) {
-      
-      // Base premium is 5-10% additional value acceptance
-      double basePremium = 1.08; // 8% baseline premium
-      
-      // Higher premium for earlier picks (rounds 1-2)
-      if (originalOffer.targetPick.pickNumber <= 64) {
-        // Up to 15% premium for early rounds
-        return basePremium + 0.07; // 15% total
-      }
-      
-      return basePremium;
+/// Returns the premium multiplier (1.0 means no premium)
+double calculateLeveragePremium(TradePackage originalOffer, TradePackage counterOffer) {
+  // If this is a counter to an AI-initiated offer, the user has leverage
+  if (originalOffer.teamOffering != counterOffer.teamOffering && 
+      originalOffer.teamReceiving == counterOffer.teamReceiving) {
+    
+    // Base premium is 15-20% additional value acceptance
+    double basePremium = 1.15; // 15% baseline premium
+    
+    // Higher premium for earlier picks (rounds 1-2)
+    if (originalOffer.targetPick.pickNumber <= 64) {
+      // Up to 20% premium for early rounds
+      return basePremium + 0.05; // 20% total
     }
     
-    // No premium for regular offers (not counters)
-    return 1.0;
+    return basePremium;
   }
+  
+  // No premium for regular offers (not counters)
+  return 1.0;
+}
 
   /// Process a counter offer with leverage premium applied
-  bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
-    // Calculate the leverage premium
-    double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
-    
-    // Apply the premium to the acceptance probability calculation
-    final valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
-    
-    // The premium effectively reduces the value needed for acceptance
-    final adjustedValueRatio = valueRatio * leveragePremium;
-    
-    // Now use the adjusted ratio for the regular evaluation
-    return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
+  /// Process a counter offer with leverage premium applied
+bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // First check if this is essentially the same offer flipped
+  // (i.e., the user is just replying with the exact same offer that was given)
+  if (_isReplicatedOffer(originalOffer, counterOffer)) {
+    debugPrint("Counter offer is a replicated original offer - automatic accept");
+    return true; // Automatically accept
   }
+  
+  // Calculate the leverage premium
+  double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
+  
+  // Apply the premium to the acceptance probability calculation
+  final valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
+  
+  // The premium effectively reduces the value needed for acceptance
+  final adjustedValueRatio = valueRatio * leveragePremium;
+  
+  // Now use the adjusted ratio for the regular evaluation
+  return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
+}
+
+/// Check if the counter offer is essentially the same as the original offer but flipped
+bool _isReplicatedOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // Log for debugging
+  debugPrint("Checking if counter offer is a replication of original offer");
+  debugPrint("Original offer: ${originalOffer.teamOffering} -> ${originalOffer.teamReceiving}");
+  debugPrint("Counter offer: ${counterOffer.teamOffering} -> ${counterOffer.teamReceiving}");
+  
+  // Check if teams are flipped correctly (A->B becomes B->A)
+  bool teamsFlipped = originalOffer.teamOffering == counterOffer.teamReceiving &&
+                      originalOffer.teamReceiving == counterOffer.teamOffering;
+  
+  debugPrint("Teams flipped correctly? $teamsFlipped");
+  
+  if (!teamsFlipped) return false;
+  
+  // Compare picks more loosely - focus on total value rather than exact picks
+  // The original value offered should be very close to the counter value requested
+  double originalValueOffered = originalOffer.totalValueOffered;
+  double counterValueRequested = counterOffer.targetPickValue;
+  
+  // The original value requested should be very close to the counter value offered
+  double originalValueRequested = originalOffer.targetPickValue;
+  double counterValueOffered = counterOffer.totalValueOffered;
+  
+  debugPrint("Original offered: $originalValueOffered, Counter requested: $counterValueRequested");
+  debugPrint("Original requested: $originalValueRequested, Counter offered: $counterValueOffered");
+  
+  // Check if values are within 5% of each other (allowing some small difference due to rounding)
+  bool valuesMatchOffering = (originalValueOffered / counterValueRequested).between(0.95, 1.05);
+  bool valuesMatchTarget = (originalValueRequested / counterValueOffered).between(0.95, 1.05);
+  
+  debugPrint("Values match for offering? $valuesMatchOffering");
+  debugPrint("Values match for target? $valuesMatchTarget");
+  
+  // Consider a match if both value pairs are close
+  return teamsFlipped && valuesMatchOffering && valuesMatchTarget;
+}
+
+
+/// Helper to check if two sets of picks are equivalent
+bool _arePicksEquivalent(List<DraftPick> setA, DraftPick mainPick, List<DraftPick> additionalPicks) {
+  // Create a complete list of picks from mainPick + additionalPicks
+  List<DraftPick> setB = [mainPick, ...additionalPicks];
+  
+  // If sizes don't match, they're definitely not equivalent
+  if (setA.length != setB.length) return false;
+  
+  // Check if all picks in setA exist in setB (by pick number)
+  for (var pickA in setA) {
+    bool foundMatch = false;
+    for (var pickB in setB) {
+      if (pickA.pickNumber == pickB.pickNumber) {
+        foundMatch = true;
+        break;
+      }
+    }
+    if (!foundMatch) return false;
+  }
+  
+  return true;
+}
 
   /// Process a user trade proposal with realistic acceptance criteria
 bool evaluateTradeProposal(TradePackage proposal) {

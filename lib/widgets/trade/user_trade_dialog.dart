@@ -670,36 +670,75 @@ void initState() {
             children: [
               // Progress bar, trade values, etc.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  decoration: BoxDecoration(
+    color: Theme.of(context).brightness == Brightness.dark ? 
+          _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+  ),
+  child: Row(
+    children: [
+      Icon(
+        _getTradeAdviceIcon(),
+        size: 16,
+        color: _getTradeAdviceColor(),
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          _getTradeAdviceText(),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11, 
+            color: _getTradeAdviceColor(),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      // Add leverage indicator here if applicable
+      if (widget.hasLeverage)
+        Tooltip(
+          message: "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+          waitDuration: const Duration(milliseconds: 500),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark ? 
-                        _getTradeAdviceColor().withOpacity(0.2) : _getTradeAdviceColor().withOpacity(0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: _getTradeAdviceColor().withOpacity(0.5)),
+                  border: Border.all(color: Colors.blue, width: 0.5),
                 ),
-                child: Row(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _getTradeAdviceIcon(),
-                      size: 16,
-                      color: _getTradeAdviceColor(),
+                      Icons.trending_up,
+                      size: 12,
+                      color: Colors.blue,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _getTradeAdviceText(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11, 
-                          color: _getTradeAdviceColor(),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    SizedBox(width: 2),
+                    Text(
+                      "Leverage",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+    ],
+  ),
+),
 
               const SizedBox(height: 8),
 
@@ -762,40 +801,47 @@ void initState() {
                 ),
               ),
               // Add the leverage indicator right here, after the trade advice container
-              if (widget.hasLeverage) 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark ? 
-                          Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.blue.withOpacity(0.5)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.trending_up,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11, 
-                            color: Colors.blue,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    ],
-                  ),
-                ),
+if (widget.hasLeverage) 
+  Tooltip(
+    message: "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
+    waitDuration: const Duration(milliseconds: 500),
+    preferBelow: false,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark ? 
+              Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.blue.withOpacity(0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.trending_up,
+            size: 16,
+            color: Colors.blue,
+          ),
+          SizedBox(width: 6),
+          Text(
+            "Leverage",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11, 
+              color: Colors.blue,
+            ),
+          ),
+          SizedBox(width: 4),
+          Icon(
+            Icons.info_outline,
+            size: 14,
+            color: Colors.blue,
+          ),
+        ],
+      ),
+    ),
+  ),
                   
               const SizedBox(height: 8),
               
@@ -864,16 +910,17 @@ void initState() {
   }
   
   String _getTradeAdviceText() {
-    if (_totalOfferedValue >= _targetPickValue * 1.2) {
-      return 'Great offer - they\'ll likely accept!';
-    } else if (_totalOfferedValue >= _targetPickValue) {
-      return 'Fair offer - they may accept.';
-    } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
-      return 'Slightly below market value - but still possible.';
-    } else {
-      return 'Poor value - they\'ll likely reject.';
-    }
+  if (_totalOfferedValue >= _targetPickValue * 1.2) {
+    return widget.hasLeverage ? 'Great offer - they\'ll accept!' : 'Great offer - they\'ll likely accept!';
+  } else if (_totalOfferedValue >= _targetPickValue) {
+    return widget.hasLeverage ? 'Fair offer - they\'ll accept.' : 'Fair offer - they may accept.';
+  } else if (_totalOfferedValue >= _targetPickValue * 0.9) {
+    return widget.hasLeverage ? 'Below value - but still acceptable.' : 'Slightly below market value - but still possible.';
+  } else {
+    return widget.hasLeverage ? 'Poor value - but they might accept.' : 'Poor value - they\'ll likely reject.';
   }
+}
+
   
   Color _getTradeAdviceColor() {
     if (_totalOfferedValue >= _targetPickValue * 1.2) {
