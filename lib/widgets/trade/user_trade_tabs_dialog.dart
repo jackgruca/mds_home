@@ -129,8 +129,15 @@ Expanded(
             initialSelectedUserFutureRounds: counter_initialUserFutureRounds,
             initialSelectedTargetFutureRounds: counter_initialTargetFutureRounds,
             onPropose: (counterPackage) {
-              // Handle the counter package - add leverage metadata
+              // Very important - ensure the original offer is passed along
+              // to enable proper detection of replicated offers
+              debugPrint("Sending counter offer with original offer metadata");
+              debugPrint("Original offer: ${counter_originalOffer?.teamOffering} -> ${counter_originalOffer?.teamReceiving}");
+              debugPrint("Counter offer: ${counterPackage.teamOffering} -> ${counterPackage.teamReceiving}");
+              
+              // Handle the counter package
               widget.onPropose(counterPackage);
+              
               // Reset counter mode
               setState(() {
                 isCounterMode = false;

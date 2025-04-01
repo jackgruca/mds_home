@@ -800,48 +800,6 @@ void initState() {
                   ],
                 ),
               ),
-              // Add the leverage indicator right here, after the trade advice container
-if (widget.hasLeverage) 
-  Tooltip(
-    message: "You have leverage in this negotiation. The offering team is eager to acquire your pick.",
-    waitDuration: const Duration(milliseconds: 500),
-    preferBelow: false,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? 
-              Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.blue.withOpacity(0.5)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.trending_up,
-            size: 16,
-            color: Colors.blue,
-          ),
-          SizedBox(width: 6),
-          Text(
-            "Leverage",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 11, 
-              color: Colors.blue,
-            ),
-          ),
-          SizedBox(width: 4),
-          Icon(
-            Icons.info_outline,
-            size: 14,
-            color: Colors.blue,
-          ),
-        ],
-      ),
-    ),
-  ),
                   
               const SizedBox(height: 8),
               
@@ -909,7 +867,7 @@ if (widget.hasLeverage)
     }
   }
   
-  String _getTradeAdviceText() {
+String _getTradeAdviceText() {
   if (_totalOfferedValue >= _targetPickValue * 1.2) {
     return widget.hasLeverage ? 'Great offer - they\'ll accept!' : 'Great offer - they\'ll likely accept!';
   } else if (_totalOfferedValue >= _targetPickValue) {
@@ -920,7 +878,6 @@ if (widget.hasLeverage)
     return widget.hasLeverage ? 'Poor value - but they might accept.' : 'Poor value - they\'ll likely reject.';
   }
 }
-
   
   Color _getTradeAdviceColor() {
     if (_totalOfferedValue >= _targetPickValue * 1.2) {

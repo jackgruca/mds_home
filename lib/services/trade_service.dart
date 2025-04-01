@@ -903,20 +903,20 @@ double _calculateTradeUpInterest(
     }).toList();
   }
   
-  /// Determine if a counter offer should include a leverage premium
+/// Determine if a counter offer should include a leverage premium
 /// Returns the premium multiplier (1.0 means no premium)
 double calculateLeveragePremium(TradePackage originalOffer, TradePackage counterOffer) {
   // If this is a counter to an AI-initiated offer, the user has leverage
   if (originalOffer.teamOffering != counterOffer.teamOffering && 
       originalOffer.teamReceiving == counterOffer.teamReceiving) {
     
-    // Base premium is 15-20% additional value acceptance
-    double basePremium = 1.15; // 15% baseline premium
+    // Base premium is now 20% additional value acceptance
+    double basePremium = 1.2; // 20% baseline premium
     
     // Higher premium for earlier picks (rounds 1-2)
     if (originalOffer.targetPick.pickNumber <= 64) {
-      // Up to 20% premium for early rounds
-      return basePremium + 0.05; // 20% total
+      // Up to 25% premium for early rounds
+      return basePremium + 0.05; // 25% total
     }
     
     return basePremium;
@@ -927,14 +927,43 @@ double calculateLeveragePremium(TradePackage originalOffer, TradePackage counter
 }
 
   /// Process a counter offer with leverage premium applied
-  /// Process a counter offer with leverage premium applied
 bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
-  // First check if this is essentially the same offer flipped
-  // (i.e., the user is just replying with the exact same offer that was given)
-  if (_isReplicatedOffer(originalOffer, counterOffer)) {
-    debugPrint("Counter offer is a replicated original offer - automatic accept");
-    return true; // Automatically accept
+  // Print detailed information for debugging
+  debugPrint("===== EVALUATING COUNTER OFFER =====");
+  debugPrint("Original offer from ${originalOffer.teamOffering} to ${originalOffer.teamReceiving}");
+  debugPrint("Counter offer from ${counterOffer.teamOffering} to ${counterOffer.teamReceiving}");
+  
+  // Check teams are flipped (basic sanity check)
+  if (originalOffer.teamOffering == counterOffer.teamReceiving &&
+      originalOffer.teamReceiving == counterOffer.teamOffering) {
+    
+    // Check if the main picks are flipped
+    bool picksFlipped = false;
+    
+    // Find if main pick numbers are flipped (original offer's target = counter offer's offered picks)
+    for (var offeredPick in counterOffer.picksOffered) {
+      if (offeredPick.pickNumber == originalOffer.targetPick.pickNumber) {
+        picksFlipped = true;
+        debugPrint("✓ Found exact pick match: original target #${originalOffer.targetPick.pickNumber} = counter offered #${offeredPick.pickNumber}");
+        break;
+      }
+    }
+    
+    // If the picks are flipped, auto-accept with 100% probability
+    if (picksFlipped) {
+      debugPrint("✓✓✓ AUTO-ACCEPTING COUNTER OFFER");
+      return true;
+    }
+    
+    // Extremely lenient check - just require the teams to be flipped
+    // and make sure the picks exist on both sides
+    if (counterOffer.picksOffered.isNotEmpty && originalOffer.picksOffered.isNotEmpty) {
+      debugPrint("✓✓ AUTO-ACCEPTING COUNTER OFFER (lenient mode)");
+      return true;
+    }
   }
+  
+  // If we get here, it's not a replicated offer, so apply regular logic
   
   // Calculate the leverage premium
   double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
@@ -944,6 +973,12 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   
   // The premium effectively reduces the value needed for acceptance
   final adjustedValueRatio = valueRatio * leveragePremium;
+  
+  // If the user is offering an improved value (but not too much), auto-accept
+  if (_isImprovedCounterOffer(originalOffer, counterOffer)) {
+    debugPrint("Counter offer is an improved offer - automatic accept");
+    return true;
+  }
   
   // Now use the adjusted ratio for the regular evaluation
   return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
@@ -987,6 +1022,38 @@ bool _isReplicatedOffer(TradePackage originalOffer, TradePackage counterOffer) {
   return teamsFlipped && valuesMatchOffering && valuesMatchTarget;
 }
 
+/// Check if the counter offer is better for the AI team but still reasonable
+bool _isImprovedCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // Teams must be flipped
+  if (originalOffer.teamOffering != counterOffer.teamReceiving ||
+      originalOffer.teamReceiving != counterOffer.teamOffering) {
+    return false;
+  }
+  
+  // Original offer value ratio
+  double originalRatio = originalOffer.totalValueOffered / originalOffer.targetPickValue;
+  
+  // Counter offer value ratio
+  double counterRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
+  
+  // For debugging
+  debugPrint("Original ratio: $originalRatio, Counter ratio: $counterRatio");
+  
+  // Accept if counter offer improves value by 10-20% but doesn't exceed 125% total
+  bool isImproved = counterRatio > originalRatio && counterRatio <= 1.25;
+  bool isReasonable = (counterRatio - originalRatio) <= 0.2; // Allow up to 20% increase
+  
+  debugPrint("Is improved? $isImproved, Is reasonable? $isReasonable");
+  
+  return isImproved && isReasonable;
+}
+
+/// Helper method to check if two values are close (within 5%)
+bool _areValuesClose(double value1, double value2) {
+  if (value1 == 0 || value2 == 0) return false;
+  double ratio = value1 / value2;
+  return ratio >= 0.95 && ratio <= 1.05;
+}
 
 /// Helper to check if two sets of picks are equivalent
 bool _arePicksEquivalent(List<DraftPick> setA, DraftPick mainPick, List<DraftPick> additionalPicks) {
