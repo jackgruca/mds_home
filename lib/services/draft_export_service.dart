@@ -1250,15 +1250,16 @@ class DraftExportService {
     }
 
     // Add team summary if requested
-    if (showTeamSummary && userTeam != null) {
-      // Calculate team grade
-      Map<String, dynamic> teamGrade = _calculateTeamGrade(
-        picks.where((p) => p.teamName == userTeam).toList(),
-        trades,
-        userTeam,
-      );
-      
-      html.write('''
+    // Replace the team summary section (around line 330-365) with this updated code:
+if (showTeamSummary && userTeam != null) {
+  // Calculate team grade
+  Map<String, dynamic> teamGrade = _calculateTeamGrade(
+    picks.where((p) => p.teamName == userTeam).toList(),
+    trades,
+    userTeam,
+  );
+  
+  html.write('''
   <div class="section">
     <div class="grade-summary">
       <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -1276,11 +1277,11 @@ class DraftExportService {
       <div class="team-picks-list">
 ''');
 
-      // Add team pick badges - Just position badges for grade summary
+      // Smaller position tags
       for (var pick in picks.where((p) => p.teamName == userTeam && p.selectedPlayer != null)) {
         html.write('''
-        <div class="team-pick-badge">
-          <span class="position-badge pos-${pick.selectedPlayer!.position.toLowerCase()}">${pick.selectedPlayer!.position}</span>
+        <div class="team-pick-badge" style="margin-right: 4px; margin-bottom: 4px;">
+          <span class="position-badge pos-${pick.selectedPlayer!.position.toLowerCase()}" style="font-size: 10px; padding: 1px 4px;">${pick.selectedPlayer!.position}</span>
         </div>
 ''');
       }
@@ -1290,7 +1291,7 @@ class DraftExportService {
     </div>
   </div>
 ''');
-    }
+}
 
     // First round two-column layout if requested
     if (showTwoColumnLayout) {
@@ -1329,6 +1330,48 @@ class DraftExportService {
   </div>
 ''');
     }
+    // Place this block AFTER the main picks section (where you write the draft picks)
+if (trades.isNotEmpty && userTeam != null) {
+  // Filter trades involving the user team
+  final userTrades = trades.where(
+    (trade) => trade.teamOffering == userTeam || trade.teamReceiving == userTeam
+  ).toList();
+
+  if (userTrades.isNotEmpty) {
+    html.write('''
+  <div class="section">
+    <h2 class="section-title">Draft Trades</h2>
+''');
+
+    for (var trade in userTrades) {
+      String direction = trade.teamOffering == userTeam ? "Traded down with" : "Traded up with";
+      String otherTeam = trade.teamOffering == userTeam ? trade.teamReceiving : trade.teamOffering;
+      double valueDiff = trade.teamOffering == userTeam ? -trade.valueDifferential : trade.valueDifferential;
+
+      html.write('''
+    <div class="draft-card">
+      <div class="player-content">
+        <div class="player-name">
+          $direction $otherTeam
+        </div>
+        <div class="card-details">
+          ${trade.tradeDescription.replaceAll("\n", "<br/>")}
+        </div>
+      </div>
+      <div class="grade-column">
+        <div class="grade-badge ${valueDiff >= 0 ? 'grade-b-plus' : 'grade-c-minus'}">
+          ${valueDiff > 0 ? '+' : ''}${valueDiff.toStringAsFixed(0)} pts
+        </div>
+      </div>
+    </div>
+''');
+    }
+
+    html.write('''
+  </div>
+''');
+  }
+}
 
     // Footer
     html.write('''

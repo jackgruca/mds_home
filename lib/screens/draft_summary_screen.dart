@@ -1950,58 +1950,79 @@ Widget _buildCompactGradeHeader(Map<String, dynamic> gradeInfo) {
   }
   
 Widget _buildTeamTradesList(List<TradePackage> teamTrades) {
-  // Sort trades by the pick number they involved
+  // Sort trades by the draft pick they involve
   teamTrades.sort((a, b) => a.targetPick.pickNumber.compareTo(b.targetPick.pickNumber));
   
-  return ListView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    itemCount: teamTrades.length,
-    itemBuilder: (context, index) {
-      final trade = teamTrades[index];
-      final bool isTrading = trade.teamOffering == _selectedTeam;
-      final double valueDiff = isTrading ? -trade.valueDifferential : trade.valueDifferential;
-      
-      return Card(
-        margin: const EdgeInsets.only(bottom: 8), // Reduced from 12
-        child: Padding(
-          padding: const EdgeInsets.all(10.0), // Reduced from 12.0
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Trade header
-              Row(
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Draft Trades',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...teamTrades.map((trade) {
+            final bool isTrading = trade.teamOffering == _selectedTeam;
+            final double valueDiff = isTrading ? -trade.valueDifferential : trade.valueDifferential;
+            
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
                 children: [
+                  // Trade direction icon
                   Icon(
-                    isTrading ? Icons.arrow_upward : Icons.arrow_downward,
+                    isTrading ? Icons.trending_down : Icons.trending_up,
                     color: isTrading ? Colors.orange : Colors.green,
-                    size: 14, // Reduced from 16
+                    size: 20,
                   ),
-                  const SizedBox(width: 6), // Reduced from 8
-                  Text(
-                    isTrading 
-                        ? "Traded Up with ${trade.teamReceiving}" 
-                        : "Traded Down with ${trade.teamOffering}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13, // Reduced from default
+                  const SizedBox(width: 10),
+                  
+                  // Trade details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isTrading 
+                              ? 'Traded ${isTrading ? "down" : "up"} with ${trade.teamReceiving}' 
+                              : 'Traded ${isTrading ? "down" : "up"} with ${trade.teamOffering}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          trade.tradeDescription,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
+                  
+                  // Trade value
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: valueDiff >= 0 ? Colors.green.shade100 : Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(3), // Reduced from 4
+                      color: valueDiff >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                         color: valueDiff >= 0 ? Colors.green.shade700 : Colors.red.shade700,
-                        width: 0.5, // Thinner border
+                        width: 0.5,
                       ),
                     ),
                     child: Text(
                       "${valueDiff > 0 ? "+" : ""}${valueDiff.toStringAsFixed(0)} pts",
                       style: TextStyle(
-                        fontSize: 10, // Reduced from 12
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: valueDiff >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                       ),
@@ -2009,18 +2030,11 @@ Widget _buildTeamTradesList(List<TradePackage> teamTrades) {
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 6), // Reduced from 8
-              
-              // Trade description
-              Text(
-                trade.tradeDescription, 
-                style: const TextStyle(fontSize: 12)), // Reduced from 13
-            ],
-          ),
-        ),
-      );
-    },
+            );
+          }),
+        ],
+      ),
+    ),
   );
 }
   
