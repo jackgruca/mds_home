@@ -1,6 +1,7 @@
 // lib/screens/team_needs_tab.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/constants.dart';
+import '../widgets/common/help_button.dart';
 
 
 class TeamNeedsTab extends StatefulWidget {
@@ -29,7 +30,69 @@ Widget build(BuildContext context) {
     padding: const EdgeInsets.all(8.0),
     child: Column(
       children: [
-        // ... existing search bar code ...
+        // Search and help bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search Teams',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                    ),
+                    onChanged: (value) {
+                      // search logic
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Help button
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'What can I do?',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Team Needs'),
+                      content: const Text(
+                        'This tab shows each team\'s positional needs for the draft.\n\n'
+                        '• Each team has a ranked list of position needs\n'
+                        '• When a team drafts a player, that position is crossed out\n'
+                        '• Different position groups have different colors (QBs blue, WRs green, etc.)\n'
+                        '• Teams will prioritize drafting positions that match their needs\n'
+                        '• Use this information to predict which players teams might draft'
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Got it'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 8),
         
         // Team Needs Table
         Expanded(

@@ -184,17 +184,36 @@ Widget _buildRoundPicksGrid(int round) {
 }
 
 Widget _roundLayoutBuilder(List<DraftPick> picks, int round, bool isDarkMode) {
-  // For round 1, we split into 2 columns: picks 1-16 and 17-32
+  // Get screen width to determine layout
+  double screenWidth = MediaQuery.of(context).size.width;
+  
+  // For round 1, use more columns on larger screens
   if (round == 1) {
-    return _buildTwoColumnLayout(picks, isDarkMode);
+    if (screenWidth > 1200) {
+      return _buildMultiColumnLayout(picks, 4, isDarkMode); // 4 columns on very large screens
+    } else if (screenWidth > 800) {
+      return _buildMultiColumnLayout(picks, 3, isDarkMode); // 3 columns on medium-large screens
+    } else {
+      return _buildTwoColumnLayout(picks, isDarkMode); // 2 columns on small screens
+    }
   } 
-  // For rounds 2-3, we do 3 columns
+  // For rounds 2-3, adapt columns based on screen size
   else if (round <= 3) {
-    return _buildTwoColumnLayout(picks, isDarkMode);
+    if (screenWidth > 1000) {
+      return _buildMultiColumnLayout(picks, 3, isDarkMode); // 3 columns on larger screens
+    } else {
+      return _buildTwoColumnLayout(picks, isDarkMode); // 2 columns on smaller screens
+    }
   }
-  // For later rounds, do 4 columns for more compact display
+  // For later rounds, use more columns for compact display
   else {
-    return _buildTwoColumnLayout(picks, isDarkMode);
+    if (screenWidth > 800) {
+      return _buildMultiColumnLayout(picks, 4, isDarkMode); // 4 columns on larger screens
+    } else if (screenWidth > 600) {
+      return _buildMultiColumnLayout(picks, 3, isDarkMode); // 3 columns on medium screens
+    } else {
+      return _buildTwoColumnLayout(picks, isDarkMode); // 2 columns on small screens
+    }
   }
 }
 
@@ -273,6 +292,11 @@ Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMo
     }
   }
   
+  // Get screen width for responsive adjustments
+  double screenWidth = MediaQuery.of(context).size.width;
+  double fontSize = screenWidth > 800 ? 11 : 9;
+  double paddingBottom = screenWidth > 800 ? 4.0 : 2.0;
+  
   return Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -290,19 +314,19 @@ Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMo
             children: [
               if (columnPicks[i].isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+                  padding: EdgeInsets.only(bottom: screenWidth > 800 ? 8.0 : 4.0, left: 4.0),
                   child: Text(
                     'Picks ${columnPicks[i].first.pickNumber} - ${columnPicks[i].last.pickNumber}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: fontSize,
                       color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
                     ),
                   ),
                 ),
               ...columnPicks[i].map((pick) => 
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 4.0),
+                  padding: EdgeInsets.only(bottom: paddingBottom),
                   child: _buildPickRow(pick, isDarkMode),
                 )
               ),
@@ -326,9 +350,18 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
   
   final bool isUserTeam = pick.teamName == widget.userTeam;
   
+  // Get screen width for responsive adjustments
+  double screenWidth = MediaQuery.of(context).size.width;
+  double nameFontSize = screenWidth > 1000 ? 11 : (screenWidth > 600 ? 10 : 9);
+  double positionFontSize = screenWidth > 1000 ? 8 : (screenWidth > 600 ? 7 : 6);
+  double gradeFontSize = screenWidth > 1000 ? 9 : (screenWidth > 600 ? 8 : 7);
+  double numberSize = screenWidth > 1000 ? 20 : 18;
+  double logoSize = screenWidth > 1000 ? 20 : (screenWidth > 600 ? 18 : 16);
+  double collegeLogoSize = screenWidth > 1000 ? 12 : (screenWidth > 600 ? 11 : 10);
+  
   return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-    margin: const EdgeInsets.only(bottom: 2.0),
+    padding: EdgeInsets.symmetric(horizontal: screenWidth > 800 ? 6.0 : 4.0, vertical: screenWidth > 800 ? 3.0 : 2.0),
+    margin: EdgeInsets.only(bottom: screenWidth > 800 ? 3.0 : 2.0),
     decoration: BoxDecoration(
       color: isUserTeam 
           ? (isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50) 
@@ -345,7 +378,7 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
       children: [
         // Pick number and team logo in a block layout
         Container(
-          height: 24,
+          height: numberSize + 4,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
@@ -358,8 +391,8 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
             children: [
               // Pick number
               Container(
-                width: 18,
-                height: 24,
+                width: numberSize,
+                height: numberSize + 4,
                 decoration: BoxDecoration(
                   color: _getPickNumberColor(pick.round),
                   borderRadius: const BorderRadius.only(
@@ -370,9 +403,9 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
                 child: Center(
                   child: Text(
                     '${pick.pickNumber}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 9,
+                      fontSize: screenWidth > 1000 ? 11 : (screenWidth > 600 ? 10 : 9),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -380,19 +413,19 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
               ),
               // Team logo
               SizedBox(
-                width: 20,
-                height: 24,
+                width: logoSize + 4,
+                height: numberSize + 4,
                 child: Center(
                   child: TeamLogoUtils.buildNFLTeamLogo(
                     pick.teamName,
-                    size: 16,
+                    size: logoSize,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 3),
+        SizedBox(width: screenWidth > 800 ? 4 : 3),
         
         // Player name, position, and college logo
         Expanded(
@@ -405,7 +438,7 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
                 pick.selectedPlayer!.name,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 9,
+                  fontSize: nameFontSize,
                   color: isUserTeam ? Theme.of(context).primaryColor : null,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -416,7 +449,7 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
                 children: [
                   // Position
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth > 800 ? 3 : 2, vertical: 0),
                     decoration: BoxDecoration(
                       color: _getPositionColor(pick.selectedPlayer!.position).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(2),
@@ -424,21 +457,21 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
                     child: Text(
                       pick.selectedPlayer!.position,
                       style: TextStyle(
-                        fontSize: 6,
+                        fontSize: positionFontSize,
                         color: _getPositionColor(pick.selectedPlayer!.position),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 3),
+                  SizedBox(width: screenWidth > 800 ? 4 : 3),
                   // College name or logo
                   if (pick.selectedPlayer!.school.isNotEmpty)
                     SizedBox(
-                      width: 10,
-                      height: 10,
+                      width: collegeLogoSize,
+                      height: collegeLogoSize,
                       child: TeamLogoUtils.buildCollegeTeamLogo(
                         pick.selectedPlayer!.school,
-                        size: 10,
+                        size: collegeLogoSize,
                       ),
                     ),
                 ],
@@ -447,11 +480,11 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
           ),
         ),
         
-        // Grade badge (keep the same)
+        // Grade badge
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 3,
-            vertical: 1,
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth > 800 ? 4 : 3,
+            vertical: screenWidth > 800 ? 2 : 1,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -462,7 +495,7 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(screenWidth > 800 ? 3 : 2),
             border: Border.all(
               color: _getGradientColor(colorScore, 0.8),
               width: 0.5,
@@ -472,7 +505,7 @@ Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
             letterGrade,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 7,
+              fontSize: gradeFontSize,
               color: _getGradientColor(colorScore, 1.0),
             ),
           ),
@@ -830,146 +863,279 @@ Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
       return b.value['combinedValue'].compareTo(a.value['combinedValue']);
     });
     
+    // Get screen width for responsive design
+    double screenWidth = MediaQuery.of(context).size.width;
+    
+    // Determine if we should use a grid or table layout based on screen size
+    bool useGridLayout = screenWidth > 800;
+    
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(screenWidth > 600 ? 16.0 : 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Table header
-            Table(
-              columnWidths: const {
-                0: FlexColumnWidth(1.5), // Team name
-                1: FlexColumnWidth(0.7), // Grade
-                2: FlexColumnWidth(1.0), // Value
-                3: FlexColumnWidth(0.7), // Picks
-              },
-              border: TableBorder(
-                horizontalInside: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-                bottom: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
+            // Either use grid or table layout based on screen size
+            if (useGridLayout)
+              _buildTeamGradesGrid(sortedTeams)
+            else
+              _buildTeamGradesTableMobile(sortedTeams),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTeamGradesGrid(List<MapEntry<String, Map<String, dynamic>>> sortedTeams) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    int crossAxisCount = screenWidth > 1200 ? 3 : 2;
+    
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: 4.0,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+      ),
+      itemCount: sortedTeams.length,
+      itemBuilder: (context, index) {
+        final entry = sortedTeams[index];
+        final team = entry.key;
+        final data = entry.value;
+        final bool isUserTeam = data['isUserTeam'] == true;
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: isUserTeam 
+              ? (Theme.of(context).brightness == Brightness.dark 
+                ? Colors.blue.shade900.withOpacity(0.2) 
+                : Colors.blue.shade50)
+              : (Theme.of(context).brightness == Brightness.dark 
+                ? Colors.grey.shade800.withOpacity(0.1) 
+                : Colors.grey.shade100),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isUserTeam
+                ? Colors.blue.shade300
+                : Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              // Team logo
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: TeamLogoUtils.buildNFLTeamLogo(
+                  team,
+                  size: 40,
                 ),
               ),
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                  ),
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Team',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+              const SizedBox(width: 12),
+              
+              // Team info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      team,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isUserTeam ? Colors.blue.shade800 : null,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Grade',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Avg Value',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Picks',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Avg Value: ${data['avgDiff'] >= 0 ? '+' : ''}${data['avgDiff'].toStringAsFixed(1)} • Picks: ${data['pickCount']}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
                       ),
                     ),
                   ],
                 ),
-                
-                // Team rows
-                ...sortedTeams.map((entry) {
-                  final team = entry.key;
-                  final data = entry.value;
-                  final bool isUserTeam = data['isUserTeam'] == true;
-                  
-                  return TableRow(
-                    decoration: isUserTeam
-                        ? BoxDecoration(color: Colors.blue.shade50)
-                        : null,
-                    children: [
-                      // Team name
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          team,
-                          style: TextStyle(
-                            fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
-                            color: isUserTeam ? Colors.blue.shade800 : null,
-                          ),
-                        ),
-                      ),
-                      
-                      // Grade
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getGradeColor(data['grade']).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: _getGradeColor(data['grade'])),
-                            ),
-                            child: Text(
-                              data['grade'],
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _getGradeColor(data['grade']),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Average value
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          '${data['avgDiff'] >= 0 ? '+' : ''}${data['avgDiff'].toStringAsFixed(1)}',
-                          style: TextStyle(
-                            color: data['avgDiff'] >= 0 ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      
-                      // Pick count
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          '${data['pickCount']}',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ],
+              ),
+              
+              // Grade
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getGradeColor(data['grade']).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _getGradeColor(data['grade'])),
+                ),
+                child: Text(
+                  data['grade'],
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _getGradeColor(data['grade']),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildTeamGradesTableMobile(List<MapEntry<String, Map<String, dynamic>>> sortedTeams) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(1.5), // Team name
+        1: FlexColumnWidth(0.7), // Grade
+        2: FlexColumnWidth(1.0), // Value
+        3: FlexColumnWidth(0.7), // Picks
+      },
+      border: TableBorder(
+        horizontalInside: BorderSide(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
+        bottom: BorderSide(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      children: [
+        TableRow(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Team',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Grade',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Value',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Picks',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
-      ),
+        
+        // Team rows
+        ...sortedTeams.map((entry) {
+          final team = entry.key;
+          final data = entry.value;
+          final bool isUserTeam = data['isUserTeam'] == true;
+          
+          return TableRow(
+            decoration: isUserTeam
+                ? BoxDecoration(color: isDarkMode ? Colors.blue.shade900.withOpacity(0.2) : Colors.blue.shade50)
+                : null,
+            children: [
+              // Team name
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  team,
+                  style: TextStyle(
+                    fontWeight: isUserTeam ? FontWeight.bold : FontWeight.normal,
+                    color: isUserTeam ? (isDarkMode ? Colors.blue.shade300 : Colors.blue.shade800) : null,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              
+              // Grade
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getGradeColor(data['grade']).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: _getGradeColor(data['grade'])),
+                    ),
+                    child: Text(
+                      data['grade'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                        color: _getGradeColor(data['grade']),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Average value
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  '${data['avgDiff'] >= 0 ? '+' : ''}${data['avgDiff'].toStringAsFixed(1)}',
+                  style: TextStyle(
+                    color: data['avgDiff'] >= 0 ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              
+              // Pick count
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  '${data['pickCount']}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10),
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
     );
   }
   

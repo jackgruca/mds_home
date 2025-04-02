@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/tutorial_service.dart';
 import '../utils/constants.dart';
 import '../utils/theme_config.dart';
 
@@ -16,6 +17,35 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
   late TabController _tabController;
   bool _isLoading = false;
   String? _error;
+  
+  /// Reset all tutorials to show them again
+  Future<void> _resetTutorials(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    // Reset all tutorials
+    await TutorialService.resetTutorial();
+    
+    // Reset feature-specific tutorials (common ones)
+    await TutorialService.resetFeatureTutorial('trade_dialog');
+    await TutorialService.resetFeatureTutorial('draft_controls');
+    await TutorialService.resetFeatureTutorial('player_selection');
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tutorials have been reset! They will show next time you use those features.'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
   
   // Favorite teams
   final List<String> _selectedTeams = [];
@@ -763,6 +793,20 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
               label: const Text('Reset to Defaults'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
+              ),
+            ),
+          ),
+          
+          // Reset tutorials
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                _resetTutorials(context);
+              },
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Reset All Tutorials'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
               ),
             ),
           ),

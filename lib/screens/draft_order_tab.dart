@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/draft_pick.dart';
+import '../widgets/common/help_button.dart';
 import '../widgets/draft/animated_draft_pick_card.dart';
 
 class DraftOrderTab extends StatefulWidget {
@@ -156,6 +157,35 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                       color: isDarkMode ? Colors.white : Colors.grey.shade800,
                     ),
                   ),
+                ),
+                
+                // Help button
+                IconButton(
+                  icon: const Icon(Icons.help_outline),
+                  tooltip: 'What can I do?',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Draft Order'),
+                        content: const Text(
+                          'This tab shows the order of picks in the draft.\n\n'
+                          '• Your team\'s picks are highlighted in blue\n'
+                          '• The current pick is highlighted in green\n'
+                          '• Each card shows the team, pick number, and top team needs\n'
+                          '• Completed picks show the selected player\n'
+                          '• The draft proceeds top to bottom\n'
+                          '• When a trade occurs, the draft order will update'
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Got it'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 
                 // Current pick indicator

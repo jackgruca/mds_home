@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../services/player_descriptions_service.dart';
 import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
+import '../widgets/common/help_button.dart';
 import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
 
@@ -192,6 +193,34 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                           },
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Help button
+                    IconButton(
+                      icon: const Icon(Icons.help_outline),
+                      tooltip: 'What can I do?',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Available Players'),
+                            content: const Text(
+                              'This tab shows all available players for the draft.\n\n'
+                              '• Filter by position using the chips below\n'
+                              '• Search for players by name or school\n'
+                              '• Tap on a player card for detailed information\n'
+                              '• When it\'s your pick, you\'ll see green "Draft" buttons\n'
+                              '• Crossed out positions are ones your team has already drafted'
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Got it'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
                     // Player count

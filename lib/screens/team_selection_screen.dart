@@ -6,9 +6,14 @@ import '../services/analytics_service.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
+import '../widgets/common/help_button.dart';
+import '../widgets/common/app_summary_dialog.dart';
+import '../widgets/tutorial/tutorial_manager.dart';
+import '../services/tutorial_service.dart';
 import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import '../utils/theme_manager.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
@@ -64,10 +69,187 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
 
   // Inside TeamSelectionScreenState
 
+// Global keys for tutorial targets
+final GlobalKey _startDraftKey = GlobalKey();
+final GlobalKey _teamSelectionKey = GlobalKey();
+final GlobalKey _roundsKey = GlobalKey();
+final GlobalKey _advancedSettingsKey = GlobalKey();
+
 @override
 void initState() {
   super.initState();
   _loadUserPreferences();
+  
+  // Check if we should show the welcome tutorial
+  _checkAndShowTutorial();
+}
+  
+Future<void> _checkAndShowTutorial() async {
+  // Wait for the UI to be built before showing tutorial
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _showWelcomeTutorialIfNeeded();
+  });
+}
+
+void _showWelcomeTutorialIfNeeded() async {
+  bool hasSeenTutorial = await TutorialService.hasSeenTutorial();
+  
+  if (!hasSeenTutorial && mounted) {
+    // Create targets
+    List<TargetFocus> targets = [
+      TargetFocus(
+        identify: "team_selection",
+        keyTarget: _teamSelectionKey,
+        alignSkip: Alignment.topRight,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Select Your Teams",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Tap on any team logo to control that team during the draft. You can select multiple teams.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: "rounds_selection",
+        keyTarget: _roundsKey,
+        alignSkip: Alignment.topRight,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Choose Draft Rounds",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Select how many rounds you want your draft to have. NFL drafts typically have 7 rounds.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: "advanced_settings",
+        keyTarget: _advancedSettingsKey,
+        alignSkip: Alignment.topRight,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Advanced Settings",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Customize your draft with advanced options like enabling trading, QB premium, and more.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: "start_draft",
+        keyTarget: _startDraftKey,
+        alignSkip: Alignment.topRight,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Start Your Draft",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 20.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "When you're ready, click here to start your draft simulation! Make sure to select at least one team first.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    ];
+    
+    TutorialCoachMark(
+      targets: targets,
+      colorShadow: Colors.blue,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.8,
+      onFinish: () {
+        TutorialService.markTutorialAsSeen();
+      },
+      onSkip: () {
+        TutorialService.markTutorialAsSeen();
+        return true;
+      },
+    ).show(context: context);
+  }
 }
 
 Future<void> _loadUserPreferences() async {
@@ -174,6 +356,47 @@ Future<void> _loadUserPreferences() async {
   centerTitle: true,
   titleSpacing: 8,
   elevation: 0,
+  leading: IconButton(
+    icon: const Icon(Icons.help, color: Colors.blue),
+    tooltip: 'App Guide',
+    onPressed: () {
+      debugPrint("App Guide button clicked");
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.sports_football, color: Colors.blue[400]),
+              const SizedBox(width: 10),
+              const Text('NFL Draft Simulator'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              '''Welcome to your NFL Draft Simulator! Here's what you can do:
+
+• Control any NFL team(s) in the draft
+• Scout and draft from a realistic pool of college prospects
+• Receive and propose trades with other teams
+• Customize draft settings like speed, rounds, and randomness
+• View team needs to make informed decisions
+• See real-time draft analytics and grades
+• Create your own custom draft boards
+
+This simulator is designed to be both fun and realistic. Make strategic decisions, build your team, and see how your draft choices compare to AI teams. Good luck!''',
+              style: TextStyle(height: 1.5),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Got it!'),
+            ),
+          ],
+        ),
+      );
+    },
+  ),
   actions: [
     // Add the auth button here
     const HeaderAuthButton(),
@@ -286,6 +509,7 @@ Future<void> _loadUserPreferences() async {
               ),
             // Team selection area (expanded)
             Expanded(
+              key: _teamSelectionKey,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -688,6 +912,7 @@ Future<void> _loadUserPreferences() async {
                         children: [
                           // Rounds label and buttons (left side)
                           SizedBox(
+                            key: _roundsKey,
                             width: 50,
                             child: Text(
                               'Rounds:',
@@ -1058,6 +1283,7 @@ Future<void> _loadUserPreferences() async {
                   children: [
                     // Advanced settings button
                     OutlinedButton.icon(
+                      key: _advancedSettingsKey,
                       onPressed: _openDraftSettings,
                       icon: const Icon(Icons.settings, size: 16),
                       label: const Text('Advanced'),
@@ -1077,6 +1303,7 @@ Future<void> _loadUserPreferences() async {
                       child: SizedBox(
                         height: 40.0,
                         child: ElevatedButton(
+                          key: _startDraftKey,
                           onPressed: _selectedTeams.isNotEmpty ? _startDraft : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],

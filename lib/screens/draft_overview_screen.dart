@@ -18,6 +18,7 @@ import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
 import '../widgets/analytics/draft_analytics_dashboard.dart';
+import '../widgets/common/help_button.dart';
 import '../utils/constants.dart';
 
 import '../widgets/trade/trade_dialog.dart';
@@ -1657,14 +1658,66 @@ Widget build(BuildContext context) {
       ),
       
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: DraftControlButtons(
-      isDraftRunning: _isDraftRunning,
-      hasTradeOffers: hasTradeOffers,
-      tradeOffersCount: tradeOffersCount,  // Add the count
-      onToggleDraft: _toggleDraft,
-      onRestartDraft: _restartDraft,
-      onRequestTrade: _requestTrade,
-    ),
+      floatingActionButton: Stack(
+        children: [
+          DraftControlButtons(
+            isDraftRunning: _isDraftRunning,
+            hasTradeOffers: hasTradeOffers,
+            tradeOffersCount: tradeOffersCount,
+            onToggleDraft: _toggleDraft,
+            onRestartDraft: _restartDraft,
+            onRequestTrade: _requestTrade,
+          ),
+          // Help button to show contextual help
+          Positioned(
+            right: 0,
+            bottom: 75, // Position above the main controls
+            child: Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? 
+                  Colors.grey.shade800.withOpacity(0.8) : Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Draft Controls Help',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Draft Controls'),
+                      content: const Text(
+                        'Use these controls to manage your draft experience:\n\n'
+                        '• Play/Pause: Start or pause the draft simulation\n'
+                        '• Trade: Propose trades to other teams\n'
+                        '• When a trade offer appears, you can accept, reject, or counter it\n'
+                        '• When it\'s your pick, select a player from the Players tab or let the app auto-pick\n'
+                        '• Navigate between tabs to see the draft order, available players, and team needs\n'
+                        '• Your picks are highlighted for easy tracking'
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Got it'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

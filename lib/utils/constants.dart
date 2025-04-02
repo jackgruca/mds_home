@@ -31,6 +31,12 @@ class TextConstants {
   static const double kButtonTextSize = 14.0;
 }
 
+class StorageKeys {
+  static const String kUserPreferences = 'user_preferences';
+  static const String kHasSeenTutorial = 'has_seen_tutorial';
+  static const String kHasSeenFeatureTutorial = 'has_seen_feature_tutorial_';
+}
+
 /// Collection of NFL teams
 class NFLTeams {
   static const List<String> allTeams = [
