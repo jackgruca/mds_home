@@ -1212,6 +1212,55 @@ class DraftExportService {
       max-width: 60px;
     }
   }
+
+  /* Add this to the existing <style> section, specifically targeting first round */
+.compact-first-round-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (min-width: 992px) {
+  .compact-first-round-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.compact-first-round-grid .draft-card {
+  height: 80px;
+  padding: 4px 8px;
+}
+
+.compact-first-round-grid .player-name {
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.compact-first-round-grid .card-details {
+  font-size: 10px;
+}
+
+.compact-first-round-grid .pick-circle {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+.compact-first-round-grid .position-pill {
+  font-size: 9px;
+  padding: 1px 4px;
+}
+
+.compact-first-round-grid .school-logo-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.compact-first-round-grid .grade-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+}
 </style>
 </head>
 <body>
