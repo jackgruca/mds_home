@@ -7,6 +7,7 @@ class DraftControlButtons extends StatelessWidget {
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
+  final VoidCallback onSaveAnalytics;
 
   const DraftControlButtons({
     super.key,
@@ -16,6 +17,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onRequestTrade,
     this.hasTradeOffers = false,
     this.tradeOffersCount = 0,
+    required this.onSaveAnalytics,
   });
 
   @override
@@ -97,6 +99,13 @@ class DraftControlButtons extends StatelessWidget {
                 style: TextStyle(fontSize: 12),
               ),
             ],
+          ),
+          FloatingActionButton(
+            onPressed: onSaveAnalytics,
+            backgroundColor: Colors.purple,
+            mini: true,
+            tooltip: 'Save Draft for Analytics',
+            child: const Icon(Icons.save),
           ),
         ],
       ),

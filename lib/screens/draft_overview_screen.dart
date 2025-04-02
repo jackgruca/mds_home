@@ -1362,14 +1362,13 @@ void _testDraftSummary() {
   });
 }
 
-// In lib/screens/draft_overview_screen.dart
 void _saveDraftAnalytics() {
   // Get the current user team
   String? userTeam = widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams![0] : null;
   if (userTeam == null) return;
   
   // Get current draft year
-  int draftYear = DateTime.now().year; // Or however you track draft year
+  int draftYear = widget.draftYear; // Use the year from widget property
   
   // Get user ID (use anonymous ID if not logged in)
   String userId = 'anonymous'; // Replace with actual user ID when you implement auth
@@ -1377,16 +1376,13 @@ void _saveDraftAnalytics() {
   // Get the analytics service
   final analyticsService = DraftAnalyticsService();
   
-  // Collect the completed picks and executed trades directly
-  // (adjust these based on how you access these in your app)
-  List<DraftPick> completedPicks = []; // Fill this with your completed picks
-  List<TradePackage> executedTrades = []; // Fill this with your executed trades
+  // Get completed picks (picks with a selected player)
+  List<DraftPick> completedPicks = _draftPicks
+      .where((pick) => pick.selectedPlayer != null)
+      .toList();
   
-  // Get completed picks
-  if (_draftService != null) {
-    completedPicks = _draftService.completedPicks.toList();
-    executedTrades = _draftService.executedTrades;
-  }
+  // Get executed trades directly from your state
+  List<TradePackage> executedTrades = _executedTrades;
   
   // Save the draft session
   analyticsService.saveDraftSession(
@@ -1397,7 +1393,7 @@ void _saveDraftAnalytics() {
     executedTrades: executedTrades,
   ).then((success) {
     if (success) {
-      // Optionally show a success message
+      // Show a success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Draft data saved for analytics'))
       );
@@ -1708,6 +1704,7 @@ Widget build(BuildContext context) {
       onToggleDraft: _toggleDraft,
       onRestartDraft: _restartDraft,
       onRequestTrade: _requestTrade,
+      onSaveAnalytics: _saveDraftAnalytics, 
     ),
     ),
   );
