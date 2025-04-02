@@ -12,6 +12,7 @@ import '../services/draft_pick_grade_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../services/player_descriptions_service.dart';
+import '../services/walkthrough_service.dart';
 import '../utils/constants.dart';
 import '../widgets/trade/enhanced_trade_dialog.dart';
 import '../widgets/trade/user_trade_dialog.dart';
@@ -22,6 +23,7 @@ import '../utils/constants.dart';
 
 import '../widgets/trade/trade_dialog.dart';
 import '../widgets/trade/trade_history.dart';
+import '../widgets/walkthrough/walkthrough_overlay.dart';
 import 'available_players_tab.dart';
 import 'draft_summary_screen.dart';
 import 'team_needs_tab.dart';
@@ -91,31 +93,93 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
 
   String? _activeUserTeam;
 
+    // Add these fields to DraftAppState
+  final GlobalKey _draftOrderTabKey = GlobalKey();
+  final GlobalKey _playersTabKey = GlobalKey();
+  final GlobalKey _needsTabKey = GlobalKey();
+  final GlobalKey _analyticsTabKey = GlobalKey();
+  final GlobalKey _draftControlsKey = GlobalKey();
+  final GlobalKey _tradeButtonKey = GlobalKey();
+  bool _showDraftWalkthrough = false;
+  late WalkthroughService _walkthroughService;
+
   @override
-void initState() {
-  super.initState();
-  _tabController = TabController(length: 4, vsync: this);
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _walkthroughService = WalkthroughService();
+    _initializeWalkthrough();
+    // ... rest of your existing code
+  }
   
-  // Add listener to tab controller to handle tab changes
-  _tabController.addListener(_handleTabChange);
-  
-  // Set up the scroll controller with proper disposal
-  _draftOrderScrollController.addListener(() {
-    // Add a listener to debug scroll positions
-    if (_draftService?.getNextPick() != null) {
-      double position = _draftOrderScrollController.position.pixels;
-      double max = _draftOrderScrollController.position.maxScrollExtent;
-      double viewportDimension = _draftOrderScrollController.position.viewportDimension;
-      
-      // Only log occasionally to reduce spam
-      if (position % 50 < 1) {
-        debugPrint("Scroll position: $position / $max (viewport: $viewportDimension)");
-      }
+  Future<void> _initializeWalkthrough() async {
+    await _walkthroughService.initialize();
+    
+    // Check if we should show the draft walkthrough
+    if (!_walkthroughService.hasSeenDraftWalkthrough) {
+      // Delay to ensure the widgets are built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _showDraftWalkthrough = true;
+        });
+      });
     }
-  });
+  }
   
-  _initializeServices();
-}
+  void _completeDraftWalkthrough() async {
+    setState(() {
+      _showDraftWalkthrough = false;
+    });
+    await _walkthroughService.markDraftWalkthroughAsSeen();
+  }
+  
+  void _startDraftWalkthrough() {
+    setState(() {
+      _showDraftWalkthrough = true;
+    });
+  }
+  
+  List<WalkthroughStep> _getDraftWalkthroughSteps() {
+    return [
+      WalkthroughStep(
+        title: "Draft Order Tab",
+        description: "View the complete draft order. Your team's picks are highlighted in blue. The current pick is highlighted in green.",
+        targetKey: _draftOrderTabKey,
+        position: WalkthroughPosition.bottom,
+      ),
+      WalkthroughStep(
+        title: "Available Players",
+        description: "Browse and filter available players. When it's your turn to pick, you can select a player from this tab.",
+        targetKey: _playersTabKey,
+        position: WalkthroughPosition.bottom,
+      ),
+      WalkthroughStep(
+        title: "Team Needs",
+        description: "View each team's positional needs. This helps you make informed draft decisions.",
+        targetKey: _needsTabKey,
+        position: WalkthroughPosition.bottom,
+      ),
+      if (widget.showAnalytics)
+        WalkthroughStep(
+          title: "Draft Analytics",
+          description: "Analyze your draft with grades, value picks, and position breakdown when the draft is complete.",
+          targetKey: _analyticsTabKey,
+          position: WalkthroughPosition.bottom,
+        ),
+      WalkthroughStep(
+        title: "Draft Controls",
+        description: "Start or pause the draft, restart if needed, and access trade options.",
+        targetKey: _draftControlsKey,
+        position: WalkthroughPosition.top,
+      ),
+      WalkthroughStep(
+        title: "Trade Center",
+        description: "Make or respond to trade offers. Create your own trades or counter offers from other teams.",
+        targetKey: _tradeButtonKey,
+        position: WalkthroughPosition.top,
+      ),
+    ];
+  }
 
   // Add a method to update the active user team 
   void _updateActiveUserTeam() {
@@ -1431,240 +1495,264 @@ Widget build(BuildContext context) {
 
   return WillPopScope(
     onWillPop: () async {
-    // Show a confirmation dialog
-    bool shouldPop = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Exit Draft?'),
-          content: const Text('Are you sure you want to return to team selection?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Pop the dialog with true result
-                Navigator.of(dialogContext).pop(true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+      // Show a confirmation dialog
+      bool shouldPop = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            title: const Text('Exit Draft?'),
+            content: const Text('Are you sure you want to return to team selection?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
               ),
-              child: const Text('Exit'),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
-    
-    // If user confirms, forcefully navigate back to selection screen
-    if (shouldPop) {
-      // Push a replacement instead of normal pop to ensure we go back to selection screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const TeamSelectionScreen(),
-        ),
-      );
-      return false; // Prevent the default back behavior
-    }
-    return false; // Prevent the default back behavior
-  },
-    child: Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'StickToTheModel Draft Sim',
-          style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
-        ),
-        toolbarHeight: 48,
-        centerTitle: true,
-        titleSpacing: 8,
-        elevation: 0,
-        actions: [
-          // Theme toggle button
-          IconButton(
-            icon: Icon(
-              Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode,
-              size: 20,
-            ),
-            onPressed: () {
-              Provider.of<ThemeManager>(context, listen: false).toggleTheme();
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
-          child: TabBar(
-            controller: _tabController,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
-            tabs: [
-              const Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.list, size: 18),
-                    SizedBox(width: 4),
-                    Text('Draft'),
-                  ],
+              ElevatedButton(
+                onPressed: () {
+                  // Pop the dialog with true result
+                  Navigator.of(dialogContext).pop(true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
                 ),
+                child: const Text('Exit'),
               ),
-              const Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.people, size: 18),
-                    SizedBox(width: 4),
-                    Text('Players'),
-                  ],
-                ),
-              ),
-              const Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.assignment, size: 18),
-                    SizedBox(width: 4),
-                    Text('Needs'),
-                  ],
-                ),
-              ),
-              if (widget.showAnalytics)
-                const Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.analytics, size: 18),
-                      SizedBox(width: 4),
-                      Text('Recap'),
-                    ],
-                  ),
-                ),
             ],
+          );
+        },
+      ) ?? false;
+      
+      // If user confirms, forcefully navigate back to selection screen
+      if (shouldPop) {
+        // Push a replacement instead of normal pop to ensure we go back to selection screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const TeamSelectionScreen(),
           ),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Find the Status bar section in the build method of DraftAppState
-
-          // Status bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _shouldShowTeamInfo() 
-                    ? _getTeamGradientColors(_activeUserTeam!)
-                    : Theme.of(context).brightness == Brightness.dark
-                      ? [Colors.blue.shade900, Colors.blue.shade800]
-                      : [Colors.blue.shade50, Colors.blue.shade100],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 0,
-                    blurRadius: 1,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+        );
+        return false; // Prevent the default back behavior
+      }
+      return false; // Prevent the default back behavior
+    },
+    child: Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'StickToTheModel Draft Sim',
+              style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
+            ),
+            toolbarHeight: 48,
+            centerTitle: true,
+            titleSpacing: 8,
+            elevation: 0,
+            actions: [
+              // Add Help button
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Show Tutorial',
+                onPressed: _startDraftWalkthrough,
               ),
-              child: Row(
-                children: [
-                  // Dynamic left side of the banner
-                  Expanded(
-                    child: _buildStatusBarContent(),
-                  ),
-                  
-                  // Draft recap button - keeps the same on the right side
-                  OutlinedButton.icon(
-  onPressed: () => _showDraftSummary(draftComplete: false),
-  icon: const Icon(Icons.summarize, size: 14),
-  label: const Text('Your Picks'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              // Theme toggle button
+              IconButton(
+                icon: Icon(
+                  Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+                      ? Icons.dark_mode
+                      : Icons.light_mode,
+                  size: 20,
+                ),
+                onPressed: () {
+                  Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+                },
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(40),
+              child: TabBar(
+                controller: _tabController,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
+                tabs: [
+                  Tab(
+                    key: _draftOrderTabKey,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.list, size: 18),
+                        SizedBox(width: 4),
+                        Text('Draft'),
+                      ],
                     ),
                   ),
+                  Tab(
+                    key: _playersTabKey,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people, size: 18),
+                        SizedBox(width: 4),
+                        Text('Players'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    key: _needsTabKey,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.assignment, size: 18),
+                        SizedBox(width: 4),
+                        Text('Needs'),
+                      ],
+                    ),
+                  ),
+                  if (widget.showAnalytics)
+                    Tab(
+                      key: _analyticsTabKey,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.analytics, size: 18),
+                          SizedBox(width: 4),
+                          Text('Recap'),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                DraftOrderTab(
-                  draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
-                  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-                  scrollController: _draftOrderScrollController,
-                  teamNeeds: _teamNeedsLists,
-                  currentPickNumber: _draftService?.getNextPick()?.pickNumber, // Pass current pick number
+          ),
+          body: Column(
+            children: [
+              // Status bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _shouldShowTeamInfo() 
+                      ? _getTeamGradientColors(_activeUserTeam!)
+                      : Theme.of(context).brightness == Brightness.dark
+                        ? [Colors.blue.shade900, Colors.blue.shade800]
+                        : [Colors.blue.shade50, Colors.blue.shade100],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      spreadRadius: 0,
+                      blurRadius: 1,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
-               AvailablePlayersTab(
-  availablePlayers: _availablePlayersLists,
-  // This is the key change - do a real-time check if it's the user's turn
-  selectionEnabled: _isUserPickMode && _draftService != null && 
-                   _userNextPick != null && 
-                   widget.selectedTeams != null &&
-                   widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
-  userTeam: _userNextPick?.teamName,
-  teamSelectedPositions: _getTeamSelectedPositions(),
-  onPlayerSelected: (playerIndex) {
-    // Fix selection logic to work with multiple teams
-    if (_isUserPickMode && _userNextPick != null) {
-      Player? selectedPlayer;
-      
-      try {
-        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-      } catch (e) {
-        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-          selectedPlayer = _draftService!.availablePlayers[playerIndex];
-        }
-      }
-      
-      if (selectedPlayer != null) {
-        _selectPlayer(_userNextPick!, selectedPlayer);
-        setState(() {
-          _isUserPickMode = false;
-          _userNextPick = null;
-        });
-      } else {
-        debugPrint("Could not find player with index $playerIndex");
-      }
-    }
-  },
-),
-                TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                if (widget.showAnalytics)
-                  // Use the simplified analytics dashboard
-                  DraftAnalyticsDashboard(
-                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-                    draftedPlayers: _players.where((player) => 
-                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-                    executedTrades: _executedTrades,
-                    teamNeeds: _teamNeeds,
-                    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
-                  )
-                ],
+                child: Row(
+                  children: [
+                    // Dynamic left side of the banner
+                    Expanded(
+                      child: _buildStatusBarContent(),
+                    ),
+                    
+                    // Draft recap button - keeps the same on the right side
+                    OutlinedButton.icon(
+                      onPressed: () => _showDraftSummary(draftComplete: false),
+                      icon: const Icon(Icons.summarize, size: 14),
+                      label: const Text('Your Picks'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Tab content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    DraftOrderTab(
+                      draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
+                      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                      scrollController: _draftOrderScrollController,
+                      teamNeeds: _teamNeedsLists,
+                      currentPickNumber: _draftService?.getNextPick()?.pickNumber, // Pass current pick number
+                    ),
+                    AvailablePlayersTab(
+                      availablePlayers: _availablePlayersLists,
+                      // This is the key change - do a real-time check if it's the user's turn
+                      selectionEnabled: _isUserPickMode && _draftService != null && 
+                                       _userNextPick != null && 
+                                       widget.selectedTeams != null &&
+                                       widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+                      userTeam: _userNextPick?.teamName,
+                      teamSelectedPositions: _getTeamSelectedPositions(),
+                      onPlayerSelected: (playerIndex) {
+                        // Fix selection logic to work with multiple teams
+                        if (_isUserPickMode && _userNextPick != null) {
+                          Player? selectedPlayer;
+                          
+                          try {
+                            selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                          } catch (e) {
+                            if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                              selectedPlayer = _draftService!.availablePlayers[playerIndex];
+                            }
+                          }
+                          
+                          if (selectedPlayer != null) {
+                            _selectPlayer(_userNextPick!, selectedPlayer);
+                            setState(() {
+                              _isUserPickMode = false;
+                              _userNextPick = null;
+                            });
+                          } else {
+                            debugPrint("Could not find player with index $playerIndex");
+                          }
+                        }
+                      },
+                    ),
+                    TeamNeedsTab(teamNeeds: _teamNeedsLists),
+                    if (widget.showAnalytics)
+                      // Use the simplified analytics dashboard
+                      DraftAnalyticsDashboard(
+                        completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+                        draftedPlayers: _players.where((player) => 
+                          _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+                        executedTrades: _executedTrades,
+                        teamNeeds: _teamNeeds,
+                        userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
+                      )
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          floatingActionButton: Container(
+            key: _draftControlsKey,
+            child: DraftControlButtons(
+              isDraftRunning: _isDraftRunning,
+              hasTradeOffers: hasTradeOffers,
+              tradeOffersCount: tradeOffersCount,  // Add the count
+              onToggleDraft: _toggleDraft,
+              onRestartDraft: _restartDraft,
+              onRequestTrade: _requestTrade,
+              tradeButtonKey: _tradeButtonKey,
             ),
           ),
-        ],
-      ),
-      
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: DraftControlButtons(
-      isDraftRunning: _isDraftRunning,
-      hasTradeOffers: hasTradeOffers,
-      tradeOffersCount: tradeOffersCount,  // Add the count
-      onToggleDraft: _toggleDraft,
-      onRestartDraft: _restartDraft,
-      onRequestTrade: _requestTrade,
-    ),
+        ),
+        
+        // Walkthrough overlay
+        if (_showDraftWalkthrough)
+          WalkthroughOverlay(
+            steps: _getDraftWalkthroughSteps(),
+            onComplete: _completeDraftWalkthrough,
+            onSkip: _completeDraftWalkthrough,
+          ),
+      ],
     ),
   );
 }

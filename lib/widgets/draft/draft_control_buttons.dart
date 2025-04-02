@@ -7,6 +7,7 @@ class DraftControlButtons extends StatelessWidget {
   final VoidCallback onToggleDraft;
   final VoidCallback onRestartDraft;
   final VoidCallback onRequestTrade;
+  final GlobalKey? tradeButtonKey; // Add this key
 
   const DraftControlButtons({
     super.key,
@@ -16,6 +17,7 @@ class DraftControlButtons extends StatelessWidget {
     required this.onRequestTrade,
     this.hasTradeOffers = false,
     this.tradeOffersCount = 0,
+    this.tradeButtonKey, // Add this parameter
   });
 
   @override
@@ -78,6 +80,7 @@ class DraftControlButtons extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
+                key: tradeButtonKey, // Use the key here
                 width: 48,
                 height: 48,
                 child: Badge(
