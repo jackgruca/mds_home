@@ -12,17 +12,20 @@ import 'providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
 
 import 'widgets/admin/message_admin_panel.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 // Secret tap counter for admin access
 int _secretTapCount = 0;
 DateTime? _lastTapTime;
 
-void main() {
+Future<void> main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
 
   AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
 
+  await Firebase.initializeApp();
+  
   // Turn on debug output for the app
   if (kDebugMode) {
     debugPrint = (String? message, {int? wrapWidth}) {

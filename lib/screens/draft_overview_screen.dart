@@ -8,6 +8,7 @@ import '../models/team_need.dart';
 import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../services/data_service.dart';
+import '../services/draft_analytics_service.dart';
 import '../services/draft_pick_grade_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
@@ -1358,6 +1359,49 @@ void _testDraftSummary() {
   // Show the summary after a brief delay
   Future.delayed(const Duration(milliseconds: 500), () {
     _showDraftSummary();
+  });
+}
+
+// In lib/screens/draft_overview_screen.dart
+void _saveDraftAnalytics() {
+  // Get the current user team
+  String? userTeam = widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams![0] : null;
+  if (userTeam == null) return;
+  
+  // Get current draft year
+  int draftYear = DateTime.now().year; // Or however you track draft year
+  
+  // Get user ID (use anonymous ID if not logged in)
+  String userId = 'anonymous'; // Replace with actual user ID when you implement auth
+  
+  // Get the analytics service
+  final analyticsService = DraftAnalyticsService();
+  
+  // Collect the completed picks and executed trades directly
+  // (adjust these based on how you access these in your app)
+  List<DraftPick> completedPicks = []; // Fill this with your completed picks
+  List<TradePackage> executedTrades = []; // Fill this with your executed trades
+  
+  // Get completed picks
+  if (_draftService != null) {
+    completedPicks = _draftService.completedPicks.toList();
+    executedTrades = _draftService.executedTrades;
+  }
+  
+  // Save the draft session
+  analyticsService.saveDraftSession(
+    userId: userId,
+    userTeam: userTeam,
+    draftYear: draftYear,
+    completedPicks: completedPicks,
+    executedTrades: executedTrades,
+  ).then((success) {
+    if (success) {
+      // Optionally show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft data saved for analytics'))
+      );
+    }
   });
 }
 
