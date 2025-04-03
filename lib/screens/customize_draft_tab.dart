@@ -304,6 +304,13 @@ Widget build(BuildContext context) {
           Tab(text: 'Team Needs'),
           Tab(text: 'Player Rankings'),
         ],
+        labelColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.black, // Black text for selected tab in light mode
+        unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white70 
+            : Colors.black54, // Grey text for unselected tabs
+        indicatorColor: Theme.of(context).primaryColor, // Keep the indicator color
       ),
       Expanded(
       child: TabBarView(

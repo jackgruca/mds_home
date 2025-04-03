@@ -31,6 +31,34 @@
 
   <title>mds_home</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+
+<script>
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
+    authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+    projectId: "nfl-draft-simulator-9265f",
+    storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
+    messagingSenderId: "900728713837",
+    appId: "1:900728713837:web:3e0c47b05b144c758f8564",
+    measurementId: "G-8QGNSTTZGH"
+  };
+  
+  // Initialize Firebase
+  if (typeof firebase !== 'undefined') {
+    console.log("Initializing Firebase from index.html");
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+  } else {
+    console.error("Firebase SDK not loaded properly");
+  }
+</script>
+
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
