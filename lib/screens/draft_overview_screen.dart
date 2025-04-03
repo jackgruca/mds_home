@@ -770,15 +770,26 @@ void _initiateUserTradeProposal() {
   // Generate offers for user picks if needed
   _draftService!.generateUserTradeOffers();
 
-    // Use active user team rather than first team in list
-    String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
-    
-    // Get user's available picks for the active team
-    final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
-    
-    // Get other teams' available picks (excluding all user teams)
-    final List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
-
+  // Use active user team rather than first team in list
+  String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
+  
+  // Get user's available picks for the active team
+  final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
+  
+  List<DraftPick> otherTeamPicks;
+  
+  // Special handling when user controls all teams
+  bool controlsAllTeams = widget.selectedTeams!.length == NFLTeams.allTeams.length;
+  
+  if (controlsAllTeams) {
+    // When controlling all teams, get picks from all teams EXCEPT active team
+    otherTeamPicks = _draftService!.draftOrder.where((pick) => 
+      pick.teamName != activeTeam && !pick.isSelected
+    ).toList();
+  } else {
+    // Normal case: Get picks from non-user teams
+    otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
+  }
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
