@@ -95,25 +95,23 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
   }
 
   Widget _buildTabContent() {
-    switch (_selectedTab) {
-      case 'Team Draft Patterns':
-        return TeamDraftPatternsTab(
-          initialTeam: widget.userTeam,
-          allTeams: widget.allTeams,
-          draftYear: widget.draftYear,
-        );
-      case 'Player Draft Analysis':
-        return _buildPlaceholderTab('Player Draft Analysis');
-        // Once implemented, return PlayerDraftAnalysisTab(draftYear: widget.draftYear);
-      case 'Draft Trend Insights':
-        return _buildPlaceholderTab('Draft Trend Insights');
-        // Once implemented, return DraftTrendInsightsTab(draftYear: widget.draftYear);
-      default:
-        return const Center(
-          child: Text('Select a tab to view analytics'),
-        );
-    }
+  switch (_selectedTab) {
+    case 'Team Draft Patterns':
+      return TeamDraftPatternsTab(
+        initialTeam: widget.userTeam,
+        allTeams: widget.allTeams,
+        draftYear: widget.draftYear,
+      );
+    case 'Player Draft Analysis':
+      return PlayerDraftAnalysisTab(draftYear: widget.draftYear);
+    case 'Draft Trend Insights':
+      return DraftTrendInsightsTab(draftYear: widget.draftYear);
+    default:
+      return const Center(
+        child: Text('Select a tab to view analytics'),
+      );
   }
+}
 
   Widget _buildPlaceholderTab(String tabName) {
     return Center(

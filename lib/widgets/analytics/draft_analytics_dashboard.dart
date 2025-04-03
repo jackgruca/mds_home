@@ -762,12 +762,20 @@ Widget build(BuildContext context) {
     children: [
       // Add TabBar for Draft Results and Community Analytics
       TabBar(
-        controller: _tabController,
-        tabs: const [
-          Tab(text: 'Draft Results'),
-          Tab(text: 'Community Analytics'),
-        ],
-      ),
+  controller: _tabController,
+  tabs: const [
+    Tab(text: 'Draft Results'),
+    Tab(text: 'Community Analytics'),
+  ],
+  // Add these properties to control the color in both dark and light modes
+  labelColor: Theme.of(context).brightness == Brightness.dark 
+      ? Colors.white 
+      : Colors.black, // Black text for selected tab in light mode
+  unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+      ? Colors.white70 
+      : Colors.black54, // Grey text for unselected tabs
+  indicatorColor: Theme.of(context).primaryColor, // Keep the indicator color
+),
       
       // TabBarView with both tabs
       Expanded(
