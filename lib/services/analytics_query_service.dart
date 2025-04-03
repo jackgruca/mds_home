@@ -269,4 +269,323 @@ class AnalyticsQueryService {
       return {'players': [], 'sampleSize': 0};
     }
   }
+  /// Get top positions by pick number
+static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
+  String? team,
+  int? round,
+  int? year,
+}) async {
+  try {
+    await ensureInitialized();
+    debugPrint('Fetching position trends by pick for ${team ?? 'All Teams'}, round $round');
+
+    // Build the query
+    Query query = _firestore.collection(draftAnalyticsCollection);
+    
+    if (team != null) {
+      query = query.where('userTeam', isEqualTo: team);
+    }
+
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+
+    // Execute the query
+    final snapshot = await query.get();
+    debugPrint('Found ${snapshot.docs.length} documents for position trends');
+
+    // Organize data by pick number
+    Map<int, Map<String, int>> pickPositionCounts = {};
+    Map<int, int> pickTotals = {};
+    Map<int, String> pickRounds = {};
+
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (var pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          
+          // Filter by round if specified
+          if (round != null && int.tryParse(pick.round) != round) {
+            continue;
+          }
+          
+          final pickNumber = pick.pickNumber;
+          final position = pick.position;
+          
+          // Initialize data structures if needed
+          if (!pickPositionCounts.containsKey(pickNumber)) {
+            pickPositionCounts[pickNumber] = {};
+          }
+          if (!pickTotals.containsKey(pickNumber)) {
+            pickTotals[pickNumber] = 0;
+          }
+          
+          // Count position for this pick
+          pickPositionCounts[pickNumber]![position] = 
+              (pickPositionCounts[pickNumber]![position] ?? 0) + 1;
+          
+          // Increment total count for this pick
+          pickTotals[pickNumber] = (pickTotals[pickNumber] ?? 0) + 1;
+          
+          // Store round for this pick
+          pickRounds[pickNumber] = pick.round;
+        }
+      } catch (e) {
+        debugPrint('Error processing document for position trends: $e');
+      }
+    }
+
+    // Convert to desired output format
+    List<Map<String, dynamic>> result = [];
+    
+    for (var pickEntry in pickPositionCounts.entries) {
+      final pickNumber = pickEntry.key;
+      final positionCounts = pickEntry.value;
+      final totalForPick = pickTotals[pickNumber] ?? 0;
+      
+      if (totalForPick == 0) continue;
+      
+      // Convert position counts to sorted list with percentages
+      List<Map<String, dynamic>> positions = positionCounts.entries
+          .map((e) => {
+                'position': e.key,
+                'count': e.value,
+                'percentage': '${((e.value / totalForPick) * 100).toStringAsFixed(1)}%',
+              })
+          .toList();
+      
+      // Sort positions by count (highest first)
+      positions.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      
+      result.add({
+        'pick': pickNumber,
+        'round': pickRounds[pickNumber] ?? '?',
+        'positions': positions,
+        'totalDrafts': totalForPick,
+      });
+    }
+    
+    // Sort by pick number
+    result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting position trends: $e');
+    return [];
+  }
+}
+
+/// Get top players by pick number
+static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
+  String? team,
+  int? round,
+  int? year,
+}) async {
+  try {
+    await ensureInitialized();
+    debugPrint('Fetching player trends for ${team ?? 'All Teams'}, round $round');
+
+    // Build the query
+    Query query = _firestore.collection(draftAnalyticsCollection);
+    
+    if (team != null) {
+      query = query.where('userTeam', isEqualTo: team);
+    }
+
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+
+    // Execute the query
+    final snapshot = await query.get();
+    debugPrint('Found ${snapshot.docs.length} documents for player trends');
+
+    // Organize data by pick number and player
+    Map<int, Map<String, Map<String, dynamic>>> pickPlayerCounts = {};
+    Map<int, int> pickTotals = {};
+
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (var pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          
+          // Filter by round if specified
+          if (round != null && int.tryParse(pick.round) != round) {
+            continue;
+          }
+          
+          final pickNumber = pick.pickNumber;
+          final playerName = pick.playerName;
+          final position = pick.position;
+          
+          // Initialize data structures if needed
+          if (!pickPlayerCounts.containsKey(pickNumber)) {
+            pickPlayerCounts[pickNumber] = {};
+          }
+          if (!pickTotals.containsKey(pickNumber)) {
+            pickTotals[pickNumber] = 0;
+          }
+          
+          // Create or update player entry
+          String playerKey = '$playerName|$position';
+          if (!pickPlayerCounts[pickNumber]!.containsKey(playerKey)) {
+            pickPlayerCounts[pickNumber]![playerKey] = {
+              'player': playerName,
+              'position': position,
+              'count': 0,
+            };
+          }
+          
+          // Increment count for this player
+          pickPlayerCounts[pickNumber]![playerKey]!['count'] = 
+              (pickPlayerCounts[pickNumber]![playerKey]!['count'] as int) + 1;
+          
+          // Increment total count for this pick
+          pickTotals[pickNumber] = (pickTotals[pickNumber] ?? 0) + 1;
+        }
+      } catch (e) {
+        debugPrint('Error processing document for player trends: $e');
+      }
+    }
+
+    // Convert to desired output format
+    List<Map<String, dynamic>> result = [];
+    
+    for (var pickEntry in pickPlayerCounts.entries) {
+      final pickNumber = pickEntry.key;
+      final playerCounts = pickEntry.value;
+      final totalForPick = pickTotals[pickNumber] ?? 0;
+      
+      if (totalForPick == 0) continue;
+      
+      // Convert player counts to list with percentages
+      List<Map<String, dynamic>> players = playerCounts.values
+          .map((data) => {
+                'player': data['player'],
+                'position': data['position'],
+                'count': data['count'],
+                'percentage': '${((data['count'] as int) / totalForPick * 100).toStringAsFixed(1)}%',
+              })
+          .toList();
+      
+      // Sort players by count (highest first)
+      players.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      
+      // Take only the top player
+      if (players.isNotEmpty) {
+        result.add({
+          'pick': pickNumber,
+          'player': players.first['player'],
+          'position': players.first['position'],
+          'count': players.first['count'],
+          'percentage': players.first['percentage'],
+          'totalDrafts': totalForPick,
+        });
+      }
+    }
+    
+    // Sort by pick number
+    result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting player trends: $e');
+    return [];
+  }
+}
+
+/// Get consensus team needs based on position frequency
+static Future<Map<String, List<String>>> getConsensusTeamNeeds({
+  int? year,
+}) async {
+  try {
+    await ensureInitialized();
+    debugPrint('Fetching consensus team needs');
+
+    // Build the query
+    Query query = _firestore.collection(draftAnalyticsCollection);
+
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+
+    // Execute the query
+    final snapshot = await query.get();
+    debugPrint('Found ${snapshot.docs.length} documents for consensus needs');
+
+    // Track teams and their early round position selections
+    Map<String, Map<String, int>> teamPositionCounts = {};
+    Map<String, int> teamDraftCounts = {};
+
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final userTeam = data['userTeam'] as String?;
+        
+        if (userTeam == null || userTeam.isEmpty) continue;
+        
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        // Count early round (1-3) picks by position for each team
+        for (var pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          final round = int.tryParse(pick.round) ?? 0;
+          
+          // Only consider early rounds (1-3)
+          if (round > 3) continue;
+          
+          final position = pick.position;
+          
+          // Initialize data structures if needed
+          if (!teamPositionCounts.containsKey(pick.actualTeam)) {
+            teamPositionCounts[pick.actualTeam] = {};
+          }
+          if (!teamDraftCounts.containsKey(pick.actualTeam)) {
+            teamDraftCounts[pick.actualTeam] = 0;
+          }
+          
+          // Apply round weighting: Round 1 = 3x, Round 2 = 2x, Round 3 = 1x
+          int roundWeight = 4 - round; // 3, 2, 1 for rounds 1, 2, 3
+          
+          // Count position for this team with round weighting
+          teamPositionCounts[pick.actualTeam]![position] = 
+              (teamPositionCounts[pick.actualTeam]![position] ?? 0) + roundWeight;
+          
+          // Increment total count for this team
+          teamDraftCounts[pick.actualTeam] = (teamDraftCounts[pick.actualTeam] ?? 0) + 1;
+        }
+      } catch (e) {
+        debugPrint('Error processing document for consensus needs: $e');
+      }
+    }
+
+    // Convert to consensus needs (top positions for each team)
+    Map<String, List<String>> result = {};
+    
+    for (var teamEntry in teamPositionCounts.entries) {
+      final team = teamEntry.key;
+      final positionCounts = teamEntry.value;
+      
+      // Convert position counts to sorted list
+      List<MapEntry<String, int>> positions = positionCounts.entries.toList();
+      
+      // Sort positions by count (highest first)
+      positions.sort((a, b) => b.value.compareTo(a.value));
+      
+      // Take top 5 positions as team needs
+      result[team] = positions.take(5).map((e) => e.key).toList();
+    }
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting consensus needs: $e');
+    return {};
+  }
+}
 }

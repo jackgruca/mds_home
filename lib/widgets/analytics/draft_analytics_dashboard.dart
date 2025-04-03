@@ -822,6 +822,7 @@ Widget build(BuildContext context) {
                 ? CommunityAnalyticsDashboard(
                     userTeam: widget.userTeam!,
                     draftYear: widget.draftYear,
+                    allTeams: _getAllTeams(), // Add this line
                   )
                 : const Center(
                     child: Text('Please select a team to view community analytics'),
@@ -1385,4 +1386,17 @@ Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
       return Colors.grey.shade700; // Special teams, etc.
     }
   }
+
+  List<String> _getAllTeams() {
+  // Extract all unique team names from draft picks
+  final teams = widget.completedPicks
+      .map((pick) => pick.teamName)
+      .toSet()
+      .toList();
+  
+  // Sort alphabetically
+  teams.sort();
+  
+  return teams;
+}
 }
