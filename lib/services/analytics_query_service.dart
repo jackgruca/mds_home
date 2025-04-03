@@ -588,4 +588,71 @@ static Future<Map<String, List<String>>> getConsensusTeamNeeds({
     return {};
   }
 }
+
+// Add this method to lib/services/analytics_query_service.dart
+
+/// Get actual draft history for a specific team
+static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
+  required String team,
+  int? round,
+  int? year,
+}) async {
+  try {
+    await ensureInitialized();
+    debugPrint('Fetching team draft history for $team, round $round');
+
+    // Build the query
+    Query query = _firestore.collection(draftAnalyticsCollection)
+        .where('userTeam', isEqualTo: team);
+
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+
+    // Execute the query
+    final snapshot = await query.get();
+    debugPrint('Found ${snapshot.docs.length} documents for team draft history');
+
+    // Extract this team's picks from all the documents
+    List<Map<String, dynamic>> teamPicks = [];
+
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (var pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          
+          // Only include picks where this team is the actual team (not original team)
+          if (pick.actualTeam == team) {
+            // Filter by round if specified
+            if (round != null && int.tryParse(pick.round) != round) {
+              continue;
+            }
+            
+            teamPicks.add({
+              'pickNumber': pick.pickNumber,
+              'round': pick.round,
+              'playerName': pick.playerName,
+              'position': pick.position,
+              'playerRank': pick.playerRank,
+              'school': pick.school,
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing document for team draft history: $e');
+      }
+    }
+    
+    // Sort by pick number
+    teamPicks.sort((a, b) => (a['pickNumber'] as int).compareTo(b['pickNumber'] as int));
+    
+    return teamPicks;
+  } catch (e) {
+    debugPrint('Error getting team draft history: $e');
+    return [];
+  }
+}
 }

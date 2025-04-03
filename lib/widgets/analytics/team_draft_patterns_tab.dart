@@ -38,27 +38,30 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  // lib/widgets/analytics/team_draft_patterns_tab.dart - update the loadData method
 
-    try {
-      // 1. Get top positions by pick number for selected team
+Future<void> _loadData() async {
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    if (_selectedTeam == 'All Teams') {
+      // 1. Get top positions by pick number across all teams
       final positionData = await AnalyticsQueryService.getTopPositionsByTeam(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+        team: null, // No team filter
         round: _selectedRound,
         year: widget.draftYear,
       );
 
-      // 2. Get top players by pick for selected team
+      // 2. Get top players by pick across all teams
       final playerData = await AnalyticsQueryService.getTopPlayersByTeam(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+        team: null, // No team filter
         round: _selectedRound,
         year: widget.draftYear,
       );
 
-      // 3. Get consensus team needs based on user drafts
+      // 3. Get consensus team needs
       final needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
         year: widget.draftYear,
       );
@@ -69,13 +72,82 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
         _consensusNeeds = needsData;
         _isLoading = false;
       });
-    } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
+    } else {
+      // Get data specifically for the selected team's own picks
+      final teamPickData = await AnalyticsQueryService.getTeamDraftHistory(
+        team: _selectedTeam,
+        round: _selectedRound,
+        year: widget.draftYear,
+      );
+
+      // 3. Get consensus needs
+      final needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
+        year: widget.draftYear,
+      );
+
       setState(() {
+        // Convert team pick data to the required format
+        _topPicksByPosition = _convertToPickPositionFormat(teamPickData);
+        _topPlayersByPick = _convertToPickPlayerFormat(teamPickData);
+        _consensusNeeds = needsData;
         _isLoading = false;
       });
     }
+  } catch (e) {
+    debugPrint('Error loading team draft pattern data: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
+// Add these helper methods to convert team-specific data formats
+List<Map<String, dynamic>> _convertToPickPositionFormat(List<Map<String, dynamic>> teamData) {
+  // This converts the team's pick history to the position trend table format
+  List<Map<String, dynamic>> result = [];
+  
+  for (var pick in teamData) {
+    // Each pick has the team's actual selection details
+    final pickNumber = pick['pickNumber'] as int;
+    final round = pick['round'] as String;
+    final position = pick['position'] as String;
+    
+    // For team view, there's only one position per pick (what they actually selected)
+    result.add({
+      'pick': pickNumber,
+      'round': round,
+      'positions': [
+        {'position': position, 'count': 1, 'percentage': '100.0%'}
+      ],
+      'totalDrafts': 1
+    });
+  }
+  
+  // Sort by pick number
+  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+  return result;
+}
+
+List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>> teamData) {
+  // This converts the team's pick history to the player trend table format
+  List<Map<String, dynamic>> result = [];
+  
+  for (var pick in teamData) {
+    // Each pick has the team's actual selection details
+    result.add({
+      'pick': pick['pickNumber'] as int,
+      'player': pick['playerName'] as String,
+      'position': pick['position'] as String,
+      'count': 1,
+      'percentage': '100.0%',
+      'totalDrafts': 1
+    });
+  }
+  
+  // Sort by pick number
+  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+  return result;
+}
 
   @override
   Widget build(BuildContext context) {
