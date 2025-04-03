@@ -44,6 +44,7 @@ class DraftApp extends StatefulWidget {
   final bool showAnalytics;
   final List<List<dynamic>>? customTeamNeeds;
   final List<List<dynamic>>? customPlayerRankings;
+  final bool enableTradeRecommendations;
 
   const DraftApp({
   super.key,
@@ -58,6 +59,7 @@ class DraftApp extends StatefulWidget {
   this.showAnalytics = true,
   this.customTeamNeeds,
   this.customPlayerRankings,
+  this.enableTradeRecommendations = false,
 });
 
   @override
@@ -73,6 +75,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   DraftPick? _userNextPick;
   final ScrollController _draftOrderScrollController = ScrollController();
   bool _summaryShown = false;
+  final bool enableTradeRecommendations;
+
 
   // Tab controller for the additional trade history tab
   late TabController _tabController;
@@ -580,6 +584,7 @@ List<Color> _getTeamGradientColors(String teamName) {
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
       enableQBPremium: widget.enableQBPremium,
+      enableTradeRecommendations: widget.enableTradeRecommendations,
     );
 
     // Convert models to lists for the existing UI components
@@ -709,6 +714,18 @@ List<Color> _getTeamGradientColors(String teamName) {
     
     // Process the next pick using the enhanced algorithm
     final updatedPick = _draftService!.processDraftPick();
+
+    // After processing, check if we got a trade recommendation
+    if (_draftService!.hasTradeRecommendation) {
+      // Pause the draft
+      setState(() {
+        _isDraftRunning = false;
+      });
+      
+      // Show the trade recommendation
+      _showTradeRecommendation(nextPick!);
+      return;
+    }
     
     // Check if a trade was executed
     _executedTrades = _draftService!.executedTrades;
@@ -748,6 +765,71 @@ List<Color> _getTeamGradientColors(String teamName) {
       _statusMessage = "Error during draft: $e";
     });
   }
+}
+
+// Add method to show trade recommendations
+void _showTradeRecommendation(DraftPick pick) {
+  if (_draftService == null) return;
+  
+  final recommendations = _draftService!.getTradeRecommendations();
+  if (!recommendations.containsKey(pick.teamName)) return;
+  
+  final packages = recommendations[pick.teamName]!;
+  if (packages.isEmpty) return;
+  
+  // Create a TradeOffer from the recommendations
+  final tradeOffer = TradeOffer(
+    packages: packages,
+    pickNumber: pick.pickNumber,
+    isUserInvolved: true
+  );
+  
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => TradeDialogWrapper(
+      tradeOffer: tradeOffer,
+      onAccept: (package) {
+        // Execute the trade
+        _draftService!.executeUserSelectedTrade(package);
+        
+        // Clear the recommendation
+        _draftService!.clearTradeRecommendation(pick.teamName);
+        
+        // Update UI
+        setState(() {
+          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+          _executedTrades = _draftService!.executedTrades;
+          _statusMessage = "Trade recommendation accepted: ${package.tradeDescription}";
+          
+          // Resume the draft
+          _isDraftRunning = true;
+        });
+        
+        // Continue the draft after a brief pause
+        Future.delayed(
+          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+          _processDraftPick
+        );
+      },
+      onReject: () {
+        // Clear the recommendation
+        _draftService!.clearTradeRecommendation(pick.teamName);
+        
+        // Resume the draft
+        setState(() {
+          _isDraftRunning = true;
+        });
+        
+        // Continue the draft
+        Future.delayed(
+          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
+          _processDraftPick
+        );
+      },
+      showAnalytics: widget.showAnalytics,
+    ),
+  );
 }
 
   void _handleUserPick(DraftPick pick) {

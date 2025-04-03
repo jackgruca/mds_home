@@ -38,6 +38,9 @@ class DraftService {
   final bool enableTrading;
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
+
+  bool enableTradeRecommendations = true;
+  bool _hasTradeRecommendation = false;
   
   // Improved trade offer tracking for user
   final Map<int, List<TradePackage>> _pendingUserOffers = {};
@@ -353,7 +356,30 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
       }
     }
     
+     // Add this before the return null at the end
+    if (enableTradeRecommendations && userTeams != null && userTeams!.isNotEmpty) {
+      // Check if this would be a good trade for the user
+      _tradeService.identifyTradeRecommendations(nextPick.pickNumber);
+      
+      // Check if we generated a recommendation
+      _hasTradeRecommendation = _tradeService.tradeRecommendations.containsKey(nextPick.teamName);
+    }
+    
     return null;
+  }
+
+  // Add getter for checking if there's a recommendation
+  bool get hasTradeRecommendation => _hasTradeRecommendation;
+
+  // Add method to get recommendations
+  Map<String, List<TradePackage>> getTradeRecommendations() {
+    return _tradeService.tradeRecommendations;
+  }
+
+  // Add method to clear recommendation
+  void clearTradeRecommendation(String teamName) {
+    _tradeService.clearRecommendation(teamName);
+    _hasTradeRecommendation = false;
   }
   
   /// Evaluate if we should try a QB-specific trade scenario

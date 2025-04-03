@@ -14,6 +14,8 @@ class TradeDialogWrapper extends StatelessWidget {
   final VoidCallback onReject;
   final Function(TradePackage)? onCounter;
   final bool showAnalytics;
+  final bool isRecommendation;
+
 
   const TradeDialogWrapper({
     super.key,
@@ -22,6 +24,7 @@ class TradeDialogWrapper extends StatelessWidget {
     required this.onReject,
     this.onCounter,
     this.showAnalytics = true,
+    this.isRecommendation = false,
   });
 
   @override
@@ -70,6 +73,7 @@ class TradeDialogWrapper extends StatelessWidget {
       // Pass the context along with the package to the counter handler
       onCounter: onCounter != null ? (package) => onCounter!(package) : null,
       showAnalytics: showAnalytics,
+      isRecommendation: isRecommendation,
     );
   }
   

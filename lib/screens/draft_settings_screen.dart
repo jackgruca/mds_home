@@ -452,6 +452,17 @@ void _showQuickLoadDialog() {
                         : null,
                   ),
                 ),
+
+                SwitchListTile(
+                  title: const Text('AI Trade Recommendations'),
+                  subtitle: const Text('Get suggestions when AI identifies valuable trades for your team'),
+                  value: _enableTradeRecommendations,
+                  onChanged: (value) {
+                    setState(() {
+                      _enableTradeRecommendations = value;
+                    });
+                  },
+                ),
                 
                 // QB Premium
                 _buildSettingItem(

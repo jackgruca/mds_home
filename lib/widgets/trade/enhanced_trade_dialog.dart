@@ -12,6 +12,8 @@ class EnhancedTradeDialog extends StatefulWidget {
   final VoidCallback onReject;
   final Function(TradePackage)? onCounter; // New callback for counter offer
   final bool showAnalytics;
+  final bool isRecommendation;
+
 
   const EnhancedTradeDialog({
     super.key,
@@ -20,6 +22,7 @@ class EnhancedTradeDialog extends StatefulWidget {
     required this.onReject,
     this.onCounter, // New optional parameter
     this.showAnalytics = true,
+    this.isRecommendation = false,
   });
 
   @override
@@ -89,6 +92,29 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            if (widget.isRecommendation)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb, color: Colors.amber.shade700),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Trade Recommendation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             // Header
             Row(
               children: [
