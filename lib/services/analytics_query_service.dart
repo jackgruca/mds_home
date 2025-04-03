@@ -2,10 +2,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/draft_analytics.dart';
+import '../services/firebase_service.dart';
 
 class AnalyticsQueryService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static FirebaseFirestore get _firestore {
+    return FirebaseFirestore.instance;
+  }
+  
   static const String draftAnalyticsCollection = 'draftAnalytics';
+
+  /// Initialize and ensure Firebase connection
+  static Future<void> ensureInitialized() async {
+    if (!FirebaseService.isInitialized) {
+      await FirebaseService.initialize();
+    }
+  }
 
   /// Get most popular picks for a specific team in a specific draft slot
   static Future<List<Map<String, dynamic>>> getMostPopularPicksByTeam({
@@ -16,6 +27,9 @@ class AnalyticsQueryService {
     int? year,
   }) async {
     try {
+      await ensureInitialized();
+      debugPrint('Fetching popular picks for team: $team, round: $round');
+
       // Build the query
       Query query = _firestore.collection(draftAnalyticsCollection)
           .where('userTeam', isEqualTo: team);
@@ -26,40 +40,48 @@ class AnalyticsQueryService {
 
       // Execute the query
       final snapshot = await query.get();
+      debugPrint('Found ${snapshot.docs.length} documents for team: $team');
 
       // Process all draft records
       Map<String, int> playerCounts = {};
       Map<String, Map<String, dynamic>> playerDetails = {};
 
       for (var doc in snapshot.docs) {
-        final record = DraftAnalyticsRecord.fromFirestore(doc);
-        
-        // Filter picks based on criteria
-        for (var pick in record.picks) {
-          bool matchesCriteria = true;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
           
-          if (pickNumber != null && pick.pickNumber != pickNumber) {
-            matchesCriteria = false;
-          }
-          
-          if (round != null && pick.round != round.toString()) {
-            matchesCriteria = false;
-          }
-          
-          if (matchesCriteria) {
-            String key = '${pick.playerName}|${pick.position}';
-            playerCounts[key] = (playerCounts[key] ?? 0) + 1;
+          // Filter picks based on criteria
+          for (var pickData in picks) {
+            final pick = DraftPickRecord.fromFirestore(pickData);
             
-            // Store the most recent details for this player
-            playerDetails[key] = {
-              'name': pick.playerName,
-              'position': pick.position,
-              'rank': pick.playerRank,
-              'school': pick.school,
-              'pickNumber': pick.pickNumber,
-              'round': pick.round,
-            };
+            bool matchesCriteria = true;
+            
+            if (pickNumber != null && pick.pickNumber != pickNumber) {
+              matchesCriteria = false;
+            }
+            
+            if (round != null && pick.round != round.toString()) {
+              matchesCriteria = false;
+            }
+            
+            if (matchesCriteria) {
+              String key = '${pick.playerName}|${pick.position}';
+              playerCounts[key] = (playerCounts[key] ?? 0) + 1;
+              
+              // Store the most recent details for this player
+              playerDetails[key] = {
+                'name': pick.playerName,
+                'position': pick.position,
+                'rank': pick.playerRank,
+                'school': pick.school,
+                'pickNumber': pick.pickNumber,
+                'round': pick.round,
+              };
+            }
           }
+        } catch (e) {
+          debugPrint('Error processing document: $e');
         }
       }
 
@@ -69,20 +91,20 @@ class AnalyticsQueryService {
 
       // Return the top results with details
       return sortedPlayers.take(limit ?? 5).map((entry) {
-  final details = playerDetails[entry.key] ?? {};
-  return {
-    'name': details['name'] ?? 'Unknown Player',
-    'position': details['position'] ?? 'Unknown',
-    'rank': details['rank'] ?? 0,
-    'school': details['school'] ?? '',
-    'pickNumber': details['pickNumber'] ?? 0,
-    'round': details['round'] ?? '1',
-    'count': entry.value,
-    'percentage': snapshot.docs.isEmpty 
-        ? '0%' 
-        : '${(entry.value / snapshot.docs.length * 100).toStringAsFixed(1)}%',
-  };
-}).toList();
+        final details = playerDetails[entry.key] ?? {};
+        return {
+          'name': details['name'] ?? 'Unknown Player',
+          'position': details['position'] ?? 'Unknown',
+          'rank': details['rank'] ?? 0,
+          'school': details['school'] ?? '',
+          'pickNumber': details['pickNumber'] ?? 0,
+          'round': details['round'] ?? '1',
+          'count': entry.value,
+          'percentage': snapshot.docs.isEmpty 
+              ? '0%' 
+              : '${(entry.value / snapshot.docs.length * 100).toStringAsFixed(1)}%',
+        };
+      }).toList();
     } catch (e) {
       debugPrint('Error getting popular picks: $e');
       return [];
@@ -96,6 +118,9 @@ class AnalyticsQueryService {
     int? year,
   }) async {
     try {
+      await ensureInitialized();
+      debugPrint('Fetching position breakdown for team: $team');
+
       // Build the query
       Query query = _firestore.collection(draftAnalyticsCollection)
           .where('userTeam', isEqualTo: team);
@@ -106,19 +131,27 @@ class AnalyticsQueryService {
 
       // Execute the query
       final snapshot = await query.get();
+      debugPrint('Found ${snapshot.docs.length} documents for position breakdown');
 
       // Process position counts
       Map<String, int> positionCounts = {};
       int totalPicks = 0;
 
       for (var doc in snapshot.docs) {
-        final record = DraftAnalyticsRecord.fromFirestore(doc);
-        
-        for (var pick in record.picks) {
-          if (rounds == null || rounds.contains(int.parse(pick.round))) {
-            positionCounts[pick.position] = (positionCounts[pick.position] ?? 0) + 1;
-            totalPicks++;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+          
+          for (var pickData in picks) {
+            final pick = DraftPickRecord.fromFirestore(pickData);
+            
+            if (rounds == null || rounds.contains(int.tryParse(pick.round) ?? 0)) {
+              positionCounts[pick.position] = (positionCounts[pick.position] ?? 0) + 1;
+              totalPicks++;
+            }
           }
+        } catch (e) {
+          debugPrint('Error processing document for position breakdown: $e');
         }
       }
 
@@ -152,6 +185,9 @@ class AnalyticsQueryService {
     int? limit = 10,
   }) async {
     try {
+      await ensureInitialized();
+      debugPrint('Fetching player rank deviations');
+
       // Build the query
       Query query = _firestore.collection(draftAnalyticsCollection);
 
@@ -161,27 +197,35 @@ class AnalyticsQueryService {
 
       // Execute the query
       final snapshot = await query.get();
+      debugPrint('Found ${snapshot.docs.length} documents for rank deviations');
 
       // Calculate rank deviations
       Map<String, List<int>> playerDeviations = {};
 
       for (var doc in snapshot.docs) {
-        final record = DraftAnalyticsRecord.fromFirestore(doc);
-        
-        for (var pick in record.picks) {
-          if (position == null || pick.position == position) {
-            // Calculate the deviation (positive means picked later than rank)
-            int deviation = pick.pickNumber - pick.playerRank;
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+          
+          for (var pickData in picks) {
+            final pick = DraftPickRecord.fromFirestore(pickData);
             
-            // Use player name and position as key
-            String key = '${pick.playerName}|${pick.position}';
-            
-            if (!playerDeviations.containsKey(key)) {
-              playerDeviations[key] = [];
+            if (position == null || pick.position == position) {
+              // Calculate the deviation (positive means picked later than rank)
+              int deviation = pick.pickNumber - pick.playerRank;
+              
+              // Use player name and position as key
+              String key = '${pick.playerName}|${pick.position}';
+              
+              if (!playerDeviations.containsKey(key)) {
+                playerDeviations[key] = [];
+              }
+              
+              playerDeviations[key]!.add(deviation);
             }
-            
-            playerDeviations[key]!.add(deviation);
           }
+        } catch (e) {
+          debugPrint('Error processing document for rank deviations: $e');
         }
       }
 
@@ -197,7 +241,7 @@ class AnalyticsQueryService {
         
         List<String> parts = entry.key.split('|');
         String playerName = parts[0];
-        String playerPosition = parts[1];
+        String playerPosition = parts.length > 1 ? parts[1] : 'Unknown';
         
         averageDeviations[entry.key] = {
           'name': playerName,

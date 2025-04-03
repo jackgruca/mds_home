@@ -22,10 +22,15 @@ void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await FirebaseService.initialize();
+  // Initialize Firebase with additional logging
+  try {
+    await FirebaseService.initialize();
+    debugPrint('Firebase initialized successfully in main.dart');
+  } catch (e) {
+    debugPrint('Firebase initialization error in main.dart: $e');
+  }
 
-  AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
 
   // Turn on debug output for the app
   if (kDebugMode) {

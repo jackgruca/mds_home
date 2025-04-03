@@ -1,24 +1,66 @@
 // lib/services/firebase_service.dart
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'dart:js' as js;
 import '../models/draft_analytics.dart';
 import '../models/draft_pick.dart';
 import '../models/trade_package.dart';
 
 class FirebaseService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static FirebaseFirestore? _firestoreInstance;
   static const String draftAnalyticsCollection = 'draftAnalytics';
+  static bool _initialized = false;
+  
+  static FirebaseFirestore get _firestore {
+    if (_firestoreInstance == null) {
+      throw Exception('Firebase not initialized. Call initialize() first.');
+    }
+    return _firestoreInstance!;
+  }
   
   static Future<void> initialize() async {
+    if (_initialized) return;
+    
     try {
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+      if (kIsWeb) {
+        // On web, check if Firebase is already initialized via index.html
+        if (js.context.hasProperty('firebase')) {
+          // Firebase is loaded via script tag, use the existing instance
+          debugPrint('Firebase already loaded via script tag, using existing instance');
+          _firestoreInstance = FirebaseFirestore.instance;
+          _initialized = true;
+          return;
+        }
       }
-      debugPrint('Firebase initialized successfully');
+      
+      // Standard initialization for non-web or web without script tag
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
+          authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+          projectId: "nfl-draft-simulator-9265f",
+          storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
+          messagingSenderId: "900728713837",
+          appId: "1:900728713837:web:3e0c47b05b144c758f8564",
+          measurementId: "G-8QGNSTTZGH",
+        ),
+      );
+      
+      _firestoreInstance = FirebaseFirestore.instance;
+      _initialized = true;
+      debugPrint('Firebase initialized successfully via Firebase.initializeApp()');
     } catch (e) {
       debugPrint('Failed to initialize Firebase: $e');
-      // Don't rethrow - allow the app to continue even if Firebase fails
+      // Still attempt to get Firestore instance in case Firebase was initialized elsewhere
+      try {
+        _firestoreInstance = FirebaseFirestore.instance;
+        _initialized = true;
+        debugPrint('Retrieved Firestore instance after error');
+      } catch (innerError) {
+        debugPrint('Could not get Firestore instance: $innerError');
+      }
     }
   }
 
@@ -29,7 +71,13 @@ class FirebaseService {
     required List<TradePackage> executedTrades,
     required int year,
   }) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    
     try {
+      debugPrint('Starting to save draft analytics...');
+      
       // Convert picks to records
       final List<DraftPickRecord> pickRecords = completedPicks
           .where((pick) => pick.selectedPlayer != null)
@@ -64,17 +112,17 @@ class FirebaseService {
           .toList();
 
       // Create analytics record
-      final DraftAnalyticsRecord record = DraftAnalyticsRecord(
-        id: '', // Firestore will generate an ID
-        userTeam: userTeam,
-        timestamp: DateTime.now(),
-        year: year,
-        picks: pickRecords,
-        trades: tradeRecords,
-      );
+      final Map<String, dynamic> recordData = {
+        'userTeam': userTeam,
+        'timestamp': FieldValue.serverTimestamp(),
+        'year': year,
+        'picks': pickRecords.map((record) => record.toFirestore()).toList(),
+        'trades': tradeRecords.map((record) => record.toFirestore()).toList(),
+      };
 
       // Save to Firestore
-      await _firestore.collection(draftAnalyticsCollection).add(record.toFirestore());
+      debugPrint('Saving to Firestore collection: $draftAnalyticsCollection');
+      await _firestore.collection(draftAnalyticsCollection).add(recordData);
       
       debugPrint('Draft analytics saved successfully');
       return true;
@@ -93,4 +141,7 @@ class FirebaseService {
     }
     return ''; // Default if not found
   }
+  
+  /// Check if Firebase is properly initialized
+  static bool get isInitialized => _initialized;
 }
