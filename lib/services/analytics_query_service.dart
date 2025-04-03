@@ -69,15 +69,20 @@ class AnalyticsQueryService {
 
       // Return the top results with details
       return sortedPlayers.take(limit ?? 5).map((entry) {
-        final details = playerDetails[entry.key] ?? {};
-        return {
-          ...details,
-          'count': entry.value,
-          'percentage': snapshot.docs.isEmpty 
-              ? 0 
-              : '${(entry.value / snapshot.docs.length * 100).toStringAsFixed(1)}%',
-        };
-      }).toList();
+  final details = playerDetails[entry.key] ?? {};
+  return {
+    'name': details['name'] ?? 'Unknown Player',
+    'position': details['position'] ?? 'Unknown',
+    'rank': details['rank'] ?? 0,
+    'school': details['school'] ?? '',
+    'pickNumber': details['pickNumber'] ?? 0,
+    'round': details['round'] ?? '1',
+    'count': entry.value,
+    'percentage': snapshot.docs.isEmpty 
+        ? '0%' 
+        : '${(entry.value / snapshot.docs.length * 100).toStringAsFixed(1)}%',
+  };
+}).toList();
     } catch (e) {
       debugPrint('Error getting popular picks: $e');
       return [];

@@ -83,19 +83,28 @@ class DraftPickRecord {
     };
   }
 
-  static DraftPickRecord fromFirestore(Map<String, dynamic> data) {
-    return DraftPickRecord(
-      pickNumber: data['pickNumber'] ?? 0,
-      originalTeam: data['originalTeam'] ?? '',
-      actualTeam: data['actualTeam'] ?? '',
-      playerId: data['playerId'] ?? 0,
-      playerName: data['playerName'] ?? '',
-      position: data['position'] ?? '',
-      playerRank: data['playerRank'] ?? 0,
-      school: data['school'] ?? '',
-      round: data['round'] ?? '1',
-    );
-  }
+  // In models/draft_analytics.dart
+static DraftPickRecord fromFirestore(Map<String, dynamic> data) {
+  return DraftPickRecord(
+    pickNumber: _safeParseInt(data['pickNumber']),
+    originalTeam: data['originalTeam']?.toString() ?? '',
+    actualTeam: data['actualTeam']?.toString() ?? '',
+    playerId: _safeParseInt(data['playerId']),
+    playerName: data['playerName']?.toString() ?? '',
+    position: data['position']?.toString() ?? '',
+    playerRank: _safeParseInt(data['playerRank']),
+    school: data['school']?.toString() ?? '',
+    round: data['round']?.toString() ?? '1',
+  );
+}
+
+// Helper method for safely parsing integers
+static int _safeParseInt(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value) ?? 0;
+  if (value is double) return value.toInt();
+  return 0;
+}
 }
 
 class TradeRecord {

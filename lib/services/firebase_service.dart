@@ -12,10 +12,13 @@ class FirebaseService {
   
   static Future<void> initialize() async {
     try {
-      await Firebase.initializeApp();
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
       debugPrint('Firebase initialized successfully');
     } catch (e) {
       debugPrint('Failed to initialize Firebase: $e');
+      // Don't rethrow - allow the app to continue even if Firebase fails
     }
   }
 

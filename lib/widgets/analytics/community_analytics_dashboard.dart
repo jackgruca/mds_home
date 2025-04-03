@@ -317,43 +317,44 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
   }
 
   Widget _buildPositionAnalysisTab(bool isDarkMode) {
-    final positions = _positionBreakdown['positions'] as Map<String, dynamic>;
-    final total = _positionBreakdown['total'] as int;
-    
-    if (total == 0) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.analytics_outlined,
-              size: 64,
-              color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+  // Fix the type casting issue by explicitly converting to Map<String, dynamic>
+  final positions = Map<String, dynamic>.from(_positionBreakdown['positions'] ?? {});
+  final total = _positionBreakdown['total'] as int? ?? 0;
+  
+  if (total == 0) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.analytics_outlined,
+            size: 64,
+            color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No position data available yet for ${widget.userTeam}',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No position data available yet for ${widget.userTeam}',
-              style: TextStyle(
-                fontSize: 16,
-                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 
-    // Convert positions to sorted list
-    final positionsList = positions.entries
-        .map((e) => {
-              'position': e.key,
-              'count': e.value['count'],
-              'percentage': e.value['percentage'],
-            })
-        .toList();
-    
-    positionsList.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+  // Convert positions to sorted list, also updating the type casting
+  final positionsList = positions.entries
+      .map((e) => {
+            'position': e.key,
+            'count': e.value is Map ? e.value['count'] ?? 0 : 0,
+            'percentage': e.value is Map ? e.value['percentage'] ?? '0%' : '0%',
+          })
+      .toList();
+  
+  positionsList.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -489,7 +490,7 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
                     itemCount: _rankDeviations.length,
                     itemBuilder: (context, index) {
                       final player = _rankDeviations[index];
-                      final deviation = double.parse(player['avgDeviation'] as String);
+                      final deviation = double.tryParse(player['avgDeviation']?.toString() ?? '0') ?? 0.0;
                       final isEarlier = deviation < 0;
                       final deviationStr = deviation.abs().toStringAsFixed(1);
                       
