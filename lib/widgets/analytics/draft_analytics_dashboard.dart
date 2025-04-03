@@ -11,14 +11,18 @@ import '../../services/draft_pick_grade_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import '../common/export_button_widget.dart';
+import 'community_analytics_dashboard.dart';
 
 
+
+// In the DraftAnalyticsDashboard class constructor
 class DraftAnalyticsDashboard extends StatefulWidget {
   final List<DraftPick> completedPicks;
   final List<Player> draftedPlayers;
   final List<TradePackage> executedTrades;
   final List<TeamNeed> teamNeeds;
   final String? userTeam;
+  final int draftYear; // Add this line
 
   const DraftAnalyticsDashboard({
     super.key,
@@ -27,13 +31,14 @@ class DraftAnalyticsDashboard extends StatefulWidget {
     required this.executedTrades,
     required this.teamNeeds,
     this.userTeam,
+    this.draftYear = 2025, // Add default value
   });
 
   @override
   State<DraftAnalyticsDashboard> createState() => _DraftAnalyticsDashboardState();
 }
 
-class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
+class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with TickerProviderStateMixin {
   // Analytics data
   Map<String, int> _positionCounts = {};
   Map<String, Map<String, dynamic>> _teamGrades = {};
@@ -42,13 +47,22 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> {
   List<Map<String, dynamic>> _positionRuns = [];
   int _selectedRound = 1; // Add this line
 
-  
+  late TabController _tabController;
+
+
   @override
   void initState() {
     super.initState();
     _calculateAnalytics();
+      _tabController = TabController(length: 2, vsync: this);
   }
   
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(DraftAnalyticsDashboard oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -743,50 +757,81 @@ Widget build(BuildContext context) {
     );
   }
 
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(12.0), // Reduced padding
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Add the Round Summary section at the top
-        _buildSectionHeader("Round-by-Round Summary", showExportButton: true),
-
-        _buildRoundSummary(),
-        
-        const SizedBox(height: 16), // Reduced spacing from 24
-        
-        // Team Grades Section
-        _buildSectionHeader("Team Draft Grades"),
-        _buildTeamGradesTable(),
-        
-        const SizedBox(height: 16), // Reduced spacing from 24
-        
-        // Value Picks Section
-        _buildSectionHeader("Best Value Picks"),
-        _buildValuePicksList(true), // true for value picks
-        
-        const SizedBox(height: 16), // Reduced spacing from 24
-        
-        // Reach Picks Section
-        _buildSectionHeader("Biggest Reaches"),
-        _buildValuePicksList(false), // false for reach picks
-        
-        const SizedBox(height: 16), // Reduced spacing from 24
-        
-        // Position Runs Section
-        _buildSectionHeader("Position Runs"),
-        _buildPositionRunsList(),
-        
-        const SizedBox(height: 16), // Reduced spacing from 24
-        
-        // Position Distribution
-        _buildSectionHeader("Position Distribution"),
-        _buildPositionDistribution(),
-      ],
-    ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Add TabBar for Draft Results and Community Analytics
+      TabBar(
+        controller: _tabController,
+        tabs: const [
+          Tab(text: 'Draft Results'),
+          Tab(text: 'Community Analytics'),
+        ],
+      ),
+      
+      // TabBarView with both tabs
+      Expanded(
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // First tab: Existing draft analytics
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Round Summary
+                  _buildSectionHeader("Round-by-Round Summary"),
+                  _buildRoundSummary(),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Team Grades Section
+                  _buildSectionHeader("Team Draft Grades"),
+                  _buildTeamGradesTable(),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Value Picks Section
+                  _buildSectionHeader("Best Value Picks"),
+                  _buildValuePicksList(true), // true for value picks
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Reach Picks Section
+                  _buildSectionHeader("Biggest Reaches"),
+                  _buildValuePicksList(false), // false for reach picks
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Position Runs Section
+                  _buildSectionHeader("Position Runs"),
+                  _buildPositionRunsList(),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Position Distribution
+                  _buildSectionHeader("Position Distribution"),
+                  _buildPositionDistribution(),
+                ],
+              ),
+            ),
+            
+            // Second tab: Community analytics
+            widget.userTeam != null
+                ? CommunityAnalyticsDashboard(
+                    userTeam: widget.userTeam!,
+                    draftYear: widget.draftYear,
+                  )
+                : const Center(
+                    child: Text('Please select a team to view community analytics'),
+                  ),
+          ],
+        ),
+      ),
+    ],
   );
 }
-
 Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 6.0),

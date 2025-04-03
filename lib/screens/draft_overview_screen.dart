@@ -30,6 +30,7 @@ import 'team_selection_screen.dart';
 
 import '../widgets/draft/draft_control_buttons.dart';
 import '../widgets/trade/trade_dialog_wrapper.dart';
+import '../services/firebase_service.dart';
 
 class DraftApp extends StatefulWidget {
   final double randomnessFactor;
@@ -648,6 +649,16 @@ List<Color> _getTeamGradientColors(String teamName) {
     _isDraftRunning = false;
     _statusMessage = "Draft complete!";
   });
+
+  // Save draft analytics when draft is complete
+    if (widget.selectedTeams?.isNotEmpty == true) {
+      FirebaseService.saveDraftAnalytics(
+        userTeam: widget.selectedTeams!.first,
+        completedPicks: _draftPicks,
+        executedTrades: _executedTrades,
+        year: widget.draftYear,
+      );
+    }
   
   if (widget.showAnalytics) {
     // First change to the analytics tab

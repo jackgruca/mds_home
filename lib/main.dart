@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_service.dart';
+import 'services/firebase_service.dart';
 import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
@@ -17,9 +18,12 @@ import 'widgets/admin/message_admin_panel.dart';
 int _secretTapCount = 0;
 DateTime? _lastTapTime;
 
-void main() {
+void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await FirebaseService.initialize();
 
   AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
 
