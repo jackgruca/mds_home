@@ -71,7 +71,7 @@ class DraftService {
     this.numberRounds = 1, 
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
-    this.enableQBPremium = true,
+    this.enableQBPremium = true, required bool enableTradeRecommendations,
   }) {
     // Sort players by rank initially
     availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));

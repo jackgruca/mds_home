@@ -77,6 +77,7 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   bool _summaryShown = false;
   final bool enableTradeRecommendations;
 
+  DraftAppState() : enableTradeRecommendations = false;
 
   // Tab controller for the additional trade history tab
   late TabController _tabController;

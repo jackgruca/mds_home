@@ -29,8 +29,103 @@ class TradeService {
   final double tradeRandomnessFactor;
   final bool enableQBPremium;
 
-  final Map<String, List<TradePackage>> _tradeRecommendations = {};
-  bool enableTradeRecommendations = true;
+  // Add these fields to the TradeService class
+final Map<String, List<TradePackage>> _tradeRecommendations = {};
+bool enableTradeRecommendations = true;
+
+// Add this method to the TradeService class
+void identifyTradeRecommendations(int pickNumber) {
+  if (!enableTradeRecommendations) return;
+  
+  // Don't generate recommendations if it's the user's turn
+  final currentPick = draftOrder.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => throw Exception('Pick number $pickNumber not found')
+  );
+  if (userTeam != null && currentPick.teamName == userTeam) return;
+  
+  // Check if the user team would be interested in trading up
+  if (userTeam == null) return;
+  
+  // Identify valuable players at this pick
+  List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, false);
+  if (valuablePlayers.isEmpty) return;
+  
+  // Get team needs for user team
+  final userTeamNeeds = _getTeamNeeds(userTeam!);
+  if (userTeamNeeds == null) return;
+  
+  // Check player interest for user team
+  for (var player in valuablePlayers) {
+    double playerGrade = _getTeamPlayerGrade(userTeam!, player);
+    double interestLevel = _calculateTradeUpInterest(
+      userTeam!,
+      userTeamNeeds,
+      player,
+      pickNumber,
+      _teamCurrentPickPosition[userTeam!] ?? 999,
+      playerGrade,
+      false
+    );
+    
+    // If interest is high enough, generate a trade package
+    if (interestLevel > 0.6) {
+      // Generate what the user team would offer
+      final userPicks = draftOrder
+          .where((pick) => pick.teamName == userTeam && !pick.isSelected)
+          .toList();
+      
+      if (userPicks.isEmpty) continue;
+      
+      // Create a simulated trade package
+      List<TradePackage> packages = _generateTradePackages(
+        [TradeInterest(
+          teamName: userTeam!,
+          targetPlayer: player,
+          nextPickNumber: _teamCurrentPickPosition[userTeam!] ?? 999,
+          interestLevel: interestLevel
+        )],
+        currentPick,
+        DraftValueService.getValueForPick(pickNumber),
+        false
+      );
+      
+      if (packages.isNotEmpty) {
+        // Store this recommendation
+        _tradeRecommendations[currentPick.teamName] ??= [];
+        
+        // Add player reference to the package
+        final recommendedPackage = packages.first;
+        final tradeRecommendation = TradePackage(
+          teamOffering: recommendedPackage.teamOffering,
+          teamReceiving: recommendedPackage.teamReceiving,
+          picksOffered: recommendedPackage.picksOffered,
+          targetPick: recommendedPackage.targetPick,
+          additionalTargetPicks: recommendedPackage.additionalTargetPicks,
+          totalValueOffered: recommendedPackage.totalValueOffered,
+          targetPickValue: recommendedPackage.targetPickValue,
+          includesFuturePick: recommendedPackage.includesFuturePick,
+          futurePickDescription: recommendedPackage.futurePickDescription,
+          futurePickValue: recommendedPackage.futurePickValue,
+          targetReceivedFuturePicks: recommendedPackage.targetReceivedFuturePicks,
+        );
+        
+        _tradeRecommendations[currentPick.teamName]!.add(tradeRecommendation);
+        
+        debugPrint("Generated trade recommendation for player ${player.name} (${player.position})");
+        break; // Only generate one recommendation per pick
+      }
+    }
+  }
+}
+
+// Add getter for recommendations
+Map<String, List<TradePackage>> get tradeRecommendations => _tradeRecommendations;
+
+// Add method to clear specific recommendation
+void clearRecommendation(String teamName) {
+  _tradeRecommendations.remove(teamName);
+}
 
   
   // Team-specific trading tendencies
@@ -78,9 +173,12 @@ class TradeService {
     this.enableUserTradeConfirmation = true,
     this.tradeRandomnessFactor = 0.5,
     this.enableQBPremium = true,
+    this.enableTradeRecommendations = true, // Add this parameter
   }) {
     // Initialize team-specific data
     _initializeTeamData();
+    enableTradeRecommendations = enableTradeRecommendations;
+
   }
   
   // Method to initialize team data for trade evaluation

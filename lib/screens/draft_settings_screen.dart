@@ -56,6 +56,8 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   late bool _enableQBPremium;
   late bool _showAnalytics;
   late int _selectedYear;
+  late bool _enableTradeRecommendations; // Add this line
+
   
   late TabController _tabController;
   
@@ -77,6 +79,8 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
     _enableQBPremium = widget.enableQBPremium;
     _showAnalytics = widget.showAnalytics;
     _selectedYear = widget.selectedYear;
+    _enableTradeRecommendations = false; // Default to false or add to widget
+
     
     // Initialize tab controller
     _tabController = TabController(length: 2, vsync: this);
@@ -128,6 +132,7 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
     'enableQBPremium': _enableQBPremium,
     'showAnalytics': _showAnalytics,
     'selectedYear': _selectedYear,
+    'enableTradeRecommendations': _enableTradeRecommendations, // Add this line
     'customTeamNeeds': customTeamNeeds,
     'customPlayerRankings': customPlayerRankings,
   };
