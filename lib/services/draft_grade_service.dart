@@ -148,8 +148,7 @@ static String _generateTeamGradeDescription(
   }
 }
 
-  /// Calculate team overall grade with a comprehensive approach
-  // Modify this method in the existing method
+/// Calculate team overall grade with a comprehensive approach
 static Map<String, dynamic> calculateTeamGrade(
   List<DraftPick> picks,
   List<TradePackage> trades,
@@ -168,80 +167,105 @@ static Map<String, dynamic> calculateTeamGrade(
   // Get team name from first pick
   String teamName = picks.first.teamName;
   
-  // New weighted calculation for pick values
-  double totalWeightedValue = 0.0;
-  double totalWeight = 0.0;
+  // Simply get the letter grades for all picks
+  List<String> letterGrades = [];
+  List<double> weights = [];
   
   for (var pick in picks) {
     if (pick.selectedPlayer == null) continue;
     
-    // Calculate round-based weight
-    // First round gets 1.2, second round 1.0, third 0.8, etc.
-    double roundWeight = max(0.2, 1.2 - ((DraftValueService.getRoundForPick(pick.pickNumber) - 1) * 0.2));
-    
-    // Calculate pick grade
+    // Calculate the pick grade
     Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-    double pickValue = gradeInfo['grade'] ?? 0.0;
+    String letter = gradeInfo['letter'];
+    letterGrades.add(letter);
     
-    // Accumulate weighted value
-    totalWeightedValue += pickValue * roundWeight;
-    totalWeight += roundWeight;
+    // Add weight based on round
+    int round = DraftValueService.getRoundForPick(pick.pickNumber);
+    if (round == 1) weights.add(3.0);         // 1st round counts 3x
+    else if (round == 2) weights.add(2.0);    // 2nd round counts 2x
+    else if (round == 3) weights.add(1.5);    // 3rd round counts 1.5x
+    else weights.add(1.0);                    // Later rounds count 1x
   }
   
-  // Calculate average weighted value
-  double avgWeightedValue = totalWeight > 0 
-      ? totalWeightedValue / totalWeight 
-      : 0.0;
+  // Convert letter grades to numeric values (simple 4.0 scale)
+  List<double> numericGrades = [];
+  for (var letter in letterGrades) {
+    double value;
+    if (letter == 'A+') value = 4.3;
+    else if (letter == 'A') value = 4.0;
+    else if (letter == 'A-') value = 3.7;
+    else if (letter == 'B+') value = 3.3;
+    else if (letter == 'B') value = 3.0;
+    else if (letter == 'B-') value = 2.7;
+    else if (letter == 'C+') value = 2.3;
+    else if (letter == 'C') value = 2.0;
+    else if (letter == 'C-') value = 1.7;
+    else if (letter == 'D+') value = 1.3;
+    else if (letter == 'D') value = 1.0;
+    else value = 0.0; // F
+    
+    numericGrades.add(value);
+  }
   
-  // Calculate trade value impact
-  double tradeValue = 0;
-  double tradeWeight = 0.3; // How much to weight trades vs. picks
+  // Simple weighted average
+  double totalValue = 0;
+  double totalWeight = 0;
   
-  for (var trade in trades) {
-    if (trade.teamOffering == teamName) {
-      tradeValue -= trade.valueDifferential / 100; // Scale trade value
-    } else if (trade.teamReceiving == teamName) {
-      tradeValue += trade.valueDifferential / 100;
+  for (int i = 0; i < numericGrades.length; i++) {
+    totalValue += numericGrades[i] * weights[i];
+    totalWeight += weights[i];
+  }
+  
+  double avgGrade = totalValue / totalWeight;
+  
+  // Minimal trade adjustment (optional)
+  double tradeImpact = 0.0;
+  if (trades.isNotEmpty) {
+    for (var trade in trades) {
+      if (trade.teamOffering == teamName) {
+        tradeImpact -= trade.valueDifferential < 0 ? 0.1 : 0.0;
+      } else if (trade.teamReceiving == teamName) {
+        tradeImpact += trade.valueDifferential > 0 ? 0.1 : 0.0;
+      }
     }
   }
   
-  // Final combined value
-  double finalGrade;
-  if (tradeValue == 0) {
-    // No trades involving this team, use full weighted value
-    finalGrade = avgWeightedValue;
-  } else {
-    // Trades occurred, apply weighted combination
-    finalGrade = avgWeightedValue * (1 - tradeWeight) + 
-                (tradeValue * tradeWeight);
-  }
+  // Apply minimal trade impact
+  tradeImpact = tradeImpact.clamp(-0.2, 0.2);
+  avgGrade += tradeImpact;
   
-  // Determine letter grade
-  String letterGrade;
-  if (finalGrade >= 15) letterGrade = 'A+';
-  else if (finalGrade >= 10) letterGrade = 'A';
-  else if (finalGrade >= 5) letterGrade = 'B+';
-  else if (finalGrade >= 0) letterGrade = 'B';
-  else if (finalGrade >= -5) letterGrade = 'C+';
-  else if (finalGrade >= -10) letterGrade = 'C';
-  else letterGrade = 'D';
+  // Convert back to letter grade
+  String finalGrade;
+  if (avgGrade >= 4.2) finalGrade = 'A+';
+  else if (avgGrade >= 3.85) finalGrade = 'A';
+  else if (avgGrade >= 3.5) finalGrade = 'A-';
+  else if (avgGrade >= 3.15) finalGrade = 'B+';
+  else if (avgGrade >= 2.85) finalGrade = 'B';
+  else if (avgGrade >= 2.5) finalGrade = 'B-';
+  else if (avgGrade >= 2.15) finalGrade = 'C+';
+  else if (avgGrade >= 1.85) finalGrade = 'C';
+  else if (avgGrade >= 1.5) finalGrade = 'C-';
+  else if (avgGrade >= 1.15) finalGrade = 'D+';
+  else if (avgGrade >= 0.85) finalGrade = 'D';
+  else finalGrade = 'F';
   
-  // Generate description
-  String description = _generateTeamGradeDescription(letterGrade, {
-    'avgWeightedValue': avgWeightedValue,
-    'tradeValue': tradeValue,
-    'totalWeight': totalWeight,
+  // Generate a description
+  String description = _generateTeamGradeDescription(finalGrade, {
+    'avgGrade': avgGrade,
+    'letterGrades': letterGrades,
   });
   
   return {
-    'grade': letterGrade,
-    'value': finalGrade,
+    'grade': finalGrade,
+    'value': avgGrade,
     'description': description,
-    'letterGrade': letterGrade,
+    'letterGrade': finalGrade,
     'factors': {
-      'avgWeightedValue': avgWeightedValue,
-      'tradeValue': tradeValue,
-      'totalWeight': totalWeight,
+      'letterGrades': letterGrades,
+      'numericGrades': numericGrades,
+      'weights': weights,
+      'avgGrade': avgGrade,
+      'tradeImpact': tradeImpact,
     },
   };
 }
