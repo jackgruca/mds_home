@@ -98,16 +98,16 @@ Widget build(BuildContext context) {
               : Colors.blue.shade700,
             tabs: [
               Tab(
-                icon: Badge(
-                  isLabelVisible: _getAllPendingOffers().isNotEmpty,
-                  label: Text(_getAllPendingOffers().length.toString()),
-                  child: const Icon(Icons.call_received, size: 16),
-                ),
-                text: widget.isRecommendation 
-                  ? 'Trade Suggestions'  // New title for recommendations
-                  : 'Trade Offers (${_getAllPendingOffers().length})',
-                iconMargin: const EdgeInsets.only(bottom: 2.0),
-              ),
+    icon: Badge(
+      isLabelVisible: _getAllPendingOffers().isNotEmpty,
+      label: Text(_getAllPendingOffers().length.toString()),
+      child: const Icon(Icons.call_received, size: 16),
+    ),
+    text: widget.isRecommendation 
+      ? 'Trade Suggestions'  // New title for recommendations
+      : 'Trade Offers (${_getAllPendingOffers().length})',
+    iconMargin: const EdgeInsets.only(bottom: 2.0),
+  ),
               Tab(
                 icon: Icon(isCounterMode ? Icons.reply : Icons.call_made, size: 16),
                 text: isCounterMode ? 'Counter Offer' : 'Create Trade',

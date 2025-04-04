@@ -719,22 +719,22 @@ List<Color> _getTeamGradientColors(String teamName) {
     // IMPORTANT: Check for trade recommendations BEFORE processing the pick
     // This way we can intercept and offer a trade before the team makes a selection
     if (nextPick != null && widget.enableTradeRecommendations) {
-      // Generate recommendation if any
-      _draftService!.generateTradeRecommendation(nextPick.pickNumber);
-      
-      // Check if we got a trade recommendation
-      if (_draftService!.hasTradeRecommendation) {
-        // Pause the draft
-        setState(() {
-          _isDraftRunning = false;
-          _statusMessage = "Trade recommendation available - review on Trade tab";
-        });
-        
-        // Show the trade recommendation
-        _showTradeRecommendation(nextPick);
-        return;
-      }
-    }
+  // Generate recommendation if any
+  _draftService!.generateTradeRecommendation(nextPick.pickNumber);
+  
+  // Check if we got a trade recommendation
+  if (_draftService!.hasTradeRecommendation) {
+    // Pause the draft
+    setState(() {
+      _isDraftRunning = false;
+      _statusMessage = "Trade recommendation available - review on Trade tab";
+    });
+    
+    // Show the trade recommendation
+    _showTradeRecommendation(nextPick);
+    return;
+  }
+}
     
     // If no user pick and no recommendations, process the next pick
     final updatedPick = _draftService!.processDraftPick();

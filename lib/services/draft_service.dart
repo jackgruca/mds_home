@@ -38,8 +38,7 @@ class DraftService {
   final bool enableTrading;
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
-
-  bool enableTradeRecommendations = true;
+  final bool enableTradeRecommendations;
   bool _hasTradeRecommendation = false;
   
   // Improved trade offer tracking for user
@@ -71,7 +70,8 @@ class DraftService {
     this.numberRounds = 1, 
     this.enableTrading = true,
     this.enableUserTradeProposals = true,
-    this.enableQBPremium = true, required bool enableTradeRecommendations,
+    this.enableQBPremium = true,
+    this.enableTradeRecommendations = true,
   }) {
     // Sort players by rank initially
     availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
@@ -81,9 +81,10 @@ class DraftService {
       draftOrder: draftOrder,
       teamNeeds: teamNeeds,
       availablePlayers: availablePlayers,
-      userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
+      userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
+      enableTradeRecommendations: enableTradeRecommendations,
     );
   }
 

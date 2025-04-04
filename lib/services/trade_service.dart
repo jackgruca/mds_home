@@ -29,6 +29,25 @@ class TradeService {
   final double tradeRandomnessFactor;
   final bool enableQBPremium;
 
+// Add property for recommendations
+final Map<String, List<TradePackage>> _tradeRecommendations = {};
+bool enableTradeRecommendations = true;
+
+// Add to constructor parameters
+TradeService({
+  required this.draftOrder,
+  required this.teamNeeds,
+  required this.availablePlayers,
+  this.userTeam,
+  this.enableUserTradeConfirmation = true,
+  this.tradeRandomnessFactor = 0.5,
+  this.enableQBPremium = true,
+  this.enableTradeRecommendations = true,
+}) {
+  // Existing code...
+}
+
+// Add this method to identify trade recommendations
 void identifyTradeRecommendations(int pickNumber) {
   if (!enableTradeRecommendations) return;
   
@@ -42,14 +61,11 @@ void identifyTradeRecommendations(int pickNumber) {
   // Check if the user team would be interested in trading up
   if (userTeam == null) return;
   
-  // Step 1: Identify valuable players at this pick (same logic used for AI teams)
+  // Step 1: Identify valuable players at this pick
   List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, false);
   if (valuablePlayers.isEmpty) return;
   
-  // Step 2: Find teams interested in trading up (using the SAME logic as AI teams)
-  // The only difference is we're only checking the user's team, not all teams
-  
-  // Get team's needs and trading tendency
+  // Step 2: Check if user team would be interested
   final teamNeeds = _getTeamNeeds(userTeam!);
   if (teamNeeds == null) return;
   
@@ -65,10 +81,10 @@ void identifyTradeRecommendations(int pickNumber) {
   
   // Evaluate each valuable player
   for (var player in valuablePlayers) {
-    // Get the same player grade used by AI
+    // Get player grade for team
     double playerGrade = _getTeamPlayerGrade(userTeam!, player);
     
-    // Calculate interest using SAME logic as AI teams
+    // Calculate interest using same logic as AI teams
     double interestLevel = _calculateTradeUpInterest(
       userTeam!,
       teamNeeds,
@@ -86,9 +102,9 @@ void identifyTradeRecommendations(int pickNumber) {
     }
   }
   
-  // Only continue if there's significant interest (same threshold as AI teams)
+  // Only continue if there's significant interest
   if (highestInterest > 0.6 && bestTargetPlayer != null) {
-    // Create a trade interest object (same as used for AI teams)
+    // Create a trade interest object
     final interest = TradeInterest(
       teamName: userTeam!,
       targetPlayer: bestTargetPlayer,
@@ -96,7 +112,7 @@ void identifyTradeRecommendations(int pickNumber) {
       interestLevel: highestInterest
     );
     
-    // Generate the same trade packages as would be generated for AI teams
+    // Generate trade packages
     List<TradePackage> packages = _generateTradePackages(
       [interest],
       currentPick,
@@ -106,8 +122,7 @@ void identifyTradeRecommendations(int pickNumber) {
     
     if (packages.isNotEmpty) {
       // Store this recommendation
-      _tradeRecommendations[currentPick.teamName] ??= [];
-      _tradeRecommendations[currentPick.teamName]!.add(packages[0]);
+      _tradeRecommendations[currentPick.teamName] = packages;
       
       // Store player info for UI
       _recommendationPlayerInfo[currentPick.teamName] = {
@@ -116,27 +131,6 @@ void identifyTradeRecommendations(int pickNumber) {
         'rank': bestTargetPlayer.rank.toString(),
         'reason': _generateReasonText(bestTargetPlayer, teamNeeds, highestInterest)
       };
-      
-      // When storing the recommendation, use the new method:
-      if (packages.isNotEmpty) {
-        // Create player info map
-        Map<String, String> playerInfo = {
-          'name': bestTargetPlayer.name,
-          'position': bestTargetPlayer.position,
-          'rank': bestTargetPlayer.rank.toString(),
-          'reason': _generateReasonText(bestTargetPlayer, teamNeeds, highestInterest)
-        };
-        
-        // Store using the new method
-        storeRecommendation(
-          currentPick.teamName,
-          pickNumber,
-          packages[0],
-          playerInfo
-        );
-        
-        debugPrint("Generated trade recommendation for ${bestTargetPlayer.name} " "(${bestTargetPlayer.position}) with interest level ${highestInterest.toStringAsFixed(2)}");
-      }
     }
   }
 }
@@ -170,10 +164,7 @@ void clearRecommendation(String teamName) {
   _recommendationPlayerInfo.remove(teamName);
 }
 
-final Map<String, List<TradePackage>> _tradeRecommendations = {};
-  bool enableTradeRecommendations = true;
-
-// Add getter for recommendations
+// Getter for recommendations
 Map<String, List<TradePackage>> get tradeRecommendations => _tradeRecommendations;
 
   // Team-specific trading tendencies
@@ -212,22 +203,6 @@ Map<String, List<TradePackage>> get tradeRecommendations => _tradeRecommendation
   final Set<String> _secondaryPositions = {
     'DT', 'S', 'TE', 'IOL', 'LB'
   };
-  
-  TradeService({
-    required this.draftOrder,
-    required this.teamNeeds,
-    required this.availablePlayers,
-    this.userTeam, // Keep accepting single team
-    this.enableUserTradeConfirmation = true,
-    this.tradeRandomnessFactor = 0.5,
-    this.enableQBPremium = true,
-    this.enableTradeRecommendations = true, // Add this parameter
-  }) {
-    // Initialize team-specific data
-    _initializeTeamData();
-    enableTradeRecommendations = enableTradeRecommendations;
-
-  }
   
   // Method to initialize team data for trade evaluation
   void _initializeTeamData() {
