@@ -718,15 +718,16 @@ List<Color> _getTeamGradientColors(String teamName) {
 
     // After processing, check if we got a trade recommendation
     if (_draftService!.hasTradeRecommendation) {
-      // Pause the draft
-      setState(() {
-        _isDraftRunning = false;
-      });
-      
-      // Show the trade recommendation
-      _showTradeRecommendation(nextPick!);
-      return;
-    }
+    // Pause the draft
+    setState(() {
+      _isDraftRunning = false;
+      _statusMessage = "Trade recommendation available - review on Trade tab";
+    });
+    
+    // Show the trade recommendation
+    _showTradeRecommendation(nextPick!);
+    return;
+  }
     
     // Check if a trade was executed
     _executedTrades = _draftService!.executedTrades;
@@ -778,6 +779,25 @@ void _showTradeRecommendation(DraftPick pick) {
   final packages = recommendations[pick.teamName]!;
   if (packages.isEmpty) return;
   
+  // Important: Stop the draft and keep it stopped
+  setState(() {
+    _isDraftRunning = false;
+  });
+  
+  // Get the list of user picks for potential trade proposals
+  List<DraftPick> userPicks = [];
+  List<DraftPick> targetPicks = [];
+  if (widget.selectedTeams != null && widget.selectedTeams!.isNotEmpty) {
+    // Use the first user team
+    String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
+    
+    // Get user's picks
+    userPicks = _draftService!.getTeamPicks(activeTeam);
+    
+    // Get current team picks for recommendation
+    targetPicks = _draftService!.getTeamPicks(pick.teamName);
+  }
+  
   // Create a TradeOffer from the recommendations
   final tradeOffer = TradeOffer(
     packages: packages,
@@ -785,52 +805,109 @@ void _showTradeRecommendation(DraftPick pick) {
     isUserInvolved: true
   );
   
+  // Open the trade tabs dialog directly on the recommendations tab
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (context) => TradeDialogWrapper(
-      tradeOffer: tradeOffer,
-      onAccept: (package) {
+    builder: (context) => UserTradeTabsDialog(
+      userTeam: widget.selectedTeams!.first,
+      userPicks: userPicks,
+      targetPicks: targetPicks,
+      pendingOffers: {pick.pickNumber: packages},
+      isRecommendation: true,  // Add this flag
+      targetPlayerInfo: _getRecommendationPlayerInfo(packages[0]), // Add player info
+      onAcceptOffer: (offer) {
         // Execute the trade
-        _draftService!.executeUserSelectedTrade(package);
+        _draftService!.executeUserSelectedTrade(offer);
         
         // Clear the recommendation
         _draftService!.clearTradeRecommendation(pick.teamName);
+        
+        // Close dialog
+        Navigator.pop(context);
         
         // Update UI
         setState(() {
           _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
           _executedTrades = _draftService!.executedTrades;
-          _statusMessage = "Trade recommendation accepted: ${package.tradeDescription}";
+          _statusMessage = "Trade recommendation accepted: ${offer.tradeDescription}";
           
-          // Resume the draft
-          _isDraftRunning = true;
+          // Note: Draft remains paused until user resumes it
         });
-        
-        // Continue the draft after a brief pause
-        Future.delayed(
-          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-          _processDraftPick
-        );
       },
-      onReject: () {
+      onPropose: (proposal) {
+        // Process the proposal
+        _draftService!.processUserTradeProposal(proposal);
+        
         // Clear the recommendation
         _draftService!.clearTradeRecommendation(pick.teamName);
         
-        // Resume the draft
-        setState(() {
-          _isDraftRunning = true;
-        });
+        // Close dialog
+        Navigator.pop(context);
         
-        // Continue the draft
-        Future.delayed(
-          Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
-          _processDraftPick
-        );
+        // Resume with updated state
+        setState(() {
+          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+          _executedTrades = _draftService!.executedTrades;
+          _statusMessage = _draftService!.statusMessage;
+          
+          // Note: Draft remains paused until user resumes it
+        });
       },
-      showAnalytics: widget.showAnalytics,
+      onCancel: () {
+        // Clear the recommendation
+        _draftService!.clearTradeRecommendation(pick.teamName);
+        
+        // Close dialog
+        Navigator.pop(context);
+        
+        // Note: Draft remains paused until user resumes it
+      },
     ),
   );
+}
+
+// Add this helper method to extract player info from the trade package
+Map<String, String> _getRecommendationPlayerInfo(TradePackage package) {
+  // We need to infer which player the AI is targeting
+  // Try to determine by looking at available players at this pick
+  List<Player> topPlayers = _draftService!.availablePlayers.take(5).toList();
+  
+  // Default information if we can't determine the target player
+  Map<String, String> playerInfo = {
+    'name': 'Top available player',
+    'position': 'Value opportunity',
+    'reason': 'Good value opportunity for your team'
+  };
+  
+  // If we have players, try to infer which one triggered the recommendation
+  if (topPlayers.isNotEmpty) {
+    // For simplicity, we'll assume it's the top available player that matches user team needs
+    Player topPlayer = topPlayers.first;
+    String position = topPlayer.position;
+    
+    // Get team needs for active user team
+    final List<String> teamNeeds = [];
+    for (var need in _teamNeeds) {
+      if (need.teamName == _activeUserTeam) {
+        teamNeeds.addAll(need.needs.take(3));
+        break;
+      }
+    }
+    
+    // Check if the position is a team need
+    bool isTeamNeed = teamNeeds.contains(position);
+    
+    playerInfo = {
+      'name': topPlayer.name,
+      'position': position,
+      'reason': isTeamNeed 
+        ? 'Opportunity to trade up for a player at a position of need' 
+        : 'Good value opportunity for a highly-rated prospect'
+    };
+  }
+  
+  return playerInfo;
 }
 
   void _handleUserPick(DraftPick pick) {

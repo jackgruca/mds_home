@@ -14,7 +14,6 @@ class EnhancedTradeDialog extends StatefulWidget {
   final bool showAnalytics;
   final bool isRecommendation;
 
-
   const EnhancedTradeDialog({
     super.key,
     required this.tradeOffer,

@@ -358,14 +358,14 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     
      // Add this before the return null at the end
     if (enableTradeRecommendations && userTeams != null && userTeams!.isNotEmpty) {
-      // Check if this would be a good trade for the user
-      _tradeService.identifyTradeRecommendations(nextPick.pickNumber);
-      
-      // Check if we generated a recommendation
-      _hasTradeRecommendation = _tradeService.tradeRecommendations.containsKey(nextPick.teamName);
-    }
+    // Check if this would be a good trade for the user
+    _tradeService.identifyTradeRecommendations(nextPick.pickNumber);
     
-    return null;
+    // Check if we generated a recommendation
+    _hasTradeRecommendation = _tradeService.tradeRecommendations.containsKey(nextPick.teamName);
+  }
+
+  return null;
   }
 
   // Add getter for checking if there's a recommendation

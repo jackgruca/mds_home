@@ -16,7 +16,6 @@ class TradeDialogWrapper extends StatelessWidget {
   final bool showAnalytics;
   final bool isRecommendation;
 
-
   const TradeDialogWrapper({
     super.key,
     required this.tradeOffer,

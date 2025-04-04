@@ -13,6 +13,8 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final bool isRecommendation;
+  final Map<String, String>? targetPlayerInfo;
 
   const UserTradeTabsDialog({
     super.key,
@@ -23,6 +25,8 @@ class UserTradeTabsDialog extends StatefulWidget {
     required this.onAcceptOffer,
     required this.onPropose,
     required this.onCancel,
+    this.isRecommendation = false,
+    this.targetPlayerInfo,
   });
 
   @override
@@ -189,7 +193,12 @@ Expanded(
   return ListView.builder(
     itemCount: offers.length,
     itemBuilder: (context, index) {
-      final offer = offers[index];
+       // Show recommendation header if appropriate
+      if (widget.isRecommendation && index == 0) {
+        return _buildRecommendationHeader();
+      }
+      final actualIndex = widget.isRecommendation ? index - 1 : index;
+      final offer = offers[actualIndex];
       final valueRatio = offer.totalValueOffered / offer.targetPickValue;
       final valueScore = (valueRatio * 100).toInt();
       
@@ -372,6 +381,46 @@ SizedBox(
         ),
       );
     },
+  );
+}
+
+Widget _buildRecommendationHeader() {
+  // Only build the header if we have player info
+  if (widget.targetPlayerInfo == null) return const SizedBox.shrink();
+  
+  return Card(
+    margin: const EdgeInsets.all(8.0),
+    color: Colors.blue.shade50,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb, color: Colors.amber.shade700),
+              const SizedBox(width: 8),
+              const Text(
+                'Trade Recommendation',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Target Player: ${widget.targetPlayerInfo!['name']} (${widget.targetPlayerInfo!['position']})'),
+          const SizedBox(height: 4),
+          Text(widget.targetPlayerInfo!['reason'] ?? 'Good trade opportunity'),
+          const SizedBox(height: 8),
+          const Text(
+            'Consider the trade offered below, or create your own proposal in the "Create Trade" tab.',
+            style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+          ),
+        ],
+      ),
+    ),
   );
 }
   
