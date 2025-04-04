@@ -176,8 +176,8 @@ static Map<String, dynamic> calculateTeamGrade(
     if (pick.selectedPlayer == null) continue;
     
     // Calculate round-based weight
-    // First round gets 1.0, second round 0.8, third 0.6, etc.
-    double roundWeight = max(0.2, 1.0 - ((DraftValueService.getRoundForPick(pick.pickNumber) - 1) * 0.2));
+    // First round gets 1.2, second round 1.0, third 0.8, etc.
+    double roundWeight = max(0.2, 1.2 - ((DraftValueService.getRoundForPick(pick.pickNumber) - 1) * 0.2));
     
     // Calculate pick grade
     Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
@@ -206,8 +206,15 @@ static Map<String, dynamic> calculateTeamGrade(
   }
   
   // Final combined value
-  double finalGrade = avgWeightedValue * (1 - tradeWeight) + 
-                     (tradeValue * tradeWeight);
+  double finalGrade;
+  if (tradeValue == 0) {
+    // No trades involving this team, use full weighted value
+    finalGrade = avgWeightedValue;
+  } else {
+    // Trades occurred, apply weighted combination
+    finalGrade = avgWeightedValue * (1 - tradeWeight) + 
+                (tradeValue * tradeWeight);
+  }
   
   // Determine letter grade
   String letterGrade;
