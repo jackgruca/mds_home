@@ -29,8 +29,6 @@ class TradeService {
   final double tradeRandomnessFactor;
   final bool enableQBPremium;
 
-// Add this method to the TradeService class
-// In the TradeService class (not TradingTendency)
 void identifyTradeRecommendations(int pickNumber) {
   if (!enableTradeRecommendations) return;
   
@@ -44,89 +42,140 @@ void identifyTradeRecommendations(int pickNumber) {
   // Check if the user team would be interested in trading up
   if (userTeam == null) return;
   
-  // Identify valuable players at this pick
+  // Step 1: Identify valuable players at this pick (same logic used for AI teams)
   List<Player> valuablePlayers = _identifyValuablePlayers(pickNumber, false);
   if (valuablePlayers.isEmpty) return;
   
-  // Get team needs for user team
-  final userTeamNeeds = _getTeamNeeds(userTeam!);
-  if (userTeamNeeds == null) return;
+  // Step 2: Find teams interested in trading up (using the SAME logic as AI teams)
+  // The only difference is we're only checking the user's team, not all teams
   
-  // Check player interest for user team
+  // Get team's needs and trading tendency
+  final teamNeeds = _getTeamNeeds(userTeam!);
+  if (teamNeeds == null) return;
+  
+  final tendency = _getTeamTradingTendency(userTeam!);
+  
+  // Find current pick position for user team
+  final userNextPick = _teamCurrentPickPosition[userTeam!] ?? 999;
+  if (userNextPick <= pickNumber) return; // Don't suggest trading up to a worse pick
+  
+  // Track the most interesting player and its interest level
+  Player? bestTargetPlayer;
+  double highestInterest = 0.0;
+  
+  // Evaluate each valuable player
   for (var player in valuablePlayers) {
+    // Get the same player grade used by AI
     double playerGrade = _getTeamPlayerGrade(userTeam!, player);
+    
+    // Calculate interest using SAME logic as AI teams
     double interestLevel = _calculateTradeUpInterest(
       userTeam!,
-      userTeamNeeds,
+      teamNeeds,
       player,
       pickNumber,
-      _teamCurrentPickPosition[userTeam!] ?? 999,
+      userNextPick,
       playerGrade,
       false
     );
     
-    // If interest is high enough, generate a trade package
-    if (interestLevel > 0.6) {
-      // Generate what the user team would offer
-      final userPicks = draftOrder
-          .where((pick) => pick.teamName == userTeam && !pick.isSelected)
-          .toList();
+    // Track the player with highest interest
+    if (interestLevel > highestInterest) {
+      highestInterest = interestLevel;
+      bestTargetPlayer = player;
+    }
+  }
+  
+  // Only continue if there's significant interest (same threshold as AI teams)
+  if (highestInterest > 0.6 && bestTargetPlayer != null) {
+    // Create a trade interest object (same as used for AI teams)
+    final interest = TradeInterest(
+      teamName: userTeam!,
+      targetPlayer: bestTargetPlayer,
+      nextPickNumber: userNextPick,
+      interestLevel: highestInterest
+    );
+    
+    // Generate the same trade packages as would be generated for AI teams
+    List<TradePackage> packages = _generateTradePackages(
+      [interest],
+      currentPick,
+      DraftValueService.getValueForPick(pickNumber),
+      bestTargetPlayer.position == "QB" // Use QB logic if appropriate
+    );
+    
+    if (packages.isNotEmpty) {
+      // Store this recommendation
+      _tradeRecommendations[currentPick.teamName] ??= [];
+      _tradeRecommendations[currentPick.teamName]!.add(packages[0]);
       
-      if (userPicks.isEmpty) continue;
+      // Store player info for UI
+      _recommendationPlayerInfo[currentPick.teamName] = {
+        'name': bestTargetPlayer.name,
+        'position': bestTargetPlayer.position,
+        'rank': bestTargetPlayer.rank.toString(),
+        'reason': _generateReasonText(bestTargetPlayer, teamNeeds, highestInterest)
+      };
       
-      // Create a simulated trade package
-      List<TradePackage> packages = _generateTradePackages(
-        [TradeInterest(
-          teamName: userTeam!,
-          targetPlayer: player,
-          nextPickNumber: _teamCurrentPickPosition[userTeam!] ?? 999,
-          interestLevel: interestLevel
-        )],
-        currentPick,
-        DraftValueService.getValueForPick(pickNumber),
-        false
-      );
-      
+      // When storing the recommendation, use the new method:
       if (packages.isNotEmpty) {
-        // Store this recommendation
-        _tradeRecommendations[currentPick.teamName] ??= [];
+        // Create player info map
+        Map<String, String> playerInfo = {
+          'name': bestTargetPlayer.name,
+          'position': bestTargetPlayer.position,
+          'rank': bestTargetPlayer.rank.toString(),
+          'reason': _generateReasonText(bestTargetPlayer, teamNeeds, highestInterest)
+        };
         
-        // Add player reference to the package
-        final recommendedPackage = packages.first;
-        final tradeRecommendation = TradePackage(
-          teamOffering: recommendedPackage.teamOffering,
-          teamReceiving: recommendedPackage.teamReceiving,
-          picksOffered: recommendedPackage.picksOffered,
-          targetPick: recommendedPackage.targetPick,
-          additionalTargetPicks: recommendedPackage.additionalTargetPicks,
-          totalValueOffered: recommendedPackage.totalValueOffered,
-          targetPickValue: recommendedPackage.targetPickValue,
-          includesFuturePick: recommendedPackage.includesFuturePick,
-          futurePickDescription: recommendedPackage.futurePickDescription,
-          futurePickValue: recommendedPackage.futurePickValue,
-          targetReceivedFuturePicks: recommendedPackage.targetReceivedFuturePicks,
+        // Store using the new method
+        storeRecommendation(
+          currentPick.teamName,
+          pickNumber,
+          packages[0],
+          playerInfo
         );
         
-        _tradeRecommendations[currentPick.teamName]!.add(tradeRecommendation);
-        
-        debugPrint("Generated trade recommendation for player ${player.name} (${player.position})");
-        break; // Only generate one recommendation per pick
+        debugPrint("Generated trade recommendation for ${bestTargetPlayer.name} " "(${bestTargetPlayer.position}) with interest level ${highestInterest.toStringAsFixed(2)}");
       }
     }
   }
 }
+
+// Helper to generate reason text
+String _generateReasonText(Player player, TeamNeed teamNeeds, double interestLevel) {
+  int needIndex = teamNeeds.needs.indexOf(player.position);
+  
+  if (needIndex >= 0 && needIndex < 3) {
+    return "Top team need: ${player.position} is a primary need";
+  } else if (needIndex >= 0 && needIndex < 5) {
+    return "Secondary team need: ${player.position}";
+  } else if (player.rank < 15) {
+    return "Elite prospect: Top-15 ranked player available";
+  } else {
+    return "Value opportunity: Player ranked ${player.rank} available";
+  }
+}
+
+// Map to store player info for recommendations
+final Map<String, Map<String, String>> _recommendationPlayerInfo = {};
+
+// Add getter for player info
+Map<String, String>? getRecommendationPlayerInfo(String teamName) {
+  return _recommendationPlayerInfo[teamName];
+}
+
+// Clear player info when clearing recommendation
+void clearRecommendation(String teamName) {
+  _tradeRecommendations.remove(teamName);
+  _recommendationPlayerInfo.remove(teamName);
+}
+
 final Map<String, List<TradePackage>> _tradeRecommendations = {};
   bool enableTradeRecommendations = true;
 
 // Add getter for recommendations
 Map<String, List<TradePackage>> get tradeRecommendations => _tradeRecommendations;
 
-// Add method to clear specific recommendation
-void clearRecommendation(String teamName) {
-  _tradeRecommendations.remove(teamName);
-}
-
-  
   // Team-specific trading tendencies
   final Map<String, TradingTendency> _teamTendencies = {
     'NE': TradingTendency(tradeDownBias: 0.7, valueSeeker: 0.9), // Patriots love trading down for value
@@ -517,6 +566,33 @@ void clearRecommendation(String teamName) {
     return interestedTeams;
   }
   
+  // Map to store persistent recommendations
+final Map<int, List<TradePackage>> _persistentRecommendations = {};
+
+// Modified method to store recommendations without duplication
+void storeRecommendation(String teamName, int pickNumber, TradePackage package, Map<String, String> playerInfo) {
+  // Store in regular recommendations map (for compatibility)
+  _tradeRecommendations[teamName] = [package]; // Use single-item list to avoid duplicates
+  
+  // Also store in persistent pick-based map (as a single item)
+  _persistentRecommendations[pickNumber] = [package]; // Use single-item list to avoid duplicates
+  
+  // Store player info
+  _recommendationPlayerInfo[teamName] = playerInfo;
+}
+
+// Get persistent recommendations for a pick
+List<TradePackage>? getPersistentRecommendation(int pickNumber) {
+  return _persistentRecommendations[pickNumber];
+}
+
+// Clear recommendations only when draft advances
+void clearAllRecommendationsForPick(int pickNumber) {
+  _persistentRecommendations.remove(pickNumber);
+  // We're not clearing the teamName-based recommendations
+  // as they might be needed for player info
+}
+
 // Inside _calculateTradeUpInterest method
 double _calculateTradeUpInterest(
   String teamName,

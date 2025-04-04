@@ -72,47 +72,49 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   }
   
   @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: null, // Remove title completely
-      contentPadding: EdgeInsets.zero, // Remove default padding
-      insetPadding: const EdgeInsets.all(12), // Reduced inset padding
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 580, // Give enough height but don't take too much
-        child: Column(
-          children: [
-            // Compact tab bar
-            TabBar(
-              controller: _tabController,
-              labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
-                labelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : Colors.black, // Selected tab text color
-                unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white70 
-                  : Colors.grey.shade700, // Unselected tab text color
-                indicatorWeight: 3, // Make the indicator more visible
-                indicatorColor: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.blue.shade300 
-                  : Colors.blue.shade700, // Indicator color
-              tabs: [
-  Tab(
-    icon: Badge(
-      isLabelVisible: _getAllPendingOffers().isNotEmpty,
-      label: Text(_getAllPendingOffers().length.toString()),
-      child: const Icon(Icons.call_received, size: 16),
-    ),
-    text: 'Trade Offers (${_getAllPendingOffers().length})',
-    iconMargin: const EdgeInsets.only(bottom: 2.0),
-  ),
-  Tab(
-    icon: Icon(isCounterMode ? Icons.reply : Icons.call_made, size: 16),
-    text: isCounterMode ? 'Counter Offer' : 'Create Trade',
-    iconMargin: const EdgeInsets.only(bottom: 2.0),
-  ),
-],
-            ),
+Widget build(BuildContext context) {
+  // Modify tabs to show "Trade Suggestions" instead of "Trade Offers" when it's a recommendation
+  return AlertDialog(
+    title: null,
+    contentPadding: EdgeInsets.zero,
+    insetPadding: const EdgeInsets.all(12),
+    content: SizedBox(
+      width: double.maxFinite,
+      height: 580,
+      child: Column(
+        children: [
+          TabBar(
+            controller: _tabController,
+            labelPadding: const EdgeInsets.symmetric(vertical: 4.0),
+            labelColor: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.white 
+              : Colors.black,
+            unselectedLabelColor: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.white70 
+              : Colors.grey.shade700,
+            indicatorWeight: 3,
+            indicatorColor: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.blue.shade300 
+              : Colors.blue.shade700,
+            tabs: [
+              Tab(
+                icon: Badge(
+                  isLabelVisible: _getAllPendingOffers().isNotEmpty,
+                  label: Text(_getAllPendingOffers().length.toString()),
+                  child: const Icon(Icons.call_received, size: 16),
+                ),
+                text: widget.isRecommendation 
+                  ? 'Trade Suggestions'  // New title for recommendations
+                  : 'Trade Offers (${_getAllPendingOffers().length})',
+                iconMargin: const EdgeInsets.only(bottom: 2.0),
+              ),
+              Tab(
+                icon: Icon(isCounterMode ? Icons.reply : Icons.call_made, size: 16),
+                text: isCounterMode ? 'Counter Offer' : 'Create Trade',
+                iconMargin: const EdgeInsets.only(bottom: 2.0),
+              ),
+            ],
+          ),
             const Divider(height: 1),
             // Tab content
 Expanded(
@@ -191,14 +193,18 @@ Expanded(
   }
   
   return ListView.builder(
-    itemCount: offers.length,
+    itemCount: offers.length + (widget.isRecommendation && widget.targetPlayerInfo != null ? 1 : 0),
     itemBuilder: (context, index) {
-       // Show recommendation header if appropriate
-      if (widget.isRecommendation && index == 0) {
+      // Show recommendation header if appropriate
+      if (widget.isRecommendation && widget.targetPlayerInfo != null && index == 0) {
         return _buildRecommendationHeader();
       }
-      final actualIndex = widget.isRecommendation ? index - 1 : index;
-      final offer = offers[actualIndex];
+      
+      // Adjust index to account for possible header
+      final adjustedIndex = widget.isRecommendation && widget.targetPlayerInfo != null ? index - 1 : index;
+      if (adjustedIndex >= offers.length) return const SizedBox.shrink();
+      
+      final offer = offers[adjustedIndex];
       final valueRatio = offer.totalValueOffered / offer.targetPickValue;
       final valueScore = (valueRatio * 100).toInt();
       
@@ -206,6 +212,7 @@ Expanded(
       final picksGained = _getPicksSummary(offer.targetPick, offer.additionalTargetPicks);
       final picksLost = _getPicksOfferedSummary(offer.picksOffered, offer.includesFuturePick ? offer.futurePickDescription : null);
       
+      // Create the card with modified buttons for recommendations
       return Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         shape: RoundedRectangleBorder(
@@ -229,18 +236,20 @@ Expanded(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TeamLogoUtils.buildNFLTeamLogo(
-                        offer.teamOffering,
+                        widget.isRecommendation ? widget.userTeam : offer.teamOffering,
                         size: 32.0,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        offer.teamOffering,
+                        widget.isRecommendation ? widget.userTeam : offer.teamOffering,
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Gets: $picksGained",
+                        widget.isRecommendation 
+                          ? "Sends: $picksLost" 
+                          : "Gets: $picksGained",
                         style: const TextStyle(fontSize: 11),
                         textAlign: TextAlign.center,
                         maxLines: 2,
@@ -260,24 +269,26 @@ Expanded(
                   ),
                 ),
                 
-                // Your team logo and what you get
+                // Team receiving logo and what they get
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TeamLogoUtils.buildNFLTeamLogo(
-                        offer.teamReceiving,
+                        widget.isRecommendation ? offer.teamReceiving : offer.teamReceiving,
                         size: 32.0,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        offer.teamReceiving,
+                        widget.isRecommendation ? offer.teamReceiving : offer.teamReceiving,
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Gets: $picksLost",
+                        widget.isRecommendation 
+                          ? "Gets: $picksGained" 
+                          : "Gets: $picksLost",
                         style: const TextStyle(fontSize: 11),
                         textAlign: TextAlign.center,
                         maxLines: 2,
@@ -312,67 +323,101 @@ Expanded(
                 
                 const SizedBox(width: 8),
                 
-                // Action buttons
+                // Action buttons - changed for recommendations
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Reject button
-                    SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: IconButton(
-                        onPressed: () {
-                          // Remove this offer from the pending offers
-                          if (widget.pendingOffers.containsKey(offer.targetPick.pickNumber)) {
-                            setState(() {
-                              widget.pendingOffers[offer.targetPick.pickNumber]!.removeWhere(
-                                (o) => o.teamOffering == offer.teamOffering && o.targetPick.pickNumber == offer.targetPick.pickNumber
-                              );
-                              
-                              // If no more offers for this pick, remove the entry
-                              if (widget.pendingOffers[offer.targetPick.pickNumber]!.isEmpty) {
-                                widget.pendingOffers.remove(offer.targetPick.pickNumber);
-                              }
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.cancel, size: 20),
-                        color: Colors.red,
-                        tooltip: 'Reject Offer',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                    // Different set of buttons for recommendations
+                    if (widget.isRecommendation) ...[
+                      // Send trade button
+                      SizedBox(
+                        height: 30,
+                        width: 30,
+                        child: IconButton(
+                          onPressed: () => widget.onPropose(offer),
+                          icon: const Icon(Icons.send, size: 20),
+                          color: Colors.green,
+                          tooltip: 'Send Offer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
                       ),
-                    ),
-                    
-                    // Counter button
-SizedBox(
-  height: 30,
-  width: 30,
-  child: IconButton(
-    onPressed: () {
-      _setupCounterOffer(offer);
-    },
-    icon: const Icon(Icons.edit, size: 20),
-    color: Colors.blue,
-    tooltip: 'Counter Offer',
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints(),
-  ),
-),
-                    
-                    // Accept button (original)
-                    SizedBox(
-                      height: 30,
-                      width: 30,
-                      child: IconButton(
-                        onPressed: () => widget.onAcceptOffer(offer),
-                        icon: const Icon(Icons.check_circle, size: 20),
-                        color: Colors.green,
-                        tooltip: 'Accept Offer',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      
+                      // Edit/Counter button
+                      SizedBox(
+                        height: 30,
+                        width: 30,
+                        child: IconButton(
+                          onPressed: () {
+                            // Setup counter but with correct teams
+                            _setupCounterOffer(offer, keepTeamsSame: widget.isRecommendation);
+                          },
+                          icon: const Icon(Icons.edit, size: 20),
+                          color: Colors.blue,
+                          tooltip: widget.isRecommendation ? 'Edit Offer' : 'Counter Offer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
                       ),
-                    ),
+                    ] else ...[
+                      // Original buttons for regular offers
+                      SizedBox(
+                        height: 30,
+                        width: 30,
+                        child: IconButton(
+                          onPressed: () {
+                            // Remove this offer from the pending offers
+                            if (widget.pendingOffers.containsKey(offer.targetPick.pickNumber)) {
+                              setState(() {
+                                widget.pendingOffers[offer.targetPick.pickNumber]!.removeWhere(
+                                  (o) => o.teamOffering == offer.teamOffering && o.targetPick.pickNumber == offer.targetPick.pickNumber
+                                );
+                                
+                                // If no more offers for this pick, remove the entry
+                                if (widget.pendingOffers[offer.targetPick.pickNumber]!.isEmpty) {
+                                  widget.pendingOffers.remove(offer.targetPick.pickNumber);
+                                }
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.cancel, size: 20),
+                          color: Colors.red,
+                          tooltip: 'Reject Offer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                      
+                      // Counter button
+                      SizedBox(
+                        height: 30,
+                        width: 30,
+                        child: IconButton(
+                          onPressed: () {
+                            _setupCounterOffer(offer);
+                          },
+                          icon: const Icon(Icons.edit, size: 20),
+                          color: Colors.blue,
+                          tooltip: 'Counter Offer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                      
+                      // Accept button
+                      SizedBox(
+                        height: 30,
+                        width: 30,
+                        child: IconButton(
+                          onPressed: () => widget.onAcceptOffer(offer),
+                          icon: const Icon(Icons.check_circle, size: 20),
+                          color: Colors.green,
+                          tooltip: 'Accept Offer',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -380,12 +425,11 @@ SizedBox(
           ),
         ),
       );
-    },
+    }
   );
 }
 
 Widget _buildRecommendationHeader() {
-  // Only build the header if we have player info
   if (widget.targetPlayerInfo == null) return const SizedBox.shrink();
   
   return Card(
@@ -412,7 +456,7 @@ Widget _buildRecommendationHeader() {
           const SizedBox(height: 8),
           Text('Target Player: ${widget.targetPlayerInfo!['name']} (${widget.targetPlayerInfo!['position']})'),
           const SizedBox(height: 4),
-          Text(widget.targetPlayerInfo!['reason'] ?? 'Good trade opportunity'),
+          Text(widget.targetPlayerInfo!['reason'] ?? ''),
           const SizedBox(height: 8),
           const Text(
             'Consider the trade offered below, or create your own proposal in the "Create Trade" tab.',
@@ -614,102 +658,132 @@ Widget _buildRecommendationHeader() {
     return allOffers;
   }
   
-  void _setupCounterOffer(TradePackage offer) {
+  void _setupCounterOffer(TradePackage offer, {bool keepTeamsSame = false}) {
   debugPrint("Setting up counter offer for ${offer.teamOffering} -> ${offer.teamReceiving}");
   
-  // 1. Get all the offering team's picks from targetPicks
+  // Determine which teams to use based on recommendation status
+  String offeringTeam, receivingTeam;
+  
+  if (keepTeamsSame) {
+    // For recommendation edits, keep teams the same
+    offeringTeam = offer.teamOffering;
+    receivingTeam = offer.teamReceiving;
+  } else {
+    // For regular counters, flip the teams
+    offeringTeam = offer.teamReceiving;
+    receivingTeam = offer.teamOffering;
+  }
+  
+  // Get all the offering team's picks
   List<DraftPick> allOfferingTeamPicks = widget.targetPicks
-      .where((pick) => pick.teamName == offer.teamOffering)
+      .where((pick) => pick.teamName == offeringTeam)
       .toList();
   
-  debugPrint("Found ${allOfferingTeamPicks.length} picks for ${offer.teamOffering}");
-  
-  // If we don't have any picks from widget.targetPicks, use the ones from the offer
-  if (allOfferingTeamPicks.isEmpty) {
-    debugPrint("No picks found in widget.targetPicks, using offer.picksOffered");
-    allOfferingTeamPicks = offer.picksOffered;
+  if (allOfferingTeamPicks.isEmpty && offeringTeam == widget.userTeam) {
+    // If offering team is user's team, use user picks
+    allOfferingTeamPicks = widget.userPicks;
   }
   
-  // 2. Get all user's picks from widget.userPicks
-  List<DraftPick> allUserPicks = List<DraftPick>.from(widget.userPicks);
+  // Get all receiving team's picks
+  List<DraftPick> allReceivingTeamPicks = widget.targetPicks
+      .where((pick) => pick.teamName == receivingTeam)
+      .toList();
   
-  // 3. Setup future picks arrays
-  List<int> initialUserFutureRounds = [];
-  List<int> initialTargetFutureRounds = [];
-  
-  // Check for future picks in the original offer
-  if (offer.includesFuturePick && offer.futurePickDescription != null) {
-    String desc = offer.futurePickDescription!.toLowerCase();
-    debugPrint("Found future pick description: $desc");
-    if (desc.contains("1st")) initialTargetFutureRounds.add(1);
-    if (desc.contains("2nd")) initialTargetFutureRounds.add(2);
-    if (desc.contains("3rd")) initialTargetFutureRounds.add(3);
-    if (desc.contains("4th")) initialTargetFutureRounds.add(4);
-    if (desc.contains("5th")) initialTargetFutureRounds.add(5);
-    if (desc.contains("6th")) initialTargetFutureRounds.add(6);
-    if (desc.contains("7th")) initialTargetFutureRounds.add(7);
+  if (allReceivingTeamPicks.isEmpty && receivingTeam == widget.userTeam) {
+    // If receiving team is user's team, use user picks
+    allReceivingTeamPicks = widget.userPicks;
   }
   
-  // 4. Create the ACTUAL selected picks lists by finding matching picks from the available lists
-  List<DraftPick> selectedUserPicks = [];
+  // Define initial selections correctly
+  List<DraftPick> selectedOfferingTeamPicks = [];
+  List<DraftPick> selectedReceivingTeamPicks = [];
   
-  // Find the matching user picks (the receiving team's pick in the original offer)
-  for (var availablePick in allUserPicks) {
-    // Check if this available pick matches the target pick
-    if (availablePick.pickNumber == offer.targetPick.pickNumber && 
-        availablePick.teamName == offer.targetPick.teamName) {
-      selectedUserPicks.add(availablePick);
-      debugPrint("Found matching user pick: #${availablePick.pickNumber}");
+  // For recommendations, pre-select the correct picks
+  if (keepTeamsSame) {
+    // Find the matching offered picks
+    for (var availablePick in allOfferingTeamPicks) {
+      for (var offeredPick in offer.picksOffered) {
+        if (availablePick.pickNumber == offeredPick.pickNumber) {
+          selectedOfferingTeamPicks.add(availablePick);
+        }
+      }
     }
     
-    // Check if this available pick matches any of the additional target picks
-    for (var additionalPick in offer.additionalTargetPicks) {
-      if (availablePick.pickNumber == additionalPick.pickNumber && 
-          availablePick.teamName == additionalPick.teamName) {
-        selectedUserPicks.add(availablePick);
-        debugPrint("Found matching additional user pick: #${availablePick.pickNumber}");
+    // Find the matching target pick
+    for (var availablePick in allReceivingTeamPicks) {
+      if (availablePick.pickNumber == offer.targetPick.pickNumber) {
+        selectedReceivingTeamPicks.add(availablePick);
+      }
+      
+      // Add any additional target picks
+      for (var additionalPick in offer.additionalTargetPicks) {
+        if (availablePick.pickNumber == additionalPick.pickNumber) {
+          selectedReceivingTeamPicks.add(availablePick);
+        }
+      }
+    }
+  } else {
+    // For counter offers, flip the selections
+    // Find the offering team's available picks matching the original target pick
+    for (var availablePick in allOfferingTeamPicks) {
+      if (availablePick.pickNumber == offer.targetPick.pickNumber) {
+        selectedOfferingTeamPicks.add(availablePick);
+      }
+      
+      // Add any additional target picks
+      for (var additionalPick in offer.additionalTargetPicks) {
+        if (availablePick.pickNumber == additionalPick.pickNumber) {
+          selectedOfferingTeamPicks.add(availablePick);
+        }
+      }
+    }
+    
+    // Find the receiving team's available picks matching the original offered picks
+    for (var availablePick in allReceivingTeamPicks) {
+      for (var offeredPick in offer.picksOffered) {
+        if (availablePick.pickNumber == offeredPick.pickNumber) {
+          selectedReceivingTeamPicks.add(availablePick);
+        }
       }
     }
   }
   
-  // Find the matching target picks (the offering team's picks in the original offer)
-  List<DraftPick> selectedTargetPicks = [];
+  // Setup future picks if needed
+List<int> initialOfferingTeamFutureRounds = [];
+List<int> initialReceivingTeamFutureRounds = [];
+
+if (offer.includesFuturePick && offer.futurePickDescription != null) {
+  String desc = offer.futurePickDescription!.toLowerCase();
   
-  for (var availablePick in allOfferingTeamPicks) {
-    for (var offeredPick in offer.picksOffered) {
-      if (availablePick.pickNumber == offeredPick.pickNumber && 
-          availablePick.teamName == offeredPick.teamName) {
-        selectedTargetPicks.add(availablePick);
-        debugPrint("Found matching target pick: #${availablePick.pickNumber}");
-      }
-    }
-  }
+  // Determine which future list to populate based on keepTeamsSame
+  List<int> targetFutureList = keepTeamsSame 
+      ? initialOfferingTeamFutureRounds 
+      : initialReceivingTeamFutureRounds;
   
-  debugPrint("Counter setup summary:");
-  debugPrint("- User team: ${offer.teamReceiving}");
-  debugPrint("- Target team: ${offer.teamOffering}");
-  debugPrint("- All user picks: ${allUserPicks.length}");
-  debugPrint("- All target picks: ${allOfferingTeamPicks.length}");
-  debugPrint("- Selected user picks: ${selectedUserPicks.length}");
-  debugPrint("- Selected target picks: ${selectedTargetPicks.length}");
+  if (desc.contains("1st")) targetFutureList.add(1);
+  if (desc.contains("2nd")) targetFutureList.add(2);
+  if (desc.contains("3rd")) targetFutureList.add(3);
+  if (desc.contains("4th")) targetFutureList.add(4);
+  if (desc.contains("5th")) targetFutureList.add(5);
+  if (desc.contains("6th")) targetFutureList.add(6);
+  if (desc.contains("7th")) targetFutureList.add(7);
+}
   
-  // Update the state all at once
+  // Update state for counter mode
   setState(() {
     isCounterMode = true;
-    counter_userTeam = offer.teamReceiving;
-    counter_targetTeam = offer.teamOffering;
-    counter_userPicks = allUserPicks;
-    counter_targetPicks = allOfferingTeamPicks;
-    counter_initialSelectedUserPicks = selectedUserPicks;
-    counter_initialSelectedTargetPicks = selectedTargetPicks;
-    counter_initialUserFutureRounds = initialUserFutureRounds;
-    counter_initialTargetFutureRounds = initialTargetFutureRounds;
+    counter_userTeam = offeringTeam;
+    counter_targetTeam = receivingTeam;
+    counter_userPicks = allOfferingTeamPicks;
+    counter_targetPicks = allReceivingTeamPicks;
+    counter_initialSelectedUserPicks = selectedOfferingTeamPicks;
+    counter_initialSelectedTargetPicks = selectedReceivingTeamPicks;
+    counter_initialUserFutureRounds = initialOfferingTeamFutureRounds;
+    counter_initialTargetFutureRounds = initialReceivingTeamFutureRounds;
     counter_originalOffer = offer;
   });
   
-  // Change to the counter tab after a brief delay to ensure state is updated
-  Future.delayed(const Duration(milliseconds: 50), () {
-    _tabController.animateTo(1);
-  });
+  // Switch to the counter tab
+  _tabController.animateTo(1);
 }
 }

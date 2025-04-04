@@ -101,6 +101,20 @@ List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
     !excludeTeams.contains(pick.teamName) && !pick.isSelected
   ).toList();
 }
+
+// Get persistent recommendations for a pick
+List<TradePackage>? getPersistentRecommendationForPick(int pickNumber) {
+  return _tradeService.getPersistentRecommendation(pickNumber);
+}
+
+// Clear all recommendations when advancing
+void clearRecommendationsForPick(int pickNumber) {
+  _tradeService.clearAllRecommendationsForPick(pickNumber);
+}
+
+Map<String, String>? getRecommendationPlayerInfo(String teamName) {
+  return _tradeService.getRecommendationPlayerInfo(teamName);
+}
   
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
@@ -1117,6 +1131,16 @@ void generateUserPickOffers() {
     _statusMessage = "Trade executed: ${package.tradeDescription}";
     _tradeUp = true;
   }
+
+  void generateTradeRecommendation(int pickNumber) {
+  if (!enableTradeRecommendations) return;
+  
+  // Use the trade service to identify recommendations
+  _tradeService.identifyTradeRecommendations(pickNumber);
+  
+  // Update recommendation flag
+  _hasTradeRecommendation = _tradeService.tradeRecommendations.isNotEmpty;
+}
   
   /// Get all available picks for a specific team
   List<DraftPick> getTeamPicks(String teamName) {

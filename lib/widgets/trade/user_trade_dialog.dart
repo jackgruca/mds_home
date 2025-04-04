@@ -63,19 +63,29 @@ void initState() {
   // Initialize with pre-selected picks if provided
   if (widget.initialSelectedUserPicks != null) {
     _selectedUserPicks = List.from(widget.initialSelectedUserPicks!);
+    debugPrint("Pre-selected ${_selectedUserPicks.length} user picks");
+    for (var pick in _selectedUserPicks) {
+      debugPrint("Pre-selected user pick: #${pick.pickNumber}");
+    }
   }
   
   if (widget.initialSelectedTargetPicks != null) {
     _selectedTargetPicks = List.from(widget.initialSelectedTargetPicks!);
+    debugPrint("Pre-selected ${_selectedTargetPicks.length} target picks");
+    for (var pick in _selectedTargetPicks) {
+      debugPrint("Pre-selected target pick: #${pick.pickNumber}");
+    }
   }
   
   // Initialize future picks if provided
   if (widget.initialSelectedUserFutureRounds != null) {
     _selectedFutureRounds = List.from(widget.initialSelectedUserFutureRounds!);
+    debugPrint("Pre-selected user future rounds: ${_selectedFutureRounds.join(', ')}");
   }
   
   if (widget.initialSelectedTargetFutureRounds != null) {
     _selectedTargetFutureRounds = List.from(widget.initialSelectedTargetFutureRounds!);
+    debugPrint("Pre-selected target future rounds: ${_selectedTargetFutureRounds.join(', ')}");
   }
   
   // Update values based on selections

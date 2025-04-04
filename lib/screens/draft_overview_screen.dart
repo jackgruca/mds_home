@@ -651,12 +651,12 @@ List<Color> _getTeamGradientColors(String teamName) {
   }
 
   if (_draftService!.isDraftComplete()) {
-  setState(() {
-    _isDraftRunning = false;
-    _statusMessage = "Draft complete!";
-  });
+    setState(() {
+      _isDraftRunning = false;
+      _statusMessage = "Draft complete!";
+    });
 
-  // Save draft analytics when draft is complete
+    // Save draft analytics when draft is complete
     if (widget.selectedTeams?.isNotEmpty == true) {
       FirebaseService.saveDraftAnalytics(
         userTeam: widget.selectedTeams!.first,
@@ -665,20 +665,20 @@ List<Color> _getTeamGradientColors(String teamName) {
         year: widget.draftYear,
       );
     }
-  
-  if (widget.showAnalytics) {
-    // First change to the analytics tab
-    _tabController.animateTo(3); 
     
-    // Force showing the summary immediately
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        _showDraftSummary(draftComplete: true);
-      }
-    });
+    if (widget.showAnalytics) {
+      // First change to the analytics tab
+      _tabController.animateTo(3); 
+      
+      // Force showing the summary immediately
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _showDraftSummary(draftComplete: true);
+        }
+      });
+    }
+    return;
   }
-  return;
-}
 
   // Update active user team before processing the pick
   _updateActiveUserTeam();
@@ -686,6 +686,9 @@ List<Color> _getTeamGradientColors(String teamName) {
   try {
     // Get the next pick
     final nextPick = _draftService!.getNextPick();
+    
+    // Save the current pick number to clear recommendations later
+    int currentPickNumber = nextPick?.pickNumber ?? 0;
 
     debugPrint("Next pick: ${nextPick?.pickNumber}, Team: ${nextPick?.teamName}, Selected Teams: ${widget.selectedTeams}");
 
@@ -713,21 +716,28 @@ List<Color> _getTeamGradientColors(String teamName) {
       return;
     }
     
-    // Process the next pick using the enhanced algorithm
-    final updatedPick = _draftService!.processDraftPick();
-
-    // After processing, check if we got a trade recommendation
-    if (_draftService!.hasTradeRecommendation) {
-    // Pause the draft
-    setState(() {
-      _isDraftRunning = false;
-      _statusMessage = "Trade recommendation available - review on Trade tab";
-    });
+    // IMPORTANT: Check for trade recommendations BEFORE processing the pick
+    // This way we can intercept and offer a trade before the team makes a selection
+    if (nextPick != null && widget.enableTradeRecommendations) {
+      // Generate recommendation if any
+      _draftService!.generateTradeRecommendation(nextPick.pickNumber);
+      
+      // Check if we got a trade recommendation
+      if (_draftService!.hasTradeRecommendation) {
+        // Pause the draft
+        setState(() {
+          _isDraftRunning = false;
+          _statusMessage = "Trade recommendation available - review on Trade tab";
+        });
+        
+        // Show the trade recommendation
+        _showTradeRecommendation(nextPick);
+        return;
+      }
+    }
     
-    // Show the trade recommendation
-    _showTradeRecommendation(nextPick!);
-    return;
-  }
+    // If no user pick and no recommendations, process the next pick
+    final updatedPick = _draftService!.processDraftPick();
     
     // Check if a trade was executed
     _executedTrades = _draftService!.executedTrades;
@@ -750,8 +760,14 @@ List<Color> _getTeamGradientColors(String teamName) {
       });
     }
     
+    // Clean up any stale offers and recommendations
     if (_draftService != null) {
       _draftService!.cleanupTradeOffers();
+      
+      // Clear recommendations for the previous pick
+      if (currentPickNumber > 0) {
+        _draftService!.clearRecommendationsForPick(currentPickNumber);
+      }
     }
 
     // Continue the draft loop with delay
@@ -779,16 +795,20 @@ void _showTradeRecommendation(DraftPick pick) {
   final packages = recommendations[pick.teamName]!;
   if (packages.isEmpty) return;
   
+  // Get the player info for this recommendation
+  Map<String, String>? playerInfo = _draftService!.getRecommendationPlayerInfo(pick.teamName);
+  
   // Important: Stop the draft and keep it stopped
   setState(() {
     _isDraftRunning = false;
+    _statusMessage = "Trade recommendation available for ${playerInfo?['name'] ?? 'a player'}";
   });
   
   // Get the list of user picks for potential trade proposals
   List<DraftPick> userPicks = [];
   List<DraftPick> targetPicks = [];
   if (widget.selectedTeams != null && widget.selectedTeams!.isNotEmpty) {
-    // Use the first user team
+    // Use active user team 
     String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
     
     // Get user's picks
@@ -797,13 +817,6 @@ void _showTradeRecommendation(DraftPick pick) {
     // Get current team picks for recommendation
     targetPicks = _draftService!.getTeamPicks(pick.teamName);
   }
-  
-  // Create a TradeOffer from the recommendations
-  final tradeOffer = TradeOffer(
-    packages: packages,
-    pickNumber: pick.pickNumber,
-    isUserInvolved: true
-  );
   
   // Open the trade tabs dialog directly on the recommendations tab
   showDialog(
@@ -814,8 +827,8 @@ void _showTradeRecommendation(DraftPick pick) {
       userPicks: userPicks,
       targetPicks: targetPicks,
       pendingOffers: {pick.pickNumber: packages},
-      isRecommendation: true,  // Add this flag
-      targetPlayerInfo: _getRecommendationPlayerInfo(packages[0]), // Add player info
+      isRecommendation: true,
+      targetPlayerInfo: playerInfo,
       onAcceptOffer: (offer) {
         // Execute the trade
         _draftService!.executeUserSelectedTrade(offer);
@@ -830,14 +843,14 @@ void _showTradeRecommendation(DraftPick pick) {
         setState(() {
           _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
           _executedTrades = _draftService!.executedTrades;
-          _statusMessage = "Trade recommendation accepted: ${offer.tradeDescription}";
+          _statusMessage = "Trade executed: ${offer.tradeDescription}";
           
           // Note: Draft remains paused until user resumes it
         });
       },
       onPropose: (proposal) {
         // Process the proposal
-        _draftService!.processUserTradeProposal(proposal);
+        final accepted = _draftService!.processUserTradeProposal(proposal);
         
         // Clear the recommendation
         _draftService!.clearTradeRecommendation(pick.teamName);
@@ -845,11 +858,13 @@ void _showTradeRecommendation(DraftPick pick) {
         // Close dialog
         Navigator.pop(context);
         
-        // Resume with updated state
+        // Update UI
         setState(() {
           _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
           _executedTrades = _draftService!.executedTrades;
-          _statusMessage = _draftService!.statusMessage;
+          _statusMessage = accepted
+              ? "Trade accepted: ${proposal.tradeDescription}"
+              : "Trade rejected by ${proposal.teamReceiving}";
           
           // Note: Draft remains paused until user resumes it
         });
@@ -920,36 +935,21 @@ Map<String, String> _getRecommendationPlayerInfo(TradePackage package) {
     _showTradeOptions(pick);
   }
 
-// In draft_overview_screen.dart, inside the DraftAppState class
+  // Modify the trade initiation method to handle both regular trades and recommendations
 void _initiateUserTradeProposal() {
   if (_draftService == null || widget.selectedTeams == null) {
     debugPrint("Draft service or selected team is null");
     return;
   }
   
-  // Generate offers for user picks if needed
-  _draftService!.generateUserTradeOffers();
-
   // Use active user team rather than first team in list
   String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
   
   // Get user's available picks for the active team
   final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
   
-  List<DraftPick> otherTeamPicks;
-  
-  // Special handling when user controls all teams
-  bool controlsAllTeams = widget.selectedTeams!.length == NFLTeams.allTeams.length;
-  
-  if (controlsAllTeams) {
-    // When controlling all teams, get picks from all teams EXCEPT active team
-    otherTeamPicks = _draftService!.draftOrder.where((pick) => 
-      pick.teamName != activeTeam && !pick.isSelected
-    ).toList();
-  } else {
-    // Normal case: Get picks from non-user teams
-    otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
-  }
+  // Get picks from other teams
+  List<DraftPick> otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
   
   if (userPicks.isEmpty || otherTeamPicks.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -961,6 +961,27 @@ void _initiateUserTradeProposal() {
     return;
   }
   
+  // Get current pick for potential recommendations
+  DraftPick? currentPick = _draftService!.getNextPick();
+  
+  // Check for pending recommendations for the current pick
+  List<TradePackage>? recommendations = 
+      currentPick != null ? _draftService!.getPersistentRecommendationForPick(currentPick.pickNumber) : null;
+  
+  // Create pending offers map including both regular offers and recommendations
+  Map<int, List<TradePackage>> allOffers = Map.from(_draftService!.pendingUserOffers);
+  
+  // Add recommendations if they exist
+  if (recommendations != null && recommendations.isNotEmpty && currentPick != null) {
+    allOffers[currentPick.pickNumber] = recommendations;
+  }
+  
+  // Determine if this is a recommendation scenario
+  bool isRecommendation = recommendations != null && recommendations.isNotEmpty;
+  Map<String, String>? playerInfo = 
+      isRecommendation && currentPick != null ? 
+      _draftService!.getRecommendationPlayerInfo(currentPick.teamName) : null;
+  
   // Show trade tabs dialog
   showDialog(
     context: context,
@@ -968,52 +989,116 @@ void _initiateUserTradeProposal() {
       userTeam: activeTeam,
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
-      pendingOffers: _draftService!.pendingUserOffers,
+      pendingOffers: allOffers,
+      isRecommendation: isRecommendation,
+      targetPlayerInfo: playerInfo,
       onAcceptOffer: (offer) {
         Navigator.pop(context); // Close dialog
         
-        // Execute the trade
-        _draftService!.executeUserSelectedTrade(offer);
-        
-        setState(() {
-          _executedTrades = _draftService!.executedTrades;
-          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
-        });
+        // For regular offers, accept directly
+        if (!isRecommendation) {
+          _draftService!.executeUserSelectedTrade(offer);
+          
+          setState(() {
+            _executedTrades = _draftService!.executedTrades;
+            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+            _statusMessage = "Trade accepted: ${offer.tradeDescription}";
+          });
+        } else {
+          // For recommendations, go through proposal logic
+          _proposeTradeToTeam(offer);
+        }
       },
       onPropose: (proposal) {
         Navigator.pop(context); // Close dialog
         
-        // Process the proposal
-        final accepted = _draftService!.processUserTradeProposal(proposal);
-        
-        // Show response dialog
-        showDialog(
-          context: context,
-          builder: (context) => TradeResponseDialog(
-            tradePackage: proposal,
-            wasAccepted: accepted,
-            rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(proposal),
-            onClose: () {
-              Navigator.pop(context);
-              
-              // Update UI if trade was accepted
-              if (accepted) {
-                setState(() {
-                  _executedTrades = _draftService!.executedTrades;
-                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-                  _statusMessage = _draftService!.statusMessage;
-                });
-              }
-            },
-          ),
-        );
+        // Both recommendations and custom proposals go through proposal logic
+        _proposeTradeToTeam(proposal);
       },
       onCancel: () {
         Navigator.pop(context);
       },
     ),
   );
+}
+
+// Add the method to handle trade proposals through the normal flow
+void _proposeTradeToTeam(TradePackage proposal) {
+  // Process the proposal through normal evaluation logic
+  final accepted = _draftService!.processUserTradeProposal(proposal);
+  
+  if (accepted) {
+    // Show success dialog
+    showDialog(
+      context: context,
+      builder: (context) => TradeResponseDialog(
+        tradePackage: proposal,
+        wasAccepted: true,
+        onClose: () {
+          Navigator.pop(context);
+          
+          // Update UI
+          setState(() {
+            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+            _executedTrades = _draftService!.executedTrades;
+            _statusMessage = "Trade executed: ${proposal.tradeDescription}";
+            
+            // If this is the current pick, make it the user's turn
+            DraftPick? nextPick = _draftService!.getNextPick();
+            if (nextPick != null && widget.selectedTeams!.contains(nextPick.teamName)) {
+              _userNextPick = nextPick;
+              _isUserPickMode = true;
+              _statusMessage = "${nextPick.teamName} Pick: Select from the Available Players tab";
+              _tabController.animateTo(1); // Switch to available players tab
+            }
+          });
+        },
+      ),
+    );
+  } else {
+    // Show rejection dialog
+    showDialog(
+      context: context,
+      builder: (context) => TradeResponseDialog(
+        tradePackage: proposal,
+        wasAccepted: false,
+        rejectionReason: _draftService!.getTradeRejectionReason(proposal),
+        onClose: () {
+          Navigator.pop(context);
+          
+          // Ask if user wants to try again or continue
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Trade Rejected'),
+              content: const Text('Would you like to try making a different offer or continue with the draft?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Continue draft
+                    setState(() {
+                      _isDraftRunning = true;
+                    });
+                    _processDraftPick();
+                  },
+                  child: const Text('Continue Draft'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Show trade dialog again
+                    _initiateUserTradeProposal();
+                  },
+                  child: const Text('Make Another Offer'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
   void _showTradeOptions(DraftPick pick) {
@@ -1845,7 +1930,7 @@ Widget build(BuildContext context) {
       tradeOffersCount: tradeOffersCount,  // Add the count
       onToggleDraft: _toggleDraft,
       onRestartDraft: _restartDraft,
-      onRequestTrade: _requestTrade,
+      onRequestTrade: _initiateUserTradeProposal,
     ),
     ),
   );
