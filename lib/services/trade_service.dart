@@ -98,28 +98,54 @@ class TradeService {
     _updatePositionMarketVolatility();
   }
   
-  // Update position market volatility based on recent selections
-  void _updatePositionMarketVolatility() {
-    // Reset volatility (will decay over time)
-    for (var key in _positionMarketVolatility.keys) {
-      _positionMarketVolatility[key] = (_positionMarketVolatility[key] ?? 0) * 0.7;
-    }
+// Update position market volatility based on recent selections
+void _updatePositionMarketVolatility() {
+  // First decay existing volatility (will decrease over time)
+  for (var key in _positionMarketVolatility.keys) {
+    _positionMarketVolatility[key] = (_positionMarketVolatility[key] ?? 0) * 0.7;
+  }
+  
+  // Count positions in recent selections
+  Map<String, int> recentPositionCounts = {};
+  Map<String, List<int>> positionPickNumbers = {}; // Track pick numbers for position runs
+  
+  // Only consider the last 10 picks for recent runs
+  for (var player in _recentSelections.take(10)) {
+    recentPositionCounts[player.position] = (recentPositionCounts[player.position] ?? 0) + 1;
     
-    // Count positions in recent selections
-    Map<String, int> recentPositionCounts = {};
-    for (var player in _recentSelections.take(10)) {
-      recentPositionCounts[player.position] = (recentPositionCounts[player.position] ?? 0) + 1;
-    }
+    // Track pick numbers for this position
+    positionPickNumbers[player.position] = positionPickNumbers[player.position] ?? [];
+    // Use dummy pick number for positions without pick data
+    positionPickNumbers[player.position]!.add(100);
+  }
+  
+  // Detect position runs - consecutive or near-consecutive picks of same position
+  for (var entry in recentPositionCounts.entries) {
+    // Base volatility increase from number of picks
+    double volatilityIncrease = 0.0;
     
-    // Update volatility based on recent selection patterns
-    for (var entry in recentPositionCounts.entries) {
-      // A position run increases volatility
-      if (entry.value >= 2) {
-        double volatilityIncrease = entry.value * 0.15; // Each pick increases volatility by 15%
-        _positionMarketVolatility[entry.key] = (_positionMarketVolatility[entry.key] ?? 0) + volatilityIncrease;
+    // Check for actual run (multiple picks in a position)
+    if (entry.value >= 2) {
+      // The more picks at one position, the higher the volatility
+      volatilityIncrease = entry.value * 0.15; // Base increase from frequency
+      
+      // Add extra volatility for premium positions (QB, EDGE, OT, CB)
+      if (_premiumPositions.contains(entry.key)) {
+        volatilityIncrease *= 1.5; // 50% more volatility for premium positions
+        debugPrint("🔥 Premium position run detected for ${entry.key}");
       }
+      
+      // Extremely hot positions (3+ picks in quick succession)
+      if (entry.value >= 3) {
+        volatilityIncrease *= 1.25; // Additional 25% for hot positions
+        debugPrint("🔥🔥 Hot position run detected for ${entry.key}: ${entry.value} selections");
+      }
+      
+      _positionMarketVolatility[entry.key] = (_positionMarketVolatility[entry.key] ?? 0) + volatilityIncrease;
+      debugPrint("Position market volatility for ${entry.key}: ${_positionMarketVolatility[entry.key]!.toStringAsFixed(2)}");
     }
   }
+}
   
   // Method to update each team's current pick position
   void _updateTeamPickPositions() {

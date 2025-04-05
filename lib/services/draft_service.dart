@@ -22,6 +22,9 @@ class DraftService {
   final double randomnessFactor;
   final List<String>? userTeams;
   final int numberRounds;
+  // Position market volatility - tracks "runs" on positions
+  final Map<String, double> _positionMarketVolatility = {};
+
   
   // Trade service
   late TradeService _tradeService;
@@ -639,17 +642,37 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
           else if (nextPick.pickNumber <= 15) pickFactor = 0.1;
           else if (nextPick.pickNumber <= 32) pickFactor = 0.05;
           
+          
           // Store all scoring components for debugging
-          Map<String, double> scoreComponents = {
-            'needFactor': needFactor * 0.3,
-            'valueScore': valueScore * 0.4,
-            'positionWeight': posWeight * 0.2,
-            'scarcityFactor': scarcityFactor * 0.1,
-            'pickFactor': pickFactor
-          };
+          // Get position volatility factor - teams are more likely to jump on a position run
+double volatilityFactor = _positionMarketVolatility[player.position] ?? 0.0;
 
-          // Calculate player score
-          double score = scoreComponents.values.reduce((a, b) => a + b);
+// Store all scoring components for debugging
+Map<String, double> scoreComponents = {
+  'needFactor': needFactor * 0.3,
+  'valueScore': valueScore * 0.4,
+  'positionWeight': posWeight * 0.2,
+  'scarcityFactor': scarcityFactor * 0.1,
+  'pickFactor': pickFactor,
+  'volatilityFactor': volatilityFactor * 0.15 // Add volatility to scoring
+};
+
+// Calculate player score including position run effect
+double score = scoreComponents.values.reduce((a, b) => a + b);
+
+// Position runs create urgency for teams
+if (volatilityFactor > 0.3) {
+  // The position is getting scarce - teams with this need will prioritize it
+  // Use needIndex from earlier in the method (where it checks teamNeed.needs.indexOf(player.position))
+  int positionNeedIndex = teamNeed != null ? teamNeed.needs.indexOf(player.position) : -1;
+  
+  if (positionNeedIndex >= 0 && positionNeedIndex < 3) {
+    score += volatilityFactor * 0.2; // Additional boost for positions in active runs
+    if (debugMode) {
+      debugLog.writeln("    Position Run Boost: +${(volatilityFactor * 0.2).toStringAsFixed(3)} (Volatility: ${volatilityFactor.toStringAsFixed(2)})");
+    }
+  }
+}
                         
           // Store score
           playerScores[player] = score;
