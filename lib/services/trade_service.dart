@@ -947,17 +947,17 @@ double calculateLeveragePremium(TradePackage originalOffer, TradePackage counter
   return 1.0;
 }
 
-  /// Process a counter offer with leverage premium applied
+/// Process a counter offer with leverage premium applied
 bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
+  // Force accept if enabled
+  if (counterOffer.forceAccept) {
+    return true;
+  }
+
   // Print detailed information for debugging
   debugPrint("===== EVALUATING COUNTER OFFER =====");
   debugPrint("Original offer from ${originalOffer.teamOffering} to ${originalOffer.teamReceiving}");
   debugPrint("Counter offer from ${counterOffer.teamOffering} to ${counterOffer.teamReceiving}");
- 
- // Force accept if enabled
-  if (counterOffer.forceAccept) {
-    return true;
-  }
 
   // Check teams are flipped (basic sanity check)
   if (originalOffer.teamOffering == counterOffer.teamReceiving &&
@@ -991,14 +991,74 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   
   // If we get here, it's not a replicated offer, so apply regular logic
   
-  // Calculate the leverage premium
-  double leveragePremium = calculateLeveragePremium(originalOffer, counterOffer);
+  // Get team tendencies
+  final tendency = _getTeamTradingTendency(counterOffer.teamReceiving);
+  
+  // Calculate the leverage premium (more nuanced approach)
+  double basePremium = 1.0;
+  
+  // If this is a counter to an AI-initiated offer, the user has leverage
+  if (originalOffer.teamOffering != counterOffer.teamOffering && 
+      originalOffer.teamReceiving == counterOffer.teamOffering) {
+    
+    // Determine leverage based on pick positions
+    int originalTargetPick = originalOffer.targetPick.pickNumber;
+    
+    // Higher premium for earlier picks (rounds 1-2)
+    if (originalTargetPick <= 32) {
+      // Up to 25% premium for first round
+      basePremium = 1.25;
+    } else if (originalTargetPick <= 64) {
+      // Up to 20% premium for second round  
+      basePremium = 1.2;
+    } else if (originalTargetPick <= 105) {
+      // Up to 15% premium for third round
+      basePremium = 1.15;
+    } else {
+      // Standard 10% premium for later rounds
+      basePremium = 1.1;
+    }
+    
+    // Adjust premium based on team trading tendencies
+    if (tendency.valueSeeker > 0.7) {
+      // Value seekers give less leverage
+      basePremium = max(1.0, basePremium - 0.1);
+    } else if (tendency.aggressiveness > 0.7) {
+      // Aggressive teams might give more leverage
+      basePremium = min(1.3, basePremium + 0.05);
+    }
+    
+    // Adjust premium if team is rebuilding
+    bool isRebuilding = _isTeamRebuilding(counterOffer.teamReceiving);
+    if (isRebuilding) {
+      // Rebuilding teams value future picks and quantity more
+      // Check if counter offer includes future picks
+      if (counterOffer.includesFuturePick) {
+        basePremium += 0.05; // Additional 5% for future picks
+      }
+      
+      // More picks is appealing to rebuilding teams
+      if (counterOffer.picksOffered.length > originalOffer.picksOffered.length) {
+        basePremium += 0.05; // Additional 5% for more picks
+      }
+    }
+    
+    // Reduce premium for very lopsided offers
+    double valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
+    if (valueRatio < 0.85) {
+      // Apply penalty for very poor offers
+      basePremium -= (0.85 - valueRatio) * 2.0;
+    }
+    
+    debugPrint("Calculated leverage premium: $basePremium");
+  }
   
   // Apply the premium to the acceptance probability calculation
   final valueRatio = counterOffer.totalValueOffered / counterOffer.targetPickValue;
   
   // The premium effectively reduces the value needed for acceptance
-  final adjustedValueRatio = valueRatio * leveragePremium;
+  final adjustedValueRatio = valueRatio * basePremium;
+  debugPrint("Value ratio: $valueRatio, Adjusted with premium: $adjustedValueRatio");
   
   // If the user is offering an improved value (but not too much), auto-accept
   if (_isImprovedCounterOffer(originalOffer, counterOffer)) {
