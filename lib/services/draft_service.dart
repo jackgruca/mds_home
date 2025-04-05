@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/screens/draft_overview_screen.dart';
 
 import '../models/draft_pick.dart';
+import '../models/future_pick_tracker.dart';
 import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_offer.dart';
@@ -85,6 +86,9 @@ class DraftService {
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
+
+    List<String> allTeamNames = teamNeeds.map((need) => need.teamName).toSet().toList();
+    FuturePickTracker.initialize(allTeamNames);
   }
 
 // Also update the getOtherTeamPicks method to handle list of teams
@@ -433,50 +437,91 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
 }
   
   /// Execute a trade by swapping teams for picks
-  void _executeTrade(TradePackage package) {
-    // Create unique ID to prevent duplicate processing
-    String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
-    if (_executedTradeIds.contains(tradeId)) {
-      return; // Skip if already processed
+  /// Execute a trade by swapping teams for picks
+void _executeTrade(TradePackage package) {
+  // Create unique ID to prevent duplicate processing
+  String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
+  if (_executedTradeIds.contains(tradeId)) {
+    return; // Skip if already processed
+  }
+  _executedTradeIds.add(tradeId);
+  
+  final teamReceiving = package.teamReceiving;
+  final teamOffering = package.teamOffering;
+  
+  // Update the target pick to belong to the offering team
+  for (var pick in draftOrder) {
+    if (pick.pickNumber == package.targetPick.pickNumber) {
+      pick.teamName = teamOffering;
+      pick.tradeInfo = "From $teamReceiving";
+      break;
     }
-    _executedTradeIds.add(tradeId);
-    
-    final teamReceiving = package.teamReceiving;
-    final teamOffering = package.teamOffering;
-    
-    // Update the target pick to belong to the offering team
+  }
+  
+  // Update any additional target picks
+  for (var additionalPick in package.additionalTargetPicks) {
     for (var pick in draftOrder) {
-      if (pick.pickNumber == package.targetPick.pickNumber) {
+      if (pick.pickNumber == additionalPick.pickNumber) {
         pick.teamName = teamOffering;
         pick.tradeInfo = "From $teamReceiving";
         break;
       }
     }
-    
-    // Update any additional target picks
-    for (var additionalPick in package.additionalTargetPicks) {
-      for (var pick in draftOrder) {
-        if (pick.pickNumber == additionalPick.pickNumber) {
-          pick.teamName = teamOffering;
-          pick.tradeInfo = "From $teamReceiving";
-          break;
-        }
-      }
-    }
-    
-    // Update the offered picks to belong to the receiving team
-    for (var offeredPick in package.picksOffered) {
-      for (var pick in draftOrder) {
-        if (pick.pickNumber == offeredPick.pickNumber) {
-          pick.teamName = teamReceiving;
-          pick.tradeInfo = "From $teamOffering";
-          break;
-        }
-      }
-    }
-    
-    _executedTrades.add(package);
   }
+  
+  // Update the offered picks to belong to the receiving team
+  for (var offeredPick in package.picksOffered) {
+    for (var pick in draftOrder) {
+      if (pick.pickNumber == offeredPick.pickNumber) {
+        pick.teamName = teamReceiving;
+        pick.tradeInfo = "From $teamOffering";
+        break;
+      }
+    }
+  }
+  
+  // Handle future picks if they exist
+  // Handle future picks if they exist
+if (package.includesFuturePick && package.offeredFuturePicks != null) {
+  // Record the future pick trade
+  FuturePickTracker.recordFuturePickTrade(
+    package.teamOffering, 
+    package.teamReceiving, 
+    package.offeredFuturePicks!
+  );
+  
+  debugPrint("FUTURE PICK TRADE: ${package.futurePickDescription} from ${package.teamOffering} to ${package.teamReceiving}");
+}
+
+// Handle target future picks if they exist
+if (package.targetFuturePicks != null && package.targetFuturePicks!.isNotEmpty) {
+  // Record the future pick trade in the opposite direction
+  FuturePickTracker.recordFuturePickTrade(
+    package.teamReceiving,
+    package.teamOffering,
+    package.targetFuturePicks!
+  );
+  
+  if (package.targetReceivedFuturePicks != null) {
+    debugPrint("TARGET FUTURE PICK TRADE: ${package.targetReceivedFuturePicks!.join(', ')} from ${package.teamReceiving} to ${package.teamOffering}");
+  }
+}
+  // For now we're just tracking them in the TradePackage
+  // but not actually modifying future draft order since that's not loaded yet
+  // This information can be used to update UI and track future pick ownership
+  
+  if (package.includesFuturePick) {
+    // Log the future pick trade for record-keeping
+    debugPrint("FUTURE PICK TRADE: ${package.futurePickDescription} from ${package.teamOffering} to ${package.teamReceiving}");
+    
+    // In a full implementation, you would:
+    // 1. Update a database or persistent storage with future pick ownership
+    // 2. Ensure this information is saved with the draft results
+    // 3. Load this information when creating future drafts
+  }
+  
+  _executedTrades.add(package);
+}
   
   /// Select the best player for a team
   Player _selectBestPlayerForTeam(DraftPick pick) {

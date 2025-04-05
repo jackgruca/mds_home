@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_manager.dart';
 import 'package:provider/provider.dart';
+import '../models/future_pick_tracker.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
@@ -776,6 +777,14 @@ void _initiateUserTradeProposal() {
   // Get user's available picks for the active team
   final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
   
+  // Get available future picks (NEW CODE)
+  List<int> availableFutureRounds = [];
+  for (int round = 1; round <= 7; round++) {
+    if (FuturePickTracker.teamOwnsFuturePick(activeTeam, round)) {
+      availableFutureRounds.add(round);
+    }
+  }
+  
   List<DraftPick> otherTeamPicks;
   
   // Special handling when user controls all teams
@@ -801,7 +810,7 @@ void _initiateUserTradeProposal() {
     return;
   }
   
-  // Show trade tabs dialog
+  // Show trade tabs dialog - Pass the filtered future picks
   showDialog(
     context: context,
     builder: (context) => UserTradeTabsDialog(
@@ -809,45 +818,12 @@ void _initiateUserTradeProposal() {
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
+      availableFutureRounds: availableFutureRounds, // NEW: Pass filtered list
       onAcceptOffer: (offer) {
-        Navigator.pop(context); // Close dialog
-        
-        // Execute the trade
-        _draftService!.executeUserSelectedTrade(offer);
-        
-        setState(() {
-          _executedTrades = _draftService!.executedTrades;
-          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-          _statusMessage = "Trade accepted: ${offer.tradeDescription}";
-        });
+        // ... existing code ...
       },
       onPropose: (proposal) {
-        Navigator.pop(context); // Close dialog
-        
-        // Process the proposal
-        final accepted = _draftService!.processUserTradeProposal(proposal);
-        
-        // Show response dialog
-        showDialog(
-          context: context,
-          builder: (context) => TradeResponseDialog(
-            tradePackage: proposal,
-            wasAccepted: accepted,
-            rejectionReason: accepted ? null : _draftService!.getTradeRejectionReason(proposal),
-            onClose: () {
-              Navigator.pop(context);
-              
-              // Update UI if trade was accepted
-              if (accepted) {
-                setState(() {
-                  _executedTrades = _draftService!.executedTrades;
-                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-                  _statusMessage = _draftService!.statusMessage;
-                });
-              }
-            },
-          ),
-        );
+        // ... existing code ...
       },
       onCancel: () {
         Navigator.pop(context);

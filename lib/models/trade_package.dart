@@ -1,4 +1,6 @@
 // lib/models/trade_package.dart
+import 'package:mds_home/models/future_pick.dart';
+
 import 'draft_pick.dart';
 
 /// Represents a package of draft picks offered in a trade
@@ -16,22 +18,25 @@ class TradePackage {
   final List<String>? targetReceivedFuturePicks;
   // Add this property
   final bool forceAccept;
+  final List<FuturePick>? offeredFuturePicks;
+  final List<FuturePick>? targetFuturePicks;
 
-  const TradePackage({
-    required this.teamOffering,
-    required this.teamReceiving,
-    required this.picksOffered,
-    required this.targetPick,
-    this.additionalTargetPicks = const [],
-    required this.totalValueOffered,
-    required this.targetPickValue,
-    this.includesFuturePick = false,
-    this.futurePickDescription,
-    this.futurePickValue,
-    this.targetReceivedFuturePicks,
-    // Add this parameter with default value
-    this.forceAccept = false,
-  });
+const TradePackage({
+  required this.teamOffering,
+  required this.teamReceiving,
+  required this.picksOffered,
+  required this.targetPick,
+  this.additionalTargetPicks = const [],
+  required this.totalValueOffered,
+  required this.targetPickValue,
+  this.includesFuturePick = false,
+  this.futurePickDescription,
+  this.futurePickValue,
+  this.targetReceivedFuturePicks,
+  this.forceAccept = false,
+  this.offeredFuturePicks,
+  this.targetFuturePicks,
+});
 
 
   /// Calculate the value differential between offer and target

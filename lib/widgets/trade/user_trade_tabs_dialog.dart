@@ -13,6 +13,7 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final List<int> availableFutureRounds; // NEW PROPERTY
 
   const UserTradeTabsDialog({
     super.key,
@@ -23,6 +24,7 @@ class UserTradeTabsDialog extends StatefulWidget {
     required this.onAcceptOffer,
     required this.onPropose,
     required this.onCancel,
+    this.availableFutureRounds = const [], // Default to empty list
   });
 
   @override
@@ -119,6 +121,7 @@ Expanded(
       _buildPendingOffersTab(_getAllPendingOffers()),
       
       // Create trade tab - changes based on counter mode
+      // Create trade tab - changes based on counter mode
       isCounterMode 
         ? UserTradeProposalDialog(
             userTeam: counter_userTeam!,
@@ -128,36 +131,21 @@ Expanded(
             initialSelectedTargetPicks: counter_initialSelectedTargetPicks,
             initialSelectedUserFutureRounds: counter_initialUserFutureRounds,
             initialSelectedTargetFutureRounds: counter_initialTargetFutureRounds,
+            availableFutureRounds: widget.availableFutureRounds, // PASS THIS DATA
             onPropose: (counterPackage) {
-              // Very important - ensure the original offer is passed along
-              // to enable proper detection of replicated offers
-              debugPrint("Sending counter offer with original offer metadata");
-              debugPrint("Original offer: ${counter_originalOffer?.teamOffering} -> ${counter_originalOffer?.teamReceiving}");
-              debugPrint("Counter offer: ${counterPackage.teamOffering} -> ${counterPackage.teamReceiving}");
-              
-              // Handle the counter package
-              widget.onPropose(counterPackage);
-              
-              // Reset counter mode
-              setState(() {
-                isCounterMode = false;
-                _tabController.animateTo(0); // Return to offers tab
-              });
+              // ... existing code ...
             },
             onCancel: () {
-              // Reset counter mode and go back to offers tab
-              setState(() {
-                isCounterMode = false;
-                _tabController.animateTo(0); 
-              });
+              // ... existing code ...
             },
-            hasLeverage: true, // Flag that this is a counter offer
+            hasLeverage: true,
             isEmbedded: true,
           )
         : UserTradeProposalDialog(
             userTeam: widget.userTeam,
             userPicks: widget.userPicks,
             targetPicks: widget.targetPicks,
+            availableFutureRounds: widget.availableFutureRounds, // PASS THIS DATA
             onPropose: widget.onPropose,
             onCancel: () {}, // Empty since we're using the dialog's close button
             isEmbedded: true, // This flag makes it fit within the tab

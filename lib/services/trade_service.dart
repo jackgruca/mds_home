@@ -146,6 +146,30 @@ void _updatePositionMarketVolatility() {
     }
   }
 }
+
+// Create a FuturePick object from description and value
+FuturePick _createFuturePickFromDescription(String description, String team, double value) {
+  // Parse the description to determine round
+  int round = 1; // Default to 1st round
+  
+  if (description.contains("1st")) {
+    round = 1;
+  } else if (description.contains("2nd")) {
+    round = 2;
+  } else if (description.contains("3rd")) {
+    round = 3;
+  } else if (description.contains("4th")) {
+    round = 4;
+  } else if (description.contains("5th")) {
+    round = 5;
+  } else if (description.contains("6th")) {
+    round = 6;
+  } else if (description.contains("7th")) {
+    round = 7;
+  }
+  
+  return FuturePick.forRound(team, round, year: description.contains("2026") ? "2026" : "2025");
+}
   
   // Method to update each team's current pick position
   void _updateTeamPickPositions() {
@@ -686,20 +710,21 @@ double _calculateTradeUpInterest(
       if (targetPick.pickNumber <= 10) {
         // Strategy 1: Future 1st round pick package
         final futurePick = FuturePick.forRound(team, 1);
-        
-        if (bestPickValue + futurePick.value >= targetValue * 0.8) {
-          packages.add(TradePackage(
-            teamOffering: team,
-            teamReceiving: targetPick.teamName,
-            picksOffered: [bestPick],
-            targetPick: targetPick,
-            totalValueOffered: bestPickValue + futurePick.value,
-            targetPickValue: targetValue,
-            includesFuturePick: true,
-            futurePickDescription: futurePick.description,
-            futurePickValue: futurePick.value,
-          ));
-        }
+
+if (bestPickValue + futurePick.value >= targetValue * 0.8) {
+  packages.add(TradePackage(
+    teamOffering: team,
+    teamReceiving: targetPick.teamName,
+    picksOffered: [bestPick],
+    targetPick: targetPick,
+    totalValueOffered: bestPickValue + futurePick.value,
+    targetPickValue: targetValue,
+    includesFuturePick: true,
+    futurePickDescription: futurePick.description,
+    futurePickValue: futurePick.value,
+    offeredFuturePicks: [futurePick], // Add this line
+  ));
+}
       }
       
       // Strategy 2: Multiple current year picks (most common for first round)
@@ -778,21 +803,22 @@ double _calculateTradeUpInterest(
       }
       
       // Strategy 2: Future round pick strategy
-      final futurePick = FuturePick.forRound(team, 2);  // Future 2nd rounder
-      
-      if (bestPickValue + futurePick.value >= targetValue * 0.85) {
-        packages.add(TradePackage(
-          teamOffering: team,
-          teamReceiving: targetPick.teamName,
-          picksOffered: [bestPick],
-          targetPick: targetPick,
-          totalValueOffered: bestPickValue + futurePick.value,
-          targetPickValue: targetValue,
-          includesFuturePick: true,
-          futurePickDescription: futurePick.description,
-          futurePickValue: futurePick.value,
-        ));
-      }
+      final futurePick = FuturePick.forRound(team, 1);
+
+if (bestPickValue + futurePick.value >= targetValue * 0.8) {
+  packages.add(TradePackage(
+    teamOffering: team,
+    teamReceiving: targetPick.teamName,
+    picksOffered: [bestPick],
+    targetPick: targetPick,
+    totalValueOffered: bestPickValue + futurePick.value,
+    targetPickValue: targetValue,
+    includesFuturePick: true,
+    futurePickDescription: futurePick.description,
+    futurePickValue: futurePick.value,
+    offeredFuturePicks: [futurePick], // Add this line
+  ));
+}
     }
     
     return packages;
@@ -838,21 +864,22 @@ double _calculateTradeUpInterest(
     
     // Strategy 2: Pick + Future pick
     final futureRound = _random.nextInt(2) + 3;  // Future 3rd or 4th round pick
-    final futurePick = FuturePick.forRound(team, futureRound);
-    
-    if (bestPickValue + futurePick.value >= targetValue * 0.85) {
-      packages.add(TradePackage(
-        teamOffering: team,
-        teamReceiving: targetPick.teamName,
-        picksOffered: [bestPick],
-        targetPick: targetPick,
-        totalValueOffered: bestPickValue + futurePick.value,
-        targetPickValue: targetValue,
-        includesFuturePick: true,
-        futurePickDescription: futurePick.description,
-        futurePickValue: futurePick.value,
-      ));
-    }
+    final futurePick = FuturePick.forRound(team, 1);
+
+if (bestPickValue + futurePick.value >= targetValue * 0.8) {
+  packages.add(TradePackage(
+    teamOffering: team,
+    teamReceiving: targetPick.teamName,
+    picksOffered: [bestPick],
+    targetPick: targetPick,
+    totalValueOffered: bestPickValue + futurePick.value,
+    targetPickValue: targetValue,
+    includesFuturePick: true,
+    futurePickDescription: futurePick.description,
+    futurePickValue: futurePick.value,
+    offeredFuturePicks: [futurePick], // Add this line
+  ));
+}
     
     // Strategy 3: Single pick if close in value (often happens in 2nd round)
     if (bestPickValue >= targetValue * 1) {

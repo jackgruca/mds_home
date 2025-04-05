@@ -9,14 +9,15 @@ class UserTradeProposalDialog extends StatefulWidget {
   final String userTeam;
   final List<DraftPick> userPicks;
   final List<DraftPick> targetPicks;
-  final List<DraftPick>? initialSelectedUserPicks; // For current year picks
-  final List<DraftPick>? initialSelectedTargetPicks; // For current year picks
-  final List<int>? initialSelectedUserFutureRounds; // For future picks
-  final List<int>? initialSelectedTargetFutureRounds; // For future picks
+  final List<DraftPick>? initialSelectedUserPicks;
+  final List<DraftPick>? initialSelectedTargetPicks;
+  final List<int>? initialSelectedUserFutureRounds;
+  final List<int>? initialSelectedTargetFutureRounds;
+  final List<int> availableFutureRounds; // NEW PROPERTY
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
   final bool isEmbedded;
-  final bool hasLeverage; // For counter offers
+  final bool hasLeverage;
   final VoidCallback? onBack;
 
   const UserTradeProposalDialog({
@@ -30,7 +31,8 @@ class UserTradeProposalDialog extends StatefulWidget {
     this.initialSelectedTargetPicks, 
     this.initialSelectedUserFutureRounds,
     this.initialSelectedTargetFutureRounds,
-    this.hasLeverage = false, // Default to false
+    this.availableFutureRounds = const [], // Default to empty list
+    this.hasLeverage = false,
     this.isEmbedded = false,
     this.onBack,
   });
@@ -47,7 +49,6 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
   List<int> _selectedFutureRounds = [];
-  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   bool _forceTradeEnabled = false;
 
   
@@ -116,6 +117,9 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
+    final List<int> displayAvailableFutureRounds = widget.availableFutureRounds.isEmpty 
+      ? [1, 2, 3, 4, 5, 6, 7] // Fallback to all rounds if not specified
+      : widget.availableFutureRounds;
     // Get unique teams from target picks
     final targetTeams = widget.targetPicks
         .map((pick) => pick.teamName)
@@ -360,11 +364,11 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    itemCount: displayAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = displayAvailableFutureRounds[index];
                                   final isSelected = _selectedTargetFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(_targetTeam, round);
                                   final pickValue = futurePick.value;
@@ -589,11 +593,11 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    itemCount: displayAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = displayAvailableFutureRounds[index];
                                   final isSelected = _selectedFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(widget.userTeam, round);
                                   final pickValue = futurePick.value;
@@ -934,8 +938,17 @@ String _getTradeAdviceText() {
   
   void _proposeTrade() {
   // Create future pick descriptions
+
   List<String> futurePickDescriptions = [];
+  List<FuturePick> futurePicks = [];
   double futurePicksValue = 0;
+  
+  for (var round in _selectedFutureRounds) {
+    futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
+    final futurePick = FuturePick.forRound(widget.userTeam, round);
+    futurePicks.add(futurePick);
+    futurePicksValue += futurePick.value;
+  }
   
   for (var round in _selectedFutureRounds) {
     futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
@@ -960,19 +973,32 @@ String _getTradeAdviceText() {
     );
     
     package = TradePackage(
-      teamOffering: widget.userTeam,
-      teamReceiving: _targetTeam,
-      picksOffered: _selectedUserPicks,
-      targetPick: dummyPick,
-      totalValueOffered: _totalOfferedValue,
-      targetPickValue: _targetPickValue,
-      includesFuturePick: _selectedFutureRounds.isNotEmpty,
-      futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
-          futurePickDescriptions.join(", ") : null,
-      futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      // Add this line to include the force trade flag
-      forceAccept: _forceTradeEnabled,
-    );
+    teamOffering: widget.userTeam,
+    teamReceiving: _targetTeam,
+    picksOffered: _selectedUserPicks,
+    targetPick: _selectedTargetPicks.isNotEmpty 
+  ? _selectedTargetPicks.first 
+  : _selectedTargetFutureRounds.isNotEmpty
+      ? DraftPick(
+          pickNumber: 1000 + _selectedTargetFutureRounds.first,
+          teamName: _targetTeam,
+          round: _selectedTargetFutureRounds.first.toString(),
+        )
+      : DraftPick(
+          pickNumber: 999,
+          teamName: _targetTeam,
+          round: "1",
+        ),
+
+    totalValueOffered: _totalOfferedValue,
+    targetPickValue: _targetPickValue,
+    additionalTargetPicks: _selectedTargetPicks.length > 1 ? _selectedTargetPicks.sublist(1) : [],
+    includesFuturePick: _selectedFutureRounds.isNotEmpty,
+    futurePickDescription: _selectedFutureRounds.isNotEmpty ? futurePickDescriptions.join(", ") : null,
+    futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
+    forceAccept: _forceTradeEnabled,
+    offeredFuturePicks: futurePicks.isNotEmpty ? futurePicks : null, // NEW: Add future picks
+  );
   } else {
     // Normal trade with current year picks
     package = TradePackage(
