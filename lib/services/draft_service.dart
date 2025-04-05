@@ -536,39 +536,39 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
   }
   
   /// Transfer a future pick from one team to another
-  void _transferFuturePick(String fromTeam, String toTeam, int round) {
-    // Find the future pick for the team and round
-    if (!_teamFuturePicks.containsKey(fromTeam)) return;
-    
-    int pickIndex = _teamFuturePicks[fromTeam]!.indexWhere(
-      (pick) => pick.round == round && !pick.isTraded
-    );
-    
-    if (pickIndex == -1) return; // Pick not found or already traded
-    
-    // Mark the pick as traded
-    final originalPick = _teamFuturePicks[fromTeam]![pickIndex];
-    _teamFuturePicks[fromTeam]![pickIndex] = originalPick.copyWith(isTraded: true);
-    
-    // Add the pick to the receiving team
-    if (!_teamFuturePicks.containsKey(toTeam)) {
-      _teamFuturePicks[toTeam] = [];
-    }
-    
-    _teamFuturePicks[toTeam]!.add(
-      FutureDraftPick(
-        teamOwning: toTeam,
-        teamOriginal: originalPick.teamOriginal,
-        round: round,
-        year: originalPick.year,
-        value: originalPick.value,
-        tradeInfo: "From $fromTeam",
-      )
-    );
-    
-    debugPrint("Transferred future $round${_getRoundSuffix(round)} round pick from $fromTeam to $toTeam");
+void _transferFuturePick(String fromTeam, String toTeam, int round) {
+  // Find the future pick for the team and round
+  if (!_teamFuturePicks.containsKey(fromTeam)) return;
+  
+  int pickIndex = _teamFuturePicks[fromTeam]!.indexWhere(
+    (pick) => pick.round == round && !pick.isTraded
+  );
+  
+  if (pickIndex == -1) return; // Pick not found or already traded
+  
+  // Mark the pick as traded
+  final originalPick = _teamFuturePicks[fromTeam]![pickIndex];
+  _teamFuturePicks[fromTeam]![pickIndex] = originalPick.copyWith(isTraded: true);
+  
+  // Add the pick to the receiving team
+  if (!_teamFuturePicks.containsKey(toTeam)) {
+    _teamFuturePicks[toTeam] = [];
   }
   
+  _teamFuturePicks[toTeam]!.add(
+    FutureDraftPick(
+      teamOwning: toTeam,
+      teamOriginal: originalPick.teamOriginal,
+      round: round,
+      year: originalPick.year,
+      value: originalPick.value,
+      tradeInfo: "From $fromTeam",
+    )
+  );
+  
+  debugPrint("Transferred future $round${_getRoundSuffix(round)} round pick from $fromTeam to $toTeam");
+}
+
   /// Get ordinal suffix for a number
   String _getRoundSuffix(int round) {
     if (round == 1) return "st";

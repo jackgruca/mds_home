@@ -809,6 +809,7 @@ void _initiateUserTradeProposal() {
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
+      draftService: _draftService,
       onAcceptOffer: (offer) {
         Navigator.pop(context); // Close dialog
         

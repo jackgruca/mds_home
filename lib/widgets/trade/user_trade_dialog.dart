@@ -55,7 +55,7 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
 
   
-  @override
+@override
 void initState() {
   super.initState();
   if (widget.targetPicks.isNotEmpty) {
@@ -85,7 +85,7 @@ void initState() {
   // Update values based on selections
   _updateValues();
 }
-  
+
   void _updateValues() {
     double userValue = 0;
     
