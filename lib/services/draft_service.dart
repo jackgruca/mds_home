@@ -1208,11 +1208,15 @@ void generateUserPickOffers() {
   }
   
   /// Execute a specific trade (for use with UI)
-  void executeUserSelectedTrade(TradePackage package) {
-    _executeTrade(package);
-    _statusMessage = "Trade executed: ${package.tradeDescription}";
-    _tradeUp = true;
-  }
+  /// Execute a specific trade (for use with UI)
+void executeUserSelectedTrade(TradePackage package) {
+  _executeTrade(package);
+  _statusMessage = "Trade executed: ${package.tradeDescription}";
+  _tradeUp = true;
+  
+  // Clean up any stale trade offers
+  cleanupTradeOffers();
+}
   
   /// Get all available picks for a specific team
   List<DraftPick> getTeamPicks(String teamName) {
