@@ -164,6 +164,60 @@ class TradeResponseDialog extends StatelessWidget {
                 )),
               ],
             ),
+            // Future picks section if applicable
+if (tradePackage.includesFuturePick || 
+    (tradePackage.targetReceivedFuturePicks != null && 
+     tradePackage.targetReceivedFuturePicks!.isNotEmpty)) ...[
+  const SizedBox(height: 16),
+  const Text(
+    'Future Picks:',
+    style: TextStyle(fontWeight: FontWeight.bold),
+  ),
+  const SizedBox(height: 8),
+  
+  // If offering team sends future picks
+  if (tradePackage.includesFuturePick && 
+      tradePackage.futurePickDescription != null) ...[
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.calendar_today, size: 16, color: Colors.amber.shade800),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '${tradePackage.teamOffering} sends: ${tradePackage.futurePickDescription}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.amber.shade800,
+            ),
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 8),
+  ],
+  
+  // If receiving team sends future picks
+  if (tradePackage.targetReceivedFuturePicks != null && 
+      tradePackage.targetReceivedFuturePicks!.isNotEmpty) ...[
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.calendar_today, size: 16, color: Colors.teal.shade800),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '${tradePackage.teamReceiving} sends: ${tradePackage.targetReceivedFuturePicks!.join(", ")}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.teal.shade800,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ],
+],
           ],
         ),
       ),

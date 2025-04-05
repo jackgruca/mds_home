@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
+import '../../services/draft_service.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/future_pick.dart';
 import '../../utils/team_logo_utils.dart';
@@ -18,6 +19,8 @@ class UserTradeProposalDialog extends StatefulWidget {
   final bool isEmbedded;
   final bool hasLeverage; // For counter offers
   final VoidCallback? onBack;
+  final DraftService? draftService;  // Add this parameter
+
 
   const UserTradeProposalDialog({
     super.key,
@@ -33,6 +36,7 @@ class UserTradeProposalDialog extends StatefulWidget {
     this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
     this.onBack,
+    this.draftService,
   });
 
   @override
@@ -116,8 +120,11 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
-    List<int> userAvailableFutureRounds = _availableFutureRounds;
-    List<int> targetAvailableFutureRounds = _availableFutureRounds;
+     List<int> userAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(widget.userTeam) 
+      ?? _availableFutureRounds;
+    
+    List<int> targetAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) 
+      ?? _availableFutureRounds;
 
     // Get unique teams from target picks
     final targetTeams = widget.targetPicks
@@ -363,11 +370,12 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    // Use the filtered lists here
+    itemCount: targetAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = targetAvailableFutureRounds[index];
                                   final isSelected = _selectedTargetFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(_targetTeam, round);
                                   final pickValue = futurePick.value;
@@ -592,11 +600,12 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    // Use the filtered lists here
+    itemCount: userAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = userAvailableFutureRounds[index];
                                   final isSelected = _selectedFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(widget.userTeam, round);
                                   final pickValue = futurePick.value;
