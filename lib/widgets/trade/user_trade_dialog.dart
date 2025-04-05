@@ -43,12 +43,12 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
-  List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  List<int> _selectedFutureRounds = [];
-  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   bool _forceTradeEnabled = false;
+  List<int> _selectedFutureRounds = [];
+  List<int> _selectedTargetFutureRounds = [];
+  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
 
   
   @override
@@ -116,6 +116,9 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
+    List<int> userAvailableFutureRounds = _availableFutureRounds;
+    List<int> targetAvailableFutureRounds = _availableFutureRounds;
+
     // Get unique teams from target picks
     final targetTeams = widget.targetPicks
         .map((pick) => pick.teamName)
@@ -943,7 +946,7 @@ String _getTradeAdviceText() {
     futurePicksValue += futurePick.value;
   }
   
-  // Create the base package
+  // Update the TradePackage to include both future pick lists
   TradePackage package;
   
   // Check if we need to handle pure future picks trade
@@ -970,8 +973,9 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      // Add this line to include the force trade flag
       forceAccept: _forceTradeEnabled,
+      futureDraftRounds: _selectedFutureRounds.isEmpty ? null : _selectedFutureRounds,
+      targetFutureDraftRounds: _selectedTargetFutureRounds.isEmpty ? null : _selectedTargetFutureRounds,
     );
   } else {
     // Normal trade with current year picks
@@ -1000,8 +1004,9 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      // Add this line to include the force trade flag
       forceAccept: _forceTradeEnabled,
+      futureDraftRounds: _selectedFutureRounds.isEmpty ? null : _selectedFutureRounds,
+      targetFutureDraftRounds: _selectedTargetFutureRounds.isEmpty ? null : _selectedTargetFutureRounds,
     );
   }
   
