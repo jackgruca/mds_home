@@ -1,6 +1,9 @@
 // lib/widgets/admin/message_admin_panel.dart
 import 'package:flutter/material.dart';
+import '../../screens/admin_login_screen.dart';
+import '../../services/analytics_aggregation_service.dart';
 import '../../services/message_service.dart';
+import '../../utils/admin_auth.dart';
 import '../../utils/theme_config.dart';
 
 /// Admin panel to view and manage user messages
@@ -201,6 +204,76 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
                     foregroundColor: Colors.white,
                   ),
                 ),
+                // Add an Admin button for optimizing community analytics
+ElevatedButton.icon(
+  onPressed: () async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Optimize Community Analytics'),
+        content: const Text(
+          'This will generate optimized data structures for community analytics. '
+          'This process may take several minutes to complete, but will make the '
+          'analytics load much faster for users.\n\n'
+          'Continue?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Generate Optimized Data'),
+          ),
+        ],
+      ),
+    ) ?? false;
+    
+    if (confirmed) {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Optimizing community analytics data...'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      
+      // Run the optimization
+      try {
+        await AnalyticsAggregationService.generateOptimizedStructures();
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Community analytics optimization complete!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error optimizing analytics: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  },
+  icon: const Icon(Icons.speed),
+  label: const Text('Optimize Community Analytics'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.green,
+    foregroundColor: Colors.white,
+  ),
+),
             ],
           ),
         ],
@@ -209,7 +282,19 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
   }
 
   @override
-  Widget build(BuildContext context) {
+Widget build(BuildContext context) {
+  // Check if admin is logged in
+  AdminAuth.isAdminLoggedIn().then((isLoggedIn) {
+    if (!isLoggedIn && mounted) {
+      // Redirect to login if not logged in
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const AdminLoginScreen(),
+        ),
+      );
+    }
+  });
+  
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(

@@ -111,12 +111,14 @@ Future<void> _loadData() async {
   // If we already have data, show loading indicator but don't block UI
   if (_hasLoadedData) {
     // Just show a small loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Refreshing data in background...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshing data in background...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   } else {
     setState(() {
       _isLoading = true;
@@ -125,11 +127,14 @@ Future<void> _loadData() async {
 
   try {
     // Get aggregated position data by pick - using more efficient method
+    debugPrint('Fetching position data for team: $_selectedTeam, round: $_selectedRound');
     final positionData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
       team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
       round: _selectedRound,
       year: widget.draftYear,
     );
+    
+    debugPrint('Position data received: ${positionData.length} items');
 
     // Get consensus team needs - only if needed
     Map<String, List<String>> needsData = {};
@@ -137,15 +142,22 @@ Future<void> _loadData() async {
       needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
         year: widget.draftYear,
       );
+      debugPrint('Needs data received for ${needsData.length} teams');
     }
 
     setState(() {
       if (positionData.isNotEmpty) {
         _topPicksByPosition = positionData;
+        debugPrint('Updated position data in state');
+      } else {
+        debugPrint('Received empty position data');
       }
       
       if (needsData.isNotEmpty) {
         _consensusNeeds = needsData;
+        debugPrint('Updated needs data in state');
+      } else if (_consensusNeeds.isEmpty) {
+        debugPrint('Needs data is empty');
       }
       
       _isLoading = false;
@@ -153,6 +165,15 @@ Future<void> _loadData() async {
     });
   } catch (e) {
     debugPrint('Error loading team draft pattern data: $e');
+    // Display error to user
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
     setState(() {
       _isLoading = false;
     });

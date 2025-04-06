@@ -1,30 +1,46 @@
-// lib/utils/admin_route.dart
+// In lib/utils/admin_route.dart (update existing file)
 import 'package:flutter/material.dart';
-import '../widgets/admin/message_admin_panel.dart';
+import '../screens/admin_login_screen.dart';
+import '../utils/admin_auth.dart';
 import '../widgets/admin/message_admin_panel.dart';
 
 /// Helper class to handle admin routes
 class AdminRoute {
-  // Secret gestures or taps to access admin features (for development only)
-  static void attemptAdminAccess(BuildContext context, {int tapCount = 0}) {
-    // When tap count reaches 5, show admin panel
-    if (tapCount >= 5) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MessageAdminPanel(),
-        ),
-      );
+  // Navigate to admin panel with proper authentication
+  static Future<void> navigateToAdminPanel(BuildContext context) async {
+    final isLoggedIn = await AdminAuth.isAdminLoggedIn();
+    
+    if (context.mounted) {
+      if (isLoggedIn) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MessageAdminPanel(),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminLoginScreen(),
+          ),
+        );
+      }
     }
   }
   
-  // Show the admin panel directly (for development/testing)
-  static void showAdminPanel(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const MessageAdminPanel(),
-      ),
-    );
+  // Add logout method
+  static Future<void> logoutAdmin(BuildContext context) async {
+    await AdminAuth.logoutAdmin();
+    
+    if (context.mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logged out of admin panel'),
+        ),
+      );
+    }
   }
 }

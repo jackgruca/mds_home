@@ -13,6 +13,8 @@ import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
 import 'providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
+import 'services/analytics_data_manager.dart';
+
 
 import 'widgets/admin/message_admin_panel.dart';
 
@@ -34,6 +36,14 @@ void main() async {
 
   // Initialize analytics
   AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+
+  try {
+  // Just initialize the manager, but don't load data until needed
+  AnalyticsDataManager().initialize();
+  debugPrint('Analytics data manager initialized (data will load on demand)');
+} catch (e) {
+  debugPrint('Error initializing analytics data manager: $e');
+}
 
   // Turn on debug output for the app
   if (kDebugMode) {

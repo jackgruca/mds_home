@@ -1,11 +1,11 @@
-
+// lib/widgets/analytics/community_analytics_dashboard.dart
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
-import 'player_draft_analysis_tab.dart';  // You'll need to create this
-import 'draft_trend_insights_tab.dart';   // You'll need to create this
+import 'player_draft_analysis_tab.dart';
+import 'draft_trend_insights_tab.dart';
 
 class CommunityAnalyticsDashboard extends StatefulWidget {
   final String userTeam;
@@ -26,6 +26,23 @@ class CommunityAnalyticsDashboard extends StatefulWidget {
 class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboard>
     with AutomaticKeepAliveClientMixin {
   String _selectedTab = 'Team Draft Patterns';
+  bool _isDataLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Display a loading message with minimal delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Loading community data - this may take a moment'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +67,32 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
           ),
         ),
 
-        // Tab content
+        // Tab content - use a FutureBuilder to load only when tab is viewed
         Expanded(
-          child: _buildTabContent(),
+          child: _isDataLoaded 
+              ? _buildTabContent()
+              : FutureBuilder(
+                  future: Future.delayed(const Duration(milliseconds: 300), () => true),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done) {
+                      _isDataLoaded = true;
+                      return _buildTabContent();
+                    }
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading community data...'),
+                          SizedBox(height: 8),
+                          Text('This will be cached for faster access next time',
+                              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -95,23 +135,23 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
   }
 
   Widget _buildTabContent() {
-  switch (_selectedTab) {
-    case 'Team Draft Patterns':
-      return TeamDraftPatternsTab(
-        initialTeam: widget.userTeam,
-        allTeams: widget.allTeams,
-        draftYear: widget.draftYear,
-      );
-    case 'Player Draft Analysis':
-      return PlayerDraftAnalysisTab(draftYear: widget.draftYear);
-    case 'Draft Trend Insights':
-      return DraftTrendInsightsTab(draftYear: widget.draftYear);
-    default:
-      return const Center(
-        child: Text('Select a tab to view analytics'),
-      );
+    switch (_selectedTab) {
+      case 'Team Draft Patterns':
+        return TeamDraftPatternsTab(
+          initialTeam: widget.userTeam,
+          allTeams: widget.allTeams,
+          draftYear: widget.draftYear,
+        );
+      case 'Player Draft Analysis':
+        return PlayerDraftAnalysisTab(draftYear: widget.draftYear);
+      case 'Draft Trend Insights':
+        return DraftTrendInsightsTab(draftYear: widget.draftYear);
+      default:
+        return const Center(
+          child: Text('Select a tab to view analytics'),
+        );
+    }
   }
-}
 
   Widget _buildPlaceholderTab(String tabName) {
     return Center(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
+import '../utils/admin_route.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
@@ -71,6 +72,7 @@ void initState() {
 }
 
 Future<void> _loadUserPreferences() async {
+  
   final authProvider = Provider.of<AuthProvider>(context, listen: false);
   if (!authProvider.isLoggedIn) return; // Only load for logged in users
   
@@ -170,6 +172,7 @@ Future<void> _loadUserPreferences() async {
     'NFL Draft Simulator',
     style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
   ),
+// Removed erroneous Navigator.push call
   toolbarHeight: 48,
   centerTitle: true,
   titleSpacing: 8,
@@ -193,6 +196,13 @@ Future<void> _loadUserPreferences() async {
           themeManager.toggleTheme();
         },
       ),
+    ),
+    IconButton(
+      icon: const Icon(Icons.admin_panel_settings),
+      tooltip: 'Admin Panel',
+      onPressed: () {
+        AdminRoute.navigateToAdminPanel(context);
+      },
     ),
   ],
 ),
