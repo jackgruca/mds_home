@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../../screens/admin_login_screen.dart';
 import '../../services/analytics_aggregation_service.dart';
+import '../../services/analytics_optimizer.dart';
+import '../../services/fast_analytics_loader.dart';
 import '../../services/message_service.dart';
 import '../../utils/admin_auth.dart';
 import '../../utils/theme_config.dart';
@@ -205,61 +207,62 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
                   ),
                 ),
                 // Add an Admin button for optimizing community analytics
+                const SizedBox(width: 8), // Add some spacing
 ElevatedButton.icon(
   onPressed: () async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Optimize Community Analytics'),
+        title: const Text('Optimize Analytics Data'),
         content: const Text(
-          'This will generate optimized data structures for community analytics. '
-          'This process may take several minutes to complete, but will make the '
-          'analytics load much faster for users.\n\n'
+          'This will process and optimize all analytics data to improve app performance. '
+          'This process may take several minutes to complete.\n\n'
           'Continue?'
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-            ),
-            child: const Text('Generate Optimized Data'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Optimize'),
           ),
         ],
       ),
     ) ?? false;
     
     if (confirmed) {
-      // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Optimizing community analytics data...'),
+          content: Text('Starting analytics optimization...'),
           duration: Duration(seconds: 5),
         ),
       );
       
-      // Run the optimization
       try {
-        await AnalyticsAggregationService.generateOptimizedStructures();
+        final success = await AnalyticsOptimizer.runFullOptimization();
         
-        if (context.mounted) {
+        // Force refresh of cached data
+        await FastAnalyticsLoader.loadQuickAccessData(forceRefresh: true);
+        
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Community analytics optimization complete!'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Text(success 
+                ? 'Analytics optimization completed successfully!' 
+                : 'Analytics optimization completed with errors'
+              ),
+              backgroundColor: success ? Colors.green : Colors.orange,
             ),
           );
         }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error optimizing analytics: $e'),
+              content: Text('Error during optimization: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -268,7 +271,7 @@ ElevatedButton.icon(
     }
   },
   icon: const Icon(Icons.speed),
-  label: const Text('Optimize Community Analytics'),
+  label: const Text('Optimize Analytics Data'),
   style: ElevatedButton.styleFrom(
     backgroundColor: Colors.green,
     foregroundColor: Colors.white,

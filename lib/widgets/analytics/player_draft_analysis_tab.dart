@@ -1,6 +1,7 @@
 // lib/widgets/analytics/player_draft_analysis_tab.dart
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
+import '../../services/fast_analytics_loader.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 
@@ -37,60 +38,40 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
-    try {
-      // Load player rank deviations (risers and fallers)
-      final deviations = await AnalyticsQueryService.getPlayerRankDeviations(
-        year: widget.draftYear,
-        position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
-        limit: 20,  // Get enough data to split into risers and fallers
-      );
+  try {
+    // Get player value analysis from fast loader
+    final valueAnalysis = await FastAnalyticsLoader.getPlayerValueAnalysis();
+    
+    // Filter by position if selected
+    List<Map<String, dynamic>> risers = valueAnalysis['risers'] ?? [];
+    List<Map<String, dynamic>> fallers = valueAnalysis['fallers'] ?? [];
+    
+    if (_selectedPosition != 'All Positions') {
+      risers = risers.where((player) => 
+        player['position'] == _selectedPosition
+      ).toList();
       
-      // Process the deviations data
-      final players = deviations['players'] as List<dynamic>;
-      _riserPlayers = [];
-      _fallerPlayers = [];
-      
-      for (var player in players) {
-        // Parse average deviation value
-        double avgDeviation = double.tryParse(player['avgDeviation'].toString()) ?? 0.0;
-        
-        // Add player details
-        Map<String, dynamic> playerData = {
-          'name': player['name'],
-          'position': player['position'],
-          'avgDeviation': avgDeviation,
-          'deviationText': avgDeviation.toStringAsFixed(1),
-          'sampleSize': player['sampleSize'],
-        };
-        
-        // Categorize as riser or faller
-        if (avgDeviation > 0) {
-          _riserPlayers.add(playerData);
-        } else if (avgDeviation < 0) {
-          _fallerPlayers.add(playerData);
-        }
-      }
-      
-      // Sort risers (picked later than rank = positive deviation = value picks)
-      _riserPlayers.sort((a, b) => (b['avgDeviation'] as double).compareTo(a['avgDeviation'] as double));
-      
-      // Sort fallers (picked earlier than rank = negative deviation = reaches)
-      _fallerPlayers.sort((a, b) => (a['avgDeviation'] as double).compareTo(b['avgDeviation'] as double));
-      
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading player analysis data: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      fallers = fallers.where((player) => 
+        player['position'] == _selectedPosition
+      ).toList();
     }
+    
+    setState(() {
+      _riserPlayers = risers;
+      _fallerPlayers = fallers;
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint('Error loading player analysis data: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {

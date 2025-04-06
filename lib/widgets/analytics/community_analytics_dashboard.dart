@@ -1,6 +1,7 @@
 // lib/widgets/analytics/community_analytics_dashboard.dart
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
+import '../../services/fast_analytics_loader.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
@@ -29,20 +30,32 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
   bool _isDataLoaded = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Display a loading message with minimal delay
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loading community data - this may take a moment'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    });
-  }
+void initState() {
+  super.initState();
+  
+  // Display a loading message with minimal delay
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (context.mounted) {
+      // Try to load all data at once from fast loader
+      FastAnalyticsLoader.loadQuickAccessData().then((_) {
+        if (mounted) {
+          setState(() {
+            _isDataLoaded = true;
+          });
+        }
+      }).catchError((e) {
+        debugPrint('Error pre-loading analytics: $e');
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loading community data...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  });
+}
 
   @override
   Widget build(BuildContext context) {

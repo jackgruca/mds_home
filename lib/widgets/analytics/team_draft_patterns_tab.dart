@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
+import '../../services/fast_analytics_loader.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -139,38 +140,25 @@ Future<void> _loadData() async {
   }
 
   try {
-    // Get aggregated position data by pick - using more efficient method
-    debugPrint('Fetching position data for team: $_selectedTeam, round: $_selectedRound');
-    final positionData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
-      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-      round: _selectedRound,
-      year: widget.draftYear,
-    );
+    // Use the fast loader instead of direct queries
+    final roundStr = _selectedRound?.toString() ?? 'all';
     
-    debugPrint('Position data received: ${positionData.length} items');
-
+    // Get position trends using the fast loader
+    final positionData = await FastAnalyticsLoader.getPositionTrends(roundStr);
+    
     // Get consensus team needs - only if needed
     Map<String, List<String>> needsData = {};
     if (_consensusNeeds.isEmpty) {
-      needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
-        year: widget.draftYear,
-      );
-      debugPrint('Needs data received for ${needsData.length} teams');
+      needsData = await FastAnalyticsLoader.getConsensusNeeds();
     }
 
     setState(() {
       if (positionData.isNotEmpty) {
         _topPicksByPosition = positionData;
-        debugPrint('Updated position data in state');
-      } else {
-        debugPrint('Received empty position data');
       }
       
       if (needsData.isNotEmpty) {
         _consensusNeeds = needsData;
-        debugPrint('Updated needs data in state');
-      } else if (_consensusNeeds.isEmpty) {
-        debugPrint('Needs data is empty');
       }
       
       _isLoading = false;
@@ -178,7 +166,6 @@ Future<void> _loadData() async {
     });
   } catch (e) {
     debugPrint('Error loading team draft pattern data: $e');
-    // Display error to user
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

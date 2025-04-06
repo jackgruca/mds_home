@@ -6,7 +6,9 @@ import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_aggregation_service.dart';
 import 'services/analytics_data_manager.dart';
+import 'services/analytics_optimizer.dart';
 import 'services/analytics_service.dart';
+import 'services/fast_analytics_loader.dart';
 import 'services/firebase_service.dart';
 import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
@@ -37,6 +39,44 @@ void main() async {
 
   // Initialize analytics
   AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+
+  // Initialize fast analytics
+await FastAnalyticsLoader.initialize();
+
+// Check if analytics need optimization (do this on startup but with a delay)
+Future.delayed(const Duration(seconds: 10), () async {
+  try {
+    // Check when optimization was last run
+    final metaDoc = await FirebaseFirestore.instance
+        .collection('aggregated_analytics')
+        .doc('meta')
+        .get();
+        
+    bool shouldOptimize = true;
+    
+    if (metaDoc.exists) {
+      final lastOptimized = (metaDoc.data()?['lastOptimized'] as Timestamp?)?.toDate();
+      
+      if (lastOptimized != null) {
+        // Only run optimization if it hasn't been run in the last 24 hours
+        final daysSinceOptimization = DateTime.now().difference(lastOptimized).inHours / 24;
+        
+        if (daysSinceOptimization < 1) {
+          debugPrint('Analytics were optimized ${daysSinceOptimization.toStringAsFixed(1)} days ago, skipping');
+          shouldOptimize = false;
+        }
+      }
+    }
+    
+    if (shouldOptimize) {
+      debugPrint('Starting analytics optimization in background');
+      // Run in background
+      AnalyticsOptimizer.runFullOptimization();
+    }
+  } catch (e) {
+    debugPrint('Error checking analytics optimization: $e');
+  }
+});
 
   try {
   // Just initialize the manager, but don't load data until needed
