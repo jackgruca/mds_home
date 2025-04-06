@@ -24,6 +24,8 @@ dependencies:
   firebase_core: ^2.24.2
   firebase_analytics: ^10.7.4
   cloud_firestore: ^4.13.6
+  intl: ^0.20.2
+  flutter_html: ^3.0.0
 
 
 dev_dependencies:

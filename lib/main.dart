@@ -1,6 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'screens/blog/blog_detail_screen.dart';
+import 'screens/blog/blog_list_screen.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_service.dart';
@@ -82,13 +84,27 @@ class _MyAppState extends State<MyApp> {
           themeMode: themeManager.themeMode,
           home: const TeamSelectionScreen(), // Keep this
           routes: {
-            // Remove the '/' route if it exists
+            // Existing routes
             '/draft': (context) => DraftApp(
               selectedTeams: ModalRoute.of(context)?.settings.arguments != null 
               ? [ModalRoute.of(context)?.settings.arguments as String] 
               : null,
             ),
-            // Other routes...
+            // Add blog routes
+            '/blog': (context) => const BlogListScreen(),
+            '/blog/post': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+              final postId = args?['id'] as String?;
+              final slug = args?['slug'] as String?;
+              
+              if (postId != null) {
+                return BlogDetailScreen(postId: postId);
+              } else if (slug != null) {
+                return BlogDetailScreen(postId: '', slug: slug);
+              }
+              
+              return const BlogListScreen();
+            },
           },
         );
       },

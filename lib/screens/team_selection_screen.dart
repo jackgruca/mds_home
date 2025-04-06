@@ -6,6 +6,7 @@ import '../services/analytics_service.dart';
 import '../utils/constants.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
+import 'blog/blog_list_screen.dart';
 import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
@@ -175,7 +176,18 @@ Future<void> _loadUserPreferences() async {
   titleSpacing: 8,
   elevation: 0,
   actions: [
-    // Add the auth button here
+    // Add Blog button
+    IconButton(
+      icon: const Icon(Icons.article, size: 20),
+      tooltip: 'Blog',
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const BlogListScreen()),
+        );
+      },
+    ),
+    // Auth button
     const HeaderAuthButton(),
     // Theme toggle button
     Consumer<ThemeManager>(
