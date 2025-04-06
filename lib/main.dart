@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/analytics_aggregation_service.dart';
+import 'services/analytics_data_manager.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
 import 'utils/analytics_server.dart';
@@ -21,8 +23,8 @@ DateTime? _lastTapTime;
 void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase with additional logging
+  
+  // Initialize Firebase
   try {
     await FirebaseService.initialize();
     debugPrint('Firebase initialized successfully in main.dart');
@@ -30,7 +32,8 @@ void main() async {
     debugPrint('Firebase initialization error in main.dart: $e');
   }
 
-AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+  // Initialize analytics
+  AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
 
   // Turn on debug output for the app
   if (kDebugMode) {

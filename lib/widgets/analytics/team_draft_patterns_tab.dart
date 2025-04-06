@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class TeamDraftPatternsTab extends StatefulWidget {
   final String initialTeam;
   final List<String> allTeams;
   final int draftYear;
+
 
   const TeamDraftPatternsTab({
     super.key,
@@ -25,61 +28,136 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
   bool _isLoading = true;
   String _selectedTeam = '';
   int? _selectedRound; // Changed to int? to support "All Rounds" option
+  bool _isFirstLoad = true;
+  bool _hasLoadedData = false;
   
   // Data states
   List<Map<String, dynamic>> _topPicksByPosition = [];
-  List<Map<String, dynamic>> _topPlayersByPick = [];
+  final List<Map<String, dynamic>> _topPlayersByPick = [];
   Map<String, List<String>> _consensusNeeds = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedTeam = widget.initialTeam;
-    _selectedRound = 1; // Default to round 1
+@override
+void initState() {
+  super.initState();
+  _selectedTeam = widget.initialTeam;
+  _selectedRound = 1; // Default to round 1
+  
+  // First try to load from local storage
+  _loadFromLocalStorage();
+  
+  // Then fetch fresh data, but don't block the UI
+  Future.delayed(Duration.zero, () {
     _loadData();
+  });
+}
+
+
+Future<void> _loadFromLocalStorage() async {
+  if (!_isFirstLoad) return;
+  
+  setState(() {
+    _isLoading = true;
+  });
+  
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Load position data
+    final storedPositionData = prefs.getString(
+      'position_trends_${_selectedTeam}_${_selectedRound}_${widget.draftYear}'
+    );
+    
+    // Load needs data 
+    final storedNeedsData = prefs.getString(
+      'consensus_needs_${widget.draftYear}'
+    );
+    
+    if (storedPositionData != null) {
+      final data = jsonDecode(storedPositionData);
+      setState(() {
+        _topPicksByPosition = List<Map<String, dynamic>>.from(
+          data.map((x) => Map<String, dynamic>.from(x))
+        );
+        _hasLoadedData = true;
+      });
+    }
+    
+    if (storedNeedsData != null) {
+      final data = jsonDecode(storedNeedsData);
+      final Map<String, List<String>> result = {};
+      
+      data.forEach((key, value) {
+        if (value is List) {
+          result[key] = List<String>.from(value);
+        }
+      });
+      
+      setState(() {
+        _consensusNeeds = result;
+        _hasLoadedData = true;
+      });
+    }
+  } catch (e) {
+    debugPrint('Error loading from local storage: $e');
+  } finally {
+    setState(() {
+      _isLoading = !_hasLoadedData;
+      _isFirstLoad = false;
+    });
   }
+}
 
-  // lib/widgets/analytics/team_draft_patterns_tab.dart - update the loadData method
-
-  Future<void> _loadData() async {
+Future<void> _loadData() async {
+  // If we already have data, show loading indicator but don't block UI
+  if (_hasLoadedData) {
+    // Just show a small loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Refreshing data in background...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  } else {
     setState(() {
       _isLoading = true;
     });
-
-    try {
-      // Get aggregated position data by pick
-      final positionData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound, // Pass null for All Rounds
-        year: widget.draftYear,
-      );
-
-      // Get aggregated player data by pick
-      final playerData = await AnalyticsQueryService.getConsolidatedPlayersByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound, // Pass null for All Rounds
-        year: widget.draftYear,
-      );
-
-      // Get consensus team needs
-      final needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
-        year: widget.draftYear,
-      );
-
-      setState(() {
-        _topPicksByPosition = positionData;
-        _topPlayersByPick = playerData;
-        _consensusNeeds = needsData;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
+  try {
+    // Get aggregated position data by pick - using more efficient method
+    final positionData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+    );
+
+    // Get consensus team needs - only if needed
+    Map<String, List<String>> needsData = {};
+    if (_consensusNeeds.isEmpty) {
+      needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
+        year: widget.draftYear,
+      );
+    }
+
+    setState(() {
+      if (positionData.isNotEmpty) {
+        _topPicksByPosition = positionData;
+      }
+      
+      if (needsData.isNotEmpty) {
+        _consensusNeeds = needsData;
+      }
+      
+      _isLoading = false;
+      _hasLoadedData = true;
+    });
+  } catch (e) {
+    debugPrint('Error loading team draft pattern data: $e');
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
 
 // Add these helper methods to convert team-specific data formats
 List<Map<String, dynamic>> _convertToPickPositionFormat(List<Map<String, dynamic>> teamData) {

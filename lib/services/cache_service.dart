@@ -47,4 +47,37 @@ class CacheService {
     final timestamp = _cacheTimestamps[key]!;
     return DateTime.now().difference(timestamp) <= validity;
   }
+  // Cache data with a specific key prefix and version
+static void setCacheWithVersion(String keyPrefix, String version, dynamic data) {
+  final key = "${keyPrefix}_v$version";
+  setData(key, data);
+  debugPrint('Cache set with version: $key');
+}
+
+// Get cached data with version check
+static dynamic getCacheWithVersion(String keyPrefix, String version, {Duration validity = defaultCacheValidity}) {
+  final key = "${keyPrefix}_v$version";
+  return getData(key, validity: validity);
+}
+
+// Clear all cache with a specific prefix
+static void clearCacheWithPrefix(String prefix) {
+  final keysToRemove = _cache.keys.where((key) => key.startsWith(prefix)).toList();
+  for (final key in keysToRemove) {
+    _cache.remove(key);
+    _cacheTimestamps.remove(key);
+  }
+  debugPrint('Cleared ${keysToRemove.length} cache items with prefix: $prefix');
+}
+
+// Get cache size estimate in KB
+static int getCacheSizeEstimate() {
+  int totalSize = 0;
+  _cache.forEach((key, value) {
+    // Rough estimate based on string representation
+    totalSize += key.length;
+    totalSize += value.toString().length;
+  });
+  return totalSize ~/ 1024; // Convert to KB
+}
 }
