@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
+import '../../services/draft_service.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/future_pick.dart';
 import '../../utils/team_logo_utils.dart';
@@ -18,6 +19,8 @@ class UserTradeProposalDialog extends StatefulWidget {
   final bool isEmbedded;
   final bool hasLeverage; // For counter offers
   final VoidCallback? onBack;
+  final DraftService? draftService;  // Add this parameter
+
 
   const UserTradeProposalDialog({
     super.key,
@@ -33,6 +36,7 @@ class UserTradeProposalDialog extends StatefulWidget {
     this.hasLeverage = false, // Default to false
     this.isEmbedded = false,
     this.onBack,
+    this.draftService,
   });
 
   @override
@@ -43,15 +47,15 @@ class _UserTradeProposalDialogState extends State<UserTradeProposalDialog> {
   late String _targetTeam;
   List<DraftPick> _selectedUserPicks = [];
   List<DraftPick> _selectedTargetPicks = [];
-  List<int> _selectedTargetFutureRounds = [];
   double _totalOfferedValue = 0;
   double _targetPickValue = 0;
-  List<int> _selectedFutureRounds = [];
-  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
   bool _forceTradeEnabled = false;
+  List<int> _selectedFutureRounds = [];
+  List<int> _selectedTargetFutureRounds = [];
+  final List<int> _availableFutureRounds = [1, 2, 3, 4, 5, 6, 7];
 
   
-  @override
+@override
 void initState() {
   super.initState();
   if (widget.targetPicks.isNotEmpty) {
@@ -81,7 +85,7 @@ void initState() {
   // Update values based on selections
   _updateValues();
 }
-  
+
   void _updateValues() {
     double userValue = 0;
     
@@ -116,6 +120,12 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
+     List<int> userAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(widget.userTeam) 
+      ?? _availableFutureRounds;
+    
+    List<int> targetAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) 
+      ?? _availableFutureRounds;
+
     // Get unique teams from target picks
     final targetTeams = widget.targetPicks
         .map((pick) => pick.teamName)
@@ -360,11 +370,12 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    // Use the filtered lists here
+    itemCount: targetAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = targetAvailableFutureRounds[index];
                                   final isSelected = _selectedTargetFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(_targetTeam, round);
                                   final pickValue = futurePick.value;
@@ -589,11 +600,12 @@ void initState() {
                             ),
                             // 2026 Draft column with future picks
                             Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                itemCount: _availableFutureRounds.length,
-                                itemBuilder: (context, index) {
-                                  final round = _availableFutureRounds[index];
+  child: ListView.builder(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    // Use the filtered lists here
+    itemCount: userAvailableFutureRounds.length,
+    itemBuilder: (context, index) {
+      final round = userAvailableFutureRounds[index];
                                   final isSelected = _selectedFutureRounds.contains(round);
                                   final futurePick = FuturePick.forRound(widget.userTeam, round);
                                   final pickValue = futurePick.value;
@@ -943,7 +955,7 @@ String _getTradeAdviceText() {
     futurePicksValue += futurePick.value;
   }
   
-  // Create the base package
+  // Update the TradePackage to include both future pick lists
   TradePackage package;
   
   // Check if we need to handle pure future picks trade
@@ -970,8 +982,9 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      // Add this line to include the force trade flag
       forceAccept: _forceTradeEnabled,
+      futureDraftRounds: _selectedFutureRounds.isEmpty ? null : _selectedFutureRounds,
+      targetFutureDraftRounds: _selectedTargetFutureRounds.isEmpty ? null : _selectedTargetFutureRounds,
     );
   } else {
     // Normal trade with current year picks
@@ -1000,8 +1013,9 @@ String _getTradeAdviceText() {
       futurePickDescription: _selectedFutureRounds.isNotEmpty ? 
           futurePickDescriptions.join(", ") : null,
       futurePickValue: futurePicksValue > 0 ? futurePicksValue : null,
-      // Add this line to include the force trade flag
       forceAccept: _forceTradeEnabled,
+      futureDraftRounds: _selectedFutureRounds.isEmpty ? null : _selectedFutureRounds,
+      targetFutureDraftRounds: _selectedTargetFutureRounds.isEmpty ? null : _selectedTargetFutureRounds,
     );
   }
   

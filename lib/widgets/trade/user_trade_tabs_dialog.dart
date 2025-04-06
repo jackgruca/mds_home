@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/trade_package.dart';
+import '../../services/draft_service.dart';
 import '../../utils/team_logo_utils.dart';
 import 'user_trade_dialog.dart';
 
@@ -13,6 +14,7 @@ class UserTradeTabsDialog extends StatefulWidget {
   final Function(TradePackage) onAcceptOffer;
   final Function(TradePackage) onPropose;
   final VoidCallback onCancel;
+  final DraftService? draftService;  // Add this line
 
   const UserTradeTabsDialog({
     super.key,
@@ -23,12 +25,12 @@ class UserTradeTabsDialog extends StatefulWidget {
     required this.onAcceptOffer,
     required this.onPropose,
     required this.onCancel,
+    this.draftService,  // Add this parameter
   });
 
   @override
   _UserTradeTabsDialogState createState() => _UserTradeTabsDialogState();
 }
-
 class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -124,6 +126,7 @@ Expanded(
             userTeam: counter_userTeam!,
             userPicks: counter_userPicks!,
             targetPicks: counter_targetPicks!,
+            draftService: widget.draftService,  // Pass the draftService
             initialSelectedUserPicks: counter_initialSelectedUserPicks,
             initialSelectedTargetPicks: counter_initialSelectedTargetPicks,
             initialSelectedUserFutureRounds: counter_initialUserFutureRounds,
@@ -158,6 +161,7 @@ Expanded(
             userTeam: widget.userTeam,
             userPicks: widget.userPicks,
             targetPicks: widget.targetPicks,
+              draftService: widget.draftService,  // Add this line
             onPropose: widget.onPropose,
             onCancel: () {}, // Empty since we're using the dialog's close button
             isEmbedded: true, // This flag makes it fit within the tab

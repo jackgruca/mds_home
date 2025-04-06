@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/screens/draft_overview_screen.dart';
 
 import '../models/draft_pick.dart';
+import '../models/future_pick_record.dart';
 import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_offer.dart';
@@ -58,6 +59,20 @@ class DraftService {
     6: 0.10,  // 10% chance for round 6
     7: 0.08,  // 8% chance for round 7
   };
+
+  /// Get all future picks for a team
+  List<FutureDraftPick> getFuturePicks(String teamName) {
+    return _teamFuturePicks[teamName] ?? [];
+  }
+  
+  /// Get available (untraded) future pick rounds for a team
+  List<int> getAvailableFuturePickRounds(String teamName) {
+    final futurePicks = _teamFuturePicks[teamName] ?? [];
+    return futurePicks
+        .where((pick) => !pick.isTraded && pick.teamOwning == teamName)
+        .map((pick) => pick.round)
+        .toList();
+  }
   
   // Random instance for introducing randomness
   final Random _random = Random();
@@ -85,6 +100,7 @@ class DraftService {
       tradeRandomnessFactor: randomnessFactor,
       enableQBPremium: enableQBPremium,
     );
+     _initializeFuturePicks();
   }
 
 // Also update the getOtherTeamPicks method to handle list of teams
@@ -101,6 +117,30 @@ List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
     !excludeTeams.contains(pick.teamName) && !pick.isSelected
   ).toList();
 }
+
+// Future picks tracking
+  final Map<String, List<FutureDraftPick>> _teamFuturePicks = {};
+
+  // Initialize future picks for all teams
+  void _initializeFuturePicks() {
+    for (var teamNeed in teamNeeds) {
+      final teamName = teamNeed.teamName;
+      _teamFuturePicks[teamName] = [];
+      
+      // Add default future picks for each team (2026 draft)
+      for (int round = 1; round <= 7; round++) {
+        _teamFuturePicks[teamName]!.add(
+          FutureDraftPick(
+            teamOwning: teamName,
+            teamOriginal: teamName,
+            round: round,
+            year: "2026",
+            value: FuturePick.forRound(teamName, round).value,
+          )
+        );
+      }
+    }
+  }
   
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
@@ -433,6 +473,7 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
 }
   
   /// Execute a trade by swapping teams for picks
+  /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
     // Create unique ID to prevent duplicate processing
     String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
@@ -475,7 +516,65 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
       }
     }
     
+    // Handle future picks if included
+    if (package.includesFuturePick && package.futureDraftRounds != null && package.futureDraftRounds!.isNotEmpty) {
+      // Move future picks from offering team to receiving team
+      for (var round in package.futureDraftRounds!) {
+        _transferFuturePick(teamOffering, teamReceiving, round);
+      }
+    }
+    
+    // Handle target future picks if included
+    if (package.targetFutureDraftRounds != null && package.targetFutureDraftRounds!.isNotEmpty) {
+      // Move future picks from receiving team to offering team
+      for (var round in package.targetFutureDraftRounds!) {
+        _transferFuturePick(teamReceiving, teamOffering, round);
+      }
+    }
+    
     _executedTrades.add(package);
+  }
+  
+  /// Transfer a future pick from one team to another
+void _transferFuturePick(String fromTeam, String toTeam, int round) {
+  // Find the future pick for the team and round
+  if (!_teamFuturePicks.containsKey(fromTeam)) return;
+  
+  int pickIndex = _teamFuturePicks[fromTeam]!.indexWhere(
+    (pick) => pick.round == round && !pick.isTraded
+  );
+  
+  if (pickIndex == -1) return; // Pick not found or already traded
+  
+  // Mark the pick as traded
+  final originalPick = _teamFuturePicks[fromTeam]![pickIndex];
+  _teamFuturePicks[fromTeam]![pickIndex] = originalPick.copyWith(isTraded: true);
+  
+  // Add the pick to the receiving team
+  if (!_teamFuturePicks.containsKey(toTeam)) {
+    _teamFuturePicks[toTeam] = [];
+  }
+  
+  _teamFuturePicks[toTeam]!.add(
+    FutureDraftPick(
+      teamOwning: toTeam,
+      teamOriginal: originalPick.teamOriginal,
+      round: round,
+      year: originalPick.year,
+      value: originalPick.value,
+      tradeInfo: "From $fromTeam",
+    )
+  );
+  
+  debugPrint("Transferred future $round${_getRoundSuffix(round)} round pick from $fromTeam to $toTeam");
+}
+
+  /// Get ordinal suffix for a number
+  String _getRoundSuffix(int round) {
+    if (round == 1) return "st";
+    if (round == 2) return "nd";
+    if (round == 3) return "rd";
+    return "th";
   }
   
   /// Select the best player for a team
@@ -1109,11 +1208,15 @@ void generateUserPickOffers() {
   }
   
   /// Execute a specific trade (for use with UI)
-  void executeUserSelectedTrade(TradePackage package) {
-    _executeTrade(package);
-    _statusMessage = "Trade executed: ${package.tradeDescription}";
-    _tradeUp = true;
-  }
+  /// Execute a specific trade (for use with UI)
+void executeUserSelectedTrade(TradePackage package) {
+  _executeTrade(package);
+  _statusMessage = "Trade executed: ${package.tradeDescription}";
+  _tradeUp = true;
+  
+  // Clean up any stale trade offers
+  cleanupTradeOffers();
+}
   
   /// Get all available picks for a specific team
   List<DraftPick> getTeamPicks(String teamName) {

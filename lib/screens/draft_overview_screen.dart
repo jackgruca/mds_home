@@ -809,6 +809,7 @@ void _initiateUserTradeProposal() {
       userPicks: userPicks,
       targetPicks: otherTeamPicks,
       pendingOffers: _draftService!.pendingUserOffers,
+      draftService: _draftService,
       onAcceptOffer: (offer) {
         Navigator.pop(context); // Close dialog
         
@@ -919,6 +920,7 @@ void _initiateUserTradeProposal() {
               userTeam: package.teamReceiving,
               userPicks: receivingTeamPicks, // All receiving team's picks
               targetPicks: offeringTeamPicks, // All offering team's picks
+              draftService: _draftService,  // Add this line
               initialSelectedUserPicks: [package.targetPick, ...package.additionalTargetPicks], // Pre-select original offer
               initialSelectedTargetPicks: package.picksOffered, // Pre-select original offer
               hasLeverage: true, // Add this line to indicate leverage

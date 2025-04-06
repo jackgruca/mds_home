@@ -276,14 +276,17 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
   }
 
   Widget _buildTradeDetails() {
-    final package = widget.tradeOffer.packages[_selectedIndex];
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+  final package = widget.tradeOffer.packages[_selectedIndex];
+  final isFair = package.isFairTrade;
+  final isGreat = package.isGreatTrade;
+  
+  return Expanded(
+    child: SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Trade summary with team logos
+          // Trade summary
           const Text(
             'Trade Summary:',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -375,10 +378,69 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
           
           // Updated pick table
           _buildEnhancedPicksTable(package),
+          
+          // Future picks section if applicable
+          if (package.includesFuturePick || 
+              (package.targetReceivedFuturePicks != null && 
+               package.targetReceivedFuturePicks!.isNotEmpty)) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Future Picks:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            if (package.futurePickDescription != null && package.futurePickDescription!.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.amber.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${package.teamOffering} sends: ${package.futurePickDescription}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (package.targetReceivedFuturePicks != null && 
+                package.targetReceivedFuturePicks!.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8.0),
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(color: Colors.teal.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.teal.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${package.teamReceiving} sends: ${package.targetReceivedFuturePicks!.join(", ")}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // New method to build visual trade summary with team logos
   Widget _buildVisualTradeSummary(TradePackage package) {

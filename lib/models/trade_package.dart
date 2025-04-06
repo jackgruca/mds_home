@@ -14,8 +14,10 @@ class TradePackage {
   final String? futurePickDescription;
   final double? futurePickValue;
   final List<String>? targetReceivedFuturePicks;
-  // Add this property
   final bool forceAccept;
+  final List<int>? futureDraftRounds;
+  final List<int>? targetFutureDraftRounds;
+
 
   const TradePackage({
     required this.teamOffering,
@@ -29,8 +31,9 @@ class TradePackage {
     this.futurePickDescription,
     this.futurePickValue,
     this.targetReceivedFuturePicks,
-    // Add this parameter with default value
     this.forceAccept = false,
+    this.futureDraftRounds, // Add this line
+    this.targetFutureDraftRounds, // Add this line
   });
 
 
