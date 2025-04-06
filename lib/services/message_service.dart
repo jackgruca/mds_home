@@ -1,13 +1,21 @@
 // lib/services/message_service.dart
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'cache_service.dart';
 import 'email_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'batch_operation_service.dart';
+import 'cache_service.dart';
 
 /// Service to manage user feedback messages
 class MessageService {
   // Key for storing messages in SharedPreferences
   static const String _messagesKey = 'user_feedback_messages';
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _collection = 'messages';
 
   /// Save a user message to local storage and send via email
   static Future<bool> saveUserMessage({
@@ -131,6 +139,74 @@ class MessageService {
       }
     } catch (e) {
       debugPrint('Error marking message as sent: $e');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getRecentMessages({int limit = 20}) async {
+  try {
+    // Use caching
+    final cacheKey = 'recent_messages_$limit';
+    final cachedData = CacheService.getData(cacheKey);
+    if (cachedData != null) return cachedData;
+    
+    final snapshot = await FirebaseFirestore.instance
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+    
+    final messages = snapshot.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    }).toList();
+    
+    // Store in cache
+    CacheService.setData(cacheKey, messages);
+    
+    return messages;
+  } catch (e) {
+    debugPrint('Error getting recent messages: $e');
+    return [];
+  }
+}
+// Update to use batch operations
+  static Future<bool> markMultipleMessagesAsSent(List<String> messageIds) async {
+    try {
+      await BatchOperationService.updateMultipleDocuments(
+        collectionPath: _collection,
+        documentIds: messageIds,
+        updateData: {
+          'status': 'sent',
+          'sentAt': DateTime.now().toIso8601String(),
+        },
+      );
+      
+      // Invalidate cache
+      CacheService.removeItem('recent_messages');
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error marking messages as sent: $e');
+      return false;
+    }
+  }
+  
+  // Another example with batch operations
+  static Future<bool> bulkDeleteMessages(List<String> messageIds) async {
+    try {
+      await BatchOperationService.deleteMultipleDocuments(
+        collectionPath: _collection,
+        documentIds: messageIds,
+      );
+      
+      // Invalidate cache
+      CacheService.removeItem('recent_messages');
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting messages: $e');
+      return false;
     }
   }
 }

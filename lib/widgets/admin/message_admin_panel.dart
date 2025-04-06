@@ -23,28 +23,29 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
     _loadMessages();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoading = true;
-    });
+ Future<void> _loadMessages() async {
+  setState(() {
+    _isLoading = true;
+  });
 
-    try {
-      final messages = await MessageService.getAllMessages();
-      setState(() {
-        _messages = messages;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading messages: $e')),
-        );
-      }
+  try {
+    // Use pagination for messages - only fetch 20 at a time
+    final messages = await MessageService.getRecentMessages(limit: 20);
+    setState(() {
+      _messages = messages;
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading messages: $e')),
+      );
     }
   }
+}
 
   Future<void> _clearAllMessages() async {
     final confirmed = await showDialog<bool>(

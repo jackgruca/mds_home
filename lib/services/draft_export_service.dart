@@ -13,6 +13,7 @@ import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_pick_grade_service.dart';
 import '../utils/constants.dart';
+import 'batch_operation_service.dart';
 
 class DraftExportService {
   /// Share draft results via platform-specific methods
@@ -1634,4 +1635,68 @@ static void _writeCompactFirstRoundPickHtml(StringBuffer html, DraftPick pick, L
     </div>
   ''');
 }
+
+// In DraftExportService or a similar class
+static Future<void> saveDraftResultsAnalytics(List<DraftPick> picks, String userId) async {
+  try {
+    final Map<String, Map<String, dynamic>> analyticsData = {};
+    
+    // Create a unique ID for this draft session
+    final String draftSessionId = 'draft_${DateTime.now().millisecondsSinceEpoch}';
+    
+    // Overall draft analytics
+    analyticsData[draftSessionId] = {
+      'userId': userId,
+      'timestamp': DateTime.now().toIso8601String(),
+      'totalPicks': picks.length,
+      'teams': picks.map((p) => p.teamName).toSet().toList(),
+    };
+    
+    // Per-team analytics
+    final Map<String, List<DraftPick>> picksByTeam = {};
+    for (final pick in picks) {
+      if (!picksByTeam.containsKey(pick.teamName)) {
+        picksByTeam[pick.teamName] = [];
+      }
+      picksByTeam[pick.teamName]!.add(pick);
+    }
+    
+    picksByTeam.forEach((team, teamPicks) {
+      final String teamDocId = '${draftSessionId}_$team';
+      
+      // Manually create maps instead of using toMap()
+      final List<Map<String, dynamic>> picksData = teamPicks.map((p) => {
+        'pickNumber': p.pickNumber,
+        'round': p.round,
+        'teamName': p.teamName,
+        'playerName': p.selectedPlayer?.name ?? 'Unknown',
+        'position': p.selectedPlayer?.position ?? 'Unknown',
+        'college': p.selectedPlayer?.school ?? p.selectedPlayer?.school ?? 'Unknown',
+        'pickTime': p.pickTime?.toIso8601String(),
+        // Add other fields as needed
+      }).toList();
+      
+      analyticsData[teamDocId] = {
+        'team': team,
+        'draftSessionId': draftSessionId,
+        'picks': picksData,
+        'positions': teamPicks.map((p) => p.selectedPlayer?.position)
+                             .where((position) => position != null)
+                             .toSet()
+                             .toList(),
+      };
+    });
+    
+    // Save all in one batch operation
+    await BatchOperationService.setMultipleDocuments(
+      collectionPath: 'draft_analytics',
+      documentData: analyticsData,
+    );
+    
+  } catch (e) {
+    debugPrint('Error saving draft analytics: $e');
+    // Handle error as needed
+  }
+}
+
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../models/custom_draft_data.dart';
+import '../services/batch_operation_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
@@ -341,5 +342,35 @@ Future<bool> deleteCustomDraftData(String name) async {
     return false;
   }
 }
+// Add this method to your lib/providers/auth_provider.dart
 
+Future<bool> saveMultipleCustomDraftData(List<CustomDraftData> dataList) async {
+  // Check if user is logged in
+  if (!isLoggedIn || _user == null) return false;
+  
+  try {
+    final Map<String, Map<String, dynamic>> documentData = {};
+    
+    for (final data in dataList) {
+      // Create a document ID using the user ID, draft name, and year
+      final String docId = '${_user!.id}_${data.name}_${data.year}';
+      documentData[docId] = data.toJson();
+    }
+    
+    await BatchOperationService.setMultipleDocuments(
+      collectionPath: 'custom_draft_data',
+      documentData: documentData,
+    );
+    
+    // Refresh local data
+    notifyListeners();
+    
+    return true;
+  } catch (e) {
+    // Update error message - use whatever error field you have in your class
+    _error = e.toString();
+    debugPrint('Error saving multiple custom draft data: $e');
+    return false;
+  }
+}
 }

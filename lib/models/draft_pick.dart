@@ -11,6 +11,7 @@ class DraftPick {
   final int? originalPickNumber;
   String? tradeInfo;
   bool isActiveInDraft = true;  // New property
+  final DateTime? pickTime;
   
   DraftPick({
     required this.pickNumber,
@@ -20,6 +21,7 @@ class DraftPick {
     this.originalPickNumber,
     this.tradeInfo,
     this.isActiveInDraft = true,
+    this.pickTime,
   });
   
   // Create a DraftPick from CSV row data
@@ -130,7 +132,7 @@ factory DraftPick.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> colu
     );
   }
 }
-  
+
   // Convert draft pick back to a list for compatibility with existing code
   List<dynamic> toList() {
     return [

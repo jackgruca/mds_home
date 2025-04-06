@@ -2,6 +2,7 @@
 
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
@@ -9,6 +10,8 @@ import 'package:csv/csv.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
+import 'batch_operation_service.dart';
+import 'cache_service.dart';
 
 /// Service responsible for loading and parsing data from CSV files
 class DataService {
@@ -269,4 +272,83 @@ static Future<List<TeamNeed>> loadTeamNeeds({required int year}) async {
     
     return result;
   }
+
+   static Future<List<Map<String, dynamic>>> loadPaginatedData({
+    required String collection,
+    required int limit,
+    DocumentSnapshot? lastDocument,
+    Map<String, dynamic>? whereConditions,
+  }) async {
+    try {
+      // Construct query
+      Query query = FirebaseFirestore.instance.collection(collection);
+      
+      // Add where conditions if provided
+      if (whereConditions != null) {
+        whereConditions.forEach((field, value) {
+          query = query.where(field, isEqualTo: value);
+        });
+      }
+      
+      // Order by something (required for pagination)
+      query = query.orderBy('timestamp', descending: true);
+      
+      // Add pagination condition
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+      
+      // Limit results
+      query = query.limit(limit);
+      
+      // Get results
+      final querySnapshot = await query.get();
+      
+      // Convert to list of maps
+      final results = querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+      
+      return results;
+    } catch (e) {
+      debugPrint('Error loading paginated data: $e');
+      return [];
+    }
+  }
+
+  // Add this to your DataService class
+static Future<bool> saveMultipleTeamNeeds(
+  int year, 
+  Map<String, List<String>> teamNeedsMap
+) async {
+  try {
+    final Map<String, Map<String, dynamic>> documentData = {};
+    
+    teamNeedsMap.forEach((teamId, needs) {
+      documentData[teamId] = {
+        'year': year,
+        'lastModified': DateTime.now().toIso8601String(),
+        'needs': needs,
+      };
+    });
+    
+    await BatchOperationService.setMultipleDocuments(
+      collectionPath: 'team_needs',
+      documentData: documentData,
+      merge: true,
+    );
+    
+    // Invalidate cache
+    CacheService.removeItem('team_needs_$year');
+    
+    return true;
+  } catch (e) {
+    debugPrint('Error saving multiple team needs: $e');
+    return false;
+  }
+}
+
+
 }
