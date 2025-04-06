@@ -46,12 +46,19 @@ class _UserTradeTabsDialogState extends State<UserTradeTabsDialog> with SingleTi
   TradePackage? counter_originalOffer;
   
   @override
-  void initState() {
-    super.initState();
-    // Determine initial tab index based on pending offers
-    final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
-    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
+void initState() {
+  super.initState();
+  // Determine initial tab index based on pending offers
+  final initialTabIndex = _getAllPendingOffers().isNotEmpty ? 0 : 1;
+  _tabController = TabController(length: 2, vsync: this, initialIndex: initialTabIndex);
+  
+  // Log current future picks for debugging
+  if (widget.draftService != null) {
+    debugPrint("UserTradeTabsDialog - User team future picks:");
+    List<int> userFutureRounds = widget.draftService!.getAvailableFuturePickRounds(widget.userTeam);
+    debugPrint("Available future rounds for ${widget.userTeam}: ${userFutureRounds.join(', ')}");
   }
+}
   
   @override
   void dispose() {
@@ -572,37 +579,85 @@ SizedBox(
   void _setupCounterOffer(TradePackage offer) {
   debugPrint("Setting up counter offer for ${offer.teamOffering} -> ${offer.teamReceiving}");
   
-  // 1. Get all the offering team's picks from targetPicks
-  List<DraftPick> allOfferingTeamPicks = widget.targetPicks
-      .where((pick) => pick.teamName == offer.teamOffering)
-      .toList();
+  // Get fresh data for all picks
+  List<DraftPick> allOfferingTeamPicks = [];
+  if (widget.draftService != null) {
+    // Use draftService to get the latest picks
+    allOfferingTeamPicks = widget.draftService!.getTeamPicks(offer.teamOffering);
+    debugPrint("Got ${allOfferingTeamPicks.length} picks for ${offer.teamOffering} from draftService");
+  } else {
+    // Fallback to widget.targetPicks
+    allOfferingTeamPicks = widget.targetPicks
+        .where((pick) => pick.teamName == offer.teamOffering)
+        .toList();
+    debugPrint("Fallback: Found ${allOfferingTeamPicks.length} picks for ${offer.teamOffering} in targetPicks");
+  }
   
-  debugPrint("Found ${allOfferingTeamPicks.length} picks for ${offer.teamOffering}");
-  
-  // If we don't have any picks from widget.targetPicks, use the ones from the offer
+  // If still no picks, fallback to the offer itself
   if (allOfferingTeamPicks.isEmpty) {
-    debugPrint("No picks found in widget.targetPicks, using offer.picksOffered");
+    debugPrint("No picks found, using offer.picksOffered as last resort");
     allOfferingTeamPicks = offer.picksOffered;
   }
   
-  // 2. Get all user's picks from widget.userPicks
-  List<DraftPick> allUserPicks = List<DraftPick>.from(widget.userPicks);
+  // Get all user's picks with latest data
+  List<DraftPick> allUserPicks = [];
+  if (widget.draftService != null) {
+    allUserPicks = widget.draftService!.getTeamPicks(offer.teamReceiving);
+    debugPrint("Got ${allUserPicks.length} picks for ${offer.teamReceiving} from draftService");
+  } else {
+    allUserPicks = List<DraftPick>.from(widget.userPicks);
+  }
   
-  // 3. Setup future picks arrays
+  // Setup future picks based on what's actually available now
   List<int> initialUserFutureRounds = [];
   List<int> initialTargetFutureRounds = [];
   
-  // Check for future picks in the original offer
-  if (offer.includesFuturePick && offer.futurePickDescription != null) {
-    String desc = offer.futurePickDescription!.toLowerCase();
-    debugPrint("Found future pick description: $desc");
-    if (desc.contains("1st")) initialTargetFutureRounds.add(1);
-    if (desc.contains("2nd")) initialTargetFutureRounds.add(2);
-    if (desc.contains("3rd")) initialTargetFutureRounds.add(3);
-    if (desc.contains("4th")) initialTargetFutureRounds.add(4);
-    if (desc.contains("5th")) initialTargetFutureRounds.add(5);
-    if (desc.contains("6th")) initialTargetFutureRounds.add(6);
-    if (desc.contains("7th")) initialTargetFutureRounds.add(7);
+  if (widget.draftService != null) {
+    // Get available future picks from DraftService
+    List<int> availableUserFuture = widget.draftService?.getAvailableFuturePickRounds(offer.teamReceiving) ?? [];
+    List<int> availableTargetFuture = widget.draftService?.getAvailableFuturePickRounds(offer.teamOffering) ?? [];
+    
+    debugPrint("Available future rounds for ${offer.teamReceiving}: ${availableUserFuture.join(', ')}");
+    debugPrint("Available future rounds for ${offer.teamOffering}: ${availableTargetFuture.join(', ')}");
+    
+    // Use futureDraftRounds from the package if available
+    if (offer.targetFutureDraftRounds != null && offer.targetFutureDraftRounds!.isNotEmpty) {
+      // But filter to only what's still available
+      initialUserFutureRounds = offer.targetFutureDraftRounds!
+          .where((round) => availableUserFuture.contains(round))
+          .toList();
+    }
+    
+    if (offer.futureDraftRounds != null && offer.futureDraftRounds!.isNotEmpty) {
+      // Filter to only what's still available 
+      initialTargetFutureRounds = offer.futureDraftRounds!
+          .where((round) => availableTargetFuture.contains(round))
+          .toList();
+    }
+  } else {
+    // Fallback to parsing description
+    if (offer.includesFuturePick && offer.futurePickDescription != null) {
+      String desc = offer.futurePickDescription!.toLowerCase();
+      if (desc.contains("1st")) initialTargetFutureRounds.add(1);
+      if (desc.contains("2nd")) initialTargetFutureRounds.add(2);
+      if (desc.contains("3rd")) initialTargetFutureRounds.add(3);
+      if (desc.contains("4th")) initialTargetFutureRounds.add(4);
+      if (desc.contains("5th")) initialTargetFutureRounds.add(5);
+      if (desc.contains("6th")) initialTargetFutureRounds.add(6);
+      if (desc.contains("7th")) initialTargetFutureRounds.add(7);
+    }
+  }
+  
+  // If we have futureDraftRounds directly in the package, use them instead
+  // This is the key fix - using the actual stored rounds when available
+  if (offer.futureDraftRounds != null && offer.futureDraftRounds!.isNotEmpty) {
+    initialTargetFutureRounds = List<int>.from(offer.futureDraftRounds!);
+    debugPrint("Using future draft rounds from package: ${initialTargetFutureRounds.join(', ')}");
+  }
+  
+  if (offer.targetFutureDraftRounds != null && offer.targetFutureDraftRounds!.isNotEmpty) {
+    initialUserFutureRounds = List<int>.from(offer.targetFutureDraftRounds!);
+    debugPrint("Using target future draft rounds from package: ${initialUserFutureRounds.join(', ')}");
   }
   
   // 4. Create the ACTUAL selected picks lists by finding matching picks from the available lists
@@ -647,6 +702,8 @@ SizedBox(
   debugPrint("- All target picks: ${allOfferingTeamPicks.length}");
   debugPrint("- Selected user picks: ${selectedUserPicks.length}");
   debugPrint("- Selected target picks: ${selectedTargetPicks.length}");
+  debugPrint("- User future rounds: ${initialUserFutureRounds.join(', ')}");
+  debugPrint("- Target future rounds: ${initialTargetFutureRounds.join(', ')}");
   
   // Update the state all at once
   setState(() {

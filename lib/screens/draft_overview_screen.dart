@@ -773,8 +773,13 @@ void _initiateUserTradeProposal() {
   // Use active user team rather than first team in list
   String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
   
-  // Get user's available picks for the active team
+  // Get user's available picks for the active team - including latest future picks
   final List<DraftPick> userPicks = _draftService!.getTeamPicks(activeTeam);
+  
+  // Debug output to verify future picks
+  debugPrint("Future picks available for $activeTeam:");
+  List<int> futurePicks = _draftService!.getAvailableFuturePickRounds(activeTeam);
+  debugPrint("Available future rounds: ${futurePicks.join(', ')}");
   
   List<DraftPick> otherTeamPicks;
   
@@ -1354,20 +1359,43 @@ bool _shouldShowTeamInfo() {
 
   // Find this method in draft_overview_screen.dart and replace it
   void _requestTrade() {
-    if (_draftService == null) return;
+  if (_draftService == null) return;
+  
+  // If user has selected a team, show user trade proposal UI
+  if (widget.selectedTeams != null) {
+    // This is the key fix - regenerate user trade offers to get latest pick data
+    _draftService!.generateUserTradeOffers();
     
-    // If user has selected a team, show user trade proposal UI
-    if (widget.selectedTeams != null) {
-      _initiateUserTradeProposal();
-      return;
+    // Get the latest picks from the draft service
+    String activeTeam = _activeUserTeam ?? widget.selectedTeams!.first;
+    final userPicks = _draftService!.getTeamPicks(activeTeam);
+    
+    // Get other teams' picks
+    List<DraftPick> otherTeamPicks;
+    bool controlsAllTeams = widget.selectedTeams!.length == NFLTeams.allTeams.length;
+    
+    if (controlsAllTeams) {
+      otherTeamPicks = _draftService!.draftOrder.where((pick) => 
+        pick.teamName != activeTeam && !pick.isSelected
+      ).toList();
+    } else {
+      otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
     }
     
-    // Otherwise, show trade options for current pick
-    DraftPick? nextPick = _draftService!.getNextPick();
-    if (nextPick != null) {
-      _showTradeOptions(nextPick);
-    }
+    // Debug log to check picks
+    debugPrint("User team $activeTeam has ${userPicks.length} draft picks");
+    
+    // Show the proper dialog with refreshed picks
+    _initiateUserTradeProposal();
+    return;
   }
+  
+  // Otherwise, show trade options for current pick
+  DraftPick? nextPick = _draftService!.getNextPick();
+  if (nextPick != null) {
+    _showTradeOptions(nextPick);
+  }
+}
 
 // Add this method to the DraftAppState class
 void _testDraftSummary() {

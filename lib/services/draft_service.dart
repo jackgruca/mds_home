@@ -473,67 +473,104 @@ bool _evaluateQBTradeScenario(DraftPick nextPick) {
 }
   
   /// Execute a trade by swapping teams for picks
-  /// Execute a trade by swapping teams for picks
   void _executeTrade(TradePackage package) {
-    // Create unique ID to prevent duplicate processing
-    String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
-    if (_executedTradeIds.contains(tradeId)) {
-      return; // Skip if already processed
+  // Create unique ID to prevent duplicate processing
+  String tradeId = "${package.teamOffering}_${package.teamReceiving}_${package.targetPick.pickNumber}";
+  if (_executedTradeIds.contains(tradeId)) {
+    debugPrint("Skipping already processed trade: $tradeId");
+    return; 
+  }
+  _executedTradeIds.add(tradeId);
+  
+  debugPrint("\n==== EXECUTING TRADE ====");
+  debugPrint("${package.teamOffering} receives: pick #${package.targetPick.pickNumber}");
+  debugPrint("${package.teamReceiving} receives: ${package.picksOffered.map((p) => '#${p.pickNumber}').join(', ')}");
+  
+  final teamReceiving = package.teamReceiving;
+  final teamOffering = package.teamOffering;
+  
+  // Update the target pick to belong to the offering team
+  for (var pick in draftOrder) {
+    if (pick.pickNumber == package.targetPick.pickNumber) {
+      pick.teamName = teamOffering;
+      pick.tradeInfo = "From $teamReceiving";
+      debugPrint("Updated pick #${pick.pickNumber} to belong to $teamOffering");
+      break;
     }
-    _executedTradeIds.add(tradeId);
-    
-    final teamReceiving = package.teamReceiving;
-    final teamOffering = package.teamOffering;
-    
-    // Update the target pick to belong to the offering team
+  }
+  
+  // Update any additional target picks
+  for (var additionalPick in package.additionalTargetPicks) {
     for (var pick in draftOrder) {
-      if (pick.pickNumber == package.targetPick.pickNumber) {
+      if (pick.pickNumber == additionalPick.pickNumber) {
         pick.teamName = teamOffering;
         pick.tradeInfo = "From $teamReceiving";
+        debugPrint("Updated additional pick #${pick.pickNumber} to belong to $teamOffering");
         break;
       }
     }
-    
-    // Update any additional target picks
-    for (var additionalPick in package.additionalTargetPicks) {
-      for (var pick in draftOrder) {
-        if (pick.pickNumber == additionalPick.pickNumber) {
-          pick.teamName = teamOffering;
-          pick.tradeInfo = "From $teamReceiving";
-          break;
-        }
-      }
-    }
-    
-    // Update the offered picks to belong to the receiving team
-    for (var offeredPick in package.picksOffered) {
-      for (var pick in draftOrder) {
-        if (pick.pickNumber == offeredPick.pickNumber) {
-          pick.teamName = teamReceiving;
-          pick.tradeInfo = "From $teamOffering";
-          break;
-        }
-      }
-    }
-    
-    // Handle future picks if included
-    if (package.includesFuturePick && package.futureDraftRounds != null && package.futureDraftRounds!.isNotEmpty) {
-      // Move future picks from offering team to receiving team
-      for (var round in package.futureDraftRounds!) {
-        _transferFuturePick(teamOffering, teamReceiving, round);
-      }
-    }
-    
-    // Handle target future picks if included
-    if (package.targetFutureDraftRounds != null && package.targetFutureDraftRounds!.isNotEmpty) {
-      // Move future picks from receiving team to offering team
-      for (var round in package.targetFutureDraftRounds!) {
-        _transferFuturePick(teamReceiving, teamOffering, round);
-      }
-    }
-    
-    _executedTrades.add(package);
   }
+  
+  // Update the offered picks to belong to the receiving team
+  for (var offeredPick in package.picksOffered) {
+    for (var pick in draftOrder) {
+      if (pick.pickNumber == offeredPick.pickNumber) {
+        pick.teamName = teamReceiving;
+        pick.tradeInfo = "From $teamOffering";
+        debugPrint("Updated offered pick #${pick.pickNumber} to belong to $teamReceiving");
+        break;
+      }
+    }
+  }
+  
+  // Handle future picks
+  debugPrint("Future picks in trade:");
+  debugPrint("- From offering team (${package.teamOffering}): ${package.futureDraftRounds?.join(', ') ?? 'None'}");
+  debugPrint("- From receiving team (${package.teamReceiving}): ${package.targetFutureDraftRounds?.join(', ') ?? 'None'}");
+  
+  // Handle future picks if included from offering team
+  if (package.futureDraftRounds != null && package.futureDraftRounds!.isNotEmpty) {
+    debugPrint("Processing ${package.futureDraftRounds!.length} future picks from ${package.teamOffering} to ${package.teamReceiving}");
+    // Move future picks from offering team to receiving team
+    for (var round in package.futureDraftRounds!) {
+      _transferFuturePick(package.teamOffering, package.teamReceiving, round);
+    }
+  } 
+  // Legacy handling for backwards compatibility
+  else if (package.includesFuturePick && package.futurePickDescription != null) {
+    debugPrint("Using legacy future pick description: ${package.futurePickDescription}");
+    // Parse future picks from description and process them
+    _processFuturePickFromDescription(package.futurePickDescription!, package.teamOffering, package.teamReceiving);
+  }
+  
+  // Handle target future picks if included
+  if (package.targetFutureDraftRounds != null && package.targetFutureDraftRounds!.isNotEmpty) {
+    debugPrint("Processing ${package.targetFutureDraftRounds!.length} future picks from ${package.teamReceiving} to ${package.teamOffering}");
+    // Move future picks from receiving team to offering team
+    for (var round in package.targetFutureDraftRounds!) {
+      _transferFuturePick(package.teamReceiving, package.teamOffering, round);
+    }
+  }
+  
+  _executedTrades.add(package);
+  debugPrint("Trade execution complete\n");
+  
+  // Print future picks status
+  printFuturePicksStatus(package.teamOffering);
+  printFuturePicksStatus(package.teamReceiving);
+}
+
+// Add this helper method to parse future pick descriptions
+void _processFuturePickFromDescription(String description, String fromTeam, String toTeam) {
+  String desc = description.toLowerCase();
+  if (desc.contains("1st")) _transferFuturePick(fromTeam, toTeam, 1);
+  if (desc.contains("2nd")) _transferFuturePick(fromTeam, toTeam, 2);
+  if (desc.contains("3rd")) _transferFuturePick(fromTeam, toTeam, 3);
+  if (desc.contains("4th")) _transferFuturePick(fromTeam, toTeam, 4);
+  if (desc.contains("5th")) _transferFuturePick(fromTeam, toTeam, 5);
+  if (desc.contains("6th")) _transferFuturePick(fromTeam, toTeam, 6);
+  if (desc.contains("7th")) _transferFuturePick(fromTeam, toTeam, 7);
+}
   
   /// Transfer a future pick from one team to another
 void _transferFuturePick(String fromTeam, String toTeam, int round) {
@@ -544,7 +581,18 @@ void _transferFuturePick(String fromTeam, String toTeam, int round) {
     (pick) => pick.round == round && !pick.isTraded
   );
   
-  if (pickIndex == -1) return; // Pick not found or already traded
+  if (pickIndex == -1) {
+    // Improved error logging if pick not found
+    debugPrint("ERROR: Cannot find available future pick for round $round from team $fromTeam");
+    // Check if they have any picks of this round (traded or not)
+    int anyPickIndex = _teamFuturePicks[fromTeam]!.indexWhere(
+      (pick) => pick.round == round
+    );
+    if (anyPickIndex != -1) {
+      debugPrint("Note: Found a pick but it's already traded");
+    }
+    return;
+  }
   
   // Mark the pick as traded
   final originalPick = _teamFuturePicks[fromTeam]![pickIndex];
@@ -1208,7 +1256,6 @@ void generateUserPickOffers() {
   }
   
   /// Execute a specific trade (for use with UI)
-  /// Execute a specific trade (for use with UI)
 void executeUserSelectedTrade(TradePackage package) {
   _executeTrade(package);
   _statusMessage = "Trade executed: ${package.tradeDescription}";
@@ -1216,6 +1263,10 @@ void executeUserSelectedTrade(TradePackage package) {
   
   // Clean up any stale trade offers
   cleanupTradeOffers();
+  
+  // Debug output to verify future picks state
+  printFuturePicksStatus(package.teamOffering);
+  printFuturePicksStatus(package.teamReceiving);
 }
   
   /// Get all available picks for a specific team
@@ -1237,4 +1288,20 @@ void executeUserSelectedTrade(TradePackage package) {
   bool isDraftComplete() {
     return draftOrder.where((pick) => pick.isActiveInDraft).every((pick) => pick.isSelected);
   }
+
+  /// Debug method to print the status of future picks
+void printFuturePicksStatus(String teamName) {
+  debugPrint("\n==== FUTURE PICKS STATUS FOR $teamName ====");
+  final futurePicks = _teamFuturePicks[teamName] ?? [];
+  
+  if (futurePicks.isEmpty) {
+    debugPrint("No future picks registered for $teamName");
+    return;
+  }
+  
+  for (var pick in futurePicks) {
+    debugPrint("${pick.year} Round ${pick.round}: Owner: ${pick.teamOwning}${pick.teamOriginal != pick.teamOwning ? " (Original: ${pick.teamOriginal})" : ""}${pick.isTraded ? " [TRADED]" : " [AVAILABLE]"} Value: ${pick.value.toStringAsFixed(1)}");
+  }
+  debugPrint("==========================================\n");
+}
 }

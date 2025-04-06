@@ -119,12 +119,19 @@ void initState() {
   }
 
   @override
-  Widget build(BuildContext context) {
-     List<int> userAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(widget.userTeam) 
-      ?? _availableFutureRounds;
+Widget build(BuildContext context) {
+  // Get fresh data from DraftService every time the UI is built
+  List<int> userAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(widget.userTeam) 
+    ?? _availableFutureRounds;
+  
+  List<int> targetAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) 
+    ?? _availableFutureRounds;
     
-    List<int> targetAvailableFutureRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) 
-      ?? _availableFutureRounds;
+  // Debug log to see what's available
+  debugPrint("Available future picks for ${widget.userTeam}: ${userAvailableFutureRounds.join(', ')}");
+  debugPrint("Available future picks for $_targetTeam: ${targetAvailableFutureRounds.join(', ')}");
+  
+
 
     // Get unique teams from target picks
     final targetTeams = widget.targetPicks
@@ -949,10 +956,40 @@ String _getTradeAdviceText() {
   List<String> futurePickDescriptions = [];
   double futurePicksValue = 0;
   
-  for (var round in _selectedFutureRounds) {
+  // Get fresh data for available rounds
+  List<int> actualSelectedFutureRounds = [];
+  if (widget.draftService != null) {
+    List<int> availableRounds = widget.draftService?.getAvailableFuturePickRounds(widget.userTeam) ?? [];
+    // Only include rounds that are both selected AND still available
+    actualSelectedFutureRounds = _selectedFutureRounds
+      .where((round) => availableRounds.contains(round))
+      .toList();
+    
+    if (actualSelectedFutureRounds.length != _selectedFutureRounds.length) {
+      debugPrint("WARNING: Some selected future rounds are no longer available!");
+      debugPrint("Selected: ${_selectedFutureRounds.join(', ')}");
+      debugPrint("Available: ${availableRounds.join(', ')}");
+      debugPrint("Actual used: ${actualSelectedFutureRounds.join(', ')}");
+    }
+  } else {
+    actualSelectedFutureRounds = _selectedFutureRounds;
+  }
+  
+  for (var round in actualSelectedFutureRounds) {
     futurePickDescriptions.add("2026 ${_getRoundText(round)} Round");
     final futurePick = FuturePick.forRound(widget.userTeam, round);
     futurePicksValue += futurePick.value;
+  }
+  
+  // Also validate target future rounds
+  List<int> actualSelectedTargetFutureRounds = [];
+  if (widget.draftService != null) {
+    List<int> availableRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) ?? [];
+    actualSelectedTargetFutureRounds = _selectedTargetFutureRounds
+      .where((round) => availableRounds.contains(round))
+      .toList();
+  } else {
+    actualSelectedTargetFutureRounds = _selectedTargetFutureRounds;
   }
   
   // Update the TradePackage to include both future pick lists
