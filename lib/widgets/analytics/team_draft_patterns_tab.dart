@@ -28,7 +28,7 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
   bool _isLoading = true;
   String _selectedTeam = '';
   int? _selectedRound; // Changed to int? to support "All Rounds" option
-  bool _isFirstLoad = true;
+  final bool _isFirstLoad = true;
   bool _hasLoadedData = false;
   
   // Data states
@@ -52,6 +52,7 @@ void initState() {
 }
 
 
+// Replace in lib/widgets/analytics/team_draft_patterns_tab.dart
 Future<void> _loadFromLocalStorage() async {
   if (!_isFirstLoad) return;
   
@@ -72,13 +73,15 @@ Future<void> _loadFromLocalStorage() async {
       'consensus_needs_${widget.draftYear}'
     );
     
+    bool hasLoadedSomeData = false;
+    
     if (storedPositionData != null) {
       final data = jsonDecode(storedPositionData);
       setState(() {
         _topPicksByPosition = List<Map<String, dynamic>>.from(
           data.map((x) => Map<String, dynamic>.from(x))
         );
-        _hasLoadedData = true;
+        hasLoadedSomeData = true;
       });
     }
     
@@ -94,16 +97,26 @@ Future<void> _loadFromLocalStorage() async {
       
       setState(() {
         _consensusNeeds = result;
-        _hasLoadedData = true;
+        hasLoadedSomeData = true;
       });
+    }
+    
+    setState(() {
+      _hasLoadedData = hasLoadedSomeData;
+      _isLoading = !hasLoadedSomeData;
+    });
+    
+    // If we have some data, fetch fresh data in background but don't block UI
+    if (hasLoadedSomeData) {
+      Future.delayed(Duration.zero, _loadData);
     }
   } catch (e) {
     debugPrint('Error loading from local storage: $e');
-  } finally {
     setState(() {
-      _isLoading = !_hasLoadedData;
-      _isFirstLoad = false;
+      _isLoading = true;
     });
+    // If there's an error with local storage, try direct loading
+    _loadData();
   }
 }
 

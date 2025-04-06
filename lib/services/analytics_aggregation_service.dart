@@ -248,22 +248,34 @@ class AnalyticsAggregationService {
     return result;
   }
 
-  /// Generate optimized data structures for community analytics
-  static Future<void> generateOptimizedStructures() async {
-    debugPrint('Generating optimized analytics structures...');
+static Future<void> generateOptimizedStructures() async {
+  debugPrint('Generating optimized analytics structures...');
+  
+  try {
+    // 1. Generate position trends by round
+    await _generatePositionTrendsByRound();
     
-    try {
-      // 1. Generate position trends by round
-      await _generatePositionTrendsByRound();
-      
-      // 2. Generate consensus needs document
-      await _generateConsensusNeeds();
-      
-      debugPrint('Optimized structures generated successfully');
-    } catch (e) {
-      debugPrint('Error generating optimized structures: $e');
-    }
+    // 2. Generate consensus needs document
+    await _generateConsensusNeeds();
+    
+    // Create a timestamp record of when optimization was last run
+    await _firestore.collection('analytics_meta').doc('last_optimized').set({
+      'timestamp': FieldValue.serverTimestamp(),
+      'success': true
+    });
+    
+    debugPrint('Optimized structures generated successfully');
+  } catch (e) {
+    debugPrint('Error generating optimized structures: $e');
+    
+    // Record failure
+    await _firestore.collection('analytics_meta').doc('last_optimized').set({
+      'timestamp': FieldValue.serverTimestamp(),
+      'success': false,
+      'error': e.toString()
+    });
   }
+}  
   
   static Future<void> _generatePositionTrendsByRound() async {
     // Process for each round (1-7)

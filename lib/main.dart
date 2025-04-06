@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
@@ -45,6 +46,45 @@ void main() async {
   debugPrint('Error initializing analytics data manager: $e');
 }
 
+Future<void> initializeBackgroundTasks() async {
+  // Check if we need to run daily analytics aggregation
+  try {
+    bool ranToday = await AnalyticsAggregationService.runDailyAggregationIfNeeded();
+    if (ranToday) {
+      debugPrint('Successfully ran daily analytics aggregation');
+    } else {
+      debugPrint('Daily analytics aggregation not needed or already run today');
+    }
+    
+    // Check when optimized data was last generated
+    final lastOptimized = await FirebaseFirestore.instance
+        .collection('analytics_meta')
+        .doc('last_optimized')
+        .get();
+        
+    if (!lastOptimized.exists) {
+      // Never optimized before, run initial optimization
+      debugPrint('No optimization record found, running initial optimization');
+      AnalyticsAggregationService.generateOptimizedStructures();
+    } else {
+      final data = lastOptimized.data() as Map<String, dynamic>;
+      final timestamp = data['timestamp'] as Timestamp;
+      final lastRun = timestamp.toDate();
+      
+      // If optimization is older than 7 days, run it again
+      if (DateTime.now().difference(lastRun).inDays > 7) {
+        debugPrint('Optimization data is older than 7 days, refreshing...');
+        AnalyticsAggregationService.generateOptimizedStructures();
+      }
+    }
+  } catch (e) {
+    debugPrint('Error initializing background tasks: $e');
+  }
+}
+
+// Then call in main()
+Future.delayed(const Duration(seconds: 5), initializeBackgroundTasks);
+
   // Turn on debug output for the app
   if (kDebugMode) {
     debugPrint = (String? message, {int? wrapWidth}) {
@@ -53,6 +93,10 @@ void main() async {
       }
     };
   }
+
+  Future.delayed(const Duration(seconds: 5), () {
+    AnalyticsAggregationService.runDailyAggregationIfNeeded();
+  });
   
   runApp(
     MultiProvider(
