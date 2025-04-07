@@ -16,22 +16,42 @@ class Player {
   String? strengths;
   String? weaknesses;
   String? fortyTime;
+  String? tenYardSplit;
+  String? twentyYardShuttle;
+  String? threeCone;
+  String? armLength;
+  String? benchPress;
+  String? broadJump;
+  String? handSize;
+  String? verticalJump;
+  String? wingspan;
+
 
   Player({
-    required this.id,
-    required this.name,
-    required this.position,
-    required this.rank,
-    this.school = '',
-    this.notes = '',
-    this.height,
-    this.weight,
-    this.rasScore,
-    this.description,
-    this.strengths,
-    this.weaknesses,
-    this.fortyTime,
-  });
+  required this.id,
+  required this.name,
+  required this.position,
+  required this.rank,
+  this.school = '',
+  this.notes = '',
+  this.height,
+  this.weight,
+  this.rasScore,
+  this.description,
+  this.strengths,
+  this.weaknesses,
+  this.fortyTime,
+  this.tenYardSplit,
+  this.twentyYardShuttle,
+  this.threeCone,
+  this.armLength,
+  this.benchPress,
+  this.broadJump,
+  this.handSize,
+  this.verticalJump,
+  this.wingspan,
+});
+
   
   // Create a Player from CSV row data
   factory Player.fromCsvRow(List<dynamic> row) {

@@ -11,7 +11,6 @@ class PlayerDescriptionsService {
   static List<String> _allPlayerNames = []; // Added to keep track of all names
 
 // In lib/services/player_descriptions_service.dart
-
 static Future<void> initialize({int year = 2025}) async {
   if (_isInitialized) return;
   
@@ -49,6 +48,17 @@ static Future<void> initialize({int year = 2025}) async {
         String fortyTime = csvTable[i].length > 6 ? csvTable[i][6].toString().trim() : "";
         String ras = csvTable[i].length > 7 ? csvTable[i][7].toString().trim() : "";
         
+        // Get the new fields - update index numbers as needed based on your actual CSV structure
+        String tenYardSplit = csvTable[i].length > 8 ? csvTable[i][8].toString().trim() : "";
+        String twentyYardShuttle = csvTable[i].length > 9 ? csvTable[i][9].toString().trim() : "";
+        String threeCone = csvTable[i].length > 10 ? csvTable[i][10].toString().trim() : "";
+        String armLength = csvTable[i].length > 11 ? csvTable[i][11].toString().trim() : "";
+        String benchPress = csvTable[i].length > 12 ? csvTable[i][12].toString().trim() : "";
+        String broadJump = csvTable[i].length > 13 ? csvTable[i][13].toString().trim() : "";
+        String handSize = csvTable[i].length > 14 ? csvTable[i][14].toString().trim() : "";
+        String verticalJump = csvTable[i].length > 15 ? csvTable[i][15].toString().trim() : "";
+        String wingspan = csvTable[i].length > 16 ? csvTable[i][16].toString().trim() : "";
+        
         _playerDescriptions[name.toLowerCase()] = {
           'description': description,
           'strengths': strengths,
@@ -57,6 +67,15 @@ static Future<void> initialize({int year = 2025}) async {
           'weight': weight,
           'fortyTime': fortyTime,
           'ras': ras,
+          'tenYardSplit': tenYardSplit,
+          'twentyYardShuttle': twentyYardShuttle,
+          'threeCone': threeCone,
+          'armLength': armLength,
+          'benchPress': benchPress,
+          'broadJump': broadJump,
+          'handSize': handSize,
+          'verticalJump': verticalJump,
+          'wingspan': wingspan,
         };
       }
     }

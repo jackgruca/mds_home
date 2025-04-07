@@ -237,6 +237,164 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
             ],
           ),
         ),
+        // Add this new container after the existing stats row
+Container(
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+  decoration: BoxDecoration(
+    color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    border: Border(
+      bottom: BorderSide(
+        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        width: 1,
+      ),
+    ),
+  ),
+  child: SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        // 10 Yard Split
+        _buildCompactStat(
+          context,
+          '10yd',
+          player.tenYardSplit != null && player.tenYardSplit!.isNotEmpty ? 
+            "${player.tenYardSplit}s" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // 20 Yard Shuttle
+        _buildCompactStat(
+          context,
+          '20sh',
+          player.twentyYardShuttle != null && player.twentyYardShuttle!.isNotEmpty ? 
+            "${player.twentyYardShuttle}s" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // 3-Cone Drill
+        _buildCompactStat(
+          context,
+          '3cone',
+          player.threeCone != null && player.threeCone!.isNotEmpty ? 
+            "${player.threeCone}s" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Bench Press
+        _buildCompactStat(
+          context,
+          'Bench',
+          player.benchPress != null && player.benchPress!.isNotEmpty ? 
+            "${player.benchPress}" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Vertical Jump
+        _buildCompactStat(
+          context,
+          'Vert',
+          player.verticalJump != null && player.verticalJump!.isNotEmpty ? 
+            "${player.verticalJump}\"" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Broad Jump
+        _buildCompactStat(
+          context,
+          'Broad',
+          player.broadJump != null && player.broadJump!.isNotEmpty ? 
+            "${player.broadJump}\"" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Arm Length
+        _buildCompactStat(
+          context,
+          'Arm',
+          player.armLength != null && player.armLength!.isNotEmpty ? 
+            "${player.armLength}\"" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Hand Size
+        _buildCompactStat(
+          context,
+          'Hand',
+          player.handSize != null && player.handSize!.isNotEmpty ? 
+            "${player.handSize}\"" : "N/A",
+          isDarkMode,
+        ),
+        
+        // Vertical divider
+        Container(
+          height: 24,
+          width: 1,
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+        
+        // Wingspan
+        _buildCompactStat(
+          context,
+          'Wing',
+          player.wingspan != null && player.wingspan!.isNotEmpty ? 
+            "${player.wingspan}\"" : "N/A",
+          isDarkMode,
+        ),
+      ],
+    ),
+  ),
+),
         
         // Single scrollable content area
         Expanded(
