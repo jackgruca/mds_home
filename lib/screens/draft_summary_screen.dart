@@ -10,6 +10,10 @@ import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart'; // Added for school logos
 import '../services/draft_pick_grade_service.dart';
 import '../widgets/common/export_button_widget.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'dart:typed_data';
+import '../widgets/draft/shareable_draft_card.dart';
 
 
 class DraftSummaryScreen extends StatefulWidget {
@@ -42,6 +46,7 @@ class _DraftSummaryScreenState extends State<DraftSummaryScreen> {
   String? _selectedTeam;
   int _selectedRound = 1; 
   final GlobalKey _screenshotKey = GlobalKey(); // Add this line
+  final GlobalKey _shareableCardKey = GlobalKey();
 
   // Calculate pick grade based on value differential
 Map<String, dynamic> _calculateDetailedPickGrade(DraftPick pick, List<TeamNeed> teamNeeds) {
@@ -368,12 +373,13 @@ Widget build(BuildContext context) {
         children: [
           // Add Export Button
           ExportButtonWidget(
-            completedPicks: widget.completedPicks,
-            teamNeeds: widget.teamNeeds,
-            userTeam: widget.userTeam,
-            executedTrades: widget.executedTrades,
-            filterTeam: _selectedTeam,
-          ),
+  completedPicks: widget.completedPicks,
+  teamNeeds: widget.teamNeeds,
+  userTeam: widget.userTeam,
+  executedTrades: widget.executedTrades,
+  filterTeam: _selectedTeam,
+  shareableCardKey: _shareableCardKey,
+),
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
@@ -441,9 +447,18 @@ Widget build(BuildContext context) {
           Expanded(
             child: _buildSummaryContent(),
           ),
-        ],
+          Offstage(
+  offstage: true, // Hide it from view but still render it
+  child: ShareableDraftCard(
+    picks: widget.completedPicks,
+    userTeam: _selectedTeam == 'All Teams' ? widget.userTeam : _selectedTeam,
+    teamNeeds: widget.teamNeeds,
+    cardKey: _shareableCardKey,
+  ),
+),
+          ],
+        ),
       ),
-    ),
     ),
   );
 }
@@ -454,38 +469,54 @@ Widget build(BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
   final bool isNarrowScreen = screenWidth < 360;
   
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (int i = 1; i <= min(7, _getMaxRound()); i++)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
-            child: ChoiceChip(
-              label: Text(
-                'R$i', // Shorter text for round
-                style: TextStyle(
-                  fontSize: isNarrowScreen ? 11 : 12,
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      // Left side - round selector
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 1; i <= min(7, _getMaxRound()); i++)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
+                child: ChoiceChip(
+                  label: Text(
+                    'R$i', // Shorter text for round
+                    style: TextStyle(
+                      fontSize: isNarrowScreen ? 11 : 12,
+                    ),
+                  ),
+                  selected: _selectedRound == i,
+                  visualDensity: VisualDensity.compact, // More compact chips
+                  labelPadding: EdgeInsets.symmetric(
+                    horizontal: isNarrowScreen ? 4 : 8,
+                    vertical: 0,
+                  ),
+                  onSelected: (bool selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedRound = i;
+                      });
+                    }
+                  },
                 ),
               ),
-              selected: _selectedRound == i,
-              visualDensity: VisualDensity.compact, // More compact chips
-              labelPadding: EdgeInsets.symmetric(
-                horizontal: isNarrowScreen ? 4 : 8,
-                vertical: 0,
-              ),
-              onSelected: (bool selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedRound = i;
-                  });
-                }
-              },
-            ),
-          ),
-      ],
-    ),
+          ],
+        ),
+      ),
+      
+      // Right side - export button
+      ExportButtonWidget(
+  completedPicks: widget.completedPicks,
+  teamNeeds: widget.teamNeeds,
+  userTeam: widget.userTeam,
+  executedTrades: widget.executedTrades,
+  filterTeam: _selectedTeam,
+  shareableCardKey: _shareableCardKey,
+),
+    ],
   );
 }
 
