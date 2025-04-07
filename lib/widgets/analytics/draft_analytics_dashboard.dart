@@ -825,7 +825,7 @@ Widget build(BuildContext context) {
                   _buildSectionHeader("Position Distribution"),
                   _buildPositionDistribution(),
                   Offstage(
-  offstage: true, // Hide it from view
+  offstage: true, // Hide it from view but still render it
   child: ShareableDraftCard(
     picks: widget.completedPicks,
     userTeam: _selectedTeam == 'All Teams' ? widget.userTeam : _selectedTeam,
@@ -870,12 +870,13 @@ Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
         ),
         if (showExportButton)
           ExportButtonWidget(
-            completedPicks: widget.completedPicks,
-            teamNeeds: widget.teamNeeds,
-            userTeam: widget.userTeam,
-            executedTrades: widget.executedTrades,
-            filterTeam: "All Teams",
-          ),
+  completedPicks: widget.completedPicks,
+  teamNeeds: widget.teamNeeds,
+  userTeam: widget.userTeam,
+  executedTrades: widget.executedTrades,
+  filterTeam: _selectedTeam,
+  shareableCardKey: _shareableCardKey,
+),
       ],
     ),
   );

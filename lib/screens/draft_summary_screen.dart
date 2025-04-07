@@ -373,13 +373,13 @@ Widget build(BuildContext context) {
         children: [
           // Add Export Button
           ExportButtonWidget(
-            completedPicks: widget.completedPicks,
-            teamNeeds: widget.teamNeeds,
-            userTeam: widget.userTeam,
-            executedTrades: widget.executedTrades,
-            filterTeam: _selectedTeam,
-            shareableCardKey: _shareableCardKey,
-          ),
+  completedPicks: widget.completedPicks,
+  teamNeeds: widget.teamNeeds,
+  userTeam: widget.userTeam,
+  executedTrades: widget.executedTrades,
+  filterTeam: _selectedTeam,
+  shareableCardKey: _shareableCardKey,
+),
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
@@ -448,14 +448,14 @@ Widget build(BuildContext context) {
             child: _buildSummaryContent(),
           ),
           Offstage(
-              offstage: true, // Hide it from view but still render it
-              child: ShareableDraftCard(
-                picks: widget.completedPicks,
-                userTeam: _selectedTeam == "All Teams" ? widget.userTeam : _selectedTeam,
-                teamNeeds: widget.teamNeeds,
-                cardKey: _shareableCardKey,
-              ),
-            ),
+  offstage: true, // Hide it from view but still render it
+  child: ShareableDraftCard(
+    picks: widget.completedPicks,
+    userTeam: _selectedTeam == 'All Teams' ? widget.userTeam : _selectedTeam,
+    teamNeeds: widget.teamNeeds,
+    cardKey: _shareableCardKey,
+  ),
+),
           ],
         ),
       ),
@@ -509,13 +509,13 @@ Widget build(BuildContext context) {
       
       // Right side - export button
       ExportButtonWidget(
-        completedPicks: widget.completedPicks,
-        teamNeeds: widget.teamNeeds,
-        userTeam: widget.userTeam,
-        executedTrades: widget.executedTrades,
-        filterTeam: _selectedTeam,
-        shareableCardKey: _shareableCardKey,
-      ),
+  completedPicks: widget.completedPicks,
+  teamNeeds: widget.teamNeeds,
+  userTeam: widget.userTeam,
+  executedTrades: widget.executedTrades,
+  filterTeam: _selectedTeam,
+  shareableCardKey: _shareableCardKey,
+),
     ],
   );
 }

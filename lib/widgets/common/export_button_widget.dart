@@ -28,15 +28,20 @@ import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
 import '../../utils/theme_config.dart';
 import 'dart:async';
+import 'dart:html' as html;
+import 'dart:js' as js;
+
+import '../draft/shareable_draft_card.dart';
 
 /// Widget for exporting draft results with an enhanced design
+// lib/widgets/common/export_button_widget.dart
 class ExportButtonWidget extends StatelessWidget {
   final List<DraftPick> completedPicks;
   final List<TeamNeed> teamNeeds;
   final String? userTeam;
   final List<TradePackage> executedTrades;
   final String? filterTeam;
-  final GlobalKey? shareableCardKey; // Add this
+  final GlobalKey? shareableCardKey;
   
   const ExportButtonWidget({
     super.key,
@@ -45,226 +50,555 @@ class ExportButtonWidget extends StatelessWidget {
     this.userTeam,
     required this.executedTrades,
     this.filterTeam,
-    this.shareableCardKey, // Add this
+    this.shareableCardKey,
   });
-  
 
   @override
   Widget build(BuildContext context) {
-    // Get theme info to match app's visual design
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.share, size: 18),
-      label: const Text('Export'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Export Button
+        PopupMenuButton<String>(
+          tooltip: 'Export Options',
+          offset: const Offset(0, 40),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text('Export'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: null, // Not used since PopupMenuButton handles tap
+          ),
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+            // Download Image Options
+            PopupMenuItem<String>(
+              value: 'download_header',
+              enabled: false,
+              child: _buildPopupHeader(context, 'Download Image', Icons.image),
+            ),
+            PopupMenuItem<String>(
+              value: 'download_your_picks',
+              child: _buildPopupItem(context, 'Your Picks', Icons.person),
+            ),
+            PopupMenuItem<String>(
+              value: 'download_first_round',
+              child: _buildPopupItem(context, 'First Round', Icons.looks_one),
+            ),
+            PopupMenuItem<String>(
+              value: 'download_full_draft',
+              child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
+            ),
+            
+            // Divider
+            const PopupMenuDivider(),
+            
+            // Export As Options
+            PopupMenuItem<String>(
+              value: 'export_header',
+              enabled: false,
+              child: _buildPopupHeader(context, 'Export As', Icons.share),
+            ),
+            PopupMenuItem<String>(
+              value: 'export_html',
+              child: _buildPopupItem(context, 'Web Page (HTML)', Icons.web),
+            ),
+            PopupMenuItem<String>(
+              value: 'export_clipboard',
+              child: _buildPopupItem(context, 'Text to Clipboard', Icons.text_fields),
+            ),
+          ],
+          onSelected: (value) => _handleExportAction(value, context),
+        ),
+        
+        const SizedBox(width: 8), // Space between buttons
+        
+        // Copy Image Button - Separate Button
+        PopupMenuButton<String>(
+          tooltip: 'Copy Image Options',
+          offset: const Offset(0, 40),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.content_copy, size: 18),
+            label: const Text('Copy Image'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDarkMode ? Colors.indigo : Colors.deepPurple,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: null, // Not used since PopupMenuButton handles tap
+          ),
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'copy_your_picks',
+              child: _buildPopupItem(context, 'Your Picks', Icons.person),
+            ),
+            PopupMenuItem<String>(
+              value: 'copy_first_round',
+              child: _buildPopupItem(context, 'First Round', Icons.looks_one),
+            ),
+            PopupMenuItem<String>(
+              value: 'copy_full_draft',
+              child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
+            ),
+          ],
+          onSelected: (value) => _handleCopyAction(value, context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPopupHeader(BuildContext context, String title, IconData icon) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        icon, 
+        color: Theme.of(context).primaryColor,
+        size: 20,
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
         ),
       ),
-      onPressed: () {
-        _showExportDialog(context);
-      },
     );
   }
   
-  void _showExportDialog(BuildContext context) {
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildPopupItem(BuildContext context, String title, IconData icon) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        icon,
+        size: 18,
+        color: Theme.of(context).brightness == Brightness.dark ? 
+          Colors.white70 : Colors.grey.shade700,
       ),
-      title: Row(
-        children: [
-          Icon(Icons.share, 
-            color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-            size: 24,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'Export Draft Results',
-            style: TextStyle(
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-        ],
-      ),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Choose what you want to export:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white70 : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Add the shareable image option
-            _buildExportOption(
-              context,
-              icon: Icons.image,
-              title: 'Shareable Image',
-              subtitle: 'Create a shareable image for social media',
-              onTap: () {
-                Navigator.pop(context);
-                _exportAsImage(context);
-              },
-            ),
-            
-            const Divider(height: 16),
-            
-            _buildExportOption(
-              context,
-              icon: Icons.list_alt,
-              title: 'Full Draft',
-              subtitle: 'Export all rounds and picks',
-              onTap: () {
-                Navigator.pop(context);
-                _exportFullDraft(context);
-              },
-            ),
-            const Divider(height: 16),
-            _buildExportOption(
-              context,
-              icon: Icons.looks_one,
-              title: 'First Round Only',
-              subtitle: 'Export just the first round picks',
-              onTap: () {
-                Navigator.pop(context);
-                _exportFirstRound(context);
-              },
-            ),
-              if (userTeam != null) ...[
-                const Divider(height: 16),
-                _buildExportOption(
-                  context,
-                  icon: Icons.person,
-                  title: 'Your Picks',
-                  subtitle: 'Export only your team\'s picks',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _exportTeamPicks(context, userTeam!);
-                  },
-                ),
-              ],
-              if (filterTeam != null && filterTeam != userTeam && filterTeam != "All Teams") ...[
-                const Divider(height: 16),
-                _buildExportOption(
-                  context,
-                  icon: Icons.groups,
-                  title: '$filterTeam Picks',
-                  subtitle: 'Export only $filterTeam\'s picks',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _exportTeamPicks(context, filterTeam!);
-                  },
-                ),
-                const Divider(height: 16),
-            
-            _buildExportOption(
-              context,
-              icon: Icons.content_copy,
-              title: 'Copy to Clipboard',
-              subtitle: 'Copy formatted results for sharing via text',
-              onTap: () {
-                Navigator.pop(context);
-                _copyToClipboard(context);
-              },
-            ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-          onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            foregroundColor: isDarkMode ? Colors.white70 : Colors.grey.shade700,
-          ),
-          child: const Text('Cancel'),
-        ),
-        ],
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 14),
       ),
     );
   }
 
-  Widget _buildExportOption(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
+  void _handleExportAction(String action, BuildContext context) {
+    if (action.startsWith('download_')) {
+      _handleDownloadImage(action.replaceFirst('download_', ''), context);
+    } else if (action == 'export_html') {
+      _exportFullDraft(context);
+    } else if (action == 'export_clipboard') {
+      _copyToClipboard(context);
+    }
+  }
+  
+  void _handleCopyAction(String action, BuildContext context) {
+    final exportMode = _getExportMode(action.replaceFirst('copy_', ''));
+    _captureAndCopyImage(context, exportMode);
+  }
+
+  Future<void> _handleDownloadImage(String mode, BuildContext context) async {
+    final exportMode = _getExportMode(mode);
+    await _captureAndSaveImage(context, exportMode);
+  }
+
+  String _getExportMode(String mode) {
+    switch (mode) {
+      case 'your_picks':
+        return 'your_picks';
+      case 'first_round':
+        return 'first_round';
+      case 'full_draft':
+      default:
+        return 'full_draft';
+    }
+  }
+
+  // Separate methods for save vs copy
+  Future<void> _captureAndSaveImage(BuildContext context, String exportMode) async {
+    await _captureImage(context, exportMode, false);
+  }
+  
+  Future<void> _captureAndCopyImage(BuildContext context, String exportMode) async {
+    await _captureImage(context, exportMode, true);
+  }
+
+  // Common image capture logic
+  Future<void> _captureImage(BuildContext context, String exportMode, bool forClipboard) async {
+    if (shareableCardKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to generate image')),
+      );
+      return;
+    }
+
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed;
     
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        child: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
               ),
-              padding: const EdgeInsets.all(8),
-              child: Icon(
-                icon,
-                color: primaryColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isDarkMode ? Colors.white : Colors.black87,
+              const SizedBox(width: 12),
+              Text(forClipboard ? 'Copying to clipboard...' : 'Generating image...'),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+      
+      // Wait for the UI to settle
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Create a temporary GlobalKey
+      final GlobalKey repaintKey = GlobalKey();
+      
+      // Create a temporary card with fixed size to ensure proper layout
+      final Widget card = Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 800,
+          constraints: const BoxConstraints(maxHeight: 1200),
+          child: ShareableDraftCard(
+            picks: completedPicks,
+            userTeam: filterTeam == "All Teams" ? userTeam : filterTeam,
+            teamNeeds: teamNeeds,
+            exportMode: exportMode,
+            cardKey: repaintKey,
+          ),
+        ),
+      );
+      
+      // Create a container in overlay to host our widget
+      final overlayState = Overlay.of(context);
+      final OverlayEntry overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          left: 20,
+          top: 20,
+          child: card,
+        ),
+      );
+      
+      // Add to overlay
+      overlayState.insert(overlayEntry);
+      
+      // Wait for the widget to be fully rendered
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      try {
+        // Find the RenderRepaintBoundary
+        final RenderRepaintBoundary boundary = repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+        
+        // Make sure it's fully laid out
+        await Future.delayed(const Duration(milliseconds: 200));
+        
+        // Use a lower pixel ratio to avoid memory issues
+        final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
+        final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        
+        // Remove overlay
+        overlayEntry.remove();
+        
+        if (byteData == null) {
+          throw Exception('Failed to capture image');
+        }
+        
+        // Convert to bytes
+        final Uint8List pngBytes = byteData.buffer.asUint8List();
+        
+        if (forClipboard) {
+          await _enhancedCopyToClipboard(pngBytes, context);
+        } else {
+          await _saveImage(pngBytes, context, exportMode);
+        }
+      } catch (e) {
+        // Make sure to remove overlay on error
+        overlayEntry.remove();
+        rethrow;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating image: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  // Completely new implementation for clipboard copy
+  Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
+    try {
+      if (kIsWeb) {
+        // Web browsers have limited clipboard capabilities for security reasons
+        // Create a temporary canvas to handle the image data
+        final blob = html.Blob([imageBytes], 'image/png');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        
+        // Try to use the modern clipboard API
+        final success = await _tryWebClipboardAPI(url, context);
+        
+        if (!success) {
+          // Fallback: Show instructions to the user
+          if (context.mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Copy Image'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'For security reasons, direct copying to clipboard is not fully supported in all browsers.',
+                      style: TextStyle(fontSize: 14),
                     ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'To share this image:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInstructionStep(1, 'Right-click on the image when it opens'),
+                    _buildInstructionStep(2, 'Select "Copy Image"'),
+                    _buildInstructionStep(3, 'Paste into Twitter or other apps'),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Open the image in a new tab for copying
+                      html.window.open(url, '_blank');
+                    },
+                    child: const Text('Open Image'),
                   ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: isDarkMode ? Colors.white70 : Colors.grey.shade700,
-                      fontSize: 14,
-                    ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Cancel'),
                   ),
                 ],
               ),
+            );
+          }
+        }
+        
+        // Clean up the URL
+        Future.delayed(const Duration(seconds: 10), () {
+          html.Url.revokeObjectUrl(url);
+        });
+      } else {
+        // For mobile platforms, use platform-specific clipboard operations
+        // This will depend on the available plugins, which may vary
+        
+        // For demonstration, let's save to a temporary file and share
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/temp_clipboard_image.png');
+        await file.writeAsBytes(imageBytes);
+        
+        // Show success message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image copied and ready to share'),
+              duration: Duration(seconds: 2),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: isDarkMode ? Colors.white38 : Colors.grey.shade400,
+          );
+        }
+        
+        // Try using Share.shareXFiles for newer Share plugin versions
+        try {
+          await Share.shareXFiles(
+            [XFile(file.path)],
+            text: 'Check out my NFL Draft results',
+          );
+        } catch (e) {
+          // Fallback to older API if needed
+          await Share.shareFiles(
+            [file.path],
+            text: 'Check out my NFL Draft results',
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error copying image: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper for web clipboard API
+  Future<bool> _tryWebClipboardAPI(String imageUrl, BuildContext context) async {
+    try {
+      // Try navigator.clipboard.write API with ClipboardItem
+      // Note: This has limited browser support - primarily Chrome
+      final jsCode = '''
+        async function copyImageToClipboard() {
+          try {
+            const response = await fetch("$imageUrl");
+            const blob = await response.blob();
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [blob.type]: blob
+              })
+            ]);
+            return true;
+          } catch (err) {
+            console.error("Copy failed: ", err);
+            return false;
+          }
+        }
+        copyImageToClipboard();
+      ''';
+      final result = js.context.callMethod('eval', [jsCode]) as bool?;
+      
+      if (result == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image copied to clipboard successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Web clipboard API error: $e');
+      return false;
+    }
+  }
+
+  // Helper for instruction steps
+  Widget _buildInstructionStep(int number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: const BoxDecoration(
+              color: Colors.blue,
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
+            child: Center(
+              child: Text(
+                '$number',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Future<void> _saveImage(Uint8List imageBytes, BuildContext context, String exportMode) async {
+    try {
+      String fileName;
+      switch (exportMode) {
+        case 'your_picks':
+          fileName = '${userTeam ?? "team"}_picks.png';
+          break;
+        case 'first_round':
+          fileName = 'first_round_picks.png';
+          break;
+        default:
+          fileName = 'draft_results.png';
+      }
+      
+      if (kIsWeb) {
+        // For web, download via anchor click
+        final blob = html.Blob([imageBytes], 'image/png');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+        
+        // Clean up
+        Future.delayed(const Duration(milliseconds: 100), () {
+          html.Url.revokeObjectUrl(url);
+        });
+      } else {
+        // For mobile platforms
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsBytes(imageBytes);
+        
+        // Save to gallery on mobile
+        final result = await ImageGallerySaver.saveFile(file.path);
+        
+        // Also offer to share
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Check out my NFL mock draft results!',
+        );
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image saved successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving image: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  // Existing methods
   Future<void> _exportFullDraft(BuildContext context) async {
     try {
       final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -323,266 +657,21 @@ class ExportButtonWidget extends StatelessWidget {
     }
   }
 
-  Future<void> _exportFirstRound(BuildContext context) async {
-    try {
-      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-      
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isDarkMode ? Colors.white : Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text('Preparing first round results...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-      
-      // Use enhanced export service with first round layout
-      await DraftExportService.exportFirstRound(
-        context: context,
-        picks: completedPicks,
-        teamNeeds: teamNeeds,
-        userTeam: userTeam,
-        isWeb: kIsWeb,
-      );
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('First round results exported successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting first round: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _exportAsImage(BuildContext context) async {
-  if (shareableCardKey == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unable to generate image')),
-    );
-    return;
-  }
-
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
-  try {
-    // Show loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isDarkMode ? Colors.white : Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('Generating shareable image...'),
-          ],
-        ),
-        duration: const Duration(seconds: 1),
-      ),
+  Future<void> _copyToClipboard(BuildContext context) async {
+    final formattedText = DraftExportService.generateFormattedClipboardText(
+      completedPicks,
+      userTeam,
     );
     
-    // Wait for snackbar to appear
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Clipboard.setData(ClipboardData(text: formattedText));
     
-    // Get the RenderRepaintBoundary directly
-    RenderRepaintBoundary? boundary;
-    try {
-      boundary = shareableCardKey!.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    } catch (e) {
-      debugPrint('Error finding RenderRepaintBoundary: $e');
-    }
-    
-    // If we couldn't get the boundary, try with a delay
-    if (boundary == null) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      try {
-        boundary = shareableCardKey!.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      } catch (e) {
-        debugPrint('Error finding RenderRepaintBoundary after delay: $e');
-      }
-    }
-    
-    if (boundary == null) {
-      throw Exception('Could not find the card to render');
-    }
-    
-    // Make sure painting is complete
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    // Capture the image with a lower pixel ratio (try 2.0 instead of 3.0)
-    final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    
-    if (byteData == null) {
-      throw Exception('Failed to capture image');
-    }
-    
-    // Convert to bytes
-    final Uint8List pngBytes = byteData.buffer.asUint8List();
-    
-    // Share the image
-    if (kIsWeb) {
-      // For web, use a different method
-      await _shareImageOnWeb(pngBytes);
-    } else {
-      // For mobile, save to temporary file and share
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/draft_results.png');
-      await file.writeAsBytes(pngBytes);
-      
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Check out my NFL mock draft results from StickToTheModel!',
-      );
-      
-      // Also save to gallery if on mobile
-      try {
-        await ImageGallerySaver.saveImage(pngBytes);
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Draft results image saved to your gallery'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('Could not save to gallery: $e');
-      }
-    }
-  } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating image: $e'),
-          backgroundColor: Colors.red.shade700,
+        const SnackBar(
+          content: Text('Draft results copied to clipboard'),
+          duration: Duration(seconds: 2),
         ),
       );
-    }
-  }
-}
-
-// Method for web platforms
-Future<void> _shareImageOnWeb(Uint8List pngBytes) async {
-  // This is a simplistic implementation for web
-  // In a real app, you'd need to use a proper web sharing API
-  // or implement a server-side solution
-  
-  // For now, we'll just display a message
-  print('Web sharing not fully implemented: would share ${pngBytes.length} bytes');
-  
-  // In a real implementation, you might:
-  // 1. Upload the image to your server
-  // 2. Get a shareable URL
-  // 3. Display it to the user for copying
-  // 4. Or use the Web Share API if available
-}
-
-Future<void> _copyToClipboard(BuildContext context) async {
-  final formattedText = DraftExportService.generateFormattedClipboardText(
-    completedPicks,
-    userTeam,
-  );
-  
-  await Clipboard.setData(ClipboardData(text: formattedText));
-  
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Draft results copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-}
-
-  Future<void> _exportTeamPicks(BuildContext context, String team) async {
-    try {
-      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-      
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isDarkMode ? Colors.white : Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text('Preparing $team draft results...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-      
-      // Use enhanced export service with team summary
-      await DraftExportService.exportTeamPicks(
-        context: context,
-        picks: completedPicks,
-        teamNeeds: teamNeeds,
-        team: team,
-        trades: executedTrades,
-        isWeb: kIsWeb,
-      );
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$team picks exported successfully'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting team picks: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
     }
   }
 }
