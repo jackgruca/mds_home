@@ -240,7 +240,9 @@ class PlayerDetailsDialog extends StatelessWidget {
   }
 
   Widget _buildAdditionalMeasurementsBanner(BuildContext context, bool isDarkMode) {
-  // First, gather all non-empty measurements
+  // First, gather all non-empty measurements with debug info
+  debugPrint("ARM LENGTH: ${player.armLength}, FORMATTED: ${player.formattedArmLength}");
+  
   final measurements = [
     {'label': '10 Yd', 'value': player.formattedTenYardSplit},
     {'label': '20 Sh', 'value': player.formattedTwentyYardShuttle},
@@ -258,8 +260,11 @@ class PlayerDetailsDialog extends StatelessWidget {
       .where((measurement) => measurement['value'] != 'N/A')
       .toList();
   
+  debugPrint("Valid measurements count: ${validMeasurements.length}");
+  
   // If no valid measurements, return an empty container
   if (validMeasurements.isEmpty) {
+    debugPrint("No valid measurements found - container will be empty");
     return Container();
   }
   
@@ -267,6 +272,9 @@ class PlayerDetailsDialog extends StatelessWidget {
   final int midpoint = (validMeasurements.length / 2).ceil();
   final firstRow = validMeasurements.take(midpoint).toList();
   final secondRow = validMeasurements.skip(midpoint).toList();
+  
+  debugPrint("First row count: ${firstRow.length}, Second row count: ${secondRow.length}");
+
   
   // Helper function to build a row of stats
   Widget buildStatRow(List<Map<String, String>> rowItems) {

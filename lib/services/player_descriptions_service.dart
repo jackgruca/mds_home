@@ -11,7 +11,6 @@ class PlayerDescriptionsService {
   static List<String> _allPlayerNames = []; // Added to keep track of all names
 
 // In lib/services/player_descriptions_service.dart
-
 static Future<void> initialize({int year = 2025}) async {
   if (_isInitialized) return;
   
@@ -37,28 +36,38 @@ static Future<void> initialize({int year = 2025}) async {
         String name = csvTable[i][0].toString().trim();
         _allPlayerNames.add(name.toLowerCase());
         
+        // Basic info
         String description = csvTable[i][1].toString().trim();
         String strengths = csvTable[i][2].toString().trim();
         String weaknesses = csvTable[i][3].toString().trim();
+        String height = csvTable[i][4].toString().trim();
+        String weight = csvTable[i][5].toString().trim();
+        String fortyTime = csvTable[i][6].toString().trim();
+        String ras = csvTable[i][7].toString().trim();
         
-        // Get height and weight if available
-        String height = csvTable[i].length > 4 ? csvTable[i][4].toString().trim() : "";
-        String weight = csvTable[i].length > 5 ? csvTable[i][5].toString().trim() : "";
+        // Additional measurements - match the CSV column order exactly
+        String tenYardSplit = csvTable[i].length > 8 ? csvTable[i][8].toString().trim() : "";
+        String twentyYardShuttle = csvTable[i].length > 9 ? csvTable[i][9].toString().trim() : "";
+        String threeConeDrill = csvTable[i].length > 10 ? csvTable[i][10].toString().trim() : "";
+        String armLength = csvTable[i].length > 11 ? csvTable[i][11].toString().trim() : "";
+        String benchPress = csvTable[i].length > 12 ? csvTable[i][12].toString().trim() : "";
+        String broadJump = csvTable[i].length > 13 ? csvTable[i][13].toString().trim() : "";
+        String handSize = csvTable[i].length > 14 ? csvTable[i][14].toString().trim() : "";
+        // Note: The CSV example you shared has height repeated at index 15
+        String verticalJump = csvTable[i].length > 16 ? csvTable[i][16].toString().trim() : "";
+        // Note: Weight might be at index 17
+        String wingspan = csvTable[i].length > 18 ? csvTable[i][18].toString().trim() : "";
         
-        // Get 40 time and RAS if available
-        String fortyTime = csvTable[i].length > 6 ? csvTable[i][6].toString().trim() : "";
-        String ras = csvTable[i].length > 7 ? csvTable[i][7].toString().trim() : "";
-
-      String tenYardSplit = csvTable[i].length > 8 ? csvTable[i][8].toString().trim() : "";
-      String twentyYardShuttle = csvTable[i].length > 9 ? csvTable[i][9].toString().trim() : "";
-      String threeConeDrill = csvTable[i].length > 10 ? csvTable[i][10].toString().trim() : "";
-      String armLength = csvTable[i].length > 11 ? csvTable[i][11].toString().trim() : "";
-      String benchPress = csvTable[i].length > 12 ? csvTable[i][12].toString().trim() : "";
-      String broadJump = csvTable[i].length > 13 ? csvTable[i][13].toString().trim() : "";
-      String handSize = csvTable[i].length > 14 ? csvTable[i][14].toString().trim() : "";
-      String verticalJump = csvTable[i].length > 16 ? csvTable[i][16].toString().trim() : "";
-      String wingspan = csvTable[i].length > 18 ? csvTable[i][18].toString().trim() : "";
-
+        // Debug first player's measurements
+        if (i == startIdx) {
+          debugPrint("SAMPLE PLAYER MEASUREMENTS:");
+          debugPrint("Name: $name");
+          debugPrint("Arm Length: $armLength");
+          debugPrint("Bench Press: $benchPress");
+          debugPrint("Hand Size: $handSize");
+          debugPrint("Vertical Jump: $verticalJump");
+          debugPrint("Wingspan: $wingspan");
+        }
         
         _playerDescriptions[name.toLowerCase()] = {
           'description': description,
@@ -89,7 +98,7 @@ static Future<void> initialize({int year = 2025}) async {
     _isInitialized = true; // Mark as initialized to avoid repeated attempts
   }
 }
-  
+
 // Update the getPlayerDescription method to include height and weight
 
 static Map<String, String>? getPlayerDescription(String playerName) {
