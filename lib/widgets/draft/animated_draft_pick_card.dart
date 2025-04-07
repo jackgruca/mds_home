@@ -358,10 +358,11 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
       ),
     );
   }
-  
+
 void _showPlayerDetails(BuildContext context, Player player) {
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
+  debugPrint("Additional info for ${player.name}: $additionalInfo");
   
   Player enrichedPlayer;
   
@@ -412,7 +413,44 @@ void _showPlayerDetails(BuildContext context, Player player) {
     if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
       rasScore = double.tryParse(additionalInfo['ras']!);
     }
-    
+      String? tenYardSplit = additionalInfo['tenYardSplit'];
+  String? twentyYardShuttle = additionalInfo['twentyYardShuttle'];
+  String? threeCone = additionalInfo['threeCone'];
+  String? armLength = additionalInfo['armLength'];
+  String? benchPress = additionalInfo['benchPress'];
+  String? broadJump = additionalInfo['broadJump'];
+  String? handSize = additionalInfo['handSize'];
+  String? verticalJump = additionalInfo['verticalJump'];
+  String? wingspan = additionalInfo['wingspan'];
+  
+  // And when you create the enrichedPlayer, add the new fields:
+  enrichedPlayer = Player(
+    id: player.id,
+    name: player.name,
+    position: player.position,
+    rank: player.rank,
+    school: player.school,
+    notes: player.notes,
+    height: height ?? player.height,
+    weight: weight ?? player.weight,
+    rasScore: rasScore ?? player.rasScore,
+    description: additionalInfo['description'] ?? player.description,
+    strengths: additionalInfo['strengths'] ?? player.strengths,
+    weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
+    fortyTime: fortyTime ?? player.fortyTime,
+    // Add these new fields:
+    tenYardSplit: tenYardSplit ?? player.tenYardSplit,
+    twentyYardShuttle: twentyYardShuttle ?? player.twentyYardShuttle,
+    threeCone: threeCone ?? player.threeCone,
+    armLength: armLength ?? player.armLength,
+    benchPress: benchPress ?? player.benchPress,
+    broadJump: broadJump ?? player.broadJump,
+    handSize: handSize ?? player.handSize,
+    verticalJump: verticalJump ?? player.verticalJump,
+    wingspan: wingspan ?? player.wingspan,
+  );
+  } else {
+    // Fall back to mock data for players without description
     enrichedPlayer = Player(
       id: player.id,
       name: player.name,
@@ -420,17 +458,10 @@ void _showPlayerDetails(BuildContext context, Player player) {
       rank: player.rank,
       school: player.school,
       notes: player.notes,
-      height: height ?? player.height,
-      weight: weight ?? player.weight,
-      rasScore: rasScore ?? player.rasScore,
-      description: additionalInfo['description'] ?? player.description,
-      strengths: additionalInfo['strengths'] ?? player.strengths,
-      weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
-      fortyTime: fortyTime ?? player.fortyTime,
+      description: "No detailed player information available yet for ${player.name}.",
+      strengths: "Information not available",
+      weaknesses: "Information not available",
     );
-  } else {
-    // Fall back to mock data for players without description
-    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
   }
   
   // Show the dialog with enriched player data

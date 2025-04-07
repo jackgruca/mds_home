@@ -503,6 +503,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
 void _showPlayerDetails(BuildContext context, Player player) {
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
+  debugPrint("Additional info for ${player.name}: $additionalInfo");
   
   Player enrichedPlayer;
   

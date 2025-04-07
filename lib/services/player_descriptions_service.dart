@@ -50,6 +50,8 @@ static Future<void> initialize({int year = 2025}) async {
         
         // Get the new fields - update index numbers as needed based on your actual CSV structure
         String tenYardSplit = csvTable[i].length > 8 ? csvTable[i][8].toString().trim() : "";
+        debugPrint("Player: $name, tenYardSplit: $tenYardSplit");
+
         String twentyYardShuttle = csvTable[i].length > 9 ? csvTable[i][9].toString().trim() : "";
         String threeCone = csvTable[i].length > 10 ? csvTable[i][10].toString().trim() : "";
         String armLength = csvTable[i].length > 11 ? csvTable[i][11].toString().trim() : "";
