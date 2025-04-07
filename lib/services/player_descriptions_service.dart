@@ -86,6 +86,7 @@ static Future<void> initialize({int year = 2025}) async {
             ? csvTable[i][16].toString().trim() 
             : "";
         debugPrint("Player: $name, wingspan: $wingspan");
+
         
         _playerDescriptions[name.toLowerCase()] = {
           'description': description,
