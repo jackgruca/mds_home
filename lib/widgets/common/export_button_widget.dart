@@ -30,6 +30,7 @@ import '../../utils/theme_config.dart';
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
+import 'dart:js_util' as js_util;
 
 import '../draft/shareable_draft_card.dart';
 
@@ -204,10 +205,13 @@ class ExportButtonWidget extends StatelessWidget {
     }
   }
   
-  void _handleCopyAction(String action, BuildContext context) {
-    final exportMode = _getExportMode(action.replaceFirst('copy_', ''));
-    _captureAndCopyImage(context, exportMode);
-  }
+  // Update the _handleCopyAction method in export_button_widget.dart
+void _handleCopyAction(String action, BuildContext context) {
+  final exportMode = _getExportMode(action.replaceFirst('copy_', ''));
+  
+  // Skip dialog and directly attempt to copy to clipboard
+  _captureAndCopyImage(context, exportMode);
+}
 
   Future<void> _handleDownloadImage(String mode, BuildContext context) async {
     final exportMode = _getExportMode(mode);
@@ -236,50 +240,74 @@ class ExportButtonWidget extends StatelessWidget {
   }
 
   // Common image capture logic
-  Future<void> _captureImage(BuildContext context, String exportMode, bool forClipboard) async {
-    if (shareableCardKey == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to generate image')),
-      );
-      return;
-    }
+  // Update the _captureImage method in export_button_widget.dart
+Future<void> _captureImage(BuildContext context, String exportMode, bool forClipboard) async {
+  if (shareableCardKey == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unable to generate image')),
+    );
+    return;
+  }
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    try {
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  try {
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-              const SizedBox(width: 12),
-              Text(forClipboard ? 'Copying to clipboard...' : 'Generating image...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
+            ),
+            const SizedBox(width: 12),
+            Text(forClipboard ? 'Copying to clipboard...' : 'Generating image...'),
+          ],
         ),
-      );
-      
-      // Wait for the UI to settle
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      // Create a temporary GlobalKey
-      final GlobalKey repaintKey = GlobalKey();
-      
-      // Create a temporary card with fixed size to ensure proper layout
-      final Widget card = Material(
-        color: Colors.transparent,
-        child: Container(
-          width: 800,
-          constraints: const BoxConstraints(maxHeight: 1200),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    
+    // Wait for the UI to settle
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // Create a temporary GlobalKey
+    final GlobalKey repaintKey = GlobalKey();
+    
+    // Determine proper size based on export mode
+    double cardWidth = 900.0; // Wider for better quality
+    double cardHeight;
+    
+    if (exportMode == "first_round") {
+      cardHeight = 900.0; // Taller for first round
+    } else if (exportMode == "your_picks") {
+      // Height based on number of picks
+      int pickCount = completedPicks.where((p) => 
+        p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
+        p.selectedPlayer != null
+      ).length;
+      cardHeight = min(900.0, 200.0 + (pickCount * 120.0));
+    } else {
+      cardHeight = 900.0; // Default height
+    }
+    
+    // Create a container in overlay to host our widget with fixed dimensions
+    final overlayState = Overlay.of(context);
+    
+    // Create the temporary card with explicit size constraints
+    final card = Material(
+      color: Colors.transparent,
+      child: Container(
+        width: cardWidth,
+        height: cardHeight,
+        color: isDarkMode ? Colors.grey.shade900 : Colors.white,
+        child: RepaintBoundary(
+          key: repaintKey,
           child: ShareableDraftCard(
             picks: completedPicks,
             userTeam: filterTeam == "All Teams" ? userTeam : filterTeam,
@@ -288,174 +316,184 @@ class ExportButtonWidget extends StatelessWidget {
             cardKey: repaintKey,
           ),
         ),
-      );
+      ),
+    );
+    
+    final OverlayEntry overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: 20,
+        top: 20,
+        child: card,
+      ),
+    );
+    
+    // Add to overlay
+    overlayState.insert(overlayEntry);
+    
+    // Wait for rendering to complete - longer wait for more complex content
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    try {
+      // Find the RenderRepaintBoundary
+      final RenderRepaintBoundary? boundary = repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       
-      // Create a container in overlay to host our widget
-      final overlayState = Overlay.of(context);
-      final OverlayEntry overlayEntry = OverlayEntry(
-        builder: (context) => Positioned(
-          left: 20,
-          top: 20,
-          child: card,
+      if (boundary == null) {
+        throw Exception('Could not find the card to render');
+      }
+      
+      // Use HIGHER pixel ratio for better quality
+      final ui.Image image = await boundary.toImage(pixelRatio: 2.5);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      // Remove overlay
+      overlayEntry.remove();
+      
+      if (byteData == null) {
+        throw Exception('Failed to capture image');
+      }
+      
+      // Convert to bytes
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      
+      if (forClipboard) {
+        await _enhancedCopyToClipboard(pngBytes, context);
+      } else {
+        await _saveImage(pngBytes, context, exportMode);
+      }
+    } catch (e) {
+      // Make sure to remove overlay on error
+      overlayEntry.remove();
+      rethrow;
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating image: $e'),
+          backgroundColor: Colors.red.shade700,
         ),
       );
-      
-      // Add to overlay
-      overlayState.insert(overlayEntry);
-      
-      // Wait for the widget to be fully rendered
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      try {
-        // Find the RenderRepaintBoundary
-        final RenderRepaintBoundary boundary = repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-        
-        // Make sure it's fully laid out
-        await Future.delayed(const Duration(milliseconds: 200));
-        
-        // Use a lower pixel ratio to avoid memory issues
-        final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
-        final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-        
-        // Remove overlay
-        overlayEntry.remove();
-        
-        if (byteData == null) {
-          throw Exception('Failed to capture image');
-        }
-        
-        // Convert to bytes
-        final Uint8List pngBytes = byteData.buffer.asUint8List();
-        
-        if (forClipboard) {
-          await _enhancedCopyToClipboard(pngBytes, context);
-        } else {
-          await _saveImage(pngBytes, context, exportMode);
-        }
-      } catch (e) {
-        // Make sure to remove overlay on error
-        overlayEntry.remove();
-        rethrow;
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating image: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
     }
   }
+}
 
-  // Completely new implementation for clipboard copy
-  Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
-    try {
-      if (kIsWeb) {
-        // Web browsers have limited clipboard capabilities for security reasons
-        // Create a temporary canvas to handle the image data
-        final blob = html.Blob([imageBytes], 'image/png');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        
-        // Try to use the modern clipboard API
-        final success = await _tryWebClipboardAPI(url, context);
-        
-        if (!success) {
-          // Fallback: Show instructions to the user
-          if (context.mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Copy Image'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'For security reasons, direct copying to clipboard is not fully supported in all browsers.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'To share this image:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildInstructionStep(1, 'Right-click on the image when it opens'),
-                    _buildInstructionStep(2, 'Select "Copy Image"'),
-                    _buildInstructionStep(3, 'Paste into Twitter or other apps'),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      // Open the image in a new tab for copying
-                      html.window.open(url, '_blank');
-                    },
-                    child: const Text('Open Image'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Cancel'),
-                  ),
-                ],
-              ),
-            );
+// Update the _enhancedCopyToClipboard method in export_button_widget.dart
+Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
+  try {
+    if (kIsWeb) {
+      // Try to use a more direct approach for web
+      final blob = html.Blob([imageBytes], 'image/png');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      
+      // Try a more direct clipboard approach using the Clipboard API
+      // This uses a newer method that works in more browsers
+      final jsCode = '''
+        (async function() {
+          try {
+            const response = await fetch("$url");
+            const blob = await response.blob();
+            
+            // Try modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.write) {
+              try {
+                const item = new ClipboardItem({"image/png": blob});
+                await navigator.clipboard.write([item]);
+                return "success";
+              } catch(e) {
+                console.error("Clipboard API failed:", e);
+              }
+            }
+            
+            // If we can't use the Clipboard API directly
+            // Open in new tab but make it user-friendly
+            const newTab = window.open();
+            if (newTab) {
+              newTab.document.body.style.margin = "0";
+              newTab.document.body.style.padding = "0";
+              newTab.document.body.style.backgroundColor = "#f1f1f1";
+              newTab.document.title = "Right-click to copy image";
+              
+              const img = newTab.document.createElement("img");
+              img.src = "$url";
+              img.style.display = "block";
+              img.style.margin = "0 auto";
+              img.style.maxWidth = "100%";
+              img.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
+              
+              const instructions = newTab.document.createElement("div");
+              instructions.textContent = "Right-click the image above and select 'Copy Image'";
+              instructions.style.textAlign = "center";
+              instructions.style.padding = "15px";
+              instructions.style.fontFamily = "sans-serif";
+              
+              newTab.document.body.appendChild(img);
+              newTab.document.body.appendChild(instructions);
+              
+              return "newtab";
+            }
+            return "error";
+          } catch(e) {
+            console.error("Error:", e);
+            return "error";
           }
-        }
-        
-        // Clean up the URL
-        Future.delayed(const Duration(seconds: 10), () {
-          html.Url.revokeObjectUrl(url);
-        });
-      } else {
-        // For mobile platforms, use platform-specific clipboard operations
-        // This will depend on the available plugins, which may vary
-        
-        // For demonstration, let's save to a temporary file and share
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/temp_clipboard_image.png');
-        await file.writeAsBytes(imageBytes);
-        
-        // Show success message
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image copied and ready to share'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-        
-        // Try using Share.shareXFiles for newer Share plugin versions
-        try {
-          await Share.shareXFiles(
-            [XFile(file.path)],
-            text: 'Check out my NFL Draft results',
-          );
-        } catch (e) {
-          // Fallback to older API if needed
-          await Share.shareFiles(
-            [file.path],
-            text: 'Check out my NFL Draft results',
-          );
-        }
+        })();
+      ''';
+      final result = await js_util.promiseToFuture(js.context.callMethod('eval', [jsCode])) as String?;
+      
+      if (result == "success" && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image copied to clipboard successfully!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else if (result == "newtab" && context.mounted) {
+        // Don't show a snackbar for new tab - it's obvious to the user
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image opened in new tab for copying'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
-    } catch (e) {
+      
+      // Clean up URL
+      Future.delayed(const Duration(seconds: 10), () {
+        html.Url.revokeObjectUrl(url);
+      });
+    } else {
+      // For mobile platforms, use platform-specific clipboard operations
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/temp_clipboard_image.png');
+      await file.writeAsBytes(imageBytes);
+      
+      // Try using Share.shareXFiles for sharing
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Check out my NFL Draft results',
+      );
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error copying image: $e'),
-            backgroundColor: Colors.red.shade700,
+          const SnackBar(
+            content: Text('Image shared successfully'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
     }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing image: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
+}
 
   // Helper for web clipboard API
   Future<bool> _tryWebClipboardAPI(String imageUrl, BuildContext context) async {
