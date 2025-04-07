@@ -58,26 +58,33 @@ Widget build(BuildContext context) {
   // IMPORTANT: Use proper min and max constraints that don't conflict
   const double minHeight = 200.0;  // minimum height 
   final double maxHeight = max(1200.0, minHeight); // ensure max >= min
+
+  double contentHeight;
+  if (exportMode == "first_round") {
+    // Each card is about 36px tall x 32 picks = ~1152px + header/footer
+    contentHeight = 1200.0;
+  } else if (exportMode == "your_picks") {
+    // Calculate based on number of picks (each ~70px tall)
+    contentHeight = max(250.0, 150.0 + (filteredPicks.length * 70.0));
+  } else {
+    contentHeight = 900.0;
+  }
   
   return Material(
     color: isDarkMode ? const Color(0xFF121212) : Colors.white,
-    child: Container(
+    child: SizedBox(
       width: 800, // Fixed width
-      // Fix the constraints here
-      constraints: BoxConstraints(
-        minHeight: minHeight,
-        maxHeight: max(calculatedHeight, minHeight),
-      ),
+      height: contentHeight, // Explicit height based on content
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            // Header with logo and title
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFFC62828), // PFF-like red
-              child: Row(
-                children: [
+          // Header with logo and title
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: const Color(0xFFC62828), // PFF-like red
+            child: Row(
+              children: [
                   // Football icon
                   const Icon(
                     Icons.sports_football,
@@ -112,74 +119,75 @@ Widget build(BuildContext context) {
             ),
             
             // Content
-            Expanded(
-              child: filteredPicks.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No picks available for this selection",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+             Expanded(
+            child: filteredPicks.isEmpty
+              ? Center(
+                  child: Text(
+                    "No picks available for this selection",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDarkMode ? Colors.white70 : Colors.grey,
                     ),
-                  )
-                : exportMode == "first_round"
-                  ? _buildFirstRoundLayout(filteredPicks, context)
-                  : _buildPicksList(filteredPicks, context),
-            ),
-            
-            // Footer - Warning stripe at bottom like PFF
-            Container(
-              color: Colors.black,
-              height: 4,
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical:
-              8),
-              color: Colors.amber,
-              child: const Center(
-                child: Text(
-                  "STICKTOTHEMODEL",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
                   ),
+                )
+              : exportMode == "first_round"
+                ? _buildFirstRoundLayout(filteredPicks, context)
+                : _buildPicksList(filteredPicks, context),
+          ),
+          
+          // Warning stripe footer
+          Container(
+            color: Colors.black,
+            height: 4,
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            color: Colors.amber,
+            child: const Center(
+              child: Text(
+                "STICKTOTHEMODEL",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
             ),
-            Container(
-              color: Colors.black,
-              height: 4,
-            ),
-          ],
-        ),
+          ),
+          Container(
+            color: Colors.black,
+            height: 4,
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // Update the first round layout for better appearance
-  Widget _buildFirstRoundLayout(List<DraftPick> picks, BuildContext context) {
-    // Create two columns for better layout
-    List<DraftPick> leftColumn = [];
-    List<DraftPick> rightColumn = [];
-    
-    for (int i = 0; i < picks.length; i++) {
-      if (i < 16) {
-        leftColumn.add(picks[i]);
-      } else {
-        rightColumn.add(picks[i]);
-      }
+  // Update the ShareableDraftCard class's first round layout method
+Widget _buildFirstRoundLayout(List<DraftPick> picks, BuildContext context) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Create two columns for better layout
+  List<DraftPick> leftColumn = [];
+  List<DraftPick> rightColumn = [];
+  
+  for (int i = 0; i < picks.length; i++) {
+    if (i < 16) {
+      leftColumn.add(picks[i]);
+    } else {
+      rightColumn.add(picks[i]);
     }
-    
-    // Full-width container to ensure proper display
-    return Container(
-      width: double.infinity,
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.grey.shade900 
-          : Colors.grey.shade50,
+  }
+  
+  // Make sure all content is visible by using a scrollable container with fixed height
+  return Container(
+    color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    // No fixed height constraint here
+    child: SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -187,7 +195,7 @@ Widget build(BuildContext context) {
             Expanded(
               child: Column(
                 children: leftColumn.map((pick) => 
-                  _buildFirstRoundPickCard(pick, context)
+                  _buildCompactFirstRoundPickCard(pick, context)
                 ).toList(),
               ),
             ),
@@ -199,15 +207,172 @@ Widget build(BuildContext context) {
             Expanded(
               child: Column(
                 children: rightColumn.map((pick) => 
-                  _buildFirstRoundPickCard(pick, context)
+                  _buildCompactFirstRoundPickCard(pick, context)
                 ).toList(),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+// Add a more compact card specifically for first round view
+Widget _buildCompactFirstRoundPickCard(DraftPick pick, BuildContext context) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  final isUserTeam = pick.teamName == userTeam;
+  final valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
+  final valueDiffText = valueDiff >= 0 ? "(+$valueDiff)" : "($valueDiff)";
+  final valueDiffColor = valueDiff >= 0 ? Colors.green : Colors.red;
+  
+  // Get grade info
+  final gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
+  final letterGrade = gradeInfo['letter'] as String;
+  
+  // Don't use transparency to avoid rendering issues
+  final cardColor = isUserTeam
+      ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50)
+      : (isDarkMode ? Colors.grey.shade800 : Colors.white);
+  
+  // More compact card with reduced height
+  return Container(
+    margin: const EdgeInsets.only(bottom: 4), // Reduced margin
+    decoration: BoxDecoration(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(4),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 2,
+          offset: const Offset(0, 1),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(4.0), // Reduced padding
+      child: Row(
+        children: [
+          // Pick number - smaller
+          Container(
+            width: 28, // Smaller
+            height: 28, // Smaller
+            decoration: BoxDecoration(
+              color: Colors.blue.shade600,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                "${pick.pickNumber}",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12, // Smaller font
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6), // Reduced spacing
+          
+          // Team logo - smaller
+          SizedBox(
+            width: 20, // Smaller
+            height: 20, // Smaller
+            child: TeamLogoUtils.buildNFLTeamLogo(
+              pick.teamName,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 6), // Reduced spacing
+          
+          // Player details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min, // Important for height
+              children: [
+                // Player name
+                Text(
+                  pick.selectedPlayer!.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12, // Smaller font
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                
+                // Position, school, rank - in a row
+                Row(
+                  children: [
+                    // Position badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1), // Smaller padding
+                      decoration: BoxDecoration(
+                        color: _getPositionColor(pick.selectedPlayer!.position),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Text(
+                        pick.selectedPlayer!.position,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9, // Smaller font
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3), // Reduced spacing
+                    
+                    // School
+                    Expanded(
+                      child: Text(
+                        pick.selectedPlayer!.school,
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.grey.shade700,
+                          fontSize: 9, // Smaller font
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    
+                    // Rank text
+                    Text(
+                      "Rank: #${pick.selectedPlayer!.rank}",
+                      style: TextStyle(
+                        fontSize: 9, // Smaller font
+                        color: valueDiffColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Grade badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1), // Smaller padding
+            decoration: BoxDecoration(
+              color: _getGradeColor(letterGrade).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(
+                color: _getGradeColor(letterGrade),
+                width: 0.5, // Thinner border
+              ),
+            ),
+            child: Text(
+              letterGrade,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 10, // Smaller font
+                color: _getGradeColor(letterGrade),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   // Optimized card for first round display
   Widget _buildFirstRoundPickCard(DraftPick pick, BuildContext context) {

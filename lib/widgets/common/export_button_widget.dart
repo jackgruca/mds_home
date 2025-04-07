@@ -413,20 +413,21 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     
     // Calculate a proper height based on the export mode
     double cardHeight;
-    if (exportMode == "your_picks") {
-      // For user picks, calculate based on estimated number of picks
-      int userPickCount = completedPicks.where((p) => 
-        p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
-        p.selectedPlayer != null
-      ).length;
-      
-      // Make sure we have at least enough height, with a reasonable minimum
-      cardHeight = max(250.0, 150.0 + (userPickCount * 80.0));
-    } else if (exportMode == "first_round") {
-      cardHeight = 900.0; // Fixed height for first round
-    } else {
-      cardHeight = 1000.0; // Default for full draft
-    }
+  if (exportMode == "your_picks") {
+    // For user picks, calculate based on estimated number of picks
+    int userPickCount = completedPicks.where((p) => 
+      p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
+      p.selectedPlayer != null
+    ).length;
+    
+    // Make sure we have at least enough height, with a reasonable minimum
+    cardHeight = max(250.0, 150.0 + (userPickCount * 80.0));
+  } else if (exportMode == "first_round") {
+    // Set a taller height for first round to fit all 32 picks
+    cardHeight = 1200.0; // Increased from 900.0 to accommodate all picks
+  } else {
+    cardHeight = 1000.0; // Default for full draft
+  }
     
     // Create a temporary card with fixed dimensions that don't conflict
     final card = Material(
