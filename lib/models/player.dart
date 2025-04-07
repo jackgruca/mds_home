@@ -16,6 +16,15 @@ class Player {
   String? strengths;
   String? weaknesses;
   String? fortyTime;
+  String? tenYardSplit;
+  String? twentyYardShuttle;
+  String? threeConeDrill;
+  String? armLength;
+  String? benchPress;
+  String? broadJump;
+  String? handSize;
+  String? verticalJump;
+  String? wingspan;
 
   Player({
     required this.id,
@@ -31,6 +40,15 @@ class Player {
     this.strengths,
     this.weaknesses,
     this.fortyTime,
+    this.tenYardSplit,
+    this.twentyYardShuttle,
+    this.threeConeDrill,
+    this.armLength,
+    this.benchPress,
+    this.broadJump,
+    this.handSize,
+    this.verticalJump,
+    this.wingspan,
   });
   
   // Create a Player from CSV row data
@@ -161,6 +179,52 @@ class Player {
         .firstWhere((entry) => entry.key.contains('FORTY') || entry.key.contains('40_TIME'), 
             orElse: () => const MapEntry('', -1))
         .value;
+
+      int tenYardSplitIndex = columnIndices['10_YARD_SPLIT'] ?? columnIndices['10YD_SPLIT'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('10_YARD') || entry.key.contains('10YD'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int twentyYardShuttleIndex = columnIndices['20_YARD_SHUTTLE'] ?? columnIndices['20YD_SHUTTLE'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('20_YARD') || entry.key.contains('20YD'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int threeConeDrillIndex = columnIndices['3_CONE_DRILL'] ?? columnIndices['3CONE'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('3_CONE') || entry.key.contains('3CONE'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int armLengthIndex = columnIndices['ARM_LENGTH'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('ARM_LENGTH') || entry.key.contains('ARM'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int benchPressIndex = columnIndices['BENCH_PRESS'] ?? columnIndices['BENCH'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('BENCH_PRESS') || entry.key.contains('BENCH'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int broadJumpIndex = columnIndices['BROAD_JUMP'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('BROAD_JUMP') || entry.key.contains('BROAD'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int handSizeIndex = columnIndices['HAND_SIZE'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('HAND_SIZE') || entry.key.contains('HAND'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int verticalJumpIndex = columnIndices['VERTICAL_JUMP'] ?? columnIndices['VERTICAL'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('VERTICAL_JUMP') || entry.key.contains('VERTICAL'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
+int wingspanIndex = columnIndices['WINGSPAN'] ?? columnIndices.entries
+    .firstWhere((entry) => entry.key.contains('WINGSPAN') || entry.key.contains('WING'), 
+        orElse: () => const MapEntry('', -1))
+    .value;
+
       
       // Parse values safely
       int id = idIndex >= 0 && idIndex < row.length
@@ -247,6 +311,42 @@ class Player {
         fortyTime = row[fortyTimeIndex].toString().trim();
         if (fortyTime.isEmpty) fortyTime = null;
       }
+
+      String? tenYardSplit = tenYardSplitIndex >= 0 && tenYardSplitIndex < row.length
+    ? row[tenYardSplitIndex].toString().trim()
+    : null;
+
+String? twentyYardShuttle = twentyYardShuttleIndex >= 0 && twentyYardShuttleIndex < row.length
+    ? row[twentyYardShuttleIndex].toString().trim()
+    : null;
+
+String? threeConeDrill = threeConeDrillIndex >= 0 && threeConeDrillIndex < row.length
+    ? row[threeConeDrillIndex].toString().trim()
+    : null;
+
+String? armLength = armLengthIndex >= 0 && armLengthIndex < row.length
+    ? row[armLengthIndex].toString().trim()
+    : null;
+
+String? benchPress = benchPressIndex >= 0 && benchPressIndex < row.length
+    ? row[benchPressIndex].toString().trim()
+    : null;
+
+String? broadJump = broadJumpIndex >= 0 && broadJumpIndex < row.length
+    ? row[broadJumpIndex].toString().trim()
+    : null;
+
+String? handSize = handSizeIndex >= 0 && handSizeIndex < row.length
+    ? row[handSizeIndex].toString().trim()
+    : null;
+
+String? verticalJump = verticalJumpIndex >= 0 && verticalJumpIndex < row.length
+    ? row[verticalJumpIndex].toString().trim()
+    : null;
+
+String? wingspan = wingspanIndex >= 0 && wingspanIndex < row.length
+    ? row[wingspanIndex].toString().trim()
+    : null;
       
       return Player(
         id: id,
@@ -262,6 +362,15 @@ class Player {
         strengths: strengths,
         weaknesses: weaknesses,
         fortyTime: fortyTime,
+        tenYardSplit: tenYardSplit,
+        twentyYardShuttle: twentyYardShuttle,
+        threeConeDrill: threeConeDrill,
+        armLength: armLength,
+        benchPress: benchPress,
+        broadJump: broadJump,
+        handSize: handSize,
+        verticalJump: verticalJump,
+        wingspan: wingspan,
       );
     } catch (e) {
       debugPrint("Error creating Player from row with headers: $e");
@@ -311,7 +420,27 @@ class Player {
   String getDefaultDescription() {
     return "$name is a $position from $school. Ranked #$rank overall in this draft class.${strengths != null ? " Strengths include $strengths." : ""}${weaknesses != null ? " Areas for improvement include $weaknesses." : ""}";
   }
+
+  String get formattedTenYardSplit => 
+    tenYardSplit != null && tenYardSplit!.isNotEmpty ? "$tenYardSplit s" : "N/A";
   
+  String get formattedTwentyYardShuttle => 
+    twentyYardShuttle != null && twentyYardShuttle!.isNotEmpty ? "$twentyYardShuttle s" : "N/A";
+
+  String get formattedThreeConeDrill =>
+    threeConeDrill != null && threeConeDrill!.isNotEmpty ? "$threeConeDrill s" : "N/A";
+  String get formattedArmLength =>
+    armLength != null && armLength!.isNotEmpty ? "$armLength inches" : "N/A";
+  String get formattedBenchPress =>
+    benchPress != null && benchPress!.isNotEmpty ? "$benchPress reps" : "N/A";
+  String get formattedBroadJump =>
+    broadJump != null && broadJump!.isNotEmpty ? "$broadJump inches" : "N/A";
+  String get formattedHandSize =>
+    handSize != null && handSize!.isNotEmpty ? "$handSize inches" : "N/A";
+  String get formattedVerticalJump =>
+    verticalJump != null && verticalJump!.isNotEmpty ? "$verticalJump inches" : "N/A";
+  String get formattedWingspan =>
+    wingspan != null && wingspan!.isNotEmpty ? "$wingspan inches" : "N/A";
   @override
   String toString() => '$name ($position) - Rank: $rank';
 }

@@ -164,79 +164,206 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
             children: [
               // Rank
               _buildCompactStat(
-                context,
-                'Rank',
-                '#${player.rank}',
-                isDarkMode,
-              ),
-              
-              // Vertical divider
-              Container(
-                height: 24,
-                width: 1,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-              
-              // Height
-              _buildCompactStat(
-                context,
-                'HT',
-                player.formattedHeight,
-                isDarkMode,
-              ),
-              
-              // Vertical divider
-              Container(
-                height: 24,
-                width: 1,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-              
-              // Weight
-              _buildCompactStat(
-                context,
-                'WT',
-                player.formattedWeight,
-                isDarkMode,
-              ),
-              
-              // Vertical divider
-              Container(
-                height: 24,
-                width: 1,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-              
-              // 40 Time
-              _buildCompactStat(
-                context,
-                '40',
-                player.fortyTime != null && player.fortyTime!.isNotEmpty ? 
-                  "${player.fortyTime}s" : "N/A",
-                isDarkMode,
-                valueColor: player.fortyTime != null ? 
-                  _getFortyTimeColor(player.fortyTime!) : null,
-              ),
-              
-              // Vertical divider
-              Container(
-                height: 24,
-                width: 1,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-              
-              // RAS
-              _buildCompactStat(
-                context,
-                'RAS',
-                player.formattedRAS,
-                isDarkMode,
-                valueColor: player.rasScore != null ? 
-                  _getRasColor(player.rasScore!) : null,
-              ),
-            ],
+            context,
+            'Rank',
+            '#${player.rank}',
+            isDarkMode,
+          ),
+          
+          Container(
+            height: 24,
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          
+          _buildCompactStat(
+            context,
+            'HT',
+            player.formattedHeight,
+            isDarkMode,
+          ),
+          
+          Container(
+            height: 24,
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          
+          _buildCompactStat(
+            context,
+            'WT',
+            player.formattedWeight,
+            isDarkMode,
+          ),
+          
+          Container(
+            height: 24,
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          
+          _buildCompactStat(
+            context,
+            '40',
+            player.fortyTime != null && player.fortyTime!.isNotEmpty ? 
+              "${player.fortyTime}s" : "N/A",
+            isDarkMode,
+            valueColor: player.fortyTime != null ? 
+              _getFortyTimeColor(player.fortyTime!) : null,
+          ),
+          
+          Container(
+            height: 24,
+            width: 1,
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          
+          _buildCompactStat(
+            context,
+            'RAS',
+            player.formattedRAS,
+            isDarkMode,
+            valueColor: player.rasScore != null ? 
+              _getRasColor(player.rasScore!) : null,
+          ),
+        ],
+      ),
+    ),
+    
+    // New row for additional measurements
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+        border: Border(
+          bottom: BorderSide(
+            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            width: 1,
           ),
         ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildCompactStat(
+              context,
+              '10 Yd',
+              player.formattedTenYardSplit,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              '20 Sh',
+              player.formattedTwentyYardShuttle,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              '3 Cone',
+              player.formattedThreeConeDrill,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Arm',
+              player.formattedArmLength,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Bench',
+              player.formattedBenchPress,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Broad',
+              player.formattedBroadJump,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Vert',
+              player.formattedVerticalJump,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Hand',
+              player.formattedHandSize,
+              isDarkMode,
+            ),
+            
+            Container(
+              height: 24,
+              width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+            
+            _buildCompactStat(
+              context,
+              'Wing',
+              player.formattedWingspan,
+              isDarkMode,
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+),
         
         // Single scrollable content area
         Expanded(
@@ -380,7 +507,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
           ),
         ),
         
-        // Footer
+                // Footer
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -411,10 +538,9 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
         ),
       ],
     ),
-  );
+  )
 }
 
-// Add this new helper method for compact stat display
 Widget _buildCompactStat(
   BuildContext context, 
   String label, 
