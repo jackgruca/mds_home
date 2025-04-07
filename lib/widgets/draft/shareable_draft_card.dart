@@ -8,6 +8,7 @@ import '../../services/draft_pick_grade_service.dart';
 
 import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
+import '../../utils/theme_config.dart';
 
 // Update the ShareableDraftCard class
 class ShareableDraftCard extends StatelessWidget {
@@ -70,6 +71,14 @@ Widget build(BuildContext context) {
     contentHeight = 900.0;
   }
   
+  Color primaryColor;
+  Color secondaryColor;
+  
+    // Use the selected team's colors
+    List<Color> teamColors = NFLTeamColors.getTeamColors(userTeam!);
+    primaryColor = teamColors[0];
+    secondaryColor = teamColors.length > 1 ? teamColors[1] : primaryColor;
+  
   return Material(
     color: isDarkMode ? const Color(0xFF121212) : Colors.white,
     child: SizedBox(
@@ -79,36 +88,45 @@ Widget build(BuildContext context) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header with logo and title
+          // Header with logo and title using team colors
           Container(
             padding: const EdgeInsets.all(16),
-            color: const Color(0xFFC62828), // PFF-like red
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  primaryColor,
+                  secondaryColor,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
             child: Row(
               children: [
-                  // Football icon
-                  const Icon(
-                    Icons.sports_football,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getTitle(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
+                // Football icon
+                const Icon(
+                  Icons.sports_football,
+                  color: Colors.white,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getTitle(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
                         ),
-                        const Text(
-                          "Draft Results by StickToTheModel",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                      ),
+                      const Text(
+                        "Draft Results by StickToTheModel",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
                           ),
                         ),
                       ],
