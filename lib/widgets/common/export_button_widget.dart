@@ -12,8 +12,6 @@ import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
 import '../../utils/theme_config.dart'; // Import theme for consistency
 
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -27,10 +25,13 @@ import '../../models/draft_pick.dart';
 import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
 import '../../utils/theme_config.dart';
-import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:js_util' as js_util;
+
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import '../draft/shareable_draft_card.dart';
 
@@ -230,17 +231,150 @@ void _handleCopyAction(String action, BuildContext context) {
     }
   }
 
-  // Separate methods for save vs copy
-  Future<void> _captureAndSaveImage(BuildContext context, String exportMode) async {
-    await _captureImage(context, exportMode, false);
-  }
-  
-  Future<void> _captureAndCopyImage(BuildContext context, String exportMode) async {
-    await _captureImage(context, exportMode, true);
-  }
+// Add this method to your ExportButtonWidget class
+Future<void> _captureAndSaveImage(BuildContext context, String exportMode) async {
+  // This will call the proper capture method
+  await _captureImage(context, exportMode, false);
+}
 
-  // Common image capture logic
-  // Update the _captureImage method in export_button_widget.dart
+Future<void> _captureAndCopyImage(BuildContext context, String exportMode) async {
+  // This will call the proper capture method
+  await _captureImage(context, exportMode, true);
+}
+
+
+// Update the _enhancedCopyToClipboard method in export_button_widget.dart
+// Update the _enhancedCopyToClipboard method in export_button_widget.dart
+Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
+  try {
+    if (kIsWeb) {
+      // Create a blob from the image bytes
+      final blob = html.Blob([imageBytes], 'image/png');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      // Method 1: Try to use modern clipboard API (Chrome, Edge)
+      bool success = false;
+      try {
+        // Use a completer to handle the async nature of the clipboard API
+        final completer = Completer<bool>();
+        
+        // Add callback functions to js context
+        js.context['dartSuccessCallback'] = js.allowInterop(() {
+          success = true;
+          completer.complete(true);
+        });
+        
+        js.context['dartFailureCallback'] = js.allowInterop(() {
+          success = false;
+          completer.complete(false);
+        });
+        
+        // Directly inject a script tag with our code to avoid Promise issues
+        final scriptTag = html.ScriptElement()
+          ..text = '''
+            (function() {
+              fetch("$url")
+                .then(response => response.blob())
+                .then(blob => {
+                  try {
+                    const item = new ClipboardItem({"image/png": blob});
+                    navigator.clipboard.write([item])
+                      .then(() => {
+                        dartSuccessCallback();
+                      })
+                      .catch(err => {
+                        dartFailureCallback();
+                      });
+                  } catch(e) {
+                    dartFailureCallback();
+                  }
+                })
+                .catch(() => {
+                  dartFailureCallback();
+                });
+            })();
+          ''';
+        
+        // Add the script to the document
+        html.document.body!.append(scriptTag);
+        
+        // Wait for the result
+        success = await completer.future.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => false,
+        );
+        
+        // Clean up
+        scriptTag.remove();
+        
+        if (success && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image copied to clipboard successfully!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        success = false;
+        print('Clipboard API error: $e');
+      }
+
+      // Method 2: If the clipboard API fails, open in a new tab for manual copy
+      if (!success) {
+        // Open image in a new tab
+        html.AnchorElement(href: url)
+          ..target = '_blank'
+          ..click();
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image opened in new tab for copying'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+      
+      // Clean up URL
+      Future.delayed(const Duration(seconds: 10), () {
+        html.Url.revokeObjectUrl(url);
+      });
+    } else {
+      // For mobile platforms
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/temp_clipboard_image.png');
+      await file.writeAsBytes(imageBytes);
+      
+      // Use Share.shareXFiles for sharing
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Check out my NFL Draft results',
+      );
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image ready to share'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing image: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+}
+
+// Add this method to your ExportButtonWidget class
 Future<void> _captureImage(BuildContext context, String exportMode, bool forClipboard) async {
   if (shareableCardKey == null) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -249,8 +383,6 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     return;
   }
 
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
   try {
     // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
@@ -279,33 +411,12 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     // Create a temporary GlobalKey
     final GlobalKey repaintKey = GlobalKey();
     
-    // Determine proper size based on export mode
-    double cardWidth = 900.0; // Wider for better quality
-    double cardHeight;
-    
-    if (exportMode == "first_round") {
-      cardHeight = 900.0; // Taller for first round
-    } else if (exportMode == "your_picks") {
-      // Height based on number of picks
-      int pickCount = completedPicks.where((p) => 
-        p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
-        p.selectedPlayer != null
-      ).length;
-      cardHeight = min(900.0, 200.0 + (pickCount * 120.0));
-    } else {
-      cardHeight = 900.0; // Default height
-    }
-    
-    // Create a container in overlay to host our widget with fixed dimensions
-    final overlayState = Overlay.of(context);
-    
-    // Create the temporary card with explicit size constraints
+    // Create a temporary card
     final card = Material(
       color: Colors.transparent,
       child: Container(
-        width: cardWidth,
-        height: cardHeight,
-        color: isDarkMode ? Colors.grey.shade900 : Colors.white,
+        width: 800,
+        constraints: const BoxConstraints(maxHeight: 1200),
         child: RepaintBoundary(
           key: repaintKey,
           child: ShareableDraftCard(
@@ -319,6 +430,8 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
       ),
     );
     
+    // Create a container in overlay to host our widget
+    final overlayState = Overlay.of(context);
     final OverlayEntry overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         left: 20,
@@ -330,8 +443,8 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     // Add to overlay
     overlayState.insert(overlayEntry);
     
-    // Wait for rendering to complete - longer wait for more complex content
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Wait for rendering
+    await Future.delayed(const Duration(milliseconds: 500));
     
     try {
       // Find the RenderRepaintBoundary
@@ -341,8 +454,8 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
         throw Exception('Could not find the card to render');
       }
       
-      // Use HIGHER pixel ratio for better quality
-      final ui.Image image = await boundary.toImage(pixelRatio: 2.5);
+      // Capture the image with high pixel ratio for quality
+      final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
       final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       
       // Remove overlay
@@ -355,6 +468,7 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
       // Convert to bytes
       final Uint8List pngBytes = byteData.buffer.asUint8List();
       
+      // Process the image based on the forClipboard flag
       if (forClipboard) {
         await _enhancedCopyToClipboard(pngBytes, context);
       } else {
@@ -370,124 +484,6 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error generating image: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
-  }
-}
-
-// Update the _enhancedCopyToClipboard method in export_button_widget.dart
-Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
-  try {
-    if (kIsWeb) {
-      // Try to use a more direct approach for web
-      final blob = html.Blob([imageBytes], 'image/png');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      
-      // Try a more direct clipboard approach using the Clipboard API
-      // This uses a newer method that works in more browsers
-      final jsCode = '''
-        (async function() {
-          try {
-            const response = await fetch("$url");
-            const blob = await response.blob();
-            
-            // Try modern clipboard API
-            if (navigator.clipboard && navigator.clipboard.write) {
-              try {
-                const item = new ClipboardItem({"image/png": blob});
-                await navigator.clipboard.write([item]);
-                return "success";
-              } catch(e) {
-                console.error("Clipboard API failed:", e);
-              }
-            }
-            
-            // If we can't use the Clipboard API directly
-            // Open in new tab but make it user-friendly
-            const newTab = window.open();
-            if (newTab) {
-              newTab.document.body.style.margin = "0";
-              newTab.document.body.style.padding = "0";
-              newTab.document.body.style.backgroundColor = "#f1f1f1";
-              newTab.document.title = "Right-click to copy image";
-              
-              const img = newTab.document.createElement("img");
-              img.src = "$url";
-              img.style.display = "block";
-              img.style.margin = "0 auto";
-              img.style.maxWidth = "100%";
-              img.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
-              
-              const instructions = newTab.document.createElement("div");
-              instructions.textContent = "Right-click the image above and select 'Copy Image'";
-              instructions.style.textAlign = "center";
-              instructions.style.padding = "15px";
-              instructions.style.fontFamily = "sans-serif";
-              
-              newTab.document.body.appendChild(img);
-              newTab.document.body.appendChild(instructions);
-              
-              return "newtab";
-            }
-            return "error";
-          } catch(e) {
-            console.error("Error:", e);
-            return "error";
-          }
-        })();
-      ''';
-      final result = await js_util.promiseToFuture(js.context.callMethod('eval', [jsCode])) as String?;
-      
-      if (result == "success" && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image copied to clipboard successfully!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else if (result == "newtab" && context.mounted) {
-        // Don't show a snackbar for new tab - it's obvious to the user
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image opened in new tab for copying'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      
-      // Clean up URL
-      Future.delayed(const Duration(seconds: 10), () {
-        html.Url.revokeObjectUrl(url);
-      });
-    } else {
-      // For mobile platforms, use platform-specific clipboard operations
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/temp_clipboard_image.png');
-      await file.writeAsBytes(imageBytes);
-      
-      // Try using Share.shareXFiles for sharing
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Check out my NFL Draft results',
-      );
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image shared successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sharing image: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );

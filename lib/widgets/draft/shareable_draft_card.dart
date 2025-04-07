@@ -50,110 +50,103 @@ class ShareableDraftCard extends StatelessWidget {
     
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    return Container(
-      color: isDarkMode ? Colors.grey.shade900 : Colors.white,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with logo and title
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.red.shade700,
-                  Colors.red.shade900,
+    // Determine content height based on picks count
+    final contentHeight = filteredPicks.length * (exportMode == "first_round" ? 40.0 : 70.0) + 100.0;
+    
+    return Material(
+      color: isDarkMode ? const Color(0xFF121212) : Colors.white,
+      child: Container(
+        width: 800, // Fixed width
+        constraints: BoxConstraints(
+          minHeight: 200,
+          maxHeight: min(1200, contentHeight),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header with logo and title
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: const Color(0xFFC62828), // PFF-like red
+              child: Row(
+                children: [
+                  // Football icon
+                  const Icon(
+                    Icons.sports_football,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _getTitle(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const Text(
+                          "Draft Results by StickToTheModel",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
             ),
-            child: Row(
-              children: [
-                // Logo or Icon
-                const Icon(
-                  Icons.sports_football,
-                  color: Colors.white,
-                  size: 32,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getTitle(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                        ),
-                      ),
-                      Text(
-                        "Draft Results by StickToTheModel",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Content depends on export mode
-          if (filteredPicks.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Center(
-                child: Text(
-                  "No picks available for this selection",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDarkMode ? Colors.white70 : Colors.black54,
-                  ),
-                ),
-              ),
-            )
-          else if (exportMode == "first_round") 
-            _buildFirstRoundLayout(filteredPicks, context)
-          else
-            _buildPicksList(filteredPicks, context),
             
-          // Footer - always include this
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade300, // Warning stripe color
-              border: const Border(
-                top: BorderSide(
-                  color: Colors.black,
-                  width: 4,
-                ),
-                bottom: BorderSide(
-                  color: Colors.black,
-                  width: 4,
-                ),
-              ),
+            // Content
+            Expanded(
+              child: filteredPicks.isEmpty
+                ? const Center(
+                    child: Text(
+                      "No picks available for this selection",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  )
+                : exportMode == "first_round"
+                  ? _buildFirstRoundLayout(filteredPicks, context)
+                  : _buildPicksList(filteredPicks, context),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "STICKTOTHEMODEL.COM",
+            
+            // Footer - Warning stripe at bottom like PFF
+            Container(
+              color: Colors.black,
+              height: 4,
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical:
+              8),
+              color: Colors.amber,
+              child: const Center(
+                child: Text(
+                  "STICKTOTHEMODEL",
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 14,
                     fontWeight: FontWeight.bold,
+                    fontSize: 14,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Container(
+              color: Colors.black,
+              height: 4,
+            ),
+          ],
+        ),
       ),
     );
   }
