@@ -27,44 +27,51 @@ class ShareableDraftCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Filter picks based on exportMode
-    List<DraftPick> filteredPicks = [];
-    
-    if (exportMode == "your_picks" && userTeam != null) {
-      filteredPicks = picks.where((pick) => 
-        pick.teamName == userTeam && pick.selectedPlayer != null
-      ).toList();
-    } else if (exportMode == "first_round") {
-      filteredPicks = picks.where((pick) => 
-        pick.round == '1' && pick.selectedPlayer != null
-      ).toList();
-    } else {
-      filteredPicks = picks.where((pick) => 
-        pick.selectedPlayer != null
-      ).toList();
-    }
-    
-    // Sort by pick number
-    filteredPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
-    
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // Determine content height based on picks count
-    final contentHeight = filteredPicks.length * (exportMode == "first_round" ? 40.0 : 70.0) + 100.0;
-    
-    return Material(
-      color: isDarkMode ? const Color(0xFF121212) : Colors.white,
-      child: Container(
-        width: 800, // Fixed width
-        constraints: BoxConstraints(
-          minHeight: 200,
-          maxHeight: min(1200, contentHeight),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+Widget build(BuildContext context) {
+  // Filter picks based on exportMode
+  List<DraftPick> filteredPicks = [];
+  
+  if (exportMode == "your_picks" && userTeam != null) {
+    filteredPicks = picks.where((pick) => 
+      pick.teamName == userTeam && pick.selectedPlayer != null
+    ).toList();
+  } else if (exportMode == "first_round") {
+    filteredPicks = picks.where((pick) => 
+      pick.round == '1' && pick.selectedPlayer != null
+    ).toList();
+  } else {
+    filteredPicks = picks.where((pick) => 
+      pick.selectedPlayer != null
+    ).toList();
+  }
+  
+  // Sort by pick number
+  filteredPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Calculate height based on content - make sure min <= max
+  final int pickCount = filteredPicks.length;
+  final double estimatedItemHeight = exportMode == "your_picks" ? 80.0 : 45.0;
+  final double calculatedHeight = 120.0 + (pickCount * estimatedItemHeight); // header/footer + content
+  
+  // IMPORTANT: Use proper min and max constraints that don't conflict
+  const double minHeight = 200.0;  // minimum height 
+  final double maxHeight = max(1200.0, minHeight); // ensure max >= min
+  
+  return Material(
+    color: isDarkMode ? const Color(0xFF121212) : Colors.white,
+    child: Container(
+      width: 800, // Fixed width
+      // Fix the constraints here
+      constraints: BoxConstraints(
+        minHeight: minHeight,
+        maxHeight: max(calculatedHeight, minHeight),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             // Header with logo and title
             Container(
               padding: const EdgeInsets.all(16),
@@ -401,23 +408,39 @@ class ShareableDraftCard extends StatelessWidget {
   }
 
   // Regular picks list for non-first round views
-  Widget _buildPicksList(List<DraftPick> picks, BuildContext context) {
+  // Inside ShareableDraftCard class
+// Update or add this method
+Widget _buildPicksList(List<DraftPick> picks, BuildContext context) {
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // If there are no picks, show an empty state message
+  if (picks.isEmpty) {
     return Container(
-      width: double.infinity,
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.grey.shade900 
-          : Colors.grey.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: picks.map((pick) => 
-            _buildPickCard(pick, context)
-          ).toList(),
+      color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+      padding: const EdgeInsets.all(20),
+      child: const Center(
+        child: Text(
+          "No picks found for this team",
+          style: TextStyle(
+            fontSize: 16,
+            fontStyle: FontStyle.italic,
+            color: Colors.grey,
+          ),
         ),
       ),
     );
   }
+  
+  // Otherwise build a scrollable list of picks
+  return Container(
+    color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    child: SingleChildScrollView(
+      child: Column(
+        children: picks.map((pick) => _buildPickCard(pick, context)).toList(),
+      ),
+    ),
+  );
+}
 
   // Regular pick card for non-first round views
   Widget _buildPickCard(DraftPick pick, BuildContext context) {
