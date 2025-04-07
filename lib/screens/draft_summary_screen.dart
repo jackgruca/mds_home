@@ -448,7 +448,7 @@ Widget build(BuildContext context) {
             child: _buildSummaryContent(),
           ),
           Offstage(
-              offstage: true, // Hide it from view
+              offstage: true, // Hide it from view but still render it
               child: ShareableDraftCard(
                 picks: widget.completedPicks,
                 userTeam: _selectedTeam == "All Teams" ? widget.userTeam : _selectedTeam,
@@ -469,38 +469,54 @@ Widget build(BuildContext context) {
   final screenWidth = MediaQuery.of(context).size.width;
   final bool isNarrowScreen = screenWidth < 360;
   
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (int i = 1; i <= min(7, _getMaxRound()); i++)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
-            child: ChoiceChip(
-              label: Text(
-                'R$i', // Shorter text for round
-                style: TextStyle(
-                  fontSize: isNarrowScreen ? 11 : 12,
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      // Left side - round selector
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 1; i <= min(7, _getMaxRound()); i++)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isNarrowScreen ? 2.0 : 4.0),
+                child: ChoiceChip(
+                  label: Text(
+                    'R$i', // Shorter text for round
+                    style: TextStyle(
+                      fontSize: isNarrowScreen ? 11 : 12,
+                    ),
+                  ),
+                  selected: _selectedRound == i,
+                  visualDensity: VisualDensity.compact, // More compact chips
+                  labelPadding: EdgeInsets.symmetric(
+                    horizontal: isNarrowScreen ? 4 : 8,
+                    vertical: 0,
+                  ),
+                  onSelected: (bool selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedRound = i;
+                      });
+                    }
+                  },
                 ),
               ),
-              selected: _selectedRound == i,
-              visualDensity: VisualDensity.compact, // More compact chips
-              labelPadding: EdgeInsets.symmetric(
-                horizontal: isNarrowScreen ? 4 : 8,
-                vertical: 0,
-              ),
-              onSelected: (bool selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedRound = i;
-                  });
-                }
-              },
-            ),
-          ),
-      ],
-    ),
+          ],
+        ),
+      ),
+      
+      // Right side - export button
+      ExportButtonWidget(
+        completedPicks: widget.completedPicks,
+        teamNeeds: widget.teamNeeds,
+        userTeam: widget.userTeam,
+        executedTrades: widget.executedTrades,
+        filterTeam: _selectedTeam,
+        shareableCardKey: _shareableCardKey,
+      ),
+    ],
   );
 }
 

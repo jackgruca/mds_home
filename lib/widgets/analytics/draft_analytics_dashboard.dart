@@ -11,6 +11,7 @@ import '../../services/draft_pick_grade_service.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import '../common/export_button_widget.dart';
+import '../draft/shareable_draft_card.dart';
 import 'community_analytics_dashboard.dart';
 
 
@@ -41,6 +42,7 @@ class DraftAnalyticsDashboard extends StatefulWidget {
 class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with TickerProviderStateMixin {
   // Analytics data
   Map<String, int> _positionCounts = {};
+  final String _selectedTeam = 'All Teams'; // Add this line to define _selectedTeam
   Map<String, Map<String, dynamic>> _teamGrades = {};
   List<Map<String, dynamic>> _valuePicks = [];
   List<Map<String, dynamic>> _reachPicks = [];
@@ -48,6 +50,7 @@ class _DraftAnalyticsDashboardState extends State<DraftAnalyticsDashboard> with 
   int _selectedRound = 1; // Add this line
 
   late TabController _tabController;
+  final GlobalKey _shareableCardKey = GlobalKey();
 
 
   @override
@@ -821,6 +824,15 @@ Widget build(BuildContext context) {
                   // Position Distribution
                   _buildSectionHeader("Position Distribution"),
                   _buildPositionDistribution(),
+                  Offstage(
+  offstage: true, // Hide it from view
+  child: ShareableDraftCard(
+    picks: widget.completedPicks,
+    userTeam: _selectedTeam == 'All Teams' ? widget.userTeam : _selectedTeam,
+    teamNeeds: widget.teamNeeds,
+    cardKey: _shareableCardKey,
+  ),
+),
                 ],
               ),
             ),
@@ -841,6 +853,7 @@ Widget build(BuildContext context) {
     ],
   );
 }
+  
 Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 6.0),
@@ -1346,7 +1359,7 @@ Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
                       color: _getPositionColor(position),
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  ),               
                 );
               }).toList(),
             ),

@@ -27,6 +27,7 @@ import '../../models/draft_pick.dart';
 import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
 import '../../utils/theme_config.dart';
+import 'dart:async';
 
 /// Widget for exporting draft results with an enhanced design
 class ExportButtonWidget extends StatelessWidget {
@@ -415,12 +416,33 @@ class ExportButtonWidget extends StatelessWidget {
     // Wait for snackbar to appear
     await Future.delayed(const Duration(milliseconds: 100));
     
-    // Find the RenderRepaintBoundary for the shareable card
-    final RenderRepaintBoundary boundary = 
-        shareableCardKey!.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    // Get the RenderRepaintBoundary directly
+    RenderRepaintBoundary? boundary;
+    try {
+      boundary = shareableCardKey!.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    } catch (e) {
+      debugPrint('Error finding RenderRepaintBoundary: $e');
+    }
     
-    // Capture the image
-    final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+    // If we couldn't get the boundary, try with a delay
+    if (boundary == null) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        boundary = shareableCardKey!.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      } catch (e) {
+        debugPrint('Error finding RenderRepaintBoundary after delay: $e');
+      }
+    }
+    
+    if (boundary == null) {
+      throw Exception('Could not find the card to render');
+    }
+    
+    // Make sure painting is complete
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    // Capture the image with a lower pixel ratio (try 2.0 instead of 3.0)
+    final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
     final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     
     if (byteData == null) {
@@ -431,7 +453,7 @@ class ExportButtonWidget extends StatelessWidget {
     final Uint8List pngBytes = byteData.buffer.asUint8List();
     
     // Share the image
-    if (kIsWeb) {  // Use kIsWeb instead of isWeb
+    if (kIsWeb) {
       // For web, use a different method
       await _shareImageOnWeb(pngBytes);
     } else {
@@ -445,16 +467,20 @@ class ExportButtonWidget extends StatelessWidget {
         text: 'Check out my NFL mock draft results from StickToTheModel!',
       );
       
-      // Also save to gallery
-      await ImageGallerySaver.saveImage(pngBytes);
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Draft results image saved to your gallery'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+      // Also save to gallery if on mobile
+      try {
+        await ImageGallerySaver.saveImage(pngBytes);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Draft results image saved to your gallery'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Could not save to gallery: $e');
       }
     }
   } catch (e) {
@@ -467,7 +493,7 @@ class ExportButtonWidget extends StatelessWidget {
       );
     }
   }
-}  
+}
 
 // Method for web platforms
 Future<void> _shareImageOnWeb(Uint8List pngBytes) async {
