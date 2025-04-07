@@ -49,17 +49,43 @@ static Future<void> initialize({int year = 2025}) async {
         String ras = csvTable[i].length > 7 ? csvTable[i][7].toString().trim() : "";
         
         // Get the new fields - update index numbers as needed based on your actual CSV structure
-        String tenYardSplit = csvTable[i].length > 8 ? csvTable[i][8].toString().trim() : "";
+        String tenYardSplit = csvTable[i].length > 8 && csvTable[i][8].toString().trim().isNotEmpty 
+            ? csvTable[i][8].toString().trim() 
+            : "";        
         debugPrint("Player: $name, tenYardSplit: $tenYardSplit");
 
-        String twentyYardShuttle = csvTable[i].length > 9 ? csvTable[i][9].toString().trim() : "";
-        String threeCone = csvTable[i].length > 10 ? csvTable[i][10].toString().trim() : "";
-        String armLength = csvTable[i].length > 11 ? csvTable[i][11].toString().trim() : "";
-        String benchPress = csvTable[i].length > 12 ? csvTable[i][12].toString().trim() : "";
-        String broadJump = csvTable[i].length > 13 ? csvTable[i][13].toString().trim() : "";
-        String handSize = csvTable[i].length > 14 ? csvTable[i][14].toString().trim() : "";
-        String verticalJump = csvTable[i].length > 15 ? csvTable[i][15].toString().trim() : "";
-        String wingspan = csvTable[i].length > 16 ? csvTable[i][16].toString().trim() : "";
+        String twentyYardShuttle = csvTable[i].length > 9 && csvTable[i][9].toString().trim().isNotEmpty 
+            ? csvTable[i][9].toString().trim() 
+            : "";
+        debugPrint("Player: $name, twentyYardShuttle: $twentyYardShuttle");
+        String threeCone = csvTable[i].length > 10 && csvTable[i][10].toString().trim().isNotEmpty 
+            ? csvTable[i][10].toString().trim() 
+            : "";
+        debugPrint("Player: $name, threeCone: $threeCone");
+        String armLength = csvTable[i].length > 11 && csvTable[i][11].toString().trim().isNotEmpty 
+            ? csvTable[i][11].toString().trim() 
+            : "";
+        debugPrint("Player: $name, armLength: $armLength");       
+        String benchPress = csvTable[i].length > 12 && csvTable[i][12].toString().trim().isNotEmpty 
+            ? csvTable[i][12].toString().trim() 
+            : "";
+        debugPrint("Player: $name, benchPress: $benchPress");
+        String broadJump = csvTable[i].length > 13 && csvTable[i][13].toString().trim().isNotEmpty 
+            ? csvTable[i][13].toString().trim() 
+            : "";
+        debugPrint("Player: $name, broadJump: $broadJump");
+        String handSize = csvTable[i].length > 14 && csvTable[i][14].toString().trim().isNotEmpty 
+            ? csvTable[i][14].toString().trim() 
+            : "";
+        debugPrint("Player: $name, handSize: $handSize");
+        String verticalJump = csvTable[i].length > 15 && csvTable[i][15].toString().trim().isNotEmpty 
+            ? csvTable[i][15].toString().trim() 
+            : "";
+        debugPrint("Player: $name, verticalJump: $verticalJump");
+        String wingspan = csvTable[i].length > 16 && csvTable[i][16].toString().trim().isNotEmpty 
+            ? csvTable[i][16].toString().trim() 
+            : "";
+        debugPrint("Player: $name, wingspan: $wingspan");
         
         _playerDescriptions[name.toLowerCase()] = {
           'description': description,

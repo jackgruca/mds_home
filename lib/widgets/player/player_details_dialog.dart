@@ -259,8 +259,7 @@ Container(
         _buildCompactStat(
           context,
           '10yd',
-          player.tenYardSplit != null && player.tenYardSplit!.isNotEmpty ? 
-            "${player.tenYardSplit}s" : "N/A",
+          (player.tenYardSplit != null && player.tenYardSplit!.isNotEmpty) ? "${player.tenYardSplit}s" : "N/A",
           isDarkMode,
         ),
         
@@ -275,8 +274,7 @@ Container(
         _buildCompactStat(
           context,
           '20sh',
-          player.twentyYardShuttle != null && player.twentyYardShuttle!.isNotEmpty ? 
-            "${player.twentyYardShuttle}s" : "N/A",
+          (player.twentyYardShuttle != null && player.twentyYardShuttle!.isNotEmpty) ? "${player.twentyYardShuttle}s" : "N/A",
           isDarkMode,
         ),
         
@@ -291,8 +289,7 @@ Container(
         _buildCompactStat(
           context,
           '3cone',
-          player.threeCone != null && player.threeCone!.isNotEmpty ? 
-            "${player.threeCone}s" : "N/A",
+          (player.threeCone != null && player.threeCone!.isNotEmpty) ? "${player.threeCone}s" : "N/A",
           isDarkMode,
         ),
         
@@ -307,8 +304,7 @@ Container(
         _buildCompactStat(
           context,
           'Bench',
-          player.benchPress != null && player.benchPress!.isNotEmpty ? 
-            "${player.benchPress}" : "N/A",
+          (player.benchPress != null && player.benchPress!.isNotEmpty) ? "${player.benchPress}" : "N/A",
           isDarkMode,
         ),
         
@@ -323,8 +319,7 @@ Container(
         _buildCompactStat(
           context,
           'Vert',
-          player.verticalJump != null && player.verticalJump!.isNotEmpty ? 
-            "${player.verticalJump}\"" : "N/A",
+          (player.verticalJump != null && player.verticalJump!.isNotEmpty) ? "${player.verticalJump}\"" : "N/A",
           isDarkMode,
         ),
         
@@ -339,8 +334,7 @@ Container(
         _buildCompactStat(
           context,
           'Broad',
-          player.broadJump != null && player.broadJump!.isNotEmpty ? 
-            "${player.broadJump}\"" : "N/A",
+          (player.broadJump != null && player.broadJump!.isNotEmpty) ? "${player.broadJump}\"" : "N/A",
           isDarkMode,
         ),
         
@@ -355,8 +349,7 @@ Container(
         _buildCompactStat(
           context,
           'Arm',
-          player.armLength != null && player.armLength!.isNotEmpty ? 
-            "${player.armLength}\"" : "N/A",
+          (player.armLength != null && player.armLength!.isNotEmpty) ? "${player.armLength}\"" : "N/A",
           isDarkMode,
         ),
         
@@ -371,8 +364,7 @@ Container(
         _buildCompactStat(
           context,
           'Hand',
-          player.handSize != null && player.handSize!.isNotEmpty ? 
-            "${player.handSize}\"" : "N/A",
+          (player.handSize != null && player.handSize!.isNotEmpty) ? "${player.handSize}\"" : "N/A",
           isDarkMode,
         ),
         
@@ -387,8 +379,7 @@ Container(
         _buildCompactStat(
           context,
           'Wing',
-          player.wingspan != null && player.wingspan!.isNotEmpty ? 
-            "${player.wingspan}\"" : "N/A",
+          (player.wingspan != null && player.wingspan!.isNotEmpty) ? "${player.wingspan}\"" : "N/A",
           isDarkMode,
         ),
       ],
