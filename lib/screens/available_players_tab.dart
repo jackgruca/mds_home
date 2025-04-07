@@ -501,19 +501,17 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   }
   
 void _showPlayerDetails(BuildContext context, Player player) {
-  // Attempt to get additional player information from our description service
+  // Attempt to get additional player information from description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
   Player enrichedPlayer;
   
   if (additionalInfo != null) {
-    // If we have additional info, use it for the player
-    // Attempt to parse height from string to double
+    // Parse height
     double? height;
-    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
-      String heightStr = additionalInfo['height']!;
-      
-      // Handle height in different formats
+    String? heightStr = additionalInfo['height'];
+    if (heightStr != null && heightStr.isNotEmpty) {
+      // Handle different height formats
       if (heightStr.contains("'")) {
         // Format like 6'2"
         try {
@@ -542,18 +540,19 @@ void _showPlayerDetails(BuildContext context, Player player) {
     
     // Parse weight
     double? weight;
-    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
-      weight = double.tryParse(additionalInfo['weight']!);
+    String? weightStr = additionalInfo['weight'];
+    if (weightStr != null && weightStr.isNotEmpty) {
+      weight = double.tryParse(weightStr);
     }
     
-    // Parse 40 time and RAS
-    String? fortyTime = additionalInfo['fortyTime'];
-    
+    // Parse RAS
     double? rasScore;
-    if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
-      rasScore = double.tryParse(additionalInfo['ras']!);
+    String? rasStr = additionalInfo['ras'];
+    if (rasStr != null && rasStr.isNotEmpty) {
+      rasScore = double.tryParse(rasStr);
     }
     
+    // Create enriched player with additional info
     enrichedPlayer = Player(
       id: player.id,
       name: player.name,
@@ -561,16 +560,31 @@ void _showPlayerDetails(BuildContext context, Player player) {
       rank: player.rank,
       school: player.school,
       notes: player.notes,
+      
+      // Add parsed values
       height: height ?? player.height,
       weight: weight ?? player.weight,
       rasScore: rasScore ?? player.rasScore,
+      
+      // Additional measurements
       description: additionalInfo['description'] ?? player.description,
       strengths: additionalInfo['strengths'] ?? player.strengths,
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
-      fortyTime: fortyTime ?? player.fortyTime,
+      fortyTime: additionalInfo['fortyTime'] ?? player.fortyTime,
+      
+      // New fields from CSV
+      tenYardSplit: additionalInfo['tenYardSplit'] ?? player.tenYardSplit,
+      twentyYardShuttle: additionalInfo['twentyYardShuttle'] ?? player.twentyYardShuttle,
+      threeConeDrill: additionalInfo['threeConeDrill'] ?? player.threeConeDrill,
+      armLength: additionalInfo['armLength'] ?? player.armLength,
+      benchPress: additionalInfo['benchPress'] ?? player.benchPress,
+      broadJump: additionalInfo['broadJump'] ?? player.broadJump,
+      handSize: additionalInfo['handSize'] ?? player.handSize,
+      verticalJump: additionalInfo['verticalJump'] ?? player.verticalJump,
+      wingspan: additionalInfo['wingspan'] ?? player.wingspan,
     );
   } else {
-    // Fall back to mock data for players without description
+    // Fallback if no additional info found
     enrichedPlayer = Player(
       id: player.id,
       name: player.name,

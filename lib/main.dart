@@ -5,6 +5,7 @@ import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
+import 'services/player_descriptions_service.dart';
 import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
@@ -21,6 +22,9 @@ DateTime? _lastTapTime;
 void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Add this line to initialize player descriptions
+  await PlayerDescriptionsService.initialize();
 
   // Initialize Firebase with additional logging
   try {
