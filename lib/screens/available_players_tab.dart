@@ -554,15 +554,17 @@ void _showPlayerDetails(BuildContext context, Player player) {
     if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
       rasScore = double.tryParse(additionalInfo['ras']!);
     }
-      String? tenYardSplit = additionalInfo['tenYardSplit'];
-  String? twentyYardShuttle = additionalInfo['twentyYardShuttle'];
-  String? threeCone = additionalInfo['threeCone'];
-  String? armLength = additionalInfo['armLength'];
-  String? benchPress = additionalInfo['benchPress'];
-  String? broadJump = additionalInfo['broadJump'];
-  String? handSize = additionalInfo['handSize'];
-  String? verticalJump = additionalInfo['verticalJump'];
-  String? wingspan = additionalInfo['wingspan'];
+
+    String? tenYardSplit = additionalInfo['tenYardSplit']?.isEmpty == true ? null : additionalInfo['tenYardSplit'];
+    String? twentyYardShuttle = additionalInfo['twentyYardShuttle']?.isEmpty == true ? null : additionalInfo['twentyYardShuttle'];
+    String? threeCone = additionalInfo['threeCone']?.isEmpty == true ? null : additionalInfo['threeCone'];
+    String? armLength = additionalInfo['armLength']?.isEmpty == true ? null : additionalInfo['armLength'];
+    String? benchPress = additionalInfo['benchPress']?.isEmpty == true ? null : additionalInfo['benchPress'];
+    String? broadJump = additionalInfo['broadJump']?.isEmpty == true ? null : additionalInfo['broadJump'];
+    String? handSize = additionalInfo['handSize']?.isEmpty == true ? null : additionalInfo['handSize'];
+    String? verticalJump = additionalInfo['verticalJump']?.isEmpty == true ? null : additionalInfo['verticalJump'];
+    String? wingspan = additionalInfo['wingspan']?.isEmpty == true ? null : additionalInfo['wingspan'];
+    
   
   // And when you create the enrichedPlayer, add the new fields:
   enrichedPlayer = Player(
@@ -580,15 +582,15 @@ void _showPlayerDetails(BuildContext context, Player player) {
     weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
     fortyTime: fortyTime ?? player.fortyTime,
     // Add these new fields:
-    tenYardSplit: tenYardSplit ?? player.tenYardSplit,
-    twentyYardShuttle: twentyYardShuttle ?? player.twentyYardShuttle,
-    threeCone: threeCone ?? player.threeCone,
-    armLength: armLength ?? player.armLength,
-    benchPress: benchPress ?? player.benchPress,
-    broadJump: broadJump ?? player.broadJump,
-    handSize: handSize ?? player.handSize,
-    verticalJump: verticalJump ?? player.verticalJump,
-    wingspan: wingspan ?? player.wingspan,
+      tenYardSplit: tenYardSplit,
+      twentyYardShuttle: twentyYardShuttle,
+      threeCone: threeCone,
+      armLength: armLength,
+      benchPress: benchPress,
+      broadJump: broadJump,
+      handSize: handSize,
+      verticalJump: verticalJump,
+      wingspan: wingspan,
   );
   } else {
     // Fall back to mock data for players without description
@@ -605,6 +607,13 @@ void _showPlayerDetails(BuildContext context, Player player) {
     );
   }
   
+  debugPrint("\n===== ENRICHED PLAYER DEBUG =====");
+debugPrint("Player: ${enrichedPlayer.name}");
+debugPrint("armLength: ${enrichedPlayer.armLength}");
+debugPrint("handSize: ${enrichedPlayer.handSize}");
+debugPrint("wingspan: ${enrichedPlayer.wingspan}");
+debugPrint("===================================\n");
+
   // Show the dialog with enriched player data
   showDialog(
     context: context,

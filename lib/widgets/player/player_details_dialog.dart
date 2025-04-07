@@ -259,7 +259,7 @@ Container(
         _buildCompactStat(
           context,
           '10yd',
-          (player.tenYardSplit != null && player.tenYardSplit!.isNotEmpty) ? "${player.tenYardSplit}s" : "N/A",
+          player.formatted10YardSplit,
           isDarkMode,
         ),
         
@@ -273,8 +273,8 @@ Container(
         // 20 Yard Shuttle
         _buildCompactStat(
           context,
-          '20sh',
-          (player.twentyYardShuttle != null && player.twentyYardShuttle!.isNotEmpty) ? "${player.twentyYardShuttle}s" : "N/A",
+          '20yd',
+          player.formatted20YardShuttle,
           isDarkMode,
         ),
         
@@ -288,8 +288,8 @@ Container(
         // 3-Cone Drill
         _buildCompactStat(
           context,
-          '3cone',
-          (player.threeCone != null && player.threeCone!.isNotEmpty) ? "${player.threeCone}s" : "N/A",
+          '3-Cone',
+          player.formatted3Cone,
           isDarkMode,
         ),
         
@@ -304,7 +304,7 @@ Container(
         _buildCompactStat(
           context,
           'Bench',
-          (player.benchPress != null && player.benchPress!.isNotEmpty) ? "${player.benchPress}" : "N/A",
+          player.formattedBenchPress,
           isDarkMode,
         ),
         
@@ -318,8 +318,8 @@ Container(
         // Vertical Jump
         _buildCompactStat(
           context,
-          'Vert',
-          (player.verticalJump != null && player.verticalJump!.isNotEmpty) ? "${player.verticalJump}\"" : "N/A",
+          'Vertical',
+          player.formattedVerticalJump,
           isDarkMode,
         ),
         
@@ -334,7 +334,7 @@ Container(
         _buildCompactStat(
           context,
           'Broad',
-          (player.broadJump != null && player.broadJump!.isNotEmpty) ? "${player.broadJump}\"" : "N/A",
+          player.formattedBroadJump,
           isDarkMode,
         ),
         
@@ -349,7 +349,7 @@ Container(
         _buildCompactStat(
           context,
           'Arm',
-          (player.armLength != null && player.armLength!.isNotEmpty) ? "${player.armLength}\"" : "N/A",
+          player.formattedArmLength,
           isDarkMode,
         ),
         
@@ -364,7 +364,7 @@ Container(
         _buildCompactStat(
           context,
           'Hand',
-          (player.handSize != null && player.handSize!.isNotEmpty) ? "${player.handSize}\"" : "N/A",
+          player.formattedHandSize,
           isDarkMode,
         ),
         
@@ -378,8 +378,8 @@ Container(
         // Wingspan
         _buildCompactStat(
           context,
-          'Wing',
-          (player.wingspan != null && player.wingspan!.isNotEmpty) ? "${player.wingspan}\"" : "N/A",
+          'Wingspan',
+          player.formattedWingspan,
           isDarkMode,
         ),
       ],

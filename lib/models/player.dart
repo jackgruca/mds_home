@@ -331,6 +331,51 @@ class Player {
   String getDefaultDescription() {
     return "$name is a $position from $school. Ranked #$rank overall in this draft class.${strengths != null ? " Strengths include $strengths." : ""}${weaknesses != null ? " Areas for improvement include $weaknesses." : ""}";
   }
+
+  String get formatted10YardSplit {
+  if (tenYardSplit == null || tenYardSplit!.isEmpty) return "N/A";
+  return "${tenYardSplit}s";
+}
+
+String get formatted20YardShuttle {
+  if (twentyYardShuttle == null || twentyYardShuttle!.isEmpty) return "N/A";
+  return "${twentyYardShuttle}s";
+}
+
+String get formatted3Cone {
+  if (threeCone == null || threeCone!.isEmpty) return "N/A";
+  return "${threeCone}s";
+}
+
+String get formattedArmLength {
+  if (armLength == null || armLength!.isEmpty) return "N/A";
+  return "$armLength\"";
+}
+
+String get formattedBenchPress {
+  if (benchPress == null || benchPress!.isEmpty) return "N/A";
+  return benchPress!;
+}
+
+String get formattedBroadJump {
+  if (broadJump == null || broadJump!.isEmpty) return "N/A";
+  return "$broadJump\"";
+}
+
+String get formattedHandSize {
+  if (handSize == null || handSize!.isEmpty) return "N/A";
+  return "$handSize\"";
+}
+
+String get formattedVerticalJump {
+  if (verticalJump == null || verticalJump!.isEmpty) return "N/A";
+  return "$verticalJump\"";
+}
+
+String get formattedWingspan {
+  if (wingspan == null || wingspan!.isEmpty) return "N/A";
+  return "$wingspan\"";
+}
   
   @override
   String toString() => '$name ($position) - Rank: $rank';
