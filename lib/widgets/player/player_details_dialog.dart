@@ -240,109 +240,91 @@ class PlayerDetailsDialog extends StatelessWidget {
   }
 
   Widget _buildAdditionalMeasurementsBanner(BuildContext context, bool isDarkMode) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      // Determine how many items can fit based on available width
-      const itemWidth = 80.0; // Estimated width for each stat item
-      const separatorWidth = 1.0; // Width of separator
-      const padding = 24.0; // Total horizontal padding
-      
-      int maxItems = ((constraints.maxWidth - padding) / (itemWidth + separatorWidth)).floor();
-      
-      // Ensure we have at least 3 items and at most all items
-      maxItems = maxItems.clamp(3, 9);
-      
-      // Full list of measurements
-      final measurements = [
-        {'label': '10 Yd', 'value': player.formattedTenYardSplit},
-        {'label': '20 Sh', 'value': player.formattedTwentyYardShuttle},
-        {'label': '3 Cone', 'value': player.formattedThreeConeDrill},
-        {'label': 'Arm', 'value': player.formattedArmLength},
-        {'label': 'Bench', 'value': player.formattedBenchPress},
-        {'label': 'Broad', 'value': player.formattedBroadJump},
-        {'label': 'Vert', 'value': player.formattedVerticalJump},
-        {'label': 'Hand', 'value': player.formattedHandSize},
-        {'label': 'Wing', 'value': player.formattedWingspan},
-      ];
-      
-      // Filter out 'N/A' measurements
-      final validMeasurements = measurements
-          .where((measurement) => measurement['value'] != 'N/A')
-          .toList();
-      
-      // Create a list of widgets for the row
-      List<Widget> createRowWidgets(List<Map<String, String>> rowMeasurements) {
-        return rowMeasurements.expand((measurement) {
-          return [
-            _buildCompactStat(
-              context,
-              measurement['label'] as String,
-              measurement['value'] as String,
-              isDarkMode,
-            ),
-            if (measurement != rowMeasurements.last)
-              Container(
-                height: 24,
-                width: 1,
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-          ];
-        }).toList();
-      }
-      
-      // Split measurements into two rows
-      final firstRowMeasurements = validMeasurements.take(maxItems ~/ 2).toList();
-      final secondRowMeasurements = validMeasurements.skip(maxItems ~/ 2).take(maxItems - firstRowMeasurements.length).toList();
-      
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
-          border: Border(
-            bottom: BorderSide(
-              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+  // First, gather all non-empty measurements
+  final measurements = [
+    {'label': '10 Yd', 'value': player.formattedTenYardSplit},
+    {'label': '20 Sh', 'value': player.formattedTwentyYardShuttle},
+    {'label': '3 Cone', 'value': player.formattedThreeConeDrill},
+    {'label': 'Arm', 'value': player.formattedArmLength},
+    {'label': 'Bench', 'value': player.formattedBenchPress},
+    {'label': 'Broad', 'value': player.formattedBroadJump},
+    {'label': 'Hand', 'value': player.formattedHandSize},
+    {'label': 'Vert', 'value': player.formattedVerticalJump},
+    {'label': 'Wing', 'value': player.formattedWingspan},
+  ];
+  
+  // Filter out 'N/A' measurements
+  final validMeasurements = measurements
+      .where((measurement) => measurement['value'] != 'N/A')
+      .toList();
+  
+  // If no valid measurements, return an empty container
+  if (validMeasurements.isEmpty) {
+    return Container();
+  }
+  
+  // Split into two roughly equal rows
+  final int midpoint = (validMeasurements.length / 2).ceil();
+  final firstRow = validMeasurements.take(midpoint).toList();
+  final secondRow = validMeasurements.skip(midpoint).toList();
+  
+  // Helper function to build a row of stats
+  Widget buildStatRow(List<Map<String, String>> rowItems) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: rowItems.expand((measurement) {
+        return [
+          _buildCompactStat(
+            context,
+            measurement['label'] as String,
+            measurement['value'] as String,
+            isDarkMode,
+          ),
+          // Add separator except after the last item
+          if (measurement != rowItems.last)
+            Container(
+              height: 24,
               width: 1,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+            ),
+        ];
+      }).toList(),
+    );
+  }
+  
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+    decoration: BoxDecoration(
+      color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
+      border: Border(
+        bottom: BorderSide(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+    ),
+    child: Column(
+      children: [
+        // First row of stats
+        buildStatRow(firstRow),
+        
+        // Add separator between rows if there's a second row
+        if (secondRow.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Container(
+              height: 1,
+              width: double.infinity,
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
             ),
           ),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // First row
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: createRowWidgets(firstRowMeasurements),
-                ),
-              ),
-              
-              // Separator
-              if (secondRowMeasurements.isNotEmpty)
-                Container(
-                  height: 1,
-                  width: constraints.maxWidth - 24,
-                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                ),
-              
-              // Second row
-              if (secondRowMeasurements.isNotEmpty)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: createRowWidgets(secondRowMeasurements),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    },
+        
+        // Second row of stats (if any)
+        if (secondRow.isNotEmpty)
+          buildStatRow(secondRow),
+      ],
+    ),
   );
 }
 

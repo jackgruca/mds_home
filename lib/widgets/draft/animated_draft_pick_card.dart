@@ -427,6 +427,15 @@ void _showPlayerDetails(BuildContext context, Player player) {
       strengths: additionalInfo['strengths'] ?? player.strengths,
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
       fortyTime: fortyTime ?? player.fortyTime,
+      tenYardSplit: additionalInfo['tenYardSplit'] ?? player.tenYardSplit,
+      twentyYardShuttle: additionalInfo['twentyYardShuttle'] ?? player.twentyYardShuttle,
+      threeConeDrill: additionalInfo['threeConeDrill'] ?? player.threeConeDrill,
+      armLength: additionalInfo['armLength'] ?? player.armLength,
+      benchPress: additionalInfo['benchPress'] ?? player.benchPress,
+      broadJump: additionalInfo['broadJump'] ?? player.broadJump,
+      handSize: additionalInfo['handSize'] ?? player.handSize,
+      verticalJump: additionalInfo['verticalJump'] ?? player.verticalJump,
+      wingspan: additionalInfo['wingspan'] ?? player.wingspan,
     );
   } else {
     // Fall back to mock data for players without description
