@@ -251,98 +251,184 @@ Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context
       // Create a blob from the image bytes
       final blob = html.Blob([imageBytes], 'image/png');
       final url = html.Url.createObjectUrlFromBlob(blob);
-
-      // Method 1: Try to use modern clipboard API (Chrome, Edge)
-      bool success = false;
-      try {
-        // Use a completer to handle the async nature of the clipboard API
-        final completer = Completer<bool>();
-        
-        // Add callback functions to js context
-        js.context['dartSuccessCallback'] = js.allowInterop(() {
-          success = true;
-          completer.complete(true);
-        });
-        
-        js.context['dartFailureCallback'] = js.allowInterop(() {
-          success = false;
-          completer.complete(false);
-        });
-        
-        // Directly inject a script tag with our code to avoid Promise issues
-        final scriptTag = html.ScriptElement()
-          ..text = '''
-            (function() {
-              fetch("$url")
-                .then(response => response.blob())
-                .then(blob => {
-                  try {
-                    const item = new ClipboardItem({"image/png": blob});
-                    navigator.clipboard.write([item])
-                      .then(() => {
-                        dartSuccessCallback();
-                      })
-                      .catch(err => {
-                        dartFailureCallback();
-                      });
-                  } catch(e) {
-                    dartFailureCallback();
-                  }
-                })
-                .catch(() => {
-                  dartFailureCallback();
-                });
-            })();
-          ''';
-        
-        // Add the script to the document
-        html.document.body!.append(scriptTag);
-        
-        // Wait for the result
-        success = await completer.future.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () => false,
-        );
-        
-        // Clean up
-        scriptTag.remove();
-        
-        if (success && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image copied to clipboard successfully!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+      
+      // Check if on mobile browser
+      final isMobile = html.window.navigator.userAgent.contains('Mobile') || 
+                      html.window.navigator.userAgent.contains('Android') ||
+                      html.window.navigator.userAgent.contains('iPhone');
+      
+      if (isMobile) {
+        // For mobile browsers, use the canvas and execCommand approach
+        try {
+          // Create a canvas element
+          final canvas = html.CanvasElement(width: 800, height: 1200);
+          final ctx = canvas.context2D;
+          
+          // Create an image element
+          final img = html.ImageElement(src: url);
+          
+          // Set up a completer to handle the async image loading
+          final completer = Completer<void>();
+          
+          // When the image loads, draw it and resolve the completer
+          img.onLoad.listen((event) {
+            ctx.drawImage(img, 0, 0);
+            completer.complete();
+          });
+          
+          img.onError.listen((event) {
+            completer.completeError('Failed to load image');
+          });
+          
+          // Wait for the image to load
+          await completer.future;
+          
+          // Convert the canvas to a data URL
+          final dataUrl = canvas.toDataUrl('image/png');
+          
+          // Create a temporary textarea to use for copy command
+          final textArea = html.TextAreaElement()
+            ..value = dataUrl
+            ..style.position = 'fixed'
+            ..style.left = '-9999px'
+            ..style.top = '-9999px';
+          html.document.body!.append(textArea);
+          
+          // Select the text area and execute copy
+          textArea.select();
+          final result = html.document.execCommand('copy');
+          
+          // Clean up
+          textArea.remove();
+          
+          if (result && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image copied to clipboard successfully!'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (context.mounted) {
+            // Fallback to opening in a new tab
+            html.window.open(url, '_blank');
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image opened for copying (tap and hold to save)'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } catch (e) {
+          print('Mobile clipboard error: $e');
+          // Fallback to opening in new tab
+          html.window.open(url, '_blank');
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image opened for manual copying'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         }
-      } catch (e) {
-        success = false;
-        print('Clipboard API error: $e');
-      }
-
-      // Method 2: If the clipboard API fails, open in a new tab for manual copy
-      if (!success) {
-        // Open image in a new tab
-        html.AnchorElement(href: url)
-          ..target = '_blank'
-          ..click();
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image opened in new tab for copying'),
-              duration: Duration(seconds: 2),
-            ),
+      } else {
+        // Desktop browser implementation using Clipboard API
+        bool success = false;
+        try {
+          // Use a completer to handle the async nature of the clipboard API
+          final completer = Completer<bool>();
+          
+          // Add callback functions to js context
+          js.context['dartSuccessCallback'] = js.allowInterop(() {
+            success = true;
+            completer.complete(true);
+          });
+          
+          js.context['dartFailureCallback'] = js.allowInterop(() {
+            success = false;
+            completer.complete(false);
+          });
+          
+          // Directly inject a script tag with our code to avoid Promise issues
+          final scriptTag = html.ScriptElement()
+            ..text = '''
+              (function() {
+                fetch("$url")
+                  .then(response => response.blob())
+                  .then(blob => {
+                    try {
+                      const item = new ClipboardItem({"image/png": blob});
+                      navigator.clipboard.write([item])
+                        .then(() => {
+                          dartSuccessCallback();
+                        })
+                        .catch(err => {
+                          dartFailureCallback();
+                        });
+                    } catch(e) {
+                      dartFailureCallback();
+                    }
+                  })
+                  .catch(() => {
+                    dartFailureCallback();
+                  });
+              })();
+            ''';
+          
+          // Add the script to the document
+          html.document.body!.append(scriptTag);
+          
+          // Wait for the result
+          success = await completer.future.timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => false,
           );
+          
+          // Clean up
+          scriptTag.remove();
+          
+          if (success && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image copied to clipboard successfully!'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (context.mounted) {
+            // Fallback to opening in new tab
+            html.window.open(url, '_blank');
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image opened in new tab for copying'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (e) {
+          print('Desktop clipboard API error: $e');
+          // Fallback to opening in new tab
+          html.window.open(url, '_blank');
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Image opened in new tab for copying'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
         }
       }
       
-      // Clean up URL
+      // Clean up URL after a delay
       Future.delayed(const Duration(seconds: 10), () {
         html.Url.revokeObjectUrl(url);
       });
     } else {
-      // For mobile platforms
+      // Native mobile app implementation
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/temp_clipboard_image.png');
       await file.writeAsBytes(imageBytes);
@@ -412,7 +498,7 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     final GlobalKey repaintKey = GlobalKey();
     
     // Calculate a proper height based on the export mode
-    double cardHeight;
+      double cardHeight;
   if (exportMode == "your_picks") {
     // For user picks, calculate based on estimated number of picks
     int userPickCount = completedPicks.where((p) => 
@@ -424,9 +510,25 @@ Future<void> _captureImage(BuildContext context, String exportMode, bool forClip
     cardHeight = max(250.0, 150.0 + (userPickCount * 80.0));
   } else if (exportMode == "first_round") {
     // Set a taller height for first round to fit all 32 picks
-    cardHeight = 1200.0; // Increased from 900.0 to accommodate all picks
+    cardHeight = 900.0; // More reasonable height with dynamic sizing
   } else {
-    cardHeight = 1000.0; // Default for full draft
+    // For full draft, calculate based on the number of rounds
+    // Group picks by round to count
+    Map<String, List<DraftPick>> picksByRound = {};
+    for (var pick in completedPicks) {
+      if (pick.selectedPlayer != null) {
+        if (!picksByRound.containsKey(pick.round)) {
+          picksByRound[pick.round] = [];
+        }
+        picksByRound[pick.round]!.add(pick);
+      }
+    }
+    int numRounds = picksByRound.length;
+    
+    // Height based on number of rounds (max 7 for NFL draft)
+    // Each round needs about 150px plus additional for header/footer
+    cardHeight = 200.0 + (numRounds * 100.0);
+    cardHeight = min(1200.0, cardHeight); // Cap at 1200px
   }
     
     // Create a temporary card with fixed dimensions that don't conflict
