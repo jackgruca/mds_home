@@ -252,87 +252,85 @@ Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context
       final blob = html.Blob([imageBytes], 'image/png');
       final url = html.Url.createObjectUrlFromBlob(blob);
       
-      // Check if on mobile browser
+      // Detect if on mobile
       final isMobile = html.window.navigator.userAgent.contains('Mobile') || 
-                      html.window.navigator.userAgent.contains('Android') ||
-                      html.window.navigator.userAgent.contains('iPhone');
+                       html.window.navigator.userAgent.contains('Android') ||
+                       html.window.navigator.userAgent.contains('iPhone');
       
       if (isMobile) {
-        // For mobile browsers, use the canvas and execCommand approach
-        try {
-          // Create a canvas element
-          final canvas = html.CanvasElement(width: 800, height: 1200);
-          final ctx = canvas.context2D;
+        // For mobile, we'll use a different approach that's more reliable
+        // Create a fullscreen div with the image that users can manually copy
+        final div = html.DivElement()
+          ..style.position = 'fixed'
+          ..style.top = '0'
+          ..style.left = '0'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.backgroundColor = 'rgba(0,0,0,0.9)'
+          ..style.zIndex = '9999'
+          ..style.display = 'flex'
+          ..style.flexDirection = 'column'
+          ..style.alignItems = 'center'
+          ..style.padding = '20px'
+          ..style.boxSizing = 'border-box';
           
-          // Create an image element
-          final img = html.ImageElement(src: url);
+        // Add the image
+        final img = html.ImageElement(src: url)
+          ..style.maxWidth = '100%'
+          ..style.maxHeight = 'calc(100% - 80px)'
+          ..style.objectFit = 'contain';
           
-          // Set up a completer to handle the async image loading
-          final completer = Completer<void>();
+        // Instructions
+        final instructions = html.DivElement()
+          ..style.color = 'white'
+          ..style.padding = '15px'
+          ..style.backgroundColor = 'rgba(0,0,0,0.7)'
+          ..style.borderRadius = '8px'
+          ..style.marginTop = '15px'
+          ..style.maxWidth = '90%'
+          ..style.textAlign = 'center'
+          ..innerHtml = '''
+            <div style="font-weight: bold; margin-bottom: 8px;">Press and hold the image, then tap "Copy"</div>
+            <div style="font-size: 14px;">This is the most reliable way to copy images on mobile browsers</div>
+          ''';
           
-          // When the image loads, draw it and resolve the completer
-          img.onLoad.listen((event) {
-            ctx.drawImage(img, 0, 0);
-            completer.complete();
-          });
+        // Close button
+        final closeButton = html.DivElement()
+          ..style.position = 'absolute'
+          ..style.top = '10px'
+          ..style.right = '10px'
+          ..style.color = 'white'
+          ..style.fontSize = '20px'
+          ..style.fontWeight = 'bold'
+          ..style.padding = '10px'
+          ..style.cursor = 'pointer'
+          ..text = '×';
           
-          img.onError.listen((event) {
-            completer.completeError('Failed to load image');
-          });
-          
-          // Wait for the image to load
-          await completer.future;
-          
-          // Convert the canvas to a data URL
-          final dataUrl = canvas.toDataUrl('image/png');
-          
-          // Create a temporary textarea to use for copy command
-          final textArea = html.TextAreaElement()
-            ..value = dataUrl
-            ..style.position = 'fixed'
-            ..style.left = '-9999px'
-            ..style.top = '-9999px';
-          html.document.body!.append(textArea);
-          
-          // Select the text area and execute copy
-          textArea.select();
-          final result = html.document.execCommand('copy');
-          
-          // Clean up
-          textArea.remove();
-          
-          if (result && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image copied to clipboard successfully!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          } else if (context.mounted) {
-            // Fallback to opening in a new tab
-            html.window.open(url, '_blank');
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image opened for copying (tap and hold to save)'),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        } catch (e) {
-          print('Mobile clipboard error: $e');
-          // Fallback to opening in new tab
-          html.window.open(url, '_blank');
-          
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image opened for manual copying'),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
+        // Add click handler to close
+        closeButton.onClick.listen((event) {
+          div.remove();
+          html.Url.revokeObjectUrl(url);
+        });
+        
+        // Add all elements to the div
+        div.append(img);
+        div.append(instructions);
+        div.append(closeButton);
+        
+        // Add div to the document
+        html.document.body!.append(div);
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press and hold the image, then tap "Copy"'),
+              duration: Duration(seconds: 3),
+            ),
+          );
         }
+        
+        // Don't revoke URL now, as it's being used in the modal
+        // It will be revoked when the modal is closed
       } else {
         // Desktop browser implementation using Clipboard API
         bool success = false;
@@ -407,6 +405,11 @@ Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context
               ),
             );
           }
+          
+          // Clean up URL
+          Future.delayed(const Duration(seconds: 10), () {
+            html.Url.revokeObjectUrl(url);
+          });
         } catch (e) {
           print('Desktop clipboard API error: $e');
           // Fallback to opening in new tab
@@ -420,13 +423,13 @@ Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context
               ),
             );
           }
+          
+          // Clean up URL
+          Future.delayed(const Duration(seconds: 10), () {
+            html.Url.revokeObjectUrl(url);
+          });
         }
       }
-      
-      // Clean up URL after a delay
-      Future.delayed(const Duration(seconds: 10), () {
-        html.Url.revokeObjectUrl(url);
-      });
     } else {
       // Native mobile app implementation
       final tempDir = await getTemporaryDirectory();
