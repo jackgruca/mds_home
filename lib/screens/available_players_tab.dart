@@ -45,7 +45,8 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   double _maxHeight = 80.0;  // 6'8"
   double _minHeight = 60.0;  // 5'0"
   bool _filterApplied = false;
-  
+  final bool _isFilterActive = false;
+
   // Add sort options
   SortOption _sortOption = SortOption.rank; // Default sort by rank
   
@@ -108,6 +109,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     return false;
   }
   
+  
   // Toggle player favorite status
   void _toggleFavorite(int playerId) async {
     final isFavorite = await FavoritePlayersService.toggleFavorite(playerId);
@@ -166,7 +168,6 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     }
     
     // Update filter logic for favorites
-// Modify the filtering logic in the build method
 List<Player> filteredPlayers = allPlayers.where((player) {
   // Existing filters
   bool matchesSearch = _searchQuery.isEmpty || 
@@ -181,13 +182,26 @@ List<Player> filteredPlayers = allPlayers.where((player) {
     FavoritePlayersService.isFavorite(player.id);
 
   // RAS Score Filter (robust null handling)
-  bool meetsRasFilter = !_filterApplied || 
-    (player.rasScore ?? 0) >= _minRasScore;
+  bool meetsRasFilter = true;
+  if (_filterApplied && _minRasScore > 0) {
+    // If player has no RAS score and we're filtering by RAS, exclude them
+    if (player.rasScore == null) {
+      meetsRasFilter = false;
+    } else {
+      meetsRasFilter = player.rasScore! >= _minRasScore;
+    }
+  }
   
   // Height Filter (convert to inches and handle null)
-  bool meetsHeightFilter = !_filterApplied || 
-    (player.height ?? 0) >= _minHeight && 
-    (player.height ?? 0) <= _maxHeight;
+  bool meetsHeightFilter = true;
+  if (_filterApplied && (_minHeight > 60 || _maxHeight < 80)) {
+    // If player has no height and we're filtering by height, exclude them
+    if (player.height == null) {
+      meetsHeightFilter = false;
+    } else {
+      meetsHeightFilter = player.height! >= _minHeight && player.height! <= _maxHeight;
+    }
+  }
 
   return matchesSearch && 
          matchesPosition && 
@@ -253,176 +267,170 @@ List<Player> filteredPlayers = allPlayers.where((player) {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Row with search bar, sort dropdown, and player count
-                Row(
-                  children: [
-                    // Search bar - compact version
-                    Expanded(
-                      child: SizedBox(
-                        height: 36,
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search Players',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Explicitly styled filter icon
-                                Container(
-                                  margin: const EdgeInsets.only(right: 8),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).brightness == Brightness.dark 
-                                      ? Colors.grey.shade700 
-                                      : Colors.grey.shade200,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    icon: Icon(
-                                      Icons.filter_list, 
-                                      size: 20,
-                                      color: Theme.of(context).brightness == Brightness.dark 
-                                        ? Colors.white 
-                                        : Colors.black87,
-                                    ),
-                                    onPressed: _showAdvancedFilterDialog,
-                                    tooltip: 'Advanced Filters',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                          ),
-                          style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    
-                    // Sort dropdown
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.grey.shade700 
-                            : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(6.0),
-                        border: Border.all(
-                          color: Theme.of(context).brightness == Brightness.dark 
-                              ? Colors.grey.shade600 
-                              : Colors.grey.shade400,
-                        ),
-                      ),
-                      child: DropdownButton<SortOption>(
-                        value: _sortOption,
-                        isDense: true,
-                        underline: Container(),
-                        icon: const Icon(Icons.arrow_drop_down, size: 20),
-                        style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark 
-                              ? Colors.white 
-                              : Colors.black87,
-                          fontSize: 12,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: SortOption.rank,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.sort, size: 14),
-                                SizedBox(width: 4),
-                                Text('Rank'),
-                              ],
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: SortOption.ras,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.sort, size: 14),
-                                SizedBox(width: 4),
-                                Text('RAS'),
-                              ],
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _sortOption = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
+Row(
+  children: [
+    // Search bar - compact version
+    Expanded(
+      child: SizedBox(
+        height: 36,
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Search Players',
+            prefixIcon: const Icon(Icons.search),
+            // Remove the suffixIcon that contains the filter icon
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          ),
+          style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
+        ),
+      ),
+    ),
+    const SizedBox(width: 8),
+    
+    // Sort dropdown
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade700 
+            : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(6.0),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade600 
+              : Colors.grey.shade400,
+        ),
+      ),
+      child: DropdownButton<SortOption>(
+        value: _sortOption,
+        isDense: true,
+        underline: Container(),
+        icon: const Icon(Icons.arrow_drop_down, size: 20),
+        style: TextStyle(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.white 
+              : Colors.black87,
+          fontSize: 12,
+        ),
+        items: const [
+          DropdownMenuItem(
+            value: SortOption.rank,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.sort, size: 14),
+                SizedBox(width: 4),
+                Text('Rank'),
+              ],
+            ),
+          ),
+          DropdownMenuItem(
+            value: SortOption.ras,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.sort, size: 14),
+                SizedBox(width: 4),
+                Text('RAS'),
+              ],
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              _sortOption = value;
+            });
+          }
+        },
+      ),
+    ),
 
-                    // Add the new IconButton right here:
-                    IconButton(
-                      icon: const Icon(Icons.filter_list),
-                      onPressed: _showAdvancedFilterDialog,
-                      tooltip: 'Advanced Filters',
-                    ),
-                    const SizedBox(width: 8),
-                    
-                    // Player count
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.grey.shade700 
-                            : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '${filteredPlayers.length} players',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.white 
-                            : Colors.grey.shade800,
-                        ),
-                      ),
-                    ),
-                    if (_filterApplied)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Chip(
-                          label: const Text('Filters Applied'),
-                          backgroundColor: Colors.blue.shade100,
-                          deleteIcon: const Icon(Icons.close, size: 18),
-                          onDeleted: () {
-                            setState(() {
-                              _filterApplied = false;
-                              _minRasScore = 0.0;
-                              _minHeight = 60.0;
-                              _maxHeight = 80.0;
-                            });
-                          },
-                        ),
-                      ),
-                    // Reset filter button
-                    if (_selectedPositions.isNotEmpty || _showFavorites)
-                      IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () {
-                          setState(() {
-                            _selectedPositions.clear();
-                            _showFavorites = false;
-                          });
-                        },
-                        tooltip: 'Clear filter',
-                      ),
-                  ],
-                ),
+    // Make the filter button more visible
+    Container(
+  decoration: BoxDecoration(
+    color: Theme.of(context).brightness == Brightness.dark 
+        ? Colors.grey.shade700 
+        : Colors.grey.shade200,
+    borderRadius: BorderRadius.circular(6.0),
+  ),
+  margin: const EdgeInsets.symmetric(horizontal: 8.0),
+  child: TextButton(
+    onPressed: _showAdvancedFilterDialog,
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      minimumSize: const Size(10, 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    ),
+    child: Text(
+      'Filter',
+      style: TextStyle(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.black87,
+        fontSize: 12,
+      ),
+    ),
+  ),
+),
+    const SizedBox(width: 8),
+    
+    // Player count
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade700 
+            : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '${filteredPlayers.length} players',
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.grey.shade800,
+        ),
+      ),
+    ),
+    if (_filterApplied)
+      Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: Chip(
+          label: const Text('Filters Applied'),
+          backgroundColor: Colors.blue.shade100,
+          deleteIcon: const Icon(Icons.close, size: 18),
+          onDeleted: () {
+            setState(() {
+              _filterApplied = false;
+              _minRasScore = 0.0;
+              _minHeight = 60.0;
+              _maxHeight = 80.0;
+            });
+          },
+        ),
+      ),
+    // Reset filter button
+    if (_selectedPositions.isNotEmpty || _showFavorites)
+      IconButton(
+        icon: const Icon(Icons.clear, size: 16),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        visualDensity: VisualDensity.compact,
+        onPressed: () {
+          setState(() {
+            _selectedPositions.clear();
+            _showFavorites = false;
+          });
+        },
+        tooltip: 'Clear filter',
+      ),
+  ],
+),
                 const SizedBox(height: 4),
                 
                 // Compact position filters
@@ -435,7 +443,7 @@ List<Player> filteredPlayers = allPlayers.where((player) {
               children: [
                 // Favorites filter
                 _buildPositionChip(
-                '⭐', // Use a minimal star instead of full text
+                '⭐', // Add the text "Favorites" after the star
                 _showFavorites,
                 () {
                   setState(() {
@@ -445,8 +453,7 @@ List<Player> filteredPlayers = allPlayers.where((player) {
                 isOffensive: false,
                 isDraftedByCurrentTeam: false,
                 isSpecial: true,
-              ),
-                            
+              ),                           
                             // All positions chip
                             if (_selectedPositions.isEmpty && !_showFavorites)
                               _buildPositionChip('All', true, () {}, isDraftedByCurrentTeam: false)
@@ -683,39 +690,24 @@ return Card(
           ),
 
           // Favorite Star - New Section
-          // Replace the Favorite Star section with this more robust implementation
-Container(
+          Padding(
+  padding: const EdgeInsets.only(left: 4),
+  child: Container(
   margin: const EdgeInsets.only(left: 4),
-  child: GestureDetector(
-    onTap: () {
+  child: IconButton(
+    onPressed: () {
       _toggleFavorite(player.id);
       setState(() {});
     },
-    child: Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: player.isFavorite 
-          ? (isDarkMode 
-              ? Colors.blue.shade900.withOpacity(0.5) 
-              : Colors.amber.shade100) 
-          : Colors.transparent,
-        border: Border.all(
-          color: player.isFavorite 
-            ? (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600)
-            : (isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400),
-          width: 1.0,
-        ),
-      ),
-      child: Icon(
-        player.isFavorite ? Icons.star : Icons.star_border,
-        color: player.isFavorite 
-          ? (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600)
-          : (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700),
-        size: 20,
-      ),
-    ),
+    icon: player.isFavorite
+        ? const Icon(Icons.star, color: Colors.amber)
+        : const Icon(Icons.star_border, color: Colors.grey),
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(),
+    visualDensity: VisualDensity.compact,
+    iconSize: 28,
   ),
+),
 ),
         ],
       ),
@@ -824,35 +816,44 @@ Container(
     
     // Special styling for Favorites filter
     if (isSpecial) {
-    return Container(
-      margin: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isSelected 
-                ? (isDarkMode ? Colors.amber.shade900 : Colors.amber.shade100)
-                : (isDarkMode ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber.shade50),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected 
-                  ? (isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800)
-                  : Colors.transparent,
-            ),
-          ),
-          child: Icon(
-            Icons.star,
+  return Container(
+    margin: const EdgeInsets.only(right: 6),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? (isDarkMode ? Colors.amber.shade900 : Colors.amber.shade100)
+              : (isDarkMode ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber.shade50),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
             color: isSelected 
                 ? (isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800)
-                : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
-            size: 20,
+                : Colors.transparent,
           ),
         ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Favorites',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected 
+                    ? (isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800)
+                    : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
+
     Color getBgColor() {
       if (isDarkMode) {
         return isSelected 
@@ -952,42 +953,95 @@ Container(
   }
 
   void _showAdvancedFilterDialog() {
+  // Store temporary values for the dialog
+  double tempMinRas = _minRasScore;
+  double tempMinHeight = _minHeight;
+  double tempMaxHeight = _maxHeight;
+
   showDialog(
     context: context,
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('Advanced Player Filters'),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.filter_alt,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                const Text('Advanced Player Filters'),
+              ],
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // RAS Score Filter
-                  Text('Minimum RAS Score: ${_minRasScore.toStringAsFixed(1)}'),
+                  // RAS Score Filter with color indication
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Minimum RAS Score:'),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getRasColor(tempMinRas).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: _getRasColor(tempMinRas),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          tempMinRas.toStringAsFixed(1),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _getRasColor(tempMinRas),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   Slider(
-                    value: _minRasScore,
+                    value: tempMinRas,
                     min: 0.0,
                     max: 10.0,
                     divisions: 100,
-                    label: _minRasScore.toStringAsFixed(1),
-                    onChanged: (value) => setState(() => _minRasScore = value),
+                    label: tempMinRas.toStringAsFixed(1),
+                    onChanged: (value) => setState(() => tempMinRas = value),
                   ),
+                  const SizedBox(height: 16),
 
                   // Height Filter with feet and inches
                   const Text('Height Range'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${(tempMinHeight ~/ 12)}\' ${(tempMinHeight % 12).toStringAsFixed(0)}"',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${(tempMaxHeight ~/ 12)}\' ${(tempMaxHeight % 12).toStringAsFixed(0)}"',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                   RangeSlider(
-                    values: RangeValues(_minHeight, _maxHeight),
+                    values: RangeValues(tempMinHeight, tempMaxHeight),
                     min: 60.0,  // 5'0"
                     max: 80.0,  // 6'8"
                     divisions: 20,
                     labels: RangeLabels(
-                      '${(_minHeight ~/ 12)}\' ${(_minHeight % 12).toStringAsFixed(0)}"',
-                      '${(_maxHeight ~/ 12)}\' ${(_maxHeight % 12).toStringAsFixed(0)}"'
+                      '${(tempMinHeight ~/ 12)}\' ${(tempMinHeight % 12).toStringAsFixed(0)}"',
+                      '${(tempMaxHeight ~/ 12)}\' ${(tempMaxHeight % 12).toStringAsFixed(0)}"'
                     ),
                     onChanged: (values) => setState(() {
-                      _minHeight = values.start;
-                      _maxHeight = values.end;
+                      tempMinHeight = values.start;
+                      tempMaxHeight = values.end;
                     }),
                   ),
                 ],
@@ -997,27 +1051,32 @@ Container(
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  setState(() {
-                    _filterApplied = true;
-                  });
-                  // Force a rebuild to apply filters
-                  this.setState(() {});
                 },
-                child: const Text('Apply'),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  setState(() {
+                  this.setState(() {
                     _minRasScore = 0.0;
                     _minHeight = 60.0;
                     _maxHeight = 80.0;
                     _filterApplied = false;
                   });
-                  // Force a rebuild to reset filters
-                  this.setState(() {});
                 },
                 child: const Text('Reset'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  this.setState(() {
+                    _minRasScore = tempMinRas;
+                    _minHeight = tempMinHeight;
+                    _maxHeight = tempMaxHeight;
+                    _filterApplied = true;
+                  });
+                },
+                child: const Text('Apply'),
               ),
             ],
           );
@@ -1026,22 +1085,4 @@ Container(
     },
   );
 }
-
-// Add these state variables at the top of _AvailablePlayersTabState
-double _rasMinFilter = 0.0;
-RangeValues _heightRangeFilter = const RangeValues(60.0, 80.0);
-
-void _applyAdvancedFilters() {
-  setState(() {
-    // Modify the filtering logic in the build method
-  });
-}
-
-void _resetAdvancedFilters() {
-  setState(() {
-    _rasMinFilter = 0.0;
-    _heightRangeFilter = const RangeValues(60.0, 80.0);
-  });
-}
-
 }
