@@ -17,6 +17,7 @@ class TradePackage {
   final bool forceAccept;
   final List<int>? futureDraftRounds;
   final List<int>? targetFutureDraftRounds;
+  final List<String>? tradeTriggers;
 
 
   const TradePackage({
@@ -34,6 +35,7 @@ class TradePackage {
     this.forceAccept = false,
     this.futureDraftRounds, // Add this line
     this.targetFutureDraftRounds, // Add this line
+    this.tradeTriggers,
   });
 
 

@@ -379,7 +379,7 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
           // Updated pick table
           _buildEnhancedPicksTable(package),
           
-          // Future picks section if applicable
+          // Future pick info if applicable
           if (package.includesFuturePick || 
               (package.targetReceivedFuturePicks != null && 
                package.targetReceivedFuturePicks!.isNotEmpty)) ...[
@@ -435,6 +435,45 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
                   ],
                 ),
               ),
+          ],
+          
+          // Add trade triggers section if available
+          if (package.tradeTriggers != null && package.tradeTriggers!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Trade Triggers:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: package.tradeTriggers!.map((trigger) => 
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.arrow_right, size: 16, color: Colors.blue),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            trigger,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                ).toList(),
+              ),
+            ),
           ],
         ],
       ),

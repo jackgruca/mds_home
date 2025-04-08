@@ -28,6 +28,8 @@ class TradeService {
   final bool enableUserTradeConfirmation;
   final double tradeRandomnessFactor;
   final bool enableQBPremium;
+  final Map<int, List<String>> _activeTriggers = {};
+
   
   // Team-specific trading tendencies
   final Map<String, TradingTendency> _teamTendencies = {
@@ -534,8 +536,7 @@ List<TradeInterest> _findTeamsInterestedInTradingUp(int pickNumber, List<Player>
   return interestedTeams;
 }
   
-// Inside _calculateTradeUpInterest method
-// Inside _calculateTradeUpInterest method
+// Inside the _calculateTradeUpInterest method in trade_service.dart
 double _calculateTradeUpInterest(
   String teamName,
   TeamNeed teamNeed, 
@@ -546,6 +547,7 @@ double _calculateTradeUpInterest(
   bool qbSpecific
 ) {
   double interestLevel = 0.0;
+  List<String> activeTriggers = []; // Add this line to track triggered reasons
   
   // Calculate round for this team's pick - renamed to 'teamPickRound' to avoid conflict
   int teamPickRound = DraftValueService.getRoundForPick(teamNextPick);
@@ -568,7 +570,14 @@ double _calculateTradeUpInterest(
   int needIndex = teamNeed.needs.indexOf(player.position);
   if (needIndex != -1 && needIndex < needsToConsider) {
     // Greater boost for top needs
-    interestLevel += 0.7 - (needIndex * 0.1);
+    double boost = 0.7 - (needIndex * 0.1);
+    interestLevel += boost;
+    
+    if (needIndex < 3) {
+      activeTriggers.add("Top-${needIndex+1} team need (${player.position}): +${boost.toStringAsFixed(2)}");
+    } else {
+      activeTriggers.add("Team need (${player.position}): +${boost.toStringAsFixed(2)}");
+    }
   } else {
     // Some small base interest even for non-needs
     interestLevel += 0.1;
@@ -576,26 +585,36 @@ double _calculateTradeUpInterest(
   
   // 2. Value-based interest: Higher interest for valuable players
   double valueFactor = 0.0;
-  if (playerGrade > 80) valueFactor = 0.2;
-  else if (playerGrade > 70) valueFactor = 0.1;
+  if (playerGrade > 80) {
+    valueFactor = 0.2;
+    activeTriggers.add("High player grade (${playerGrade.toStringAsFixed(1)}): +0.20");
+  } else if (playerGrade > 70) {
+    valueFactor = 0.1;
+    activeTriggers.add("Good player grade (${playerGrade.toStringAsFixed(1)}): +0.10");
+  }
   interestLevel += valueFactor;
   
   // 3. Positional premium: Higher interest for premium positions
   double positionPremium = 0.0;
   if (_premiumPositions.contains(player.position)) {
     positionPremium = 0.15;
+    activeTriggers.add("Premium position (${player.position}): +0.15");
   } else if (_secondaryPositions.contains(player.position)) {
     positionPremium = 0.05;
+    activeTriggers.add("Secondary position (${player.position}): +0.05");
   }
   interestLevel += positionPremium;
   
   // 4. Draft position factor: Higher interest for earlier picks
   if (targetPickNumber <= 10) {
     interestLevel += 0.15; // Top 10 picks
+    activeTriggers.add("Top-10 pick: +0.15");
   } else if (targetPickNumber <= 32) {
     interestLevel += 0.1; // 1st round
+    activeTriggers.add("1st round pick: +0.10");
   } else if (targetPickNumber <= 64) {
     interestLevel += 0.05; // 2nd round
+    activeTriggers.add("2nd round pick: +0.05");
   }
   
   // 5. QB specific adjustments: Teams highly value QBs
@@ -603,18 +622,22 @@ double _calculateTradeUpInterest(
     // Even higher premium for QB-specific trades
     if (qbSpecific) {
       interestLevel += 0.5;
+      activeTriggers.add("QB-specific trade: +0.50");
     } else {
       interestLevel += 0.3;
+      activeTriggers.add("QB trade interest: +0.30");
     }
     
     // Top QBs are even more valuable
     if (player.rank <= 15) {
       interestLevel += 0.25;
+      activeTriggers.add("Top-15 QB prospect: +0.25");
     }
     
     // Additional boost based on QB need priority
     if (qbNeedIndex < 3) {
       interestLevel += 0.2; // Extra boost for top-3 need
+      activeTriggers.add("QB is top-3 need: +0.20");
     }
   }
   
@@ -624,8 +647,10 @@ double _calculateTradeUpInterest(
   
   if (pickDistance <= 5) {
     distanceFactor = -0.2; // Close picks - less interest to trade up
+    activeTriggers.add("Too close to own pick ($pickDistance spots): -0.20");
   } else if (pickDistance <= 15) {
     distanceFactor = -0.1; // Moderate distance
+    activeTriggers.add("Moderately close to own pick ($pickDistance spots): -0.10");
   }
   interestLevel += distanceFactor;
   
@@ -633,19 +658,26 @@ double _calculateTradeUpInterest(
   final tendency = _getTeamTradingTendency(teamName);
   
   if (tendency.tradeUpBias > 0.5) {
-    interestLevel += (tendency.tradeUpBias - 0.5) * 0.3; // Up to +15%
+    double tendencyBoost = (tendency.tradeUpBias - 0.5) * 0.3;
+    interestLevel += tendencyBoost; // Up to +15%
+    activeTriggers.add("Team tendency to trade up: +${tendencyBoost.toStringAsFixed(2)}");
   } else if (tendency.tradeUpBias < 0.5) {
-    interestLevel -= (0.5 - tendency.tradeUpBias) * 0.3; // Up to -15%
+    double tendencyPenalty = (0.5 - tendency.tradeUpBias) * 0.3;
+    interestLevel -= tendencyPenalty; // Up to -15%
+    activeTriggers.add("Team reluctance to trade up: -${tendencyPenalty.toStringAsFixed(2)}");
   }
   
   if (tendency.aggressiveness > 0.5) {
-    interestLevel += (tendency.aggressiveness - 0.5) * 0.2; // Up to +10%
+    double aggrBoost = (tendency.aggressiveness - 0.5) * 0.2;
+    interestLevel += aggrBoost; // Up to +10%
+    activeTriggers.add("Team aggressiveness: +${aggrBoost.toStringAsFixed(2)}");
   }
   
   // 8. Competitor threat - team ahead might take same position
   bool competitorThreat = _competitorsWantSamePosition(player.position, targetPickNumber, teamNextPick);
   if (competitorThreat) {
     interestLevel += 0.2; // Big boost for competition threat
+    activeTriggers.add("Competitor threat: +0.20");
   }
   
   // NEW TRIGGERS
@@ -655,11 +687,15 @@ double _calculateTradeUpInterest(
   if (positionVolatility > 0.3) {
     if (needIndex >= 0 && needIndex < 3) {
       // More urgency if this is a top need and there's a run on the position
-      interestLevel += positionVolatility * 0.5;
-      debugPrint("🔥 TRADE TRIGGER: Position run on ${player.position} increases interest by ${(positionVolatility * 0.5).toStringAsFixed(2)}");
+      double volatilityBoost = positionVolatility * 0.5;
+      interestLevel += volatilityBoost;
+      activeTriggers.add("Position run on ${player.position}: +${volatilityBoost.toStringAsFixed(2)}");
+      debugPrint("🔥 TRADE TRIGGER: Position run on ${player.position} increases interest by ${volatilityBoost.toStringAsFixed(2)}");
     } else if (needIndex >= 0) {
       // Less urgency for lower needs
-      interestLevel += positionVolatility * 0.25;
+      double volatilityBoost = positionVolatility * 0.25;
+      interestLevel += volatilityBoost;
+      activeTriggers.add("Minor position run on ${player.position}: +${volatilityBoost.toStringAsFixed(2)}");
     }
   }
   
@@ -667,6 +703,7 @@ double _calculateTradeUpInterest(
   bool tierCliff = _hasTierCliff(player.position, targetPickNumber);
   if (tierCliff && needIndex >= 0 && needIndex < 4) {
     interestLevel += 0.3;
+    activeTriggers.add("Tier cliff detected for ${player.position}: +0.30");
     debugPrint("📉 TRADE TRIGGER: Tier cliff detected for ${player.position} increases interest by 0.3");
   }
   
@@ -675,6 +712,7 @@ double _calculateTradeUpInterest(
   bool hasPackage = _hasPackageOpportunity(teamName, targetPickNumber);
   if (isWinNow && hasPackage) {
     interestLevel += 0.25;
+    activeTriggers.add("Win-now team with pick package: +0.25");
     debugPrint("📦 TRADE TRIGGER: Win-now team with package opportunity increases interest by 0.25");
   }
   
@@ -682,8 +720,12 @@ double _calculateTradeUpInterest(
   bool hasCompetingTeam = _hasCompetingTeamForNeed(player.position, targetPickNumber, teamNextPick);
   if (hasCompetingTeam && needIndex >= 0 && needIndex < 3) {
     interestLevel += 0.35;
+    activeTriggers.add("Competing team for ${player.position}: +0.35");
     debugPrint("🏆 TRADE TRIGGER: Competing team for ${player.position} increases interest by 0.35");
   }
+  
+  // Store the triggers in the TradeInterest object
+  _activeTriggers[player.id] = activeTriggers;
   
   return max(0.0, min(1.0, interestLevel));
 }
@@ -814,6 +856,7 @@ double _calculateTradeUpInterest(
             futurePickDescription: package.futurePickDescription,
             futurePickValue: package.futurePickValue,
             targetReceivedFuturePicks: package.targetReceivedFuturePicks,
+            tradeTriggers: _activeTriggers[interest.targetPlayer.id],
           );
         }
       }   
@@ -870,6 +913,7 @@ double _calculateTradeUpInterest(
             includesFuturePick: true,
             futurePickDescription: futurePick.description,
             futurePickValue: futurePick.value,
+            tradeTriggers: _activeTriggers[interest.targetPlayer.id],
           ));
         }
       }
@@ -895,6 +939,7 @@ double _calculateTradeUpInterest(
                 targetPick: targetPick,
                 totalValueOffered: combinedValue,
                 targetPickValue: targetValue,
+                tradeTriggers: _activeTriggers[interest.targetPlayer.id],
               ));
             }
             // If not enough value, try adding a third pick
@@ -912,6 +957,7 @@ double _calculateTradeUpInterest(
                     targetPick: targetPick,
                     totalValueOffered: threePickValue,
                     targetPickValue: targetValue,
+                    tradeTriggers: _activeTriggers[interest.targetPlayer.id],
                   ));
                   break;  // Found a good three-pick package
                 }
@@ -942,6 +988,7 @@ double _calculateTradeUpInterest(
                 targetPick: targetPick,
                 totalValueOffered: combinedValue,
                 targetPickValue: targetValue,
+                tradeTriggers: _activeTriggers[interest.targetPlayer.id],
               ));
               break;  // Found a good package
             }
@@ -963,6 +1010,7 @@ double _calculateTradeUpInterest(
           includesFuturePick: true,
           futurePickDescription: futurePick.description,
           futurePickValue: futurePick.value,
+          tradeTriggers: _activeTriggers[interest.targetPlayer.id],
         ));
       }
     }
@@ -1002,6 +1050,7 @@ double _calculateTradeUpInterest(
             targetPick: targetPick,
             totalValueOffered: combinedValue,
             targetPickValue: targetValue,
+            tradeTriggers: _activeTriggers[interest.targetPlayer.id],
           ));
           break;  // Found a good package
         }
@@ -1023,6 +1072,7 @@ double _calculateTradeUpInterest(
         includesFuturePick: true,
         futurePickDescription: futurePick.description,
         futurePickValue: futurePick.value,
+        tradeTriggers: _activeTriggers[interest.targetPlayer.id],
       ));
     }
     
@@ -1035,6 +1085,7 @@ double _calculateTradeUpInterest(
         targetPick: targetPick,
         totalValueOffered: bestPickValue,
         targetPickValue: targetValue,
+        tradeTriggers: _activeTriggers[interest.targetPlayer.id],
       ));
     }
     
@@ -1063,6 +1114,7 @@ double _calculateTradeUpInterest(
         targetPick: targetPick,
         totalValueOffered: bestPickValue,
         targetPickValue: targetValue,
+        tradeTriggers: _activeTriggers[interest.targetPlayer.id],
       ));
     }
     
@@ -1080,6 +1132,7 @@ double _calculateTradeUpInterest(
           targetPick: targetPick,
           totalValueOffered: combinedValue,
           targetPickValue: targetValue,
+          tradeTriggers: _activeTriggers[interest.targetPlayer.id],
         ));
       }
     }
