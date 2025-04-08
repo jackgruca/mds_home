@@ -14,12 +14,13 @@ class DraftValueService {
   static Map<int, double>? _draftValueMap;
 
   /// Load the draft value chart from CSV
-  static Future<void> initialize() async {
+/// Load the draft value chart from CSV
+static Future<void> initialize() async {
   if (_isInitialized) return;
   
   try {
     debugPrint("Loading draft value chart...");
-    final data = await rootBundle.loadString('draft_value_chart.csv');
+    final data = await rootBundle.loadString('assets/draft_value_chart.csv');
     debugPrint("CSV content length: ${data.length}");
     
     // Show a preview of the CSV data
@@ -80,7 +81,7 @@ class DraftValueService {
     // Sort values to ensure they're in ascending order by pick number
     _draftValues.sort((a, b) => a.pick.compareTo(b.pick));
     
-    // Audit the data
+    // Audit the data - show first 10 values for verification
     debugPrint("Loaded ${_draftValues.length} draft values");
     for (int i = 0; i < min(10, _draftValues.length); i++) {
       debugPrint("Loaded: Pick #${_draftValues[i].pick} = ${_draftValues[i].value} points");
@@ -138,16 +139,19 @@ static double getValueForPick(int pickNumber) {
 }
   
   /// Create default draft values if CSV loading fails
+/// Create default draft values if CSV loading fails
   static void _createDefaultValues() {
   debugPrint("Creating default draft values");
   _draftValues = [];
   
-  // Create first round (picks 1-32)
+  // Create first round (picks 1-32) - UPDATED TO MATCH CSV
   for (int i = 1; i <= 32; i++) {
     double value;
-    if (i == 1) value = 3000.0;
-    else if (i <= 10) value = 3000.0 - ((i - 1) * 200.0);
-    else value = 1300.0 - ((i - 10) * 25.0);
+    if (i == 1) value = 1000.0;  // Changed from 3000.0 to 1000.0
+    else if (i == 2) value = 985.0;  // Specific value for #2
+    else if (i == 3) value = 970.0;  // Specific value for #3
+    else if (i <= 10) value = 970.0 - ((i - 3) * 14.0);  // Roughly matching values
+    else value = 872.0 - ((i - 10) * 13.0);  // Roughly matching values
     
     _draftValues.add(DraftValue(pick: i, value: value));
     debugPrint("Default value: Pick #$i = $value points");
@@ -155,42 +159,49 @@ static double getValueForPick(int pickNumber) {
   
   // Create second round (picks 33-64)
   for (int i = 33; i <= 64; i++) {
-    double value = 590.0 - ((i - 32) * 10.0);
+    double value = 615.0 - ((i - 32) * 7.5);  // Adjusted for new scale
     _draftValues.add(DraftValue(pick: i, value: value));
   }
   
   // Create third round (picks 65-96)
   for (int i = 65; i <= 96; i++) {
-    double value = 300.0 - ((i - 64) * 4.0);
+    double value = 380.0 - ((i - 64) * 4.5);  // Adjusted for new scale
     _draftValues.add(DraftValue(pick: i, value: value));
   }
   
   // Create fourth round (picks 97-128)
   for (int i = 97; i <= 128; i++) {
-    double value = 170.0 - ((i - 96) * 2.0);
+    double value = 234.0 - ((i - 96) * 2.75);  // Adjusted for new scale
     _draftValues.add(DraftValue(pick: i, value: value));
   }
   
   // Create fifth round (picks 129-160)
   for (int i = 129; i <= 160; i++) {
-    double value = 110.0 - ((i - 128) * 2.0);
-    _draftValues.add(DraftValue(pick: i, value: max(40.0, value)));
+    double value = 146.0 - ((i - 128) * 1.75);  // Adjusted for new scale
+    _draftValues.add(DraftValue(pick: i, value: max(90.0, value)));
   }
   
   // Create sixth round (picks 161-192)
   for (int i = 161; i <= 192; i++) {
-    double value = 50.0 - ((i - 160) * 0.5);
-    _draftValues.add(DraftValue(pick: i, value: max(30.0, value)));
+    double value = 90.0 - ((i - 160) * 1.1);  // Adjusted for new scale
+    _draftValues.add(DraftValue(pick: i, value: max(55.0, value)));
   }
   
   // Create seventh round (picks 193-224)
   for (int i = 193; i <= 224; i++) {
-    double value = 35.0 - ((i - 192) * 0.5);
-    _draftValues.add(DraftValue(pick: i, value: max(20.0, value)));
+    double value = 55.0 - ((i - 192) * 0.7);  // Adjusted for new scale
+    _draftValues.add(DraftValue(pick: i, value: max(33.0, value)));
   }
   
   // Create additional picks if needed (picks 225-260)
   for (int i = 225; i <= 260; i++) {
+    // Values decrease from 33 to 20
+    double value = max(20.0, 33.0 - ((i - 225) * 0.4));
+    _draftValues.add(DraftValue(pick: i, value: value));
+  }
+  
+  // Create picks beyond standard draft if ever needed
+  for (int i = 261; i <= 270; i++) {
     _draftValues.add(DraftValue(pick: i, value: 20.0));
   }
   
