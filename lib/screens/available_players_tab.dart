@@ -690,25 +690,24 @@ return Card(
           ),
 
           // Favorite Star - New Section
-          Padding(
-  padding: const EdgeInsets.only(left: 4),
-  child: Container(
-  margin: const EdgeInsets.only(left: 4),
-  child: IconButton(
-    onPressed: () {
-      _toggleFavorite(player.id);
-      setState(() {});
-    },
-    icon: player.isFavorite
-        ? const Icon(Icons.star, color: Colors.amber)
-        : const Icon(Icons.star_border, color: Colors.grey),
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints(),
-    visualDensity: VisualDensity.compact,
-    iconSize: 28,
+         GestureDetector(
+  onTap: () {
+    _toggleFavorite(player.id);
+    setState(() {});
+  },
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+    child: Text(
+      player.isFavorite ? "★" : "☆", // Unicode star symbols
+      style: TextStyle(
+        fontSize: 24,
+        color: player.isFavorite
+            ? (isDarkMode ? Colors.amber.shade300 : Colors.amber)
+            : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+      ),
+    ),
   ),
-),
-),
+)
         ],
       ),
     ),
@@ -838,7 +837,7 @@ return Card(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Favorites',
+              '⭐',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
