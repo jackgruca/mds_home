@@ -9,6 +9,7 @@ import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
 import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
+import '../services/favorite_players_service.dart';  // Add this import
 
 
 
@@ -40,6 +41,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final Set<String> _selectedPositions = {};
   bool _showFavorites = false; // Add this line for favorites filter
   final Set<int> _favoritePlayerIds = {}; // Store favorite player IDs
+
   
   // Add sort options
   SortOption _sortOption = SortOption.rank; // Default sort by rank
@@ -159,11 +161,11 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
         debugPrint("Error processing player row: $e");
       }
     }
-
-    // Filter players
+    
+    // Update filter logic for favorites
     List<Player> filteredPlayers = allPlayers.where((player) {
       // Apply favorites filter if enabled
-      if (_showFavorites && !_favoritePlayerIds.contains(player.id)) {
+      if (_showFavorites && !FavoritePlayersService.isFavorite(player.id)) {
         return false;
       }
       
@@ -359,25 +361,25 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                 
                 // Compact position filters
                 Row(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            // Favorites filter
-                            _buildPositionChip(
-                              '⭐ Favorites',
-                              _showFavorites,
-                              () {
-                                setState(() {
-                                  _showFavorites = !_showFavorites;
-                                });
-                              },
-                              isOffensive: false,
-                              isDraftedByCurrentTeam: false,
-                              isSpecial: true,
-                            ),
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Favorites filter
+                _buildPositionChip(
+                  '⭐ Favorites',
+                  _showFavorites,
+                  () {
+                    setState(() {
+                      _showFavorites = !_showFavorites;
+                    });
+                  },
+                  isOffensive: false,
+                  isDraftedByCurrentTeam: false,
+                  isSpecial: true,
+                ),
                             
                             // All positions chip
                             if (_selectedPositions.isEmpty && !_showFavorites)
@@ -643,39 +645,43 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                           ),
                           
                           // Favorite Button
-                          Material(
-  color: Colors.transparent,
-  child: InkWell(
-    onTap: () {
+                          Container(
+  width: 36,
+  height: 36,
+  margin: const EdgeInsets.only(left: 4),
+  child: IconButton(
+    onPressed: () {
       _toggleFavorite(player.id);
       setState(() {});
     },
-    borderRadius: BorderRadius.circular(20),
-    child: Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: player.isFavorite ? 
-            (isDarkMode ? Colors.blue.shade900.withOpacity(0.6) : Colors.amber.shade100) : 
-            Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: player.isFavorite ? 
-              (isDarkMode ? Colors.blue.shade400 : Colors.amber.shade600) : 
-              (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400),
-          width: 1,
-        ),
+    icon: Icon(
+      player.isFavorite ? Icons.star : Icons.star_border,
+      size: 24,
+      color: player.isFavorite ? 
+          (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600) : 
+          (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+    ),
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(),
+    style: ButtonStyle(
+      backgroundColor: WidgetStateProperty.all(
+        player.isFavorite ? 
+            (isDarkMode ? Colors.blue.shade900.withOpacity(0.2) : Colors.amber.shade50) : 
+            Colors.transparent
       ),
-      child: Icon(
-        player.isFavorite ? Icons.star : Icons.star_border,
-        size: 22,
-        color: player.isFavorite ? 
-            (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600) : 
-            (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+      shape: WidgetStateProperty.all(
+        CircleBorder(
+          side: BorderSide(
+            color: player.isFavorite ? 
+                (isDarkMode ? Colors.blue.shade400 : Colors.amber.shade600) : 
+                (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: 1.0,
+          ),
+        ),
       ),
     ),
   ),
 ),
-                          
                           // Draft button (if enabled)
                           if (widget.selectionEnabled && widget.userTeam != null)
                             Padding(
@@ -722,8 +728,17 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   }
   
   void _showPlayerDetails(BuildContext context, Player player) {
-    // Existing code for showing player details...
-  }
+  // First enrich the player data (similar to what's done elsewhere in your app)
+  Player enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+  
+  // Now show the player details dialog
+  showDialog(
+    context: context,
+    builder: (context) => PlayerDetailsDialog(
+      player: enrichedPlayer,
+    ),
+  );
+}
 
   Widget _buildPositionChip(
     String label, 
