@@ -44,6 +44,9 @@ class DraftApp extends StatefulWidget {
   final bool showAnalytics;
   final List<List<dynamic>>? customTeamNeeds;
   final List<List<dynamic>>? customPlayerRankings;
+  final double tradeFrequency;
+  final double needVsValueBalance;
+
 
   const DraftApp({
   super.key,
@@ -58,6 +61,8 @@ class DraftApp extends StatefulWidget {
   this.showAnalytics = true,
   this.customTeamNeeds,
   this.customPlayerRankings,
+  this.tradeFrequency = 0.5,
+  this.needVsValueBalance = 0.5,
 });
 
   @override
@@ -580,6 +585,8 @@ List<Color> _getTeamGradientColors(String teamName) {
       enableTrading: widget.enableTrading,
       enableUserTradeProposals: widget.enableUserTradeProposals,
       enableQBPremium: widget.enableQBPremium,
+      tradeFrequency: widget.tradeFrequency,
+      needVsValueBalance: widget.needVsValueBalance,
     );
 
     // Convert models to lists for the existing UI components

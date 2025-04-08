@@ -613,7 +613,8 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
               ),
             ),
           ),
-          
+          const SizedBox(height: 16.0),
+
           // Trade settings
           Card(
             elevation: 1,

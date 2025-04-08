@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
+import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/player/player_details_dialog.dart';
@@ -17,7 +18,8 @@ class AnimatedDraftPickCard extends StatefulWidget {
   final bool isRecentPick;
   final List<String>? teamNeeds;
   final bool isCurrentPick; // New property to highlight current pick
-  
+  final List<DraftPick> allDraftPicks; // Add this line
+
   
   const AnimatedDraftPickCard({
     super.key,
@@ -26,6 +28,7 @@ class AnimatedDraftPickCard extends StatefulWidget {
     this.isRecentPick = false,
     this.teamNeeds,
     this.isCurrentPick = false, // Default to false
+    required this.allDraftPicks, 
   });
 
   @override
@@ -37,8 +40,7 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   final Random _random = Random();
-
-
+  Map<int, TradePackage> executedTrades = {};
   
   @override
   void initState() {
@@ -74,44 +76,51 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
     super.dispose();
   }
 
-  void _showTradeDetails(BuildContext context, DraftPick pick) {
+  void _showTradeDetails(BuildContext context, DraftPick pick, List<DraftPick> allDraftPicks) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
   // Parse trade info to extract details
   String tradeDetails = pick.tradeInfo ?? "No trade information";
-  String tradeReason = "Trade details not available";
   String fromTeam = "";
   
-  // Extract team and reason if available (assuming format like "From PHI (Value)")
+  // Extract team if available (assuming format like "From PHI")
   if (tradeDetails.contains("From ")) {
     final teamStart = tradeDetails.indexOf("From ") + 5;
     int teamEnd = tradeDetails.length;
     
     if (tradeDetails.contains("(")) {
       teamEnd = tradeDetails.indexOf("(");
-      
-      // Extract reason if available
-      final reasonStart = tradeDetails.indexOf("(");
-      final reasonEnd = tradeDetails.indexOf(")");
-      if (reasonStart > 0 && reasonEnd > reasonStart) {
-        tradeReason = tradeDetails.substring(reasonStart + 1, reasonEnd);
-      }
     }
     
     fromTeam = tradeDetails.substring(teamStart, teamEnd).trim();
   }
   
-  // Create some mock value data to show (in a real app, this would come from your trade service)
-  final double originalValue = DraftValueService.getValueForPick(pick.pickNumber);
-  final double receivedValue = originalValue * (1 + (_random.nextDouble() * 0.2 - 0.1)); // +/- 10%
-  final double valueDifference = receivedValue - originalValue;
-  final double valueRatio = receivedValue / originalValue;
+  // Find all picks involved in this trade by looking at team names and trade info
+  List<DraftPick> relatedPicks = allDraftPicks.where((p) => 
+    (p.teamName == pick.teamName && p.tradeInfo?.contains(fromTeam) == true) || 
+    (p.teamName == fromTeam && p.tradeInfo?.contains(pick.teamName) == true)
+  ).toList();
   
-  // Assume capital exchanged (this would come from your trade records in a real app)
-  final String capitalGiven = "Pick #${pick.pickNumber}";
-  List<String> capitalReceived = ["Pick #${pick.pickNumber + 10}", "Pick #${pick.pickNumber + 42}"];
-  if (_random.nextBool()) {
-    capitalReceived.add("2026 3rd Round Pick");
+  // Group picks by team
+  List<DraftPick> receivingTeamPicks = relatedPicks.where((p) => p.teamName == pick.teamName).toList();
+  List<DraftPick> sendingTeamPicks = relatedPicks.where((p) => p.teamName == fromTeam).toList();
+  
+  // Add the current pick to receiving team's picks if not already included
+  if (!receivingTeamPicks.any((p) => p.pickNumber == pick.pickNumber)) {
+    receivingTeamPicks.add(pick);
+  }
+  
+  // Calculate total value for both sides
+  double receivingTeamValue = receivingTeamPicks.fold(0.0, 
+    (sum, p) => sum + DraftValueService.getValueForPick(p.pickNumber));
+  
+  double sendingTeamValue = sendingTeamPicks.fold(0.0, 
+    (sum, p) => sum + DraftValueService.getValueForPick(p.pickNumber));
+  
+  // Calculate value ratio
+  double valueRatio = 1.0;
+  if (sendingTeamValue > 0) {
+    valueRatio = receivingTeamValue / sendingTeamValue;
   }
   
   showDialog(
@@ -214,17 +223,17 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             ),
             const SizedBox(height: 16),
             
-            // Capital exchanged
+            // Capital exchanged - both teams
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Capital given
+                // Capital received by current pick's team
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "$fromTeam received:",
+                        "${pick.teamName} received:",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -243,20 +252,65 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                               Colors.green.shade300,
                           ),
                         ),
-                        child: Text(capitalGiven),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Show all picks the current team received
+                            for (var receivedPick in receivingTeamPicks)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  children: [
+                                    Text("Pick #${receivedPick.pickNumber}"),
+                                    if (receivedPick.selectedPlayer != null) ...[
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          "→ ${receivedPick.selectedPlayer!.name} (${receivedPick.selectedPlayer!.position})",
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            // Add any future picks if mentioned in tradeInfo
+                            if (pick.tradeInfo?.contains("future") == true ||
+                                pick.tradeInfo?.contains("2026") == true)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text(
+                                  "Future draft capital",
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: isDarkMode ? Colors.green.shade400 : Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Value: ${DraftValueService.getValueDescription(receivingTeamValue)} points",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.green.shade400 : Colors.green.shade700,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 16),
                 
-                // Capital received
+                // Capital received by the original team
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "${pick.teamName} received:",
+                        "$fromTeam received:",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -278,12 +332,49 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (final item in capitalReceived)
+                            // Show all picks the original team received
+                            for (var sendingPick in sendingTeamPicks)
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(item),
+                                child: Row(
+                                  children: [
+                                    Text("Pick #${sendingPick.pickNumber}"),
+                                    if (sendingPick.selectedPlayer != null) ...[
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          "→ ${sendingPick.selectedPlayer!.name} (${sendingPick.selectedPlayer!.position})",
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            // Add any future picks if mentioned in trade info of other picks
+                            if (sendingTeamPicks.any((p) => 
+                              p.tradeInfo?.contains("future") == true ||
+                              p.tradeInfo?.contains("2026") == true))
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text(
+                                  "Future draft capital",
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: isDarkMode ? Colors.amber.shade700 : Colors.amber.shade800,
+                                  ),
+                                ),
                               ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Value: ${DraftValueService.getValueDescription(sendingTeamValue)} points",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.amber.shade700 : Colors.amber.shade800,
                         ),
                       ),
                     ],
@@ -319,13 +410,14 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                     children: [
                       Row(
                         children: [
-                          Text(
-                            "Value given: ${originalValue.toStringAsFixed(0)} points",
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                          const Expanded(
+                            child: Text(
+                              "Trade Value Ratio:",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -342,21 +434,13 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        "Value received: ${receivedValue.toStringAsFixed(0)} points",
+                        valueRatio >= 1.0 ?
+                          "${pick.teamName} received ${((valueRatio - 1.0) * 100).toStringAsFixed(0)}% more value in this trade." :
+                          "$fromTeam received ${((1.0 - valueRatio) * 100).toStringAsFixed(0)}% more value in this trade.",
                         style: TextStyle(
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Difference: ${valueDifference >= 0 ? "+" : ""}${valueDifference.toStringAsFixed(0)} points",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: valueDifference >= 0 ? 
-                            (isDarkMode ? Colors.green.shade300 : Colors.green.shade700) : 
-                            (isDarkMode ? Colors.red.shade300 : Colors.red.shade700),
+                          color: isDarkMode ? Colors.white : Colors.black87,
                         ),
                       ),
                     ],
@@ -364,38 +448,6 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            
-            // Trade reason if available
-            if (tradeReason != "Trade details not available") ...[
-              const Text(
-                'Trade Reason:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? 
-                    Colors.blue.withOpacity(0.2) : 
-                    Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300,
-                    width: 1.0,
-                  ),
-                ),
-                child: Text(
-                  tradeReason,
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -620,21 +672,21 @@ Color _getValueColor(double ratio) {
                     
                     // Trade icon if applicable
                     if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.only(right: 4.0),
-    child: InkWell(
-      onTap: () => _showTradeDetails(context, widget.draftPick),
-      borderRadius: BorderRadius.circular(12),
-      child: Tooltip(
-        message: "View trade details",
-        child: Icon(
-          Icons.swap_horiz,
-          size: 16,
-          color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
-        ),
-      ),
-    ),
-  ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4.0),
+                        child: InkWell(
+                          onTap: () => _showTradeDetails(context, widget.draftPick, widget.allDraftPicks),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Tooltip(
+                            message: "View trade details",
+                            child: Icon(
+                              Icons.swap_horiz,
+                              size: 16,
+                              color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
                         
                     // // Info icon for analysis (only show if player is selected)
                     // if (widget.draftPick.selectedPlayer != null)

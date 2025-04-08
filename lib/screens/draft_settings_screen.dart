@@ -21,7 +21,9 @@ class DraftSettingsScreen extends StatefulWidget {
   final bool enableUserTradeProposals;
   final bool enableQBPremium;
   final bool showAnalytics;
-  
+  final double? tradeFrequency;
+  final double? needVsValueBalance;
+
   // Add these parameters
   final int selectedYear;
   final List<int> availableYears;
@@ -42,6 +44,8 @@ class DraftSettingsScreen extends StatefulWidget {
     required this.onSettingsSaved,
     required this.selectedYear,
     required this.availableYears,
+    this.tradeFrequency = 0.5,
+    this.needVsValueBalance = 0.5,
   });
 
   @override
@@ -57,7 +61,9 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   late bool _enableQBPremium;
   late bool _showAnalytics;
   late int _selectedYear;
-  
+  late double _tradeFrequency;
+  late double _needVsValueBalance;
+
   late TabController _tabController;
   int _secretTapCount = 0;
   
@@ -67,25 +73,29 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   bool _isLoadingData = false;
   
   @override
-  void initState() {
-    super.initState();
-    
-    // Initialize with current settings
-    _numberOfRounds = widget.numberOfRounds;
-    _randomnessFactor = widget.randomnessFactor;
-    _draftSpeed = widget.draftSpeed;
-    _enableTrading = widget.enableTrading;
-    _enableUserTradeProposals = widget.enableUserTradeProposals;
-    _enableQBPremium = widget.enableQBPremium;
-    _showAnalytics = widget.showAnalytics;
-    _selectedYear = widget.selectedYear;
-    
-    // Initialize tab controller
-    _tabController = TabController(length: 2, vsync: this);
-    
-    // Load team needs data for customization
-    _loadDataForCustomization();
-  }
+void initState() {
+  super.initState();
+  
+  // Initialize with current settings
+  _numberOfRounds = widget.numberOfRounds;
+  _randomnessFactor = widget.randomnessFactor;
+  _draftSpeed = widget.draftSpeed;
+  _enableTrading = widget.enableTrading;
+  _enableUserTradeProposals = widget.enableUserTradeProposals;
+  _enableQBPremium = widget.enableQBPremium;
+  _showAnalytics = widget.showAnalytics;
+  _selectedYear = widget.selectedYear;
+  
+  // Initialize new sliders with default values or passed values
+  _tradeFrequency = widget.tradeFrequency ?? 0.5;
+  _needVsValueBalance = widget.needVsValueBalance ?? 0.5;
+  
+  // Initialize tab controller
+  _tabController = TabController(length: 2, vsync: this);
+  
+  // Load team needs data for customization
+  _loadDataForCustomization();
+}
   
   @override
   void dispose() {
@@ -132,6 +142,8 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
     'selectedYear': _selectedYear,
     'customTeamNeeds': customTeamNeeds,
     'customPlayerRankings': customPlayerRankings,
+    'tradeFrequency': _tradeFrequency,
+    'needVsValueBalance': _needVsValueBalance,
   };
   
   // Call the callback
@@ -415,7 +427,117 @@ void _showQuickLoadDialog() {
                   ),
                 ),
                 
-                const SizedBox(height: 24.0),
+                const SizedBox(height: 16.0),
+
+                // Trade Frequency
+                _buildSettingItem(
+                  'Trade Frequency',
+                  'How often CPU teams attempt to make trades during the draft',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _tradeFrequency,
+                              min: 0.0,
+                              max: 1.0,
+                              divisions: 10,
+                              label: '${(_tradeFrequency * 10).toInt()}',
+                              onChanged: (value) {
+                                setState(() {
+                                  _tradeFrequency = value;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 30,
+                            child: Text(
+                              '${(_tradeFrequency * 10).toInt()}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Less Trades',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            'More Trades',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Need vs Value Balance
+                _buildSettingItem(
+                  'Need vs Value Balance',
+                  'How teams balance positional needs versus best player available',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _needVsValueBalance,
+                              min: 0.0,
+                              max: 1.0,
+                              divisions: 10,
+                              label: '${(_needVsValueBalance * 10).toInt()}',
+                              onChanged: (value) {
+                                setState(() {
+                                  _needVsValueBalance = value;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(
+                            width: 30,
+                            child: Text(
+                              '${(_needVsValueBalance * 10).toInt()}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Value (BPA)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          Text(
+                            'Need',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 
                 // Section: Trade Settings
                 _buildSectionHeader('Trade Settings', Icons.swap_horiz),
@@ -495,26 +617,28 @@ void _showQuickLoadDialog() {
                 
                 // Reset to Defaults button
                 Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _numberOfRounds = 7;
-                        _randomnessFactor = AppConstants.defaultRandomnessFactor;
-                        _draftSpeed = 3.0;
-                        _enableTrading = true;
-                        _enableUserTradeProposals = true;
-                        _enableQBPremium = true;
-                        _showAnalytics = true;
-                      });
-                    },
-                    icon: const Icon(Icons.restore),
-                    label: const Text('Reset to Defaults'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade100,
-                      foregroundColor: Colors.red.shade900,
-                    ),
-                  ),
-                ),
+  child: ElevatedButton.icon(
+    onPressed: () {
+      setState(() {
+        _numberOfRounds = 7;
+        _randomnessFactor = AppConstants.defaultRandomnessFactor;
+        _draftSpeed = 3.0;
+        _enableTrading = true;
+        _enableUserTradeProposals = true;
+        _enableQBPremium = true;
+        _showAnalytics = true;
+        _tradeFrequency = 0.5;
+        _needVsValueBalance = 0.5;
+      });
+    },
+    icon: const Icon(Icons.restore),
+    label: const Text('Reset to Defaults'),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.red.shade100,
+      foregroundColor: Colors.red.shade900,
+    ),
+  ),
+),
                 const SizedBox(height: 20),
       
       // The secret access footer

@@ -25,6 +25,8 @@ class DraftService {
   final int numberRounds;
   // Position market volatility - tracks "runs" on positions
   final Map<String, double> _positionMarketVolatility = {};
+  final double tradeFrequency;
+  final double needVsValueBalance;
 
   
   // Trade service
@@ -78,30 +80,33 @@ class DraftService {
   final Random _random = Random();
 
   DraftService({
-    required this.availablePlayers,
-    required this.draftOrder,
-    required this.teamNeeds,
-    this.randomnessFactor = 0.4,
-    this.userTeams,
-    this.numberRounds = 1, 
-    this.enableTrading = true,
-    this.enableUserTradeProposals = true,
-    this.enableQBPremium = true,
-  }) {
-    // Sort players by rank initially
-    availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
-    
-    // Initialize the enhanced trade service
-    _tradeService = TradeService(
-      draftOrder: draftOrder,
-      teamNeeds: teamNeeds,
-      availablePlayers: availablePlayers,
-      userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
-      tradeRandomnessFactor: randomnessFactor,
-      enableQBPremium: enableQBPremium,
-    );
-     _initializeFuturePicks();
-  }
+  required this.availablePlayers,
+  required this.draftOrder,
+  required this.teamNeeds,
+  this.randomnessFactor = 0.4,
+  this.userTeams,
+  this.numberRounds = 1, 
+  this.enableTrading = true,
+  this.enableUserTradeProposals = true,
+  this.enableQBPremium = true,
+  this.tradeFrequency = 0.5,
+  this.needVsValueBalance = 0.5,
+}) {
+  // Sort players by rank initially
+  availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
+  
+  // Initialize the enhanced trade service
+  _tradeService = TradeService(
+    draftOrder: draftOrder,
+    teamNeeds: teamNeeds,
+    availablePlayers: availablePlayers,
+    userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
+    tradeRandomnessFactor: randomnessFactor,
+    enableQBPremium: enableQBPremium,
+    tradeFrequency: tradeFrequency, // Pass new parameter
+  );
+   _initializeFuturePicks();
+}
 
 // Also update the getOtherTeamPicks method to handle list of teams
 List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
@@ -304,7 +309,6 @@ bool anyUserTeamHasOffers() {
     return nextPick;
   }
   
-  /// Evaluate potential trades for the current pick with realistic behavior
 TradePackage? _evaluateTrades(DraftPick nextPick) {
   // Skip if already has trade info or is a user team pick
   if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty) {
@@ -349,15 +353,18 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     }
   }
 
-    double tradeChance = _roundTradeFrequency[round] ?? 0.10;
+  // Adjust the base trade chance using the tradeFrequency parameter
+  double baseTradeChance = _roundTradeFrequency[round] ?? 0.10;
+  // Scale the actual chance by the tradeFrequency (0-1)
+  double scaledTradeChance = baseTradeChance * (tradeFrequency * 2);
     
-    // Calibrated randomness to determine if we evaluate trades
-    bool evaluateTrades = _random.nextDouble() < tradeChance;
+  // Calibrated randomness to determine if we evaluate trades
+  bool evaluateTrades = _random.nextDouble() < scaledTradeChance;
     
-    // If we decide not to evaluate trades, skip
-    if (!evaluateTrades && !_qbTrade) {
-      return null;
-    }
+  // If we decide not to evaluate trades, skip
+  if (!evaluateTrades && !_qbTrade) {
+    return null;
+  }
     
     // Enhanced QB trade logic - more aggressive for top QB prospects
     bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
@@ -701,187 +708,192 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
 
   // Then, modifying the selectPlayerRStyle method:
   Player selectPlayerRStyle(TeamNeed? teamNeed, DraftPick nextPick) {
-      const debugMode = true; // Toggle this to enable/disable debugging
-      final StringBuffer debugLog = StringBuffer();
-      if (debugMode) {
-        debugLog.writeln("\n----------- PLAYER SELECTION DEBUG -----------");
-        debugLog.writeln("Team: ${teamNeed?.teamName ?? 'Unknown'} | Pick #${nextPick.pickNumber}");
-        if (teamNeed != null) {
-          debugLog.writeln("Team Needs: ${teamNeed.needs.join(', ')}");
-        }
+  const debugMode = true; // Toggle this to enable/disable debugging
+  final StringBuffer debugLog = StringBuffer();
+  if (debugMode) {
+    debugLog.writeln("\n----------- PLAYER SELECTION DEBUG -----------");
+    debugLog.writeln("Team: ${teamNeed?.teamName ?? 'Unknown'} | Pick #${nextPick.pickNumber}");
+    if (teamNeed != null) {
+      debugLog.writeln("Team Needs: ${teamNeed.needs.join(', ')}");
+    }
   }
-
-    // If team has no needs defined, use best player available
-    if (teamNeed == null || teamNeed.needs.isEmpty) {
-      if (debugMode) debugLog.writeln("No team needs defined, selecting best player available");
-      Player selected = _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
-      if (debugMode) debugLog.writeln("Selected: ${selected.name} (${selected.position}) - Rank #${selected.rank}");
-      if (debugMode) debugPrint(debugLog.toString());
-      return selected;
-    }
-    
-    // Calculate round based on pick number (1-indexed)
-    int round = (nextPick.pickNumber / 32).ceil();
-    
-    // Get needs based on round (only consider round+3 needs)
-    int needsToConsider = min(round + 3, teamNeed.needs.length);
-
-    if (debugMode) {
-      debugLog.writeln("Round: $round | Considering top $needsToConsider needs");
-      debugLog.writeln("Relevant needs: ${teamNeed.needs.take(needsToConsider).toList()}");
-    }
-    
-    // Generate selections for each need, but with positional weighting
-    Map<Player, double> playerScores = {};
-    Map<Player, Map<String, double>> playerScoreDetails = {}; // Store detailed scoring for debugging
-
-    // First, evaluate available players against team needs
-    for (int i = 0; i < needsToConsider; i++) {
-      if (i < teamNeed.needs.length) {
-        String needPosition = teamNeed.needs[i];
-        
-        // Skip empty needs
-        if (needPosition == "-" || needPosition.isEmpty) continue;
-        
-        if (debugMode) debugLog.writeln("\nEvaluating need: $needPosition (Priority: ${i+1})");
-
-        // Find candidates for this position
-        final positionCandidates = availablePlayers
-          .where((p) => p.position.contains(needPosition) || 
-                      (p.position.contains('|') && 
-                        needPosition.contains(p.position.split('|')[0].trim())))
-          .where((p) => p.rank <= nextPick.pickNumber + 25)
-          .toList();
-        
-        if (positionCandidates.isEmpty) {
-          if (debugMode) debugLog.writeln("  No candidates found for position: $needPosition");
-          continue;
-        }
-        
-        // Sort by rank
-        positionCandidates.sort((a, b) => a.rank.compareTo(b.rank));
-        
-        // Get position value weight
-        double posWeight = _positionValueWeights[needPosition] ?? 1.0;
-        
-        // Get current scarcity factor
-        double scarcityFactor = _positionScarcity[needPosition] ?? 1.0;
-
-        if (debugMode) {
-          debugLog.writeln("  Position weight: $posWeight | Scarcity factor: $scarcityFactor");
-          debugLog.writeln("  Top candidates for $needPosition:");
-        }
-        
-        // Process top 3 candidates for this position
-        for (var player in positionCandidates.take(3)) {
-          // Need factor - higher for top needs
-          double needFactor = 1.0 - (i * 0.15); // 1.0 for top need, decreasing
-          
-          // Value calculation - how good is player relative to pick?
-          int valueGap = nextPick.pickNumber - player.rank;
-          double valueScore = valueGap >= 0 
-              ? min(1.0, valueGap / 10) // Good value (up to +1.0)
-              : max(-0.5, valueGap / 20); // Negative for reaching (-0.5 max penalty)
-          
-          // Early pick factor - higher standards for top picks
-          double pickFactor = 0;
-          if (nextPick.pickNumber <= 5) pickFactor = 0.15;
-          else if (nextPick.pickNumber <= 15) pickFactor = 0.1;
-          else if (nextPick.pickNumber <= 32) pickFactor = 0.05;
-          
-          
-          // Store all scoring components for debugging
-          // Get position volatility factor - teams are more likely to jump on a position run
-double volatilityFactor = _positionMarketVolatility[player.position] ?? 0.0;
-
-// Store all scoring components for debugging
-Map<String, double> scoreComponents = {
-  'needFactor': needFactor * 0.3,
-  'valueScore': valueScore * 0.4,
-  'positionWeight': posWeight * 0.2,
-  'scarcityFactor': scarcityFactor * 0.1,
-  'pickFactor': pickFactor,
-  'volatilityFactor': volatilityFactor * 0.15 // Add volatility to scoring
-};
-
-// Calculate player score including position run effect
-double score = scoreComponents.values.reduce((a, b) => a + b);
-
-// Position runs create urgency for teams
-if (volatilityFactor > 0.3) {
-  // The position is getting scarce - teams with this need will prioritize it
-  // Use needIndex from earlier in the method (where it checks teamNeed.needs.indexOf(player.position))
-  int positionNeedIndex = teamNeed != null ? teamNeed.needs.indexOf(player.position) : -1;
   
-  if (positionNeedIndex >= 0 && positionNeedIndex < 3) {
-    score += volatilityFactor * 0.2; // Additional boost for positions in active runs
-    if (debugMode) {
-      debugLog.writeln("    Position Run Boost: +${(volatilityFactor * 0.2).toStringAsFixed(3)} (Volatility: ${volatilityFactor.toStringAsFixed(2)})");
-    }
+  // If team has no needs defined, use best player available
+  if (teamNeed == null || teamNeed.needs.isEmpty) {
+    if (debugMode) debugLog.writeln("No team needs defined, selecting best player available");
+    Player selected = _selectBestPlayerWithRandomness(availablePlayers, nextPick.pickNumber);
+    if (debugMode) debugLog.writeln("Selected: ${selected.name} (${selected.position}) - Rank #${selected.rank}");
+    if (debugMode) debugPrint(debugLog.toString());
+    return selected;
   }
-}
-                        
-          // Store score
-          playerScores[player] = score;
-          playerScoreDetails[player] = scoreComponents;
+  
+  // Calculate round based on pick number (1-indexed)
+  int round = (nextPick.pickNumber / 32).ceil();
+  
+  // Get needs based on round (only consider round+3 needs)
+  int needsToConsider = min(round + 3, teamNeed.needs.length);
+
+  if (debugMode) {
+    debugLog.writeln("Round: $round | Considering top $needsToConsider needs");
+    debugLog.writeln("Relevant needs: ${teamNeed.needs.take(needsToConsider).toList()}");
+  }
+  
+  // Generate selections for each need, but with positional weighting
+  Map<Player, double> playerScores = {};
+  Map<Player, Map<String, double>> playerScoreDetails = {}; // Store detailed scoring for debugging
+
+  // First, evaluate available players against team needs
+  for (int i = 0; i < needsToConsider; i++) {
+    if (i < teamNeed.needs.length) {
+      String needPosition = teamNeed.needs[i];
+      
+      // Skip empty needs
+      if (needPosition == "-" || needPosition.isEmpty) continue;
+      
+      if (debugMode) debugLog.writeln("\nEvaluating need: $needPosition (Priority: ${i+1})");
+
+      // Find candidates for this position
+      final positionCandidates = availablePlayers
+        .where((p) => p.position.contains(needPosition) || 
+                    (p.position.contains('|') && 
+                      needPosition.contains(p.position.split('|')[0].trim())))
+        .where((p) => p.rank <= nextPick.pickNumber + 25)
+        .toList();
+      
+      if (positionCandidates.isEmpty) {
+        if (debugMode) debugLog.writeln("  No candidates found for position: $needPosition");
+        continue;
+      }
+      
+      // Sort by rank
+      positionCandidates.sort((a, b) => a.rank.compareTo(b.rank));
+      
+      // Get position value weight
+      double posWeight = _positionValueWeights[needPosition] ?? 1.0;
+      
+      // Get current scarcity factor
+      double scarcityFactor = _positionScarcity[needPosition] ?? 1.0;
+
+      if (debugMode) {
+        debugLog.writeln("  Position weight: $posWeight | Scarcity factor: $scarcityFactor");
+        debugLog.writeln("  Top candidates for $needPosition:");
+      }
+      
+      // Process top 3 candidates for this position
+      for (var player in positionCandidates.take(3)) {
+        // Need factor - higher for top needs (ADJUSTED BY needVsValueBalance)
+        // Adjust the need weight based on the needVsValueBalance setting (0-1)
+        // 0 = BPA focused, 1 = Need focused
+        double needWeight = 0.3 + (needVsValueBalance * 0.4); // Range from 0.3 to 0.7
+        double needFactor = 1.0 - (i * 0.15); // 1.0 for top need, decreasing
         
-          if (debugMode) {
-            debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
-            debugLog.writeln("    Need Factor: ${(needFactor * 0.4).toStringAsFixed(3)} | Value Score: ${(valueScore * 0.3).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.2).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.1).toStringAsFixed(3)} | Pick Factor: ${pickFactor.toStringAsFixed(3)}");
-            debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
+        // Value calculation - how good is player relative to pick?
+        // (ADJUSTED BY inverse of needVsValueBalance)
+        double valueWeight = 0.7 - (needVsValueBalance * 0.4); // Range from 0.7 to 0.3
+        int valueGap = nextPick.pickNumber - player.rank;
+        double valueScore = valueGap >= 0 
+            ? min(1.0, valueGap / 10) // Good value (up to +1.0)
+            : max(-0.5, valueGap / 20); // Negative for reaching (-0.5 max penalty)
+        
+        // Early pick factor - higher standards for top picks
+        double pickFactor = 0;
+        if (nextPick.pickNumber <= 5) pickFactor = 0.15;
+        else if (nextPick.pickNumber <= 15) pickFactor = 0.1;
+        else if (nextPick.pickNumber <= 32) pickFactor = 0.05;
+        
+        // Get position volatility factor
+        double volatilityFactor = _positionMarketVolatility[player.position] ?? 0.0;
+
+        // Store all scoring components for debugging
+        Map<String, double> scoreComponents = {
+          'needFactor': needFactor * needWeight,
+          'valueScore': valueScore * valueWeight,
+          'positionWeight': posWeight * 0.2,
+          'scarcityFactor': scarcityFactor * 0.1,
+          'pickFactor': pickFactor,
+          'volatilityFactor': volatilityFactor * 0.15 // Add volatility to scoring
+        };
+
+        // Calculate player score including position run effect
+        double score = scoreComponents.values.reduce((a, b) => a + b);
+
+        // Position runs create urgency for teams
+        if (volatilityFactor > 0.3) {
+          // The position is getting scarce - teams with this need will prioritize it
+          int positionNeedIndex = teamNeed != null ? teamNeed.needs.indexOf(player.position) : -1;
+          
+          if (positionNeedIndex >= 0 && positionNeedIndex < 3) {
+            score += volatilityFactor * 0.2; // Additional boost for positions in active runs
+            if (debugMode) {
+              debugLog.writeln("    Position Run Boost: +${(volatilityFactor * 0.2).toStringAsFixed(3)} (Volatility: ${volatilityFactor.toStringAsFixed(2)})");
+            }
           }
         }
+                        
+        // Store score
+        playerScores[player] = score;
+        playerScoreDetails[player] = scoreComponents;
+      
+        if (debugMode) {
+          debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
+          debugLog.writeln("    Need Factor: ${(needFactor * needWeight).toStringAsFixed(3)} | Value Score: ${(valueScore * valueWeight).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.2).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.1).toStringAsFixed(3)} | Pick Factor: ${pickFactor.toStringAsFixed(3)}");
+          debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
+        }
       }
     }
-    
-    // Also evaluate top 5 overall players (BPA consideration)
-    final topPlayers = availablePlayers
-        .where((p) => p.rank <= min(50, nextPick.pickNumber + 15))
-        .take(5)
-        .toList();
+  }
+  
+  // Also evaluate top 5 overall players (BPA consideration)
+  // ADJUSTED BY inverse of needVsValueBalance (stronger BPA with lower value)
+  // More weight to BPA approach when needVsValueBalance is low
+  double bpaWeight = 1.0 - (needVsValueBalance * 0.5); // 1.0 to 0.5
+  final topPlayers = availablePlayers
+      .where((p) => p.rank <= min(50, nextPick.pickNumber + 15))
+      .take(5)
+      .toList();
 
-    if (debugMode) debugLog.writeln("\nEvaluating Top 5 BPA candidates:");
-        
-    for (var player in topPlayers) {
-      // Skip if already evaluated through needs
-      if (playerScores.containsKey(player)) continue;
+  if (debugMode) debugLog.writeln("\nEvaluating Top 5 BPA candidates (Weight: ${bpaWeight.toStringAsFixed(2)}):");
       
-      // Get position weight
-      double posWeight = _positionValueWeights[player.position] ?? 1.0;
-      
-      // Get scarcity factor
-      double scarcityFactor = _positionScarcity[player.position] ?? 1.0;
-      
-      // Value calculation
-      int valueGap = nextPick.pickNumber - player.rank;
-      double valueScore = valueGap >= 0 
-          ? min(1.0, valueGap / 10) 
-          : max(-0.5, valueGap / 20);
-      
-      // BPA gets a boost but need factor is low
-      double needFactor = 0.5; // Low since not in needs list
-      
-      // Store all scoring components for debugging
-      Map<String, double> scoreComponents = {
-        'needFactor': needFactor * 0.3,
-        'valueScore': valueScore * 0.5,
-        'positionWeight': posWeight * 0.15,
-        'scarcityFactor': scarcityFactor * 0.05
-      };
-      
-      // Calculate score with higher value emphasis
-      double score = scoreComponents.values.reduce((a, b) => a + b);
-      
-      // Store score
-      playerScores[player] = score;
-      playerScoreDetails[player] = scoreComponents;
+  for (var player in topPlayers) {
+    // Skip if already evaluated through needs
+    if (playerScores.containsKey(player)) continue;
     
-      if (debugMode) {
-        debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
-        debugLog.writeln("    Need Factor: ${(needFactor * 0.3).toStringAsFixed(3)} | Value Score: ${(valueScore * 0.5).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.15).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.05).toStringAsFixed(3)}");
-        debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
-      }
+    // Get position weight
+    double posWeight = _positionValueWeights[player.position] ?? 1.0;
+    
+    // Get scarcity factor
+    double scarcityFactor = _positionScarcity[player.position] ?? 1.0;
+    
+    // Value calculation
+    int valueGap = nextPick.pickNumber - player.rank;
+    double valueScore = valueGap >= 0 
+        ? min(1.0, valueGap / 10) 
+        : max(-0.5, valueGap / 20);
+    
+    // BPA gets a boost but need factor is low
+    double needFactor = 0.5; // Low since not in needs list
+    
+    // Store all scoring components for debugging
+    Map<String, double> scoreComponents = {
+      'needFactor': needFactor * 0.3,
+      'valueScore': valueScore * 0.5 * bpaWeight, // Apply BPA weight here
+      'positionWeight': posWeight * 0.15,
+      'scarcityFactor': scarcityFactor * 0.05
+    };
+    
+    // Calculate score with higher value emphasis
+    double score = scoreComponents.values.reduce((a, b) => a + b);
+    
+    // Store score
+    playerScores[player] = score;
+    playerScoreDetails[player] = scoreComponents;
+  
+    if (debugMode) {
+      debugLog.writeln("  - ${player.name} (${player.position}) - Rank #${player.rank}:");
+      debugLog.writeln("    Need Factor: ${(needFactor * 0.3).toStringAsFixed(3)} | Value Score: ${(valueScore * 0.5 * bpaWeight).toStringAsFixed(3)} | Position Weight: ${(posWeight * 0.15).toStringAsFixed(3)} | Scarcity: ${(scarcityFactor * 0.05).toStringAsFixed(3)}");
+      debugLog.writeln("    Value Gap: $valueGap | Score before randomness: ${score.toStringAsFixed(3)}");
     }
+  }
     
     // If no players evaluated, fall back to best available
     if (playerScores.isEmpty) {
