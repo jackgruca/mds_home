@@ -1,4 +1,3 @@
-// lib/widgets/analytics/community_analytics_dashboard.dart (MODIFIED)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/analytics_provider.dart';
@@ -7,6 +6,7 @@ import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
 import 'player_draft_analysis_tab.dart';
 import 'draft_trend_insights_tab.dart';
+import 'advanced_insights_tab.dart'; // Add this import
 
 class CommunityAnalyticsDashboard extends StatefulWidget {
   final String userTeam;
@@ -26,7 +26,7 @@ class CommunityAnalyticsDashboard extends StatefulWidget {
 
 class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboard>
     with AutomaticKeepAliveClientMixin {
-  String _selectedTab = 'Team Draft Patterns';
+  final String _selectedTab = 'Team Draft Patterns';
   late AnalyticsProvider _analyticsProvider;
 
   @override
@@ -97,6 +97,8 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
                 _buildTabButton('Player Draft Analysis', isDarkMode),
                 const SizedBox(width: 12),
                 _buildTabButton('Draft Trend Insights', isDarkMode),
+                const SizedBox(width: 12),
+                _buildTabButton('Advanced Insights', isDarkMode), // Add this new tab
               ],
             ),
           ),
@@ -110,46 +112,7 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  Widget _buildTabButton(String title, bool isDarkMode) {
-    final isSelected = _selectedTab == title;
-    
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedTab = title;
-        });
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade100)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? (isDarkMode ? Colors.blue.shade400 : Colors.blue.shade300)
-                : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-          ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected
-                ? (isDarkMode ? Colors.white : Colors.blue.shade800)
-                : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700),
-          ),
-        ),
-      ),
-    );
-  }
-
+  // Update the tab content to include our new tab
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case 'Team Draft Patterns':
@@ -162,6 +125,8 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
         return PlayerDraftAnalysisTab(draftYear: widget.draftYear);
       case 'Draft Trend Insights':
         return DraftTrendInsightsTab(draftYear: widget.draftYear);
+      case 'Advanced Insights':
+        return AdvancedInsightsTab(draftYear: widget.draftYear); // Add this case
       default:
         return const Center(
           child: Text('Select a tab to view analytics'),
