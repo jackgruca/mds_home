@@ -79,40 +79,34 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   
   // Parse trade info to extract details
   String tradeDetails = pick.tradeInfo ?? "No trade information";
-  String tradeReason = "Trade details not available";
   String fromTeam = "";
   
-  // Extract team and reason if available (assuming format like "From PHI (Value)")
+  // Extract team if available (assuming format like "From PHI")
   if (tradeDetails.contains("From ")) {
     final teamStart = tradeDetails.indexOf("From ") + 5;
     int teamEnd = tradeDetails.length;
     
     if (tradeDetails.contains("(")) {
       teamEnd = tradeDetails.indexOf("(");
-      
-      // Extract reason if available
-      final reasonStart = tradeDetails.indexOf("(");
-      final reasonEnd = tradeDetails.indexOf(")");
-      if (reasonStart > 0 && reasonEnd > reasonStart) {
-        tradeReason = tradeDetails.substring(reasonStart + 1, reasonEnd);
-      }
     }
     
     fromTeam = tradeDetails.substring(teamStart, teamEnd).trim();
   }
   
-  // Create some mock value data to show (in a real app, this would come from your trade service)
-  final double originalValue = DraftValueService.getValueForPick(pick.pickNumber);
-  final double receivedValue = originalValue * (1 + (_random.nextDouble() * 0.2 - 0.1)); // +/- 10%
-  final double valueDifference = receivedValue - originalValue;
-  final double valueRatio = receivedValue / originalValue;
+  // Get the original pick number if available, otherwise use current pick number
+  int originalPickNumber = pick.originalPickNumber ?? pick.pickNumber;
   
-  // Assume capital exchanged (this would come from your trade records in a real app)
-  final String capitalGiven = "Pick #${pick.pickNumber}";
-  List<String> capitalReceived = ["Pick #${pick.pickNumber + 10}", "Pick #${pick.pickNumber + 42}"];
-  if (_random.nextBool()) {
-    capitalReceived.add("2026 3rd Round Pick");
-  }
+  // Get trade values based on pick positions
+  final double currentPickValue = DraftValueService.getValueForPick(pick.pickNumber);
+  final double originalPickValue = DraftValueService.getValueForPick(originalPickNumber);
+  
+  // Find any executed trade record for this pick
+  // NOTE: Ideally this would come from a parameter passed to this widget
+  // For now we'll get real value calculations without mock data
+  
+  // Calculate the value difference and ratio
+  final double valueDifference = currentPickValue - originalPickValue;
+  final double valueRatio = currentPickValue / originalPickValue;
   
   showDialog(
     context: context,
@@ -214,169 +208,79 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
             ),
             const SizedBox(height: 16),
             
-            // Capital exchanged
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Capital given
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "$fromTeam received:",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isDarkMode ? 
-                            Colors.green.shade900.withOpacity(0.3) : 
-                            Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isDarkMode ? 
-                              Colors.green.shade700 : 
-                              Colors.green.shade300,
-                          ),
-                        ),
-                        child: Text(capitalGiven),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                
-                // Capital received
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "${pick.teamName} received:",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isDarkMode ? 
-                            Colors.amber.shade900.withOpacity(0.3) : 
-                            Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isDarkMode ? 
-                              Colors.amber.shade700 : 
-                              Colors.amber.shade300,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (final item in capitalReceived)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text(item),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Value analysis
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Trade Value Analysis:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Value summary
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _getValueColor(valueRatio).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: _getValueColor(valueRatio),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            "Value given: ${originalValue.toStringAsFixed(0)} points",
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getValueColor(valueRatio).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              "${(valueRatio * 100).toStringAsFixed(0)}%",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _getValueColor(valueRatio),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Value received: ${receivedValue.toStringAsFixed(0)} points",
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Difference: ${valueDifference >= 0 ? "+" : ""}${valueDifference.toStringAsFixed(0)} points",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: valueDifference >= 0 ? 
-                            (isDarkMode ? Colors.green.shade300 : Colors.green.shade700) : 
-                            (isDarkMode ? Colors.red.shade300 : Colors.red.shade700),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Trade reason if available
-            if (tradeReason != "Trade details not available") ...[
-              const Text(
-                'Trade Reason:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+            // Trade information (simplified version with actual pick data)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
                 ),
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Trade description
+                  Text(
+                    "Trade Description:",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Pick #${pick.pickNumber} was acquired via trade from $fromTeam.",
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Value comparison
+                  Text(
+                    "Pick Value:",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Current value: ${DraftValueService.getValueDescription(currentPickValue)} points",
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _getValueColor(1.0).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          "100%",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Note about detailed trade information
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: Container(
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isDarkMode ? 
                     Colors.blue.withOpacity(0.2) : 
@@ -387,15 +291,27 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
                     width: 1.0,
                   ),
                 ),
-                child: Text(
-                  tradeReason,
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "For complete trade details, visit the Trade History tab in the Draft Summary.",
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),

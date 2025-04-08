@@ -25,6 +25,8 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   final Set<String> _selectedTeams = {};
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
+  double _tradeFrequency = 0.5;
+  double _needVsValueBalance = 0.5;
 
   bool _enableTrading = true;
   bool _enableUserTradeProposals = true;
@@ -118,6 +120,9 @@ Future<void> _loadUserPreferences() async {
         // Pass year settings
         selectedYear: _selectedYear,
         availableYears: _availableYears,
+        // Pass new settings
+        tradeFrequency: _tradeFrequency,
+        needVsValueBalance: _needVsValueBalance,
         onSettingsSaved: (settings) {
           // Update settings when saved
           setState(() {
@@ -133,6 +138,10 @@ Future<void> _loadUserPreferences() async {
             // Store custom data
             _customTeamNeeds = settings['customTeamNeeds'];
             _customPlayerRankings = settings['customPlayerRankings'];
+            
+            // Handle new settings
+            _tradeFrequency = settings['tradeFrequency'];
+            _needVsValueBalance = settings['needVsValueBalance'];
           });
         },
       ),
@@ -1114,6 +1123,8 @@ Future<void> _loadUserPreferences() async {
     'team_count': _selectedTeams.length,
     'rounds': _numberOfRounds,
     'year': _selectedYear,
+    'trade_frequency': _tradeFrequency,
+    'need_vs_value_balance': _needVsValueBalance,
   });
 
   // Convert to list of team identifiers
@@ -1136,6 +1147,8 @@ Future<void> _loadUserPreferences() async {
         showAnalytics: _showAnalytics,
         customTeamNeeds: _customTeamNeeds,
         customPlayerRankings: _customPlayerRankings,
+        tradeFrequency: _tradeFrequency,
+        needVsValueBalance: _needVsValueBalance,
       ),
     ),
   );

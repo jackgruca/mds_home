@@ -28,6 +28,8 @@ class TradeService {
   final bool enableUserTradeConfirmation;
   final double tradeRandomnessFactor;
   final bool enableQBPremium;
+  final double tradeFrequency;
+
   
   // Team-specific trading tendencies
   final Map<String, TradingTendency> _teamTendencies = {
@@ -67,17 +69,18 @@ class TradeService {
   };
   
   TradeService({
-    required this.draftOrder,
-    required this.teamNeeds,
-    required this.availablePlayers,
-    this.userTeam, // Keep accepting single team
-    this.enableUserTradeConfirmation = true,
-    this.tradeRandomnessFactor = 0.5,
-    this.enableQBPremium = true,
-  }) {
-    // Initialize team-specific data
-    _initializeTeamData();
-  }
+  required this.draftOrder,
+  required this.teamNeeds,
+  required this.availablePlayers,
+  this.userTeam, // Keep accepting single team
+  this.enableUserTradeConfirmation = true,
+  this.tradeRandomnessFactor = 0.5,
+  this.enableQBPremium = true,
+  this.tradeFrequency = 0.5,
+}) {
+  // Initialize team-specific data
+  _initializeTeamData();
+}
   
   // Method to initialize team data for trade evaluation
   void _initializeTeamData() {
