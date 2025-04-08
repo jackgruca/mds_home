@@ -1,10 +1,11 @@
-// lib/main.dart
+// lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
+import 'services/precomputed_analytics_service.dart'; // Add this
 import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
@@ -26,11 +27,14 @@ void main() async {
   try {
     await FirebaseService.initialize();
     debugPrint('Firebase initialized successfully in main.dart');
+    
+    // Preload common analytics data in background
+    _preloadCommonAnalytics();
   } catch (e) {
     debugPrint('Firebase initialization error in main.dart: $e');
   }
 
-AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
+  AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
 
   // Turn on debug output for the app
   if (kDebugMode) {
@@ -50,6 +54,28 @@ AnalyticsService.initializeAnalytics(measurementId: 'G-8QGNSTTZGH');
       child: const MyApp(),
     ),
   );
+}
+
+// Preload common analytics data to reduce initial loading time
+Future<void> _preloadCommonAnalytics() async {
+  // Run this in background so app startup isn't delayed
+  Future.delayed(Duration.zero, () async {
+    try {
+      // Get the latest stats timestamp (this also warms up the connection)
+      final timestamp = await PrecomputedAnalyticsService.getLatestStatsTimestamp();
+      debugPrint('Analytics data last updated: ${timestamp?.toString() ?? 'unknown'}');
+      
+      // Preload team needs data which is commonly used
+      await PrecomputedAnalyticsService.getConsensusTeamNeeds();
+      
+      // Preload overall position distribution
+      await PrecomputedAnalyticsService.getPositionBreakdownByTeam(team: 'All Teams');
+      
+      debugPrint('Preloaded common analytics data');
+    } catch (e) {
+      debugPrint('Error preloading analytics data: $e');
+    }
+  });
 }
 
 class MyApp extends StatefulWidget {
