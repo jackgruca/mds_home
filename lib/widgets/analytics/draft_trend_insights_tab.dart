@@ -15,12 +15,11 @@ class DraftTrendInsightsTab extends StatefulWidget {
   _DraftTrendInsightsTabState createState() => _DraftTrendInsightsTabState();
 }
 
-class _DraftTrendInsightsTabState extends State<DraftTrendInsightsTab> {
+class _DraftTrendInsightsTabState extends State<DraftTrendInsightsTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   int _selectedRound = 1;
   
   // Data states
-  final List<Map<String, dynamic>> _positionRunData = [];
   Map<String, List<Map<String, dynamic>>> _positionsByRound = {};
   Map<String, dynamic> _positionDistribution = {};
   
@@ -36,29 +35,35 @@ class _DraftTrendInsightsTabState extends State<DraftTrendInsightsTab> {
     });
 
     try {
-      // Load position data for each round
+      // Use a parallelized approach to load data
+      final futures = <Future>[];
       final Map<String, List<Map<String, dynamic>>> positionsByRound = {};
       
-      // Load round-by-round position data (for rounds 1-4)
+      // Position distribution is used across tabs, so we can load it once
+      final distributionFuture = AnalyticsQueryService.getPositionBreakdownByTeam(
+        team: 'All Teams',
+        year: widget.draftYear,
+      ).then((data) {
+        _positionDistribution = data;
+      });
+      futures.add(distributionFuture);
+      
+      // Load data for rounds 1-4 in parallel
       for (int round = 1; round <= 4; round++) {
-        final roundData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
+        final roundFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
           round: round,
           year: widget.draftYear,
-        );
-        
-        // Group by position trends
-        positionsByRound['Round $round'] = roundData;
+        ).then((data) {
+          positionsByRound['Round $round'] = data;
+        });
+        futures.add(roundFuture);
       }
       
-      // Load overall position distribution
-      final positionDist = await AnalyticsQueryService.getPositionBreakdownByTeam(
-        team: 'All Teams', // Get overall data
-        year: widget.draftYear,
-      );
+      // Wait for all futures to complete
+      await Future.wait(futures);
       
       setState(() {
         _positionsByRound = positionsByRound;
-        _positionDistribution = positionDist;
         _isLoading = false;
       });
     } catch (e) {
@@ -68,6 +73,9 @@ class _DraftTrendInsightsTabState extends State<DraftTrendInsightsTab> {
       });
     }
   }
+
+  @override
+  bool get wantKeepAlive => true;  // Keep state when switching tabs
 
   @override
   Widget build(BuildContext context) {

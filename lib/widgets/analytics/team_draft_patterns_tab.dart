@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
+import '../../services/analytics_cache_manager.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 
@@ -21,10 +22,10 @@ class TeamDraftPatternsTab extends StatefulWidget {
   _TeamDraftPatternsTabState createState() => _TeamDraftPatternsTabState();
 }
 
-class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
+class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   String _selectedTeam = '';
-  int? _selectedRound; // Changed to int? to support "All Rounds" option
+  int? _selectedRound;
   
   // Data states
   List<Map<String, dynamic>> _topPicksByPosition = [];
@@ -39,37 +40,50 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
     _loadData();
   }
 
-  // lib/widgets/analytics/team_draft_patterns_tab.dart - update the loadData method
-
+  // Optimized data loading - only fetches what's needed based on selection
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Get aggregated position data by pick
-      final positionData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
+      // Create a list of futures to execute in parallel
+      final futures = <Future>[];
+      
+      // Future for position data
+      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound, // Pass null for All Rounds
+        round: _selectedRound,
         year: widget.draftYear,
-      );
-
-      // Get aggregated player data by pick
-      final playerData = await AnalyticsQueryService.getConsolidatedPlayersByPick(
+      ).then((data) {
+        _topPicksByPosition = data;
+      });
+      futures.add(positionFuture);
+      
+      // Future for player data
+      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound, // Pass null for All Rounds
+        round: _selectedRound,
         year: widget.draftYear,
-      );
-
-      // Get consensus team needs
-      final needsData = await AnalyticsQueryService.getConsensusTeamNeeds(
-        year: widget.draftYear,
-      );
+      ).then((data) {
+        _topPlayersByPick = data;
+      });
+      futures.add(playerFuture);
+      
+      // Only load consensus needs once, or when team changes
+      if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
+        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
+          year: widget.draftYear,
+        ).then((data) {
+          _consensusNeeds = data;
+        });
+        futures.add(needsFuture);
+      }
+      
+      // Wait for all futures to complete
+      await Future.wait(futures);
 
       setState(() {
-        _topPicksByPosition = positionData;
-        _topPlayersByPick = playerData;
-        _consensusNeeds = needsData;
         _isLoading = false;
       });
     } catch (e) {
@@ -79,6 +93,9 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> {
       });
     }
   }
+
+  @override
+  bool get wantKeepAlive => true;  // Keep state when switching tabs
 
 
 // Add these helper methods to convert team-specific data formats

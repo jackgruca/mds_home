@@ -16,7 +16,7 @@ class PlayerDraftAnalysisTab extends StatefulWidget {
   _PlayerDraftAnalysisTabState createState() => _PlayerDraftAnalysisTabState();
 }
 
-class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> {
+class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   String _selectedPosition = 'All Positions';
   
@@ -51,8 +51,8 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> {
       
       // Process the deviations data
       final players = deviations['players'] as List<dynamic>;
-      _riserPlayers = [];
-      _fallerPlayers = [];
+      final List<Map<String, dynamic>> risers = [];
+      final List<Map<String, dynamic>> fallers = [];
       
       for (var player in players) {
         // Parse average deviation value
@@ -69,19 +69,21 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> {
         
         // Categorize as riser or faller
         if (avgDeviation > 0) {
-          _riserPlayers.add(playerData);
+          risers.add(playerData);
         } else if (avgDeviation < 0) {
-          _fallerPlayers.add(playerData);
+          fallers.add(playerData);
         }
       }
       
       // Sort risers (picked later than rank = positive deviation = value picks)
-      _riserPlayers.sort((a, b) => (b['avgDeviation'] as double).compareTo(a['avgDeviation'] as double));
+      risers.sort((a, b) => (b['avgDeviation'] as double).compareTo(a['avgDeviation'] as double));
       
       // Sort fallers (picked earlier than rank = negative deviation = reaches)
-      _fallerPlayers.sort((a, b) => (a['avgDeviation'] as double).compareTo(b['avgDeviation'] as double));
+      fallers.sort((a, b) => (a['avgDeviation'] as double).compareTo(b['avgDeviation'] as double));
       
       setState(() {
+        _riserPlayers = risers;
+        _fallerPlayers = fallers;
         _isLoading = false;
       });
     } catch (e) {
@@ -91,6 +93,9 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> {
       });
     }
   }
+
+  @override
+  bool get wantKeepAlive => true;  // Keep state when switching tabs
 
   @override
   Widget build(BuildContext context) {
