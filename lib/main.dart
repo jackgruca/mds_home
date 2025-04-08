@@ -13,6 +13,7 @@ import 'services/message_service.dart';
 import 'providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
 
+import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 
 // Secret tap counter for admin access
@@ -211,6 +212,7 @@ class AdminPanel extends StatelessWidget {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
+            // Original Message Management Card
             Card(
               child: ListTile(
                 leading: const Icon(Icons.message),
@@ -228,6 +230,9 @@ class AdminPanel extends StatelessWidget {
                 },
               ),
             ),
+            const SizedBox(height: 12),
+            // New Analytics Setup Widget
+            const AnalyticsSetupWidget(), // Add this line
           ],
         ),
       ),

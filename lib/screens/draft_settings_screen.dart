@@ -1,5 +1,6 @@
 // lib/screens/draft_settings_screen.dart
 import 'package:flutter/material.dart';
+import '../utils/admin_route.dart';
 import '../utils/constants.dart';
 import '../utils/theme_config.dart';
 import '../widgets/auth/auth_dialog.dart';
@@ -58,6 +59,7 @@ class _DraftSettingsScreenState extends State<DraftSettingsScreen> with SingleTi
   late int _selectedYear;
   
   late TabController _tabController;
+  int _secretTapCount = 0;
   
   // Data customization
   List<List<dynamic>>? _customTeamNeeds;
@@ -513,6 +515,27 @@ void _showQuickLoadDialog() {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+      
+      // The secret access footer
+      Padding(
+        padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
+        child: Center(
+          child: GestureDetector(
+            onTap: () {
+              AdminRoute.attemptAdminAccess(context, tapCount: _secretTapCount++);
+            },
+            child: Text(
+              'Created by @StickToTheModel',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ),
+      )
               ],
             ),
           ),

@@ -141,6 +141,99 @@ class FirebaseService {
     }
     return ''; // Default if not found
   }
+
+  /// Setup the required analytics collections for optimized querying
+static Future<bool> setupAnalyticsCollections() async {
+  try {
+    // Ensure Firebase is initialized
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    final FirebaseFirestore db = FirebaseFirestore.instance;
+    
+    debugPrint('Starting analytics collections setup...');
+    
+    // Create metadata document in precomputedAnalytics collection
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'lastUpdated': FieldValue.serverTimestamp(),
+      'documentsProcessed': 0,
+      'setupDate': FieldValue.serverTimestamp()
+    });
+    
+    // Create positionDistribution document
+    await db.collection('precomputedAnalytics').doc('positionDistribution').set({
+      'overall': {
+        'total': 0,
+        'positions': {}
+      },
+      'byTeam': {},
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    // Create teamNeeds document
+    await db.collection('precomputedAnalytics').doc('teamNeeds').set({
+      'needs': {},
+      'year': DateTime.now().year,
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    // Create positionsByPick document
+    await db.collection('precomputedAnalytics').doc('positionsByPick').set({
+      'data': [],
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    // Create playerDeviations document
+    await db.collection('precomputedAnalytics').doc('playerDeviations').set({
+      'players': [],
+      'byPosition': {},
+      'sampleSize': 0,
+      'positionSampleSizes': {},
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    // Setup round-specific position documents for rounds 1-7
+    for (int round = 1; round <= 7; round++) {
+      await db.collection('precomputedAnalytics').doc('positionsByPickRound$round').set({
+        'data': [],
+        'lastUpdated': FieldValue.serverTimestamp()
+      });
+    }
+    
+    // Create a test document in cachedQueries collection
+    await db.collection('cachedQueries').doc('setup_verification').set({
+      'created': FieldValue.serverTimestamp(),
+      'expires': Timestamp.fromDate(
+        DateTime.now().add(const Duration(days: 1)),
+      ),
+      'testData': 'Collection setup complete'
+    });
+    
+    debugPrint('Successfully created analytics collections!');
+    return true;
+  } catch (e) {
+    debugPrint('Error setting up analytics collections: $e');
+    return false;
+  }
+}
+
+/// Check if analytics collections exist
+static Future<bool> checkAnalyticsCollections() async {
+  try {
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    final db = FirebaseFirestore.instance;
+    final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    
+    return metadataDoc.exists;
+  } catch (e) {
+    debugPrint('Error checking analytics collections: $e');
+    return false;
+  }
+}
   
   /// Check if Firebase is properly initialized
   static bool get isInitialized => _initialized;

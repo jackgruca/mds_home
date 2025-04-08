@@ -26,7 +26,7 @@ class CommunityAnalyticsDashboard extends StatefulWidget {
 
 class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboard>
     with AutomaticKeepAliveClientMixin {
-  final String _selectedTab = 'Team Draft Patterns';
+  String _selectedTab = 'Team Draft Patterns';
   late AnalyticsProvider _analyticsProvider;
 
   @override
@@ -133,6 +133,40 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
         );
     }
   }
+
+  // Helper method to format a date
+  String _formatDate(DateTime date) {
+    // Format: Apr 8, 2025
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final month = months[date.month - 1];
+    return '$month ${date.day}, ${date.year}';
+  }
+
+  Widget _buildTabButton(String tabName, bool isDarkMode) {
+  bool isSelected = _selectedTab == tabName;
+  
+  return ElevatedButton(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: isSelected 
+          ? Theme.of(context).primaryColor 
+          : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200),
+      foregroundColor: isSelected 
+          ? Colors.white 
+          : (isDarkMode ? Colors.white70 : Colors.black87),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    ),
+    onPressed: () {
+      setState(() {
+        _selectedTab = tabName;
+      });
+    },
+    child: Text(tabName),
+  );
+}
+
 
   @override
   bool get wantKeepAlive => true;

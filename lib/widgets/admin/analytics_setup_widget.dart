@@ -1,7 +1,6 @@
 // lib/widgets/admin/analytics_setup_widget.dart
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnalyticsSetupWidget extends StatefulWidget {
   const AnalyticsSetupWidget({super.key});
@@ -28,14 +27,12 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
     });
 
     try {
-      // Check if the collection exists
-      final db = FirebaseFirestore.instance;
-      final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+      final exist = await FirebaseService.checkAnalyticsCollections();
       
       setState(() {
         _isLoading = false;
-        _collectionsExist = metadataDoc.exists;
-        _statusMessage = metadataDoc.exists 
+        _collectionsExist = exist;
+        _statusMessage = exist 
             ? 'Analytics collections are already set up.' 
             : 'Analytics collections need to be created.';
       });
@@ -54,46 +51,14 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
     });
 
     try {
-      // Create the collections
-      final db = FirebaseFirestore.instance;
-      
-      // Create metadata document in precomputedAnalytics collection
-      await db.collection('precomputedAnalytics').doc('metadata').set({
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'documentsProcessed': 0,
-        'setupDate': FieldValue.serverTimestamp()
-      });
-      
-      // Create positionDistribution document
-      await db.collection('precomputedAnalytics').doc('positionDistribution').set({
-        'overall': {
-          'total': 0,
-          'positions': {}
-        },
-        'byTeam': {},
-        'lastUpdated': FieldValue.serverTimestamp()
-      });
-      
-      // Create teamNeeds document
-      await db.collection('precomputedAnalytics').doc('teamNeeds').set({
-        'needs': {},
-        'year': DateTime.now().year,
-        'lastUpdated': FieldValue.serverTimestamp()
-      });
-      
-      // Create a test document in cachedQueries collection
-      await db.collection('cachedQueries').doc('setup_verification').set({
-        'created': FieldValue.serverTimestamp(),
-        'expires': Timestamp.fromDate(
-          DateTime.now().add(const Duration(days: 1)),
-        ),
-        'testData': 'Collection setup complete'
-      });
+      final result = await FirebaseService.setupAnalyticsCollections();
       
       setState(() {
         _isLoading = false;
-        _collectionsExist = true;
-        _statusMessage = 'Success! Collections created.';
+        _collectionsExist = result;
+        _statusMessage = result 
+            ? 'Success! Collections created.' 
+            : 'Failed to create collections. Check logs.';
       });
     } catch (e) {
       setState(() {
