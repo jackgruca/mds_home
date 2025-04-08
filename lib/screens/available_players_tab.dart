@@ -41,7 +41,10 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final Set<String> _selectedPositions = {};
   bool _showFavorites = false; // Add this line for favorites filter
   final Set<int> _favoritePlayerIds = {}; // Store favorite player IDs
-
+  double _minRasScore = 0.0;
+  double _maxHeight = 80.0;  // 6'8"
+  double _minHeight = 60.0;  // 5'0"
+  bool _filterApplied = false;
   
   // Add sort options
   SortOption _sortOption = SortOption.rank; // Default sort by rank
@@ -163,22 +166,35 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     }
     
     // Update filter logic for favorites
-    List<Player> filteredPlayers = allPlayers.where((player) {
-      // Apply favorites filter if enabled
-      if (_showFavorites && !FavoritePlayersService.isFavorite(player.id)) {
-        return false;
-      }
-      
-      // Apply position filter
-      bool matchesPosition = _selectedPositions.isEmpty || _selectedPositions.contains(player.position);
-      
-      // Apply search filter
-      bool matchesSearch = _searchQuery.isEmpty || 
-                        player.name.toLowerCase().contains(_searchQuery) ||
-                        player.school.toLowerCase().contains(_searchQuery);
-      
-      return matchesPosition && matchesSearch;
-    }).toList();
+// Modify the filtering logic in the build method
+List<Player> filteredPlayers = allPlayers.where((player) {
+  // Existing filters
+  bool matchesSearch = _searchQuery.isEmpty || 
+    player.name.toLowerCase().contains(_searchQuery) ||
+    player.school.toLowerCase().contains(_searchQuery);
+  
+  bool matchesPosition = _selectedPositions.isEmpty || 
+    _selectedPositions.contains(player.position);
+  
+  // Favorites filter
+  bool matchesFavorites = !_showFavorites || 
+    FavoritePlayersService.isFavorite(player.id);
+
+  // RAS Score Filter (robust null handling)
+  bool meetsRasFilter = !_filterApplied || 
+    (player.rasScore ?? 0) >= _minRasScore;
+  
+  // Height Filter (convert to inches and handle null)
+  bool meetsHeightFilter = !_filterApplied || 
+    (player.height ?? 0) >= _minHeight && 
+    (player.height ?? 0) <= _maxHeight;
+
+  return matchesSearch && 
+         matchesPosition && 
+         matchesFavorites && 
+         meetsRasFilter && 
+         meetsHeightFilter;
+}).toList();
     
     // Sort filtered players
     switch (_sortOption) {
@@ -244,17 +260,45 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                       child: SizedBox(
                         height: 36,
                         child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: 'Search Players',
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                          ),
-                          style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
-                        ),
+  controller: _searchController,
+  decoration: InputDecoration(
+    hintText: 'Search Players',
+    prefixIcon: const Icon(Icons.search),
+    suffixIcon: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Explicitly styled filter icon
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade700 
+              : Colors.grey.shade200,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.filter_list, 
+              size: 20,
+              color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white 
+                : Colors.black87,
+            ),
+            onPressed: _showAdvancedFilterDialog,
+            tooltip: 'Advanced Filters',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ),
+      ],
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8.0),
+    ),
+    contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+  ),
+  style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
+),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -317,7 +361,13 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         },
                       ),
                     ),
-                    
+
+                    // Add the new IconButton right here:
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: _showAdvancedFilterDialog,
+                      tooltip: 'Advanced Filters',
+                    ),
                     const SizedBox(width: 8),
                     
                     // Player count
@@ -339,7 +389,23 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
                         ),
                       ),
                     ),
-                    
+                    if (_filterApplied)
+  Padding(
+    padding: const EdgeInsets.only(left: 8.0),
+    child: Chip(
+      label: const Text('Filters Applied'),
+      backgroundColor: Colors.blue.shade100,
+      deleteIcon: const Icon(Icons.close, size: 18),
+      onDeleted: () {
+        setState(() {
+          _filterApplied = false;
+          _minRasScore = 0.0;
+          _minHeight = 60.0;
+          _maxHeight = 80.0;
+        });
+      },
+    ),
+  ),
                     // Reset filter button
                     if (_selectedPositions.isNotEmpty || _showFavorites)
                       IconButton(
@@ -750,63 +816,35 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     
     // Special styling for Favorites filter
     if (isSpecial) {
-      Color bgColor = isSelected 
-          ? (isDarkMode ? Colors.amber.shade900 : Colors.amber.shade100)
-          : (isDarkMode ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber.shade50);
-      
-      Color textColor = isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800;
-      
-      return Container(
-        margin: const EdgeInsets.only(right: 6),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected 
-                    ? textColor
-                    : Colors.transparent,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: textColor,
-                  ),
-                ),
-                // Show count badge if there are favorites
-                if (isSelected && _favoritePlayerIds.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: textColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${_favoritePlayerIds.length}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.black : Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? (isDarkMode ? Colors.amber.shade900 : Colors.amber.shade100)
+                : (isDarkMode ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber.shade50),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected 
+                  ? (isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800)
+                  : Colors.transparent,
             ),
           ),
+          child: Icon(
+            Icons.star,
+            color: isSelected 
+                ? (isDarkMode ? Colors.amber.shade200 : Colors.amber.shade800)
+                : (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+            size: 20,
+          ),
         ),
-      );
-    }
+      ),
+    );
+  }
     Color getBgColor() {
       if (isDarkMode) {
         return isSelected 
@@ -904,4 +942,98 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     if (ras >= 3.5) return Colors.orange.shade700;     // Poor
     return Colors.red.shade600;                        // Very Poor
   }
+
+  void _showAdvancedFilterDialog() {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Advanced Player Filters'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // RAS Score Filter
+                  Text('Minimum RAS Score: ${_minRasScore.toStringAsFixed(1)}'),
+                  Slider(
+                    value: _minRasScore,
+                    min: 0.0,
+                    max: 10.0,
+                    divisions: 100,
+                    label: _minRasScore.toStringAsFixed(1),
+                    onChanged: (value) => setState(() => _minRasScore = value),
+                  ),
+
+                  // Height Filter with feet and inches
+                  const Text('Height Range'),
+                  RangeSlider(
+                    values: RangeValues(_minHeight, _maxHeight),
+                    min: 60.0,  // 5'0"
+                    max: 80.0,  // 6'8"
+                    divisions: 20,
+                    labels: RangeLabels(
+                      '${(_minHeight ~/ 12)}\' ${(_minHeight % 12).toStringAsFixed(0)}"',
+                      '${(_maxHeight ~/ 12)}\' ${(_maxHeight % 12).toStringAsFixed(0)}"'
+                    ),
+                    onChanged: (values) => setState(() {
+                      _minHeight = values.start;
+                      _maxHeight = values.end;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _filterApplied = true;
+                  });
+                  // Force a rebuild to apply filters
+                  this.setState(() {});
+                },
+                child: const Text('Apply'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _minRasScore = 0.0;
+                    _minHeight = 60.0;
+                    _maxHeight = 80.0;
+                    _filterApplied = false;
+                  });
+                  // Force a rebuild to reset filters
+                  this.setState(() {});
+                },
+                child: const Text('Reset'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+// Add these state variables at the top of _AvailablePlayersTabState
+double _rasMinFilter = 0.0;
+RangeValues _heightRangeFilter = const RangeValues(60.0, 80.0);
+
+void _applyAdvancedFilters() {
+  setState(() {
+    // Modify the filtering logic in the build method
+  });
+}
+
+void _resetAdvancedFilters() {
+  setState(() {
+    _rasMinFilter = 0.0;
+    _heightRangeFilter = const RangeValues(60.0, 80.0);
+  });
+}
+
 }
