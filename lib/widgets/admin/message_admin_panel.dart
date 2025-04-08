@@ -1,221 +1,386 @@
-// lib/widgets/admin/analytics_setup_widget.dart
+// lib/widgets/admin/message_admin_panel.dart
 import 'package:flutter/material.dart';
-import '../../services/firebase_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/message_service.dart';
+import '../../utils/theme_config.dart';
 
-class AnalyticsSetupWidget extends StatefulWidget {
-  const AnalyticsSetupWidget({super.key});
+/// Admin panel to view and manage user messages
+/// This would be hidden behind authentication in a production app
+class MessageAdminPanel extends StatefulWidget {
+  const MessageAdminPanel({super.key});
 
   @override
-  _AnalyticsSetupWidgetState createState() => _AnalyticsSetupWidgetState();
+  _MessageAdminPanelState createState() => _MessageAdminPanelState();
 }
 
-class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
-  bool _isLoading = false;
-  bool _collectionsExist = false;
-  String _statusMessage = '';
+class _MessageAdminPanelState extends State<MessageAdminPanel> {
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoading = true;
+  String? _selectedMessageId;
 
   @override
   void initState() {
     super.initState();
-    _checkCollections();
+    _loadMessages();
   }
 
-  Future<void> _checkCollections() async {
+  Future<void> _loadMessages() async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Checking collections...';
     });
 
     try {
-      // Check if the collection exists
-      final db = FirebaseFirestore.instance;
-      final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
-      
+      final messages = await MessageService.getAllMessages();
       setState(() {
+        _messages = messages;
         _isLoading = false;
-        _collectionsExist = metadataDoc.exists;
-        _statusMessage = metadataDoc.exists 
-            ? 'Analytics collections are already set up.' 
-            : 'Analytics collections need to be created.';
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _statusMessage = 'Error checking collections: $e';
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading messages: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _setupCollections() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = 'Setting up collections...';
-    });
+  Future<void> _clearAllMessages() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete all messages? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    ) ?? false;
 
+    if (confirmed) {
+      await MessageService.clearAllMessages();
+      await _loadMessages();
+    }
+  }
+
+  String _formatTimestamp(String timestamp) {
     try {
-      // Create the collections
-      final db = FirebaseFirestore.instance;
-      
-      // Create metadata document in precomputedAnalytics collection
-      await db.collection('precomputedAnalytics').doc('metadata').set({
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'documentsProcessed': 0,
-        'setupDate': FieldValue.serverTimestamp()
-      });
-      
-      // Create positionDistribution document
-      await db.collection('precomputedAnalytics').doc('positionDistribution').set({
-        'overall': {
-          'total': 0,
-          'positions': {}
-        },
-        'byTeam': {},
-        'lastUpdated': FieldValue.serverTimestamp()
-      });
-      
-      // Create teamNeeds document
-      await db.collection('precomputedAnalytics').doc('teamNeeds').set({
-        'needs': {},
-        'year': DateTime.now().year,
-        'lastUpdated': FieldValue.serverTimestamp()
-      });
-      
-      // Create a test document in cachedQueries collection
-      await db.collection('cachedQueries').doc('setup_verification').set({
-        'created': FieldValue.serverTimestamp(),
-        'expires': Timestamp.fromDate(
-          DateTime.now().add(const Duration(days: 1)),
-        ),
-        'testData': 'Collection setup complete'
-      });
-      
-      setState(() {
-        _isLoading = false;
-        _collectionsExist = true;
-        _statusMessage = 'Success! Collections created.';
-      });
+      final date = DateTime.parse(timestamp);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _statusMessage = 'Error: $e';
-      });
+      return timestamp;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildMessageDetails(Map<String, dynamic> message) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.storage,
-                  color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Analytics Collections Setup',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.blue.shade900 : Colors.blue.shade100,
+              borderRadius: BorderRadius.circular(4),
             ),
-            
-            const SizedBox(height: 16),
-            
-            const Text(
-              'This will create the required Firestore collections for optimized analytics:',
-            ),
-            
-            const SizedBox(height: 8),
-            
-            const Padding(
-              padding: EdgeInsets.only(left: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('• precomputedAnalytics - For daily aggregated data'),
-                  Text('• cachedQueries - For storing frequent query results'),
-                ],
+            child: Text(
+              message['feedbackType'] ?? 'Unknown Type',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.blue.shade800,
               ),
             ),
-            
-            const SizedBox(height: 16),
-            
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _setupCollections,
-                  child: _isLoading 
-                    ? const SizedBox(
-                        height: 20, 
-                        width: 20, 
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_collectionsExist 
-                        ? 'Recreate Collections'
-                        : 'Setup Collections'),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                TextButton(
-                  onPressed: _isLoading ? null : _checkCollections,
-                  child: const Text('Check Status'),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            if (_statusMessage.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _collectionsExist 
-                    ? (isDarkMode ? Colors.green.shade900.withOpacity(0.2) : Colors.green.shade100)
-                    : (isDarkMode ? Colors.orange.shade900.withOpacity(0.2) : Colors.orange.shade100),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: _collectionsExist 
-                      ? (isDarkMode ? Colors.green.shade700 : Colors.green.shade300)
-                      : (isDarkMode ? Colors.orange.shade700 : Colors.orange.shade300),
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
+          ),
+          const SizedBox(height: 12),
+          
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _collectionsExist ? Icons.check_circle : Icons.info_outline,
-                      size: 16,
-                      color: _collectionsExist 
-                        ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
-                        : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
+                    Text(
+                      'From: ${message['name']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _statusMessage,
-                        style: TextStyle(
-                          color: _collectionsExist 
-                            ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
-                            : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
-                        ),
+                    Text(
+                      'Email: ${message['email']}',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
                       ),
                     ),
                   ],
                 ),
               ),
-          ],
-        ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Status: ${message['status'] ?? 'unknown'}',
+                    style: TextStyle(
+                      color: (message['status'] == 'pending')
+                          ? Colors.orange
+                          : (message['status'] == 'sent')
+                              ? Colors.green
+                              : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    _formatTimestamp(message['timestamp'] ?? ''),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          const Text(
+            'Message:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade700 : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
+              ),
+            ),
+            width: double.infinity,
+            child: Text(
+              message['message'] ?? 'No message content',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (message['status'] == 'pending')
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await MessageService.markMessageAsSent(message['timestamp']);
+                    _loadMessages();
+                  },
+                  icon: const Icon(Icons.send, size: 16),
+                  label: const Text('Mark as Sent'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Message Admin Panel'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loadMessages,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            tooltip: 'Clear All Messages',
+            onPressed: _clearAllMessages,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _messages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 64,
+                        color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No messages found',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed.withOpacity(0.1),
+                      child: Text(
+                        '${_messages.length} Message${_messages.length != 1 ? 's' : ''} Found',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : AppTheme.deepRed,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Message list (left sidebar)
+                          SizedBox(
+                            width: 250,
+                            child: ListView.builder(
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) {
+                                final message = _messages[index];
+                                final isSelected = _selectedMessageId == message['timestamp'];
+                                final name = message['name'] ?? 'Unknown';
+                                final timestamp = message['timestamp'] ?? '';
+                                final type = message['feedbackType'] ?? 'Unknown Type';
+
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                  color: isSelected
+                                      ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50)
+                                      : (isDarkMode ? Colors.grey.shade800 : Colors.white),
+                                  elevation: isSelected ? 4 : 1,
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedMessageId = message['timestamp'];
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  name,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isSelected
+                                                        ? (isDarkMode ? Colors.white : Colors.blue.shade800)
+                                                        : null,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: message['status'] == 'pending'
+                                                      ? Colors.orange
+                                                      : Colors.green,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            type,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _formatTimestamp(timestamp),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          
+                          // Vertical divider
+                          VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                          ),
+                          
+                          // Message details (right panel)
+                          Expanded(
+                            child: _selectedMessageId == null
+                                ? Center(
+                                    child: Text(
+                                      'Select a message to view details',
+                                      style: TextStyle(
+                                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: _buildMessageDetails(
+                                      _messages.firstWhere(
+                                        (msg) => msg['timestamp'] == _selectedMessageId,
+                                        orElse: () => {},
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 }
