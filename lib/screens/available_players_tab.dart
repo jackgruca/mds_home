@@ -260,45 +260,45 @@ List<Player> filteredPlayers = allPlayers.where((player) {
                       child: SizedBox(
                         height: 36,
                         child: TextField(
-  controller: _searchController,
-  decoration: InputDecoration(
-    hintText: 'Search Players',
-    prefixIcon: const Icon(Icons.search),
-    suffixIcon: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Explicitly styled filter icon
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade700 
-              : Colors.grey.shade200,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: Icon(
-              Icons.filter_list, 
-              size: 20,
-              color: Theme.of(context).brightness == Brightness.dark 
-                ? Colors.white 
-                : Colors.black87,
-            ),
-            onPressed: _showAdvancedFilterDialog,
-            tooltip: 'Advanced Filters',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ),
-      ],
-    ),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8.0),
-    ),
-    contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-  ),
-  style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
-),
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search Players',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Explicitly styled filter icon
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.grey.shade700 
+                                      : Colors.grey.shade200,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.filter_list, 
+                                      size: 20,
+                                      color: Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black87,
+                                    ),
+                                    onPressed: _showAdvancedFilterDialog,
+                                    tooltip: 'Advanced Filters',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                          ),
+                          style: const TextStyle(fontSize: TextConstants.kSearchBarTextSize),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -390,22 +390,22 @@ List<Player> filteredPlayers = allPlayers.where((player) {
                       ),
                     ),
                     if (_filterApplied)
-  Padding(
-    padding: const EdgeInsets.only(left: 8.0),
-    child: Chip(
-      label: const Text('Filters Applied'),
-      backgroundColor: Colors.blue.shade100,
-      deleteIcon: const Icon(Icons.close, size: 18),
-      onDeleted: () {
-        setState(() {
-          _filterApplied = false;
-          _minRasScore = 0.0;
-          _minHeight = 60.0;
-          _maxHeight = 80.0;
-        });
-      },
-    ),
-  ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Chip(
+                          label: const Text('Filters Applied'),
+                          backgroundColor: Colors.blue.shade100,
+                          deleteIcon: const Icon(Icons.close, size: 18),
+                          onDeleted: () {
+                            setState(() {
+                              _filterApplied = false;
+                              _minRasScore = 0.0;
+                              _minHeight = 60.0;
+                              _maxHeight = 80.0;
+                            });
+                          },
+                        ),
+                      ),
                     // Reset filter button
                     if (_selectedPositions.isNotEmpty || _showFavorites)
                       IconButton(
@@ -435,17 +435,17 @@ List<Player> filteredPlayers = allPlayers.where((player) {
               children: [
                 // Favorites filter
                 _buildPositionChip(
-                  '⭐ Favorites',
-                  _showFavorites,
-                  () {
-                    setState(() {
-                      _showFavorites = !_showFavorites;
-                    });
-                  },
-                  isOffensive: false,
-                  isDraftedByCurrentTeam: false,
-                  isSpecial: true,
-                ),
+                '⭐', // Use a minimal star instead of full text
+                _showFavorites,
+                () {
+                  setState(() {
+                    _showFavorites = !_showFavorites;
+                  });
+                },
+                isOffensive: false,
+                isDraftedByCurrentTeam: false,
+                isSpecial: true,
+              ),
                             
                             // All positions chip
                             if (_selectedPositions.isEmpty && !_showFavorites)
@@ -559,232 +559,169 @@ List<Player> filteredPlayers = allPlayers.where((player) {
                   bool isSelected = _selectedPlayerIds.contains(player.id);
                   bool positionDrafted = isPositionDraftedByCurrentTeam(player.position);
                   
-                  return Card(
-                    elevation: 1.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      side: BorderSide(
-                        color: isSelected ? 
-                            Colors.transparent : 
-                            (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-                        width: 1.0,
-                      ),
-                    ),
-                    // Apply visual styling for previously drafted positions
-                    color: isSelected ? 
-                        (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
-                        (positionDrafted ? 
-                          (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
-                          (isDarkMode ? Colors.grey.shade800 : Colors.white)),
-                    child: InkWell(
-                      // Always allow tapping the card for player details
-                      onTap: () {
-                        _showPlayerDetails(context, player);
-                      },
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-                        child: Row(
-                          children: [
-                            // Rank number (like pick number in draft order)
-                           Container(
-                            width: 30.0,
-                            height: 30.0,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.blue.shade700, // Consistent blue color for all rankings
-                            ),
-                            child: Center(
-                              child: Text(
-                                '#${player.rank}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.0,
-                                ),
-                              ),
-                            ),
-                          ),
+                  // Replace the existing player row section with this
+// In the ListView.builder itemBuilder method
+return Card(
+  elevation: 1.0,
+  margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(8.0),
+    side: BorderSide(
+      color: isSelected ? 
+          Colors.transparent : 
+          (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+      width: 1.0,
+    ),
+  ),
+  color: isSelected ? 
+      (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
+      (positionDrafted ? 
+        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
+        (isDarkMode ? Colors.grey.shade800 : Colors.white)),
+  child: InkWell(
+    onTap: () {
+      _showPlayerDetails(context, player);
+    },
+    borderRadius: BorderRadius.circular(8.0),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      child: Row(
+        children: [
+          // Existing rank container remains the same
+          Container(
+            width: 30.0,
+            height: 30.0,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blue.shade700,
+            ),
+            child: Center(
+              child: Text(
+                '#${player.rank}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.0,
+                ),
+              ),
+            ),
+          ),
 
-                          const SizedBox(width: 8.0),
-                          
-                          // School logo - make sure this is visible and given enough space
-                          player.school.isNotEmpty
-                            ? TeamLogoUtils.buildCollegeTeamLogo(
-                                player.school,
-                                size: 30.0,  // Slightly larger for better visibility
-                              )
-                            : const SizedBox(width: 30, height: 30),  // Placeholder space to maintain alignment
-                          
-                          const SizedBox(width: 8.0),
-                          
-                          // Player info
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Player name
-                                Text(
-                                  player.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14.0,
-                                    // Apply gray text for previously drafted positions
-                                    color: positionDrafted 
-                                      ? Colors.grey 
-                                      : (Theme.of(context).brightness == Brightness.dark 
-                                          ? Colors.white 
-                                          : Colors.black),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                // School and position
-                                Row(
-                                  children: [
-                                    if (player.school.isNotEmpty)
-                                      Flexible(
-                                        child: Text(
-                                          player.school,
-                                          style: TextStyle(
-                                            fontSize: 12.0,
-                                            color: positionDrafted 
-                                              ? Colors.grey.shade400 
-                                              : (Theme.of(context).brightness == Brightness.dark 
-                                                  ? Colors.grey.shade300 
-                                                  : Colors.grey.shade600),
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      
-                                    // RAS score if available and sorting by RAS
-                                    if (_sortOption == SortOption.ras && player.rasScore != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 8.0),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: _getRasColor(player.rasScore!).withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(4),
-                                            border: Border.all(
-                                              color: _getRasColor(player.rasScore!).withOpacity(0.5),
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'RAS: ${player.rasScore!.toStringAsFixed(1)}',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: _getRasColor(player.rasScore!),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
+          const SizedBox(width: 8.0),
+          
+          // School logo
+          player.school.isNotEmpty
+            ? TeamLogoUtils.buildCollegeTeamLogo(
+                player.school,
+                size: 30.0,
+              )
+            : const SizedBox(width: 30, height: 30),
+          
+          const SizedBox(width: 8.0),
+          
+          // Player info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  player.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.0,
+                    color: positionDrafted 
+                      ? Colors.grey 
+                      : (Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.white 
+                          : Colors.black),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
+                  children: [
+                    if (player.school.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          player.school,
+                          style: TextStyle(
+                            fontSize: 12.0,
+                            color: positionDrafted 
+                              ? Colors.grey.shade400 
+                              : (Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey.shade300 
+                                  : Colors.grey.shade600),
                           ),
-                                    
-                          // Position badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              player.position,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: positionDrafted ? Colors.grey : _getPositionColor(player.position),
-                              ),
-                            ),
-                          ),
-                          
-                          // Favorite Button
-                          Container(
-  width: 36,
-  height: 36,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+                    
+          // Position badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              player.position,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: positionDrafted ? Colors.grey : _getPositionColor(player.position),
+              ),
+            ),
+          ),
+
+          // Favorite Star - New Section
+          // Replace the Favorite Star section with this more robust implementation
+Container(
   margin: const EdgeInsets.only(left: 4),
-  child: IconButton(
-    onPressed: () {
+  child: GestureDetector(
+    onTap: () {
       _toggleFavorite(player.id);
       setState(() {});
     },
-    icon: Icon(
-      player.isFavorite ? Icons.star : Icons.star_border,
-      size: 24,
-      color: player.isFavorite ? 
-          (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600) : 
-          (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
-    ),
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints(),
-    style: ButtonStyle(
-      backgroundColor: WidgetStateProperty.all(
-        player.isFavorite ? 
-            (isDarkMode ? Colors.blue.shade900.withOpacity(0.2) : Colors.amber.shade50) : 
-            Colors.transparent
-      ),
-      shape: WidgetStateProperty.all(
-        CircleBorder(
-          side: BorderSide(
-            color: player.isFavorite ? 
-                (isDarkMode ? Colors.blue.shade400 : Colors.amber.shade600) : 
-                (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-            width: 1.0,
-          ),
+    child: Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: player.isFavorite 
+          ? (isDarkMode 
+              ? Colors.blue.shade900.withOpacity(0.5) 
+              : Colors.amber.shade100) 
+          : Colors.transparent,
+        border: Border.all(
+          color: player.isFavorite 
+            ? (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600)
+            : (isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400),
+          width: 1.0,
         ),
+      ),
+      child: Icon(
+        player.isFavorite ? Icons.star : Icons.star_border,
+        color: player.isFavorite 
+          ? (isDarkMode ? Colors.blue.shade300 : Colors.amber.shade600)
+          : (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700),
+        size: 20,
       ),
     ),
   ),
 ),
-                          // Draft button (if enabled)
-                          if (widget.selectionEnabled && widget.userTeam != null)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 4.0),
-                              child: SizedBox(
-                                width: 60,
-                                height: 30,
-                                child: ElevatedButton(
-                                  // Always allow drafting, even if position was already drafted
-                                  onPressed: () {
-                                    if (widget.onPlayerSelected != null) {
-                                      widget.onPlayerSelected!(player.id);
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    // Visual indication of previously drafted position
-                                    backgroundColor: positionDrafted ? Colors.green : Colors.green,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                    minimumSize: const Size(0, 28),
-                                  ),
-                                  child: Text(
-                                    // Change text to indicate if this is a duplicate position
-                                    positionDrafted ? 'Draft' : 'Draft',
-                                    style: TextStyle(
-                                      color: positionDrafted ? Colors.white : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
+        ],
+      ),
+    ),
+  ),
+);
                 },
               ),
             ),
@@ -794,15 +731,86 @@ List<Player> filteredPlayers = allPlayers.where((player) {
   }
   
   void _showPlayerDetails(BuildContext context, Player player) {
-  // First enrich the player data (similar to what's done elsewhere in your app)
-  Player enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+  // Attempt to get additional player information from description service
+  Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
-  // Now show the player details dialog
+  Player enrichedPlayer;
+  
+  if (additionalInfo != null) {
+    // If we have additional info, use it for the player
+    // Attempt to parse height from string to double
+    double? height;
+    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      // Handle height in different formats
+      if (heightStr.contains("'")) {
+        // Format like 6'2"
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else {
+        // Assume it's in inches
+        height = double.tryParse(heightStr);
+      }
+    }
+    
+    // Parse weight
+    double? weight;
+    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      weight = double.tryParse(additionalInfo['weight']!);
+    }
+    
+    // Parse 40 time and RAS
+    String? fortyTime = additionalInfo['fortyTime'];
+    
+    double? rasScore;
+    if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
+      rasScore = double.tryParse(additionalInfo['ras']!);
+    }
+    
+    enrichedPlayer = Player(
+      id: player.id,
+      name: player.name,
+      position: player.position,
+      rank: player.rank,
+      school: player.school,
+      notes: player.notes,
+      height: height ?? player.height,
+      weight: weight ?? player.weight,
+      rasScore: rasScore ?? player.rasScore,
+      description: additionalInfo['description'] ?? player.description,
+      strengths: additionalInfo['strengths'] ?? player.strengths,
+      weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
+      fortyTime: fortyTime ?? player.fortyTime,
+      isFavorite: player.isFavorite,
+    );
+  } else {
+    // Fall back to mock data for players without description
+    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+  }
+  
+  // Show the dialog with enriched player data
   showDialog(
     context: context,
-    builder: (context) => PlayerDetailsDialog(
-      player: enrichedPlayer,
-    ),
+    builder: (BuildContext context) {
+      return PlayerDetailsDialog(player: enrichedPlayer);
+    },
   );
 }
 
