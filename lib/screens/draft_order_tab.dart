@@ -94,6 +94,7 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
           isRecentPick: isRecentPick,
           teamNeeds: _getTeamNeeds(draftPick.teamName),
           isCurrentPick: isCurrentPick, // Pass the isCurrentPick flag
+          allDraftPicks: widget.draftOrder,
         );
       },
     );
