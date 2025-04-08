@@ -304,7 +304,7 @@ bool anyUserTeamHasOffers() {
     return nextPick;
   }
   
-  /// Evaluate potential trades for the current pick with realistic behavior
+/// Evaluate potential trades for the current pick with realistic behavior
 TradePackage? _evaluateTrades(DraftPick nextPick) {
   // Skip if already has trade info or is a user team pick
   if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty) {
@@ -349,55 +349,49 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
     }
   }
 
-    double tradeChance = _roundTradeFrequency[round] ?? 0.10;
+  // REMOVED: round-based trade frequency check
+  // Instead: Always evaluate trades, but rely on _tradeService to determine
+  // if a trade makes sense based on the new contextual factors
+  
+  // Enhanced QB trade logic - more aggressive for top QB prospects
+  bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
+  if (tryQBTrade) {
+    final qbTradeOffer = _tradeService.generateTradeOffersForPick(
+      nextPick.pickNumber, 
+      qbSpecific: true
+    );
     
-    // Calibrated randomness to determine if we evaluate trades
-    bool evaluateTrades = _random.nextDouble() < tradeChance;
-    
-    // If we decide not to evaluate trades, skip
-    if (!evaluateTrades && !_qbTrade) {
-      return null;
-    }
-    
-    // Enhanced QB trade logic - more aggressive for top QB prospects
-    bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
-    if (tryQBTrade) {
-      final qbTradeOffer = _tradeService.generateTradeOffersForPick(
-        nextPick.pickNumber, 
-        qbSpecific: true
-      );
-      
-      if (qbTradeOffer.packages.isNotEmpty) {
-        final bestPackage = qbTradeOffer.bestPackage;
-        if (bestPackage != null) {
-          _qbTrade = true;
-          _executeTrade(bestPackage);
-          return bestPackage;
-        }
+    if (qbTradeOffer.packages.isNotEmpty) {
+      final bestPackage = qbTradeOffer.bestPackage;
+      if (bestPackage != null) {
+        _qbTrade = true;
+        _executeTrade(bestPackage);
+        return bestPackage;
       }
     }
-    
-    // Regular trade evaluation
-    final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
-    
-    // Don't automatically execute user-involved trades
-    if (tradeOffer.isUserInvolved) {
-      return null;
-    }
-    
-    // If we have offers, find the best one that meets criteria
-    if (tradeOffer.packages.isNotEmpty) {
-      // Sort packages by value differential
-      List<TradePackage> viablePackages = List.from(tradeOffer.packages);
-      
-      for (var package in viablePackages) {
-        _executeTrade(package);
-        return package;  // Execute first viable trade
-      }
-    }
-    
+  }
+  
+  // Regular trade evaluation
+  final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+  
+  // Don't automatically execute user-involved trades
+  if (tradeOffer.isUserInvolved) {
     return null;
   }
+  
+  // If we have offers, find the best one that meets criteria
+  if (tradeOffer.packages.isNotEmpty) {
+    // Sort packages by value differential
+    List<TradePackage> viablePackages = List.from(tradeOffer.packages);
+    
+    for (var package in viablePackages) {
+      _executeTrade(package);
+      return package;  // Execute first viable trade
+    }
+  }
+  
+  return null;
+}
   
   /// Evaluate if we should try a QB-specific trade scenario
 bool _evaluateQBTradeScenario(DraftPick nextPick) {

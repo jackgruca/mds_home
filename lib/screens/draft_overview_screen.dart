@@ -73,6 +73,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   DraftPick? _userNextPick;
   final ScrollController _draftOrderScrollController = ScrollController();
   bool _summaryShown = false;
+  List<TradePackage> get executedTrades => _executedTrades;
+DraftService? get draftService => _draftService;
 
   // Tab controller for the additional trade history tab
   late TabController _tabController;

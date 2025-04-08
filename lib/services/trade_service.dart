@@ -146,6 +146,103 @@ void _updatePositionMarketVolatility() {
     }
   }
 }
+
+// Helper to detect tier cliffs at a position
+bool _hasTierCliff(String position, int currentPick) {
+  // Get available players at this position
+  final positionPlayers = availablePlayers
+      .where((p) => p.position == position)
+      .toList();
+  
+  // If fewer than 3 players at position, no cliff
+  if (positionPlayers.length < 3) return false;
+  
+  // Sort by rank
+  positionPlayers.sort((a, b) => a.rank.compareTo(b.rank));
+  
+  // Check if the best player is 20+ points better than the third best
+  // Using their rank difference as a proxy for value difference
+  if (positionPlayers.length >= 3) {
+    int rankDiff = positionPlayers[2].rank - positionPlayers[0].rank;
+    double valueDiff = DraftValueService.getValueForPick(positionPlayers[0].rank) - 
+                     DraftValueService.getValueForPick(positionPlayers[2].rank);
+    
+    // If value difference is significant (20+ points), consider it a tier cliff
+    return valueDiff >= 20 || rankDiff >= 10;
+  }
+  
+  return false;
+}
+
+// Helper to determine if a team is in "win-now" mode
+bool _isTeamInWinNowMode(String teamName) {
+  // Get all picks for this team
+  final teamPicks = draftOrder
+      .where((p) => p.teamName == teamName && !p.isSelected)
+      .toList();
+  
+  if (teamPicks.isEmpty) return false;
+  
+  // Sort picks by number
+  teamPicks.sort((a, b) => a.pickNumber.compareTo(b.pickNumber));
+  
+  // Get their earliest pick
+  int firstPickNumber = teamPicks.first.pickNumber;
+  
+  // Based on your criteria: picks 1-11 = rebuild, 12-22 = neutral, 23-32 win-now
+  if (firstPickNumber >= 23 && firstPickNumber <= 32) {
+    return true; // Win-now team
+  } else if (firstPickNumber >= 1 && firstPickNumber <= 11) {
+    return false; // Rebuilding team
+  } else {
+    // Neutral teams with extra picks may be in win-now mode
+    return teamPicks.length >= 3; // Lots of picks = flexibility to trade up
+  }
+}
+
+// Helper to check if team has opportunity to consolidate picks
+bool _hasPackageOpportunity(String teamName, int currentPick) {
+  // Check if team has multiple picks in the next 20 selections
+  final nextPickWindow = currentPick + 20;
+  
+  final nearbyPicks = draftOrder
+      .where((p) => p.teamName == teamName && 
+                  !p.isSelected && 
+                  p.pickNumber > currentPick && 
+                  p.pickNumber <= nextPickWindow)
+      .toList();
+  
+  return nearbyPicks.length > 1;
+}
+
+// Helper to check if competing team with same need exists
+bool _hasCompetingTeamForNeed(String position, int currentPick, int teamNextPick) {
+  // Check teams between current pick and team's next pick
+  for (int pickNum = currentPick + 1; pickNum < min(currentPick + 10, teamNextPick); pickNum++) {
+    try {
+      // Find the team with this pick
+      final competitor = draftOrder.firstWhere(
+        (pick) => pick.pickNumber == pickNum && !pick.isSelected,
+        orElse: () => throw Exception('Pick not found')
+      );
+      
+      // Get team needs
+      final needs = _getTeamNeeds(competitor.teamName);
+      if (needs == null) continue;
+      
+      // Check if this position is in top 3 needs
+      if (needs.needs.take(3).contains(position)) {
+        debugPrint("🏆 Found competing team ${competitor.teamName} at pick #$pickNum that needs $position");
+        return true;
+      }
+    } catch (e) {
+      // Skip if pick not found
+      continue;
+    }
+  }
+  
+  return false;
+}
   
   // Method to update each team's current pick position
   void _updateTeamPickPositions() {
@@ -374,74 +471,70 @@ void _updatePositionMarketVolatility() {
     return _random.nextDouble() < 0.4;
   }
   
-  // Find teams interested in trading up
-  List<TradeInterest> _findTeamsInterestedInTradingUp(int pickNumber, List<Player> valuablePlayers, bool qbSpecific) {
-    List<TradeInterest> interestedTeams = [];
+// Find teams interested in trading up
+List<TradeInterest> _findTeamsInterestedInTradingUp(int pickNumber, List<Player> valuablePlayers, bool qbSpecific) {
+  List<TradeInterest> interestedTeams = [];
+  
+  // Loop through all teams looking for trade interest
+  for (var teamNeed in teamNeeds) {
+    final teamName = teamNeed.teamName;
     
-    // Loop through all teams looking for trade interest
-    for (var teamNeed in teamNeeds) {
-      final teamName = teamNeed.teamName;
-      
-      // Skip if team has no picks or its next pick is before current pick
-      if (!_teamCurrentPickPosition.containsKey(teamName)) continue;
-      final teamNextPick = _teamCurrentPickPosition[teamName] ?? 999;
-      if (teamNextPick <= pickNumber) continue;
-      
-      // Get team's trade tendencies
-      final tendency = _getTeamTradingTendency(teamName);
-      
-      // Base trade activity level - can be adjusted by team tendencies
-      double tradeActivityBase = 0.3;  // Base 30% chance of considering trading
-      
-      // Adjust by team's activity level
-      tradeActivityBase *= tendency.tradeActivityLevel;
-      
-      // Early round adjustments (more activity)
-      int round = DraftValueService.getRoundForPick(pickNumber);
-      if (round == 1) tradeActivityBase *= 1.5;      // 50% more trades in 1st round
-      else if (round == 2) tradeActivityBase *= 1.3; // 30% more trades in 2nd round
-      
-      // Adjust for trade-up tendencies if team has it
-      if (tendency.tradeUpBias > 0.5) {
-        tradeActivityBase *= tendency.tradeUpBias * 1.3;
-      }
-      
-      // Check if team will consider trading at all
-      if (_random.nextDouble() > tradeActivityBase) continue;
-      
-      // Evaluate each valuable player to see if team would trade up
-      for (var player in valuablePlayers) {
-        double playerGrade = _getTeamPlayerGrade(teamName, player);
-        
-        // Calculate interest factors
-        double interestLevel = _calculateTradeUpInterest(
-          teamName, 
-          teamNeed, 
-          player, 
-          pickNumber, 
-          teamNextPick,
-          playerGrade,
-          qbSpecific
-        );
-        
-        // Teams must have significant interest to trade up
-        if (interestLevel > 0.6) {
-          interestedTeams.add(
-            TradeInterest(
-              teamName: teamName,
-              targetPlayer: player,
-              nextPickNumber: teamNextPick,
-              interestLevel: interestLevel
-            )
-          );
-          break; // Team found a player they want, no need to check others
-        }
-      }
+    // Skip if team has no picks or its next pick is before current pick
+    if (!_teamCurrentPickPosition.containsKey(teamName)) continue;
+    final teamNextPick = _teamCurrentPickPosition[teamName] ?? 999;
+    if (teamNextPick <= pickNumber) continue;
+    
+    // Get team's trade tendencies
+    final tendency = _getTeamTradingTendency(teamName);
+    
+    // Base trade activity level - can be adjusted by team tendencies
+    double tradeActivityBase = 0.4;  // Increased base probability from 0.3 to 0.4
+    
+    // Adjust by team's activity level
+    tradeActivityBase *= tendency.tradeActivityLevel;
+    
+    // Adjust for trade-up tendencies if team has it
+    if (tendency.tradeUpBias > 0.5) {
+      tradeActivityBase *= tendency.tradeUpBias * 1.2;
     }
     
-    return interestedTeams;
+    // Check if team will consider trading at all
+    if (_random.nextDouble() > tradeActivityBase) continue;
+    
+    // Evaluate each valuable player to see if team would trade up
+    for (var player in valuablePlayers) {
+      double playerGrade = _getTeamPlayerGrade(teamName, player);
+      
+      // Calculate interest factors
+      double interestLevel = _calculateTradeUpInterest(
+        teamName, 
+        teamNeed, 
+        player, 
+        pickNumber, 
+        teamNextPick,
+        playerGrade,
+        qbSpecific
+      );
+      
+      // Teams must have significant interest to trade up
+      if (interestLevel > 0.6) {
+        interestedTeams.add(
+          TradeInterest(
+            teamName: teamName,
+            targetPlayer: player,
+            nextPickNumber: teamNextPick,
+            interestLevel: interestLevel
+          )
+        );
+        break; // Team found a player they want, no need to check others
+      }
+    }
   }
   
+  return interestedTeams;
+}
+  
+// Inside _calculateTradeUpInterest method
 // Inside _calculateTradeUpInterest method
 double _calculateTradeUpInterest(
   String teamName,
@@ -481,7 +574,29 @@ double _calculateTradeUpInterest(
     interestLevel += 0.1;
   }
   
-  // Original code continues...
+  // 2. Value-based interest: Higher interest for valuable players
+  double valueFactor = 0.0;
+  if (playerGrade > 80) valueFactor = 0.2;
+  else if (playerGrade > 70) valueFactor = 0.1;
+  interestLevel += valueFactor;
+  
+  // 3. Positional premium: Higher interest for premium positions
+  double positionPremium = 0.0;
+  if (_premiumPositions.contains(player.position)) {
+    positionPremium = 0.15;
+  } else if (_secondaryPositions.contains(player.position)) {
+    positionPremium = 0.05;
+  }
+  interestLevel += positionPremium;
+  
+  // 4. Draft position factor: Higher interest for earlier picks
+  if (targetPickNumber <= 10) {
+    interestLevel += 0.15; // Top 10 picks
+  } else if (targetPickNumber <= 32) {
+    interestLevel += 0.1; // 1st round
+  } else if (targetPickNumber <= 64) {
+    interestLevel += 0.05; // 2nd round
+  }
   
   // 5. QB specific adjustments: Teams highly value QBs
   if (player.position == "QB" && qbInConsideration) {
@@ -503,15 +618,72 @@ double _calculateTradeUpInterest(
     }
   }
   
-  // 9. Round-specific adjustments - using original round variable from method
-  int targetRound = DraftValueService.getRoundForPick(targetPickNumber);
-  if (targetRound == 1) {
-    interestLevel += 0.1;  // More trades in round 1
-  } else if (targetRound >= 5) {
-    interestLevel -= 0.2;  // Fewer trades in late rounds
+  // 6. Distance factor: Less interest if current pick is close to team's next pick
+  int pickDistance = teamNextPick - targetPickNumber;
+  double distanceFactor = 0.0;
+  
+  if (pickDistance <= 5) {
+    distanceFactor = -0.2; // Close picks - less interest to trade up
+  } else if (pickDistance <= 15) {
+    distanceFactor = -0.1; // Moderate distance
+  }
+  interestLevel += distanceFactor;
+  
+  // 7. Team tendency adjustments
+  final tendency = _getTeamTradingTendency(teamName);
+  
+  if (tendency.tradeUpBias > 0.5) {
+    interestLevel += (tendency.tradeUpBias - 0.5) * 0.3; // Up to +15%
+  } else if (tendency.tradeUpBias < 0.5) {
+    interestLevel -= (0.5 - tendency.tradeUpBias) * 0.3; // Up to -15%
   }
   
-  // Rest of method continues...
+  if (tendency.aggressiveness > 0.5) {
+    interestLevel += (tendency.aggressiveness - 0.5) * 0.2; // Up to +10%
+  }
+  
+  // 8. Competitor threat - team ahead might take same position
+  bool competitorThreat = _competitorsWantSamePosition(player.position, targetPickNumber, teamNextPick);
+  if (competitorThreat) {
+    interestLevel += 0.2; // Big boost for competition threat
+  }
+  
+  // NEW TRIGGERS
+  
+  // TRIGGER 1: Position run detection
+  double positionVolatility = _positionMarketVolatility[player.position] ?? 0.0;
+  if (positionVolatility > 0.3) {
+    if (needIndex >= 0 && needIndex < 3) {
+      // More urgency if this is a top need and there's a run on the position
+      interestLevel += positionVolatility * 0.5;
+      debugPrint("🔥 TRADE TRIGGER: Position run on ${player.position} increases interest by ${(positionVolatility * 0.5).toStringAsFixed(2)}");
+    } else if (needIndex >= 0) {
+      // Less urgency for lower needs
+      interestLevel += positionVolatility * 0.25;
+    }
+  }
+  
+  // TRIGGER 2: Tier cliff detection
+  bool tierCliff = _hasTierCliff(player.position, targetPickNumber);
+  if (tierCliff && needIndex >= 0 && needIndex < 4) {
+    interestLevel += 0.3;
+    debugPrint("📉 TRADE TRIGGER: Tier cliff detected for ${player.position} increases interest by 0.3");
+  }
+  
+  // TRIGGER 3: Package opportunity in win-now mode
+  bool isWinNow = _isTeamInWinNowMode(teamName);
+  bool hasPackage = _hasPackageOpportunity(teamName, targetPickNumber);
+  if (isWinNow && hasPackage) {
+    interestLevel += 0.25;
+    debugPrint("📦 TRADE TRIGGER: Win-now team with package opportunity increases interest by 0.25");
+  }
+  
+  // TRIGGER 4: Competing team for same need
+  bool hasCompetingTeam = _hasCompetingTeamForNeed(player.position, targetPickNumber, teamNextPick);
+  if (hasCompetingTeam && needIndex >= 0 && needIndex < 3) {
+    interestLevel += 0.35;
+    debugPrint("🏆 TRADE TRIGGER: Competing team for ${player.position} increases interest by 0.35");
+  }
   
   return max(0.0, min(1.0, interestLevel));
 }
