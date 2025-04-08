@@ -707,7 +707,39 @@ return Card(
       ),
     ),
   ),
-)
+),
+// Draft button (if enabled)
+                        if (widget.selectionEnabled && widget.userTeam != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            child: SizedBox(
+                              width: 60,
+                              height: 30,
+                              child: ElevatedButton(
+                                // Always allow drafting, even if position was already drafted
+                                onPressed: () {
+                                  if (widget.onPlayerSelected != null) {
+                                    widget.onPlayerSelected!(player.id);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  // Visual indication of previously drafted position
+                                  backgroundColor: positionDrafted ? Colors.green : Colors.green,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  minimumSize: const Size(0, 28),
+                                ),
+                                child: Text(
+                                  // Change text to indicate if this is a duplicate position
+                                  positionDrafted ? 'Draft' : 'Draft',
+                                  style: TextStyle(
+                                    color: positionDrafted ? Colors.white : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
         ],
       ),
     ),
