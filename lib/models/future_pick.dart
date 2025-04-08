@@ -85,15 +85,15 @@ class FuturePick {
     double baseValue;
     if (round == 1) {
       // Average of all 1st round picks
-      baseValue = 1000; // Approximate average 1st round value
+      baseValue = 305; // Approximate average 1st round value
     } else if (round == 2) {
-      baseValue = 450; // Approximate average 2nd round value
+      baseValue = 121; // Approximate average 2nd round value
     } else if (round == 3) {
-      baseValue = 250; // Approximate average 3rd round value
+      baseValue = 56; // Approximate average 3rd round value
     } else if (round == 4) {
-      baseValue = 120; // Approximate average 4th round value
+      baseValue = 25; // Approximate average 4th round value
     } else {
-      baseValue = 50; // Approximate average late round value
+      baseValue = 11; // Approximate average late round value
     }
     
     // Apply future discount based on round

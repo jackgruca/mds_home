@@ -16,6 +16,8 @@ class Player {
   String? strengths;
   String? weaknesses;
   String? fortyTime;
+  bool isFavorite; // Add this line
+
 
   Player({
     required this.id,
@@ -31,6 +33,7 @@ class Player {
     this.strengths,
     this.weaknesses,
     this.fortyTime,
+    this.isFavorite = false, // Default to false
   });
   
   // Create a Player from CSV row data
@@ -255,6 +258,7 @@ class Player {
         rank: rank,
         school: school,
         notes: notes,
+        isFavorite: false, // Add this line
         height: height,
         weight: weight,
         rasScore: rasScore,
