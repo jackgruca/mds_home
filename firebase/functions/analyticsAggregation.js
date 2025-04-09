@@ -1,7 +1,6 @@
 // firebase/functions/aggregateAnalytics.js
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-admin.initializeApp();
 
 exports.dailyAnalyticsAggregation = functions.pubsub
     .schedule('0 2 * * *')  // Run at 2 AM every day
