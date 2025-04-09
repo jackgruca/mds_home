@@ -11,9 +11,18 @@ import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
 import '../services/favorite_players_service.dart';  // Add this import
 
-
-
-enum SortOption { rank, ras }
+enum SortOption { 
+  rank, 
+  name, 
+  position, 
+  school, 
+  ras, 
+  height, 
+  weight, 
+  fortyTime, 
+  verticalJump,
+  // Add more as needed
+}
 
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
@@ -39,16 +48,27 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
-  bool _showFavorites = false; // Add this line for favorites filter
-  final Set<int> _favoritePlayerIds = {}; // Store favorite player IDs
+  bool _showFavorites = false;
+  final Set<int> _favoritePlayerIds = {};
+  
+  // Basic filters
   double _minRasScore = 0.0;
-  double _maxHeight = 80.0;  // 6'8"
   double _minHeight = 60.0;  // 5'0"
+  double _maxHeight = 80.0;  // 6'8"
   bool _filterApplied = false;
-  final bool _isFilterActive = false;
-
-  // Add sort options
-  SortOption _sortOption = SortOption.rank; // Default sort by rank
+  
+  // Extended filters
+  double? _minWeight;
+  double? _maxWeight;
+  String? _fortyTimeFilter;
+  double? _minFortyTime;
+  double? _maxFortyTime;
+  double? _minVerticalJump;
+  double? _maxVerticalJump;
+  
+  // Sorting options
+  SortOption _sortOption = SortOption.rank;
+  bool _sortAscending = true;
   
   // Track selected (crossed out) players locally
   Set<int> _selectedPlayerIds = {};
@@ -168,7 +188,7 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     }
     
     // Update filter logic for favorites
-List<Player> filteredPlayers = allPlayers.where((player) {
+    List<Player> filteredPlayers = allPlayers.where((player) {
   // Existing filters
   bool matchesSearch = _searchQuery.isEmpty || 
     player.name.toLowerCase().contains(_searchQuery) ||
@@ -203,29 +223,119 @@ List<Player> filteredPlayers = allPlayers.where((player) {
     }
   }
 
+  // Weight Filter
+  bool meetsWeightFilter = true;
+  if (_filterApplied && _minWeight != null && _maxWeight != null) {
+    if (player.weight == null) {
+      meetsWeightFilter = false;
+    } else {
+      meetsWeightFilter = player.weight! >= _minWeight! && player.weight! <= _maxWeight!;
+    }
+  }
+
+  // 40 Yard Dash Filter
+  bool meetsFortyFilter = true;
+  if (_filterApplied && _fortyTimeFilter != null && _minFortyTime != null && _maxFortyTime != null) {
+    // Extract numeric value from format like "4.50s"
+    if (player.fortyTime == null || player.fortyTime!.isEmpty) {
+      meetsFortyFilter = false;
+    } else {
+      try {
+        double fortyTime = double.parse(player.fortyTime!.replaceAll('s', ''));
+        meetsFortyFilter = fortyTime >= _minFortyTime! && fortyTime <= _maxFortyTime!;
+      } catch (e) {
+        meetsFortyFilter = false;
+      }
+    }
+  }
+
+  // Vertical Jump Filter
+  bool meetsVerticalFilter = true;
+  if (_filterApplied && _minVerticalJump != null && _maxVerticalJump != null) {
+    if (player.verticalJump == null) {
+      meetsVerticalFilter = false;
+    } else {
+      meetsVerticalFilter = player.verticalJump! >= _minVerticalJump! && 
+                            player.verticalJump! <= _maxVerticalJump!;
+    }
+  }
+
   return matchesSearch && 
          matchesPosition && 
          matchesFavorites && 
          meetsRasFilter && 
-         meetsHeightFilter;
+         meetsHeightFilter &&
+         meetsWeightFilter &&
+         meetsFortyFilter &&
+         meetsVerticalFilter;
 }).toList();
     
-    // Sort filtered players
-    switch (_sortOption) {
-      case SortOption.rank:
-        // Sort by rank (ascending)
-        filteredPlayers.sort((a, b) => a.rank.compareTo(b.rank));
-        break;
-      case SortOption.ras:
-        // Sort by RAS (descending), null values at the bottom
-        filteredPlayers.sort((a, b) {
-          if (a.rasScore == null && b.rasScore == null) return 0;
-          if (a.rasScore == null) return 1;
-          if (b.rasScore == null) return -1;
-          return b.rasScore!.compareTo(a.rasScore!);
-        });
-        break;
-    }
+    // Apply sorting
+switch (_sortOption) {
+  case SortOption.rank:
+    filteredPlayers.sort((a, b) => a.rank.compareTo(b.rank));
+    break;
+  case SortOption.name:
+    filteredPlayers.sort((a, b) => a.name.compareTo(b.name));
+    break;
+  case SortOption.position:
+    filteredPlayers.sort((a, b) => a.position.compareTo(b.position));
+    break;
+  case SortOption.school:
+    filteredPlayers.sort((a, b) => a.school.compareTo(b.school));
+    break;
+  case SortOption.ras:
+    filteredPlayers.sort((a, b) {
+      if (a.rasScore == null && b.rasScore == null) return 0;
+      if (a.rasScore == null) return 1; // Nulls at the bottom
+      if (b.rasScore == null) return -1;
+      return a.rasScore!.compareTo(b.rasScore!);
+    });
+    break;
+  case SortOption.height:
+    filteredPlayers.sort((a, b) {
+      if (a.height == null && b.height == null) return 0;
+      if (a.height == null) return 1;
+      if (b.height == null) return -1;
+      return a.height!.compareTo(b.height!);
+    });
+    break;
+  case SortOption.weight:
+    filteredPlayers.sort((a, b) {
+      if (a.weight == null && b.weight == null) return 0;
+      if (a.weight == null) return 1;
+      if (b.weight == null) return -1;
+      return a.weight!.compareTo(b.weight!);
+    });
+    break;
+  case SortOption.fortyTime:
+    filteredPlayers.sort((a, b) {
+      if (a.fortyTime == null && b.fortyTime == null) return 0;
+      if (a.fortyTime == null) return 1;
+      if (b.fortyTime == null) return -1;
+      try {
+        double aTime = double.parse(a.fortyTime!.replaceAll('s', ''));
+        double bTime = double.parse(b.fortyTime!.replaceAll('s', ''));
+        return aTime.compareTo(bTime);
+      } catch (e) {
+        return 0;
+      }
+    });
+    break;
+  case SortOption.verticalJump:
+    filteredPlayers.sort((a, b) {
+      if (a.verticalJump == null && b.verticalJump == null) return 0;
+      if (a.verticalJump == null) return 1;
+      if (b.verticalJump == null) return -1;
+      return a.verticalJump!.compareTo(b.verticalJump!);
+    });
+    break;
+}
+
+// Reverse if not ascending
+if (!_sortAscending) {
+  filteredPlayers = filteredPlayers.reversed.toList();
+}
 
     // Get all available positions for filters
     Set<String> availablePositions = allPlayers
@@ -291,63 +401,83 @@ Row(
     const SizedBox(width: 8),
     
     // Sort dropdown
-    Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Colors.grey.shade700 
-            : Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade600 
-              : Colors.grey.shade400,
-        ),
-      ),
-      child: DropdownButton<SortOption>(
-        value: _sortOption,
-        isDense: true,
-        underline: Container(),
-        icon: const Icon(Icons.arrow_drop_down, size: 20),
-        style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.white 
-              : Colors.black87,
-          fontSize: 12,
-        ),
-        items: const [
-          DropdownMenuItem(
-            value: SortOption.rank,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sort, size: 14),
-                SizedBox(width: 4),
-                Text('Rank'),
-              ],
-            ),
-          ),
-          DropdownMenuItem(
-            value: SortOption.ras,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sort, size: 14),
-                SizedBox(width: 4),
-                Text('RAS'),
-              ],
-            ),
-          ),
-        ],
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _sortOption = value;
-            });
-          }
-        },
-      ),
+Container(
+  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
+  decoration: BoxDecoration(
+    color: Theme.of(context).brightness == Brightness.dark 
+        ? Colors.grey.shade700 
+        : Colors.grey.shade200,
+    borderRadius: BorderRadius.circular(6.0),
+    border: Border.all(
+      color: Theme.of(context).brightness == Brightness.dark 
+          ? Colors.grey.shade600 
+          : Colors.grey.shade400,
     ),
+  ),
+  child: DropdownButton<SortOption>(
+    value: _sortOption,
+    isDense: true,
+    underline: Container(),
+    icon: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 16,
+        ),
+        const Icon(Icons.arrow_drop_down, size: 20),
+      ],
+    ),
+    style: TextStyle(
+      color: Theme.of(context).brightness == Brightness.dark 
+          ? Colors.white 
+          : Colors.black87,
+      fontSize: 12,
+    ),
+    items: [
+      _buildSortItem(SortOption.rank, 'Rank'),
+      _buildSortItem(SortOption.name, 'Name'),
+      _buildSortItem(SortOption.position, 'Position'),
+      _buildSortItem(SortOption.school, 'School'),
+      _buildSortItem(SortOption.ras, 'RAS'),
+      _buildSortItem(SortOption.height, 'Height'),
+      _buildSortItem(SortOption.weight, 'Weight'),
+      _buildSortItem(SortOption.fortyTime, '40 Time'),
+      _buildSortItem(SortOption.verticalJump, 'Vertical'),
+    ],
+    onChanged: (value) {
+      if (value != null) {
+        setState(() {
+          // If selecting the same option, toggle direction
+          if (_sortOption == value) {
+            _sortAscending = !_sortAscending;
+          } else {
+            _sortOption = value;
+            // Default to ascending for alphabetical, descending for numerical
+            switch (value) {
+              case SortOption.name:
+              case SortOption.position:
+              case SortOption.school:
+                _sortAscending = true;
+                break;
+              default:
+                _sortAscending = false; // Higher values first for athletic metrics
+            }
+            // Exception for 40 time where lower is better
+            if (value == SortOption.fortyTime) {
+              _sortAscending = true; // Lower is better
+            }
+            if (value == SortOption.rank) {
+              _sortAscending = true; // Lower rank is better
+            }
+          }
+        });
+      }
+    },
+  ),
+),
+
+
 
     // Make the filter button more visible
     Container(
@@ -1033,6 +1163,15 @@ return Card(
   double tempMinRas = _minRasScore;
   double tempMinHeight = _minHeight;
   double tempMaxHeight = _maxHeight;
+  double tempMinWeight = _minWeight ?? 150;
+  double tempMaxWeight = _maxWeight ?? 350;
+  String? tempFortyFilter = _fortyTimeFilter;
+  double? tempMinFortyTime = _minFortyTime;
+  double? tempMaxFortyTime = _maxFortyTime;
+  double? tempMinVertical = _minVerticalJump;
+  double? tempMaxVertical = _maxVerticalJump;
+  
+  // More filter variables can be defined here
 
   showDialog(
     context: context,
@@ -1120,6 +1259,155 @@ return Card(
                       tempMaxHeight = values.end;
                     }),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Weight Filter
+                  const Text('Weight Range (lbs)'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${tempMinWeight.toStringAsFixed(0)} lbs',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${tempMaxWeight.toStringAsFixed(0)} lbs',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  RangeSlider(
+                    values: RangeValues(tempMinWeight, tempMaxWeight),
+                    min: 150.0,
+                    max: 350.0,
+                    divisions: 40,
+                    labels: RangeLabels(
+                      '${tempMinWeight.toStringAsFixed(0)} lbs',
+                      '${tempMaxWeight.toStringAsFixed(0)} lbs'
+                    ),
+                    onChanged: (values) => setState(() {
+                      tempMinWeight = values.start;
+                      tempMaxWeight = values.end;
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // 40 Yard Dash Filter
+                  const Text('40 Yard Dash (seconds)'),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: tempFortyFilter != null,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              tempFortyFilter = "range";
+                              tempMinFortyTime ??= 4.3;
+                              tempMaxFortyTime ??= 5.0;
+                            } else {
+                              tempFortyFilter = null;
+                            }
+                          });
+                        },
+                      ),
+                      const Text('Filter by 40 time'),
+                    ],
+                  ),
+                  if (tempFortyFilter != null)
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${tempMinFortyTime?.toStringAsFixed(2) ?? "4.30"}s',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${tempMaxFortyTime?.toStringAsFixed(2) ?? "5.00"}s',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        RangeSlider(
+                          values: RangeValues(
+                            tempMinFortyTime ?? 4.3,
+                            tempMaxFortyTime ?? 5.0,
+                          ),
+                          min: 4.2,
+                          max: 5.2,
+                          divisions: 20,
+                          labels: RangeLabels(
+                            '${tempMinFortyTime?.toStringAsFixed(2) ?? "4.30"}s',
+                            '${tempMaxFortyTime?.toStringAsFixed(2) ?? "5.00"}s'
+                          ),
+                          onChanged: (values) => setState(() {
+                            tempMinFortyTime = values.start;
+                            tempMaxFortyTime = values.end;
+                          }),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
+                  
+                  // Vertical Jump Filter
+                  const Text('Vertical Jump (inches)'),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: tempMinVertical != null,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              tempMinVertical = 28.0;
+                              tempMaxVertical = 42.0;
+                            } else {
+                              tempMinVertical = null;
+                              tempMaxVertical = null;
+                            }
+                          });
+                        },
+                      ),
+                      const Text('Filter by vertical jump'),
+                    ],
+                  ),
+                  if (tempMinVertical != null)
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${tempMinVertical?.toStringAsFixed(1) ?? "28.0"}"',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${tempMaxVertical?.toStringAsFixed(1) ?? "42.0"}"',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        RangeSlider(
+                          values: RangeValues(
+                            tempMinVertical ?? 28.0,
+                            tempMaxVertical ?? 42.0,
+                          ),
+                          min: 20.0,
+                          max: 45.0,
+                          divisions: 25,
+                          labels: RangeLabels(
+                            '${tempMinVertical?.toStringAsFixed(1) ?? "28.0"}"',
+                            '${tempMaxVertical?.toStringAsFixed(1) ?? "42.0"}"'
+                          ),
+                          onChanged: (values) => setState(() {
+                            tempMinVertical = values.start;
+                            tempMaxVertical = values.end;
+                          }),
+                        ),
+                      ],
+                    ),
+                  
+                  // Additional filters can be added here
                 ],
               ),
             ),
@@ -1137,6 +1425,13 @@ return Card(
                     _minRasScore = 0.0;
                     _minHeight = 60.0;
                     _maxHeight = 80.0;
+                    _minWeight = null;
+                    _maxWeight = null;
+                    _fortyTimeFilter = null;
+                    _minFortyTime = null;
+                    _maxFortyTime = null;
+                    _minVerticalJump = null;
+                    _maxVerticalJump = null;
                     _filterApplied = false;
                   });
                 },
@@ -1149,6 +1444,13 @@ return Card(
                     _minRasScore = tempMinRas;
                     _minHeight = tempMinHeight;
                     _maxHeight = tempMaxHeight;
+                    _minWeight = tempMinWeight;
+                    _maxWeight = tempMaxWeight;
+                    _fortyTimeFilter = tempFortyFilter;
+                    _minFortyTime = tempMinFortyTime;
+                    _maxFortyTime = tempMaxFortyTime;
+                    _minVerticalJump = tempMinVertical;
+                    _maxVerticalJump = tempMaxVertical;
                     _filterApplied = true;
                   });
                 },
@@ -1159,6 +1461,19 @@ return Card(
         },
       );
     },
+  );
+}
+DropdownMenuItem<SortOption> _buildSortItem(SortOption option, String label) {
+  return DropdownMenuItem(
+    value: option,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.sort, size: 14),
+        const SizedBox(width: 4),
+        Text(label),
+      ],
+    ),
   );
 }
 }
