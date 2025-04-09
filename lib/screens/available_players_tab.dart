@@ -1,6 +1,7 @@
 // lib/screens/available_players_tab.dart
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/favorite_players_service.dart';
@@ -50,6 +51,9 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final Set<String> _selectedPositions = {};
   bool _showFavorites = false;
   final Set<int> _favoritePlayerIds = {};
+  bool _debugMode = false;
+
+
   
   // Basic filters
   double _minRasScore = 0.0;
@@ -78,18 +82,40 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final List<String> _defensivePositions = ['EDGE', 'DL', 'IDL', 'DT', 'DE', 'LB', 'ILB', 'OLB', 'CB', 'S', 'FS', 'SS'];
 
   @override
-  void initState() {
-    super.initState();
-    _initializeSelectedPlayers();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
-      });
+void initState() {
+  super.initState();
+  _initializeSelectedPlayers();
+  _searchController.addListener(() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
     });
-    
-    // Initialize favorites service
-    FavoritePlayersService.initialize();
-  }
+  });
+  
+  // Initialize filter values
+  _minRasScore = 0.0;
+  _minHeight = 60.0;  // 5'0"
+  _maxHeight = 80.0;  // 6'8"
+  _minWeight = 150.0;
+  _maxWeight = 350.0;
+  _fortyTimeFilter = null;
+  _minFortyTime = 4.3;
+  _maxFortyTime = 5.0;
+  _minVerticalJump = null;
+  _maxVerticalJump = null;
+  _filterApplied = false;
+  
+  // Initialize player data services
+  PlayerDescriptionsService.initialize().then((_) {
+    if (mounted) {
+      setState(() {
+        // Refresh after descriptions are loaded
+      });
+    }
+  });
+  
+  // Initialize favorites service
+  FavoritePlayersService.initialize();
+}
   
   @override
   void dispose() {
@@ -129,7 +155,156 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     return false;
   }
   
+  // Validate Player Attributes 
+  void _validateAndCorrectPlayerData(List<Player> players) {
+  for (var player in players) {
+    // Validate RAS Score
+    if (player.rasScore != null) {
+      // Ensure it's in the expected range
+      if (player.rasScore! < 0 || player.rasScore! > 10) {
+        debugPrint('Correcting invalid RAS score for ${player.name}: ${player.rasScore}');
+        player.rasScore = player.rasScore!.clamp(0.0, 10.0);
+      }
+    }
+    
+    // Validate Height
+    if (player.height != null) {
+      // Ensure it's in a reasonable range (5'0" to 6'8")
+      if (player.height! < 60 || player.height! > 80) {
+        debugPrint('Correcting invalid height for ${player.name}: ${player.height}');
+        player.height = player.height!.clamp(60.0, 80.0);
+      }
+    }
+    
+    // Validate Weight
+    if (player.weight != null) {
+      // Ensure it's in a reasonable range (150-350 lbs)
+      if (player.weight! < 150 || player.weight! > 350) {
+        debugPrint('Correcting invalid weight for ${player.name}: ${player.weight}');
+        player.weight = player.weight!.clamp(150.0, 350.0);
+      }
+    }
+    
+    // Validate 40 Time
+    if (player.fortyTime != null && player.fortyTime!.isNotEmpty) {
+      try {
+        double time = double.parse(player.fortyTime!.replaceAll('s', ''));
+        if (time < 4.0 || time > 6.0) {
+          debugPrint('Correcting invalid 40 time for ${player.name}: ${player.fortyTime}');
+          player.fortyTime = (time.clamp(4.0, 6.0)).toStringAsFixed(2);
+        }
+      } catch (e) {
+        // If can't parse, leave as is
+      }
+    }
+  }
+}
+
+void _enrichPlayerData(Player player) {
+  // Attempt to get additional player information from description service
+  Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
+  if (additionalInfo != null && _debugMode) {
+    debugPrint('Found description data for ${player.name}');
+  }
+  
+  if (additionalInfo != null) {
+    // Parse height
+    if (player.height == null && additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      if (heightStr.contains("'")) {
+        // Format like 6'2" or 6-2
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          player.height = (feet * 12 + inches).toDouble();
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          player.height = (feet * 12 + inches).toDouble();
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      } else {
+        // Try to parse as either just inches or in a different format
+        try {
+          player.height = double.tryParse(heightStr);
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      }
+    }
+    
+    // Parse weight
+    if (player.weight == null && additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      try {
+        player.weight = double.tryParse(additionalInfo['weight']!);
+        if (_debugMode) debugPrint('  Parsed weight: ${additionalInfo['weight']} as ${player.weight} lbs');
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse weight: ${additionalInfo['weight']}, error: $e');
+      }
+    }
+    
+    // Parse 40 time
+    if ((player.fortyTime == null || player.fortyTime!.isEmpty) && 
+        additionalInfo['fortyTime'] != null && additionalInfo['fortyTime']!.isNotEmpty) {
+      player.fortyTime = additionalInfo['fortyTime'];
+      if (_debugMode) debugPrint('  Set 40 time: ${player.fortyTime}');
+    }
+    
+    // Parse RAS
+    if (player.rasScore == null && additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
+      try {
+        player.rasScore = double.tryParse(additionalInfo['ras']!);
+        if (_debugMode) debugPrint('  Parsed RAS: ${additionalInfo['ras']} as ${player.rasScore}');
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse RAS: ${additionalInfo['ras']}, error: $e');
+      }
+    }
+    
+    // Fill other fields
+    // ... [all the other athletic measurements from previous response]
+  }
+  
+  // Use mock data as fallback for missing values
+  if (player.height == null || player.weight == null || player.rasScore == null ||
+      player.fortyTime == null || player.fortyTime!.isEmpty) {
+    
+    // Use mock data to fill in missing values (without overwriting existing ones)
+    Player enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+    
+    // Only copy missing values
+    if (player.height == null) {
+      player.height = enrichedPlayer.height;
+      if (_debugMode) debugPrint('  Added mock height: ${player.height}');
+    }
+    if (player.weight == null) {
+      player.weight = enrichedPlayer.weight;
+      if (_debugMode) debugPrint('  Added mock weight: ${player.weight}');
+    }
+    if (player.rasScore == null) {
+      player.rasScore = enrichedPlayer.rasScore;
+      if (_debugMode) debugPrint('  Added mock RAS: ${player.rasScore}');
+    }
+    if (player.fortyTime == null || player.fortyTime!.isEmpty) {
+      player.fortyTime = enrichedPlayer.fortyTime;
+      if (_debugMode) debugPrint('  Added mock 40 time: ${player.fortyTime}');
+    }
+    // Copy other athletic measurements as needed
+  }
+}
+
   // Toggle player favorite status
   void _toggleFavorite(int playerId) async {
     final isFavorite = await FavoritePlayersService.toggleFavorite(playerId);
@@ -168,31 +343,79 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     int rankIndex = columnIndices["RANK_COMBINED"] ?? widget.availablePlayers[0].length - 1;
     int rasIndex = columnIndices["RAS"] ?? -1; // Add index for RAS score
 
-   // Create Player objects from the raw data
-    List<Player> allPlayers = [];
-    for (var row in widget.availablePlayers.skip(1)) {
-      try {
-        // Skip if we don't have enough elements
-        if (row.length <= positionIndex) continue;
-        
-        // Extract data and create Player object
-        Player player = Player.fromCsvRowWithHeaders(row, columnIndices);
-        
-        // Check if this player is favorited - use the service now
-        player.isFavorite = FavoritePlayersService.isFavorite(player.id);
-        
-        allPlayers.add(player);
-      } catch (e) {
-        debugPrint("Error processing player row: $e");
-      }
+// Create Player objects from the raw data
+List<Player> allPlayers = [];
+for (var row in widget.availablePlayers.skip(1)) {
+  try {
+    // Skip if we don't have enough elements
+    if (row.length <= positionIndex) continue;
+    
+    // Extract data and create Player object
+    Player player = Player.fromCsvRowWithHeaders(row, columnIndices);
+    
+    // Check if this player is favorited - use the service now
+    player.isFavorite = FavoritePlayersService.isFavorite(player.id);
+    
+    // Add debugging to see raw player data before enrichment
+    if (_debugMode) {
+      debugPrint('Created player from CSV: ${player.name}, Position: ${player.position}, '
+          'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
     }
+    
+    // Enrich player with descriptions and mock data
+    _enrichPlayerData(player);
+    
+    allPlayers.add(player);
+  } catch (e) {
+    debugPrint("Error processing player row: $e");
+  }
+}
+
+void debugPlayerDescriptionsService() {
+  debugPrint('===== DEBUGGING PLAYER DESCRIPTIONS SERVICE =====');
+  
+  // Check if service is initialized
+  debugPrint('Attempting to get description for Travis Hunter...');
+  Map<String, String>? hunterInfo = PlayerDescriptionsService.getPlayerDescription('Travis Hunter');
+  
+  if (hunterInfo != null) {
+    debugPrint('Found data for Travis Hunter:');
+    hunterInfo.forEach((key, value) {
+      debugPrint('  $key: ${value.substring(0, min(30, value.length))}${value.length > 30 ? "..." : ""}');
+    });
+  } else {
+    debugPrint('NO DATA FOUND for Travis Hunter - PlayerDescriptionsService not working correctly');
+  }
+  
+  // Try a few more names
+  List<String> sampleNames = ['Caleb Williams', 'Marvin Harrison Jr', 'Malik Nabers', 'Drake Maye'];
+  for (String name in sampleNames) {
+    Map<String, String>? playerInfo = PlayerDescriptionsService.getPlayerDescription(name);
+    debugPrint('$name: ${playerInfo != null ? "Data Found" : "NO DATA FOUND"}');
+  }
+  
+  debugPrint('=================================================');
+}
+
+// Validate player data before filtering and sorting
+if (_debugMode) {
+  _validateAndCorrectPlayerData(allPlayers);
+}
     
     // Update filter logic for favorites
     List<Player> filteredPlayers = allPlayers.where((player) {
+  // Debug print to check what's being filtered
+  if (_filterApplied) {
+    debugPrint('Filtering player: ${player.name}, Position: ${player.position}, '
+        'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}, '
+        '40 Time: ${player.fortyTime}, Vertical: ${player.verticalJump}');
+  }
+
   // Existing filters
   bool matchesSearch = _searchQuery.isEmpty || 
-    player.name.toLowerCase().contains(_searchQuery) ||
-    player.school.toLowerCase().contains(_searchQuery);
+    player.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    player.school.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    player.position.toLowerCase().contains(_searchQuery.toLowerCase());
   
   bool matchesPosition = _selectedPositions.isEmpty || 
     _selectedPositions.contains(player.position);
@@ -201,73 +424,93 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   bool matchesFavorites = !_showFavorites || 
     FavoritePlayersService.isFavorite(player.id);
 
-  // RAS Score Filter (robust null handling)
+  // RAS Score Filter - more lenient with null handling
   bool meetsRasFilter = true;
   if (_filterApplied && _minRasScore > 0) {
-    // If player has no RAS score and we're filtering by RAS, exclude them
     if (player.rasScore == null) {
-      meetsRasFilter = false;
+      // Only exclude nulls if filtering is really intended (e.g., above 5.0)
+      meetsRasFilter = _minRasScore <= 1.0; // Keep nulls if filter is minimal
     } else {
       meetsRasFilter = player.rasScore! >= _minRasScore;
     }
   }
   
-  // Height Filter (convert to inches and handle null)
+  // Height Filter - more lenient
   bool meetsHeightFilter = true;
   if (_filterApplied && (_minHeight > 60 || _maxHeight < 80)) {
-    // If player has no height and we're filtering by height, exclude them
     if (player.height == null) {
-      meetsHeightFilter = false;
+      // Keep players with unknown height unless the filter is very specific
+      meetsHeightFilter = (_maxHeight - _minHeight) > 15;
     } else {
-      meetsHeightFilter = player.height! >= _minHeight && player.height! <= _maxHeight;
+      // Add a small tolerance to the range
+      meetsHeightFilter = player.height! >= (_minHeight - 0.5) && 
+                         player.height! <= (_maxHeight + 0.5);
     }
   }
 
-  // Weight Filter
+  // Weight Filter - more lenient
   bool meetsWeightFilter = true;
   if (_filterApplied && _minWeight != null && _maxWeight != null) {
     if (player.weight == null) {
-      meetsWeightFilter = false;
+      // Keep players with unknown weight unless the filter is very specific
+      meetsWeightFilter = (_maxWeight! - _minWeight!) > 100;
     } else {
-      meetsWeightFilter = player.weight! >= _minWeight! && player.weight! <= _maxWeight!;
+      // Add a tolerance to the range
+      meetsWeightFilter = player.weight! >= (_minWeight! - 5) && 
+                         player.weight! <= (_maxWeight! + 5);
     }
   }
 
-  // 40 Yard Dash Filter
+  // 40 Yard Dash Filter - improved parsing
   bool meetsFortyFilter = true;
   if (_filterApplied && _fortyTimeFilter != null && _minFortyTime != null && _maxFortyTime != null) {
-    // Extract numeric value from format like "4.50s"
     if (player.fortyTime == null || player.fortyTime!.isEmpty) {
-      meetsFortyFilter = false;
+      // Only exclude if we're looking for a specific range
+      meetsFortyFilter = (_maxFortyTime! - _minFortyTime!) > 0.5;
     } else {
       try {
-        double fortyTime = double.parse(player.fortyTime!.replaceAll('s', ''));
-        meetsFortyFilter = fortyTime >= _minFortyTime! && fortyTime <= _maxFortyTime!;
+        // Better parsing that handles different formats
+        String cleaned = player.fortyTime!.replaceAll('s', '').trim();
+        double fortyTime = double.parse(cleaned);
+        // Add a small tolerance
+        meetsFortyFilter = fortyTime >= (_minFortyTime! - 0.05) && 
+                          fortyTime <= (_maxFortyTime! + 0.05);
       } catch (e) {
-        meetsFortyFilter = false;
+        debugPrint('Error parsing 40 time: ${player.fortyTime}, Error: $e');
+        meetsFortyFilter = true; // Keep players with badly formatted times
       }
     }
   }
 
-  // Vertical Jump Filter
+  // Vertical Jump Filter - more lenient
   bool meetsVerticalFilter = true;
   if (_filterApplied && _minVerticalJump != null && _maxVerticalJump != null) {
     if (player.verticalJump == null) {
-      meetsVerticalFilter = false;
+      // Keep players with unknown vertical unless filter is very specific
+      meetsVerticalFilter = (_maxVerticalJump! - _minVerticalJump!) > 10;
     } else {
-      meetsVerticalFilter = player.verticalJump! >= _minVerticalJump! && 
-                            player.verticalJump! <= _maxVerticalJump!;
+      // Add tolerance
+      meetsVerticalFilter = player.verticalJump! >= (_minVerticalJump! - 1) && 
+                           player.verticalJump! <= (_maxVerticalJump! + 1);
     }
   }
 
-  return matchesSearch && 
-         matchesPosition && 
-         matchesFavorites && 
-         meetsRasFilter && 
-         meetsHeightFilter &&
-         meetsWeightFilter &&
-         meetsFortyFilter &&
-         meetsVerticalFilter;
+  // Combine all filters
+  bool meetsAllCriteria = matchesSearch && 
+                          matchesPosition && 
+                          matchesFavorites && 
+                          meetsRasFilter && 
+                          meetsHeightFilter &&
+                          meetsWeightFilter &&
+                          meetsFortyFilter &&
+                          meetsVerticalFilter;
+
+  // Debug filter results                          
+  if (_filterApplied && !meetsAllCriteria) {
+    debugPrint('Player ${player.name} filtered out by: ${!matchesSearch ? 'search ' : ''}${!matchesPosition ? 'position ' : ''}${!matchesFavorites ? 'favorites ' : ''}${!meetsRasFilter ? 'RAS ' : ''}${!meetsHeightFilter ? 'height ' : ''}${!meetsWeightFilter ? 'weight ' : ''}${!meetsFortyFilter ? '40time ' : ''}${!meetsVerticalFilter ? 'vertical ' : ''}');
+  }
+                          
+  return meetsAllCriteria;
 }).toList();
     
     // Apply sorting
@@ -286,9 +529,14 @@ switch (_sortOption) {
     break;
   case SortOption.ras:
     filteredPlayers.sort((a, b) {
+      if (_debugMode) {
+        debugPrint('Comparing RAS: ${a.name} (${a.rasScore}) vs ${b.name} (${b.rasScore})');
+      }
+      
       if (a.rasScore == null && b.rasScore == null) return 0;
       if (a.rasScore == null) return 1; // Nulls at the bottom
       if (b.rasScore == null) return -1;
+      
       return a.rasScore!.compareTo(b.rasScore!);
     });
     break;
@@ -480,7 +728,8 @@ Container(
 
 
     // Make the filter button more visible
-    Container(
+    // Make the filter button more visible
+Container(
   decoration: BoxDecoration(
     color: Theme.of(context).brightness == Brightness.dark 
         ? Colors.grey.shade700 
@@ -506,6 +755,51 @@ Container(
     ),
   ),
 ),
+
+// Only show in debug builds
+if (kDebugMode)
+  Container(
+    decoration: BoxDecoration(
+      color: _debugMode 
+          ? Colors.red.shade200 
+          : Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade700 
+              : Colors.grey.shade200,
+      borderRadius: BorderRadius.circular(6.0),
+    ),
+    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+    child: TextButton(
+      onPressed: () {
+        setState(() {
+          _debugMode = !_debugMode;
+          if (_debugMode) {
+            // Debug dump of all player data
+            for (var player in allPlayers.take(5)) {
+              debugPrint('Player: ${player.name}, Position: ${player.position}, '
+                  'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
+            }
+              debugPlayerDescriptionsService();
+          }
+        });
+      },
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        minimumSize: const Size(10, 10),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        'Debug',
+        style: TextStyle(
+          color: _debugMode 
+              ? Colors.red.shade900
+              : Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white 
+                  : Colors.black87,
+          fontSize: 12,
+        ),
+      ),
+    ),
+  ),
     const SizedBox(width: 8),
     
     // Player count
