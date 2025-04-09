@@ -1,15 +1,14 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-// Check if the app is already initialized
-if (admin.apps.length === 0) {
+// Initialize Firebase only ONCE
+if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Import our analytics aggregation function
+// Import analytics aggregation functions
 const analyticsAggregation = require('./analyticsAggregation');
 
 // Export the functions
 exports.dailyAnalyticsAggregation = analyticsAggregation.dailyAnalyticsAggregation;
 exports.getAnalyticsData = analyticsAggregation.getAnalyticsData;
-

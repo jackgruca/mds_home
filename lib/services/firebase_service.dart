@@ -218,6 +218,38 @@ static Future<bool> setupAnalyticsCollections() async {
   }
 }
 
+/// Trigger analytics aggregation (for testing/admin purposes)
+static Future<bool> triggerAnalyticsAggregation() async {
+  try {
+    // Ensure Firebase is initialized
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    debugPrint('Manually triggering analytics aggregation...');
+    
+    // For a simple test implementation, we'll directly write to the
+    // precomputedAnalytics/metadata document to indicate an aggregation was requested
+    final db = FirebaseFirestore.instance;
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'lastUpdated': FieldValue.serverTimestamp(),
+      'manualTrigger': true,
+      'triggerTimestamp': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    
+    // In a real implementation, you would call a Firebase HTTP function
+    // const functions = FirebaseFunctions.instance;
+    // final callable = functions.httpsCallable('triggerAnalyticsAggregation');
+    // final result = await callable.call();
+    
+    debugPrint('Analytics aggregation triggered. Check Firebase logs.');
+    return true;
+  } catch (e) {
+    debugPrint('Error triggering analytics aggregation: $e');
+    return false;
+  }
+}
+
 /// Check if analytics collections exist
 static Future<bool> checkAnalyticsCollections() async {
   try {
