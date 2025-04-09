@@ -768,45 +768,84 @@ void _showPlayerDetails(BuildContext context, Player player) {
   Player enrichedPlayer;
   
   if (additionalInfo != null) {
-    // Parse existing fields...
+    // Parse height from string to double
+    double? height;
+    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      // Handle height in different formats
+      if (heightStr.contains("'")) {
+        // Format like 6'2"
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          height = (feet * 12 + inches).toDouble();
+        } catch (e) {
+          height = null;
+        }
+      } else {
+        // Assume it's in inches
+        height = double.tryParse(heightStr);
+      }
+    }
     
-    // Parse the new athletic measurements - only set if they have values
-    String? tenYardSplit = (additionalInfo['tenYardSplit']?.isNotEmpty == true) ? 
-                           additionalInfo['tenYardSplit'] : null;
+    // Parse weight
+    double? weight;
+    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      weight = double.tryParse(additionalInfo['weight']!);
+    }
     
-    String? twentyYardShuttle = (additionalInfo['twentyYardShuttle']?.isNotEmpty == true) ? 
-                               additionalInfo['twentyYardShuttle'] : null;
+    // Parse 40 time and RAS
+    String? fortyTime = additionalInfo['fortyTime'];
     
-    String? threeConeTime = (additionalInfo['threeCone']?.isNotEmpty == true) ? 
-                           additionalInfo['threeCone'] : null;
+    double? rasScore;
+    if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
+      rasScore = double.tryParse(additionalInfo['ras']!);
+    }
+    
+    // Parse all athletic measurements
+    String? tenYardSplit = additionalInfo['tenYardSplit'];
+    String? twentyYardShuttle = additionalInfo['twentyYardShuttle'];
+    String? threeConeTime = additionalInfo['threeCone'];
     
     double? armLength;
-    if (additionalInfo['armLength']?.isNotEmpty == true) {
+    if (additionalInfo['armLength'] != null && additionalInfo['armLength']!.isNotEmpty) {
       armLength = double.tryParse(additionalInfo['armLength']!);
     }
     
     int? benchPress;
-    if (additionalInfo['benchPress']?.isNotEmpty == true) {
+    if (additionalInfo['benchPress'] != null && additionalInfo['benchPress']!.isNotEmpty) {
       benchPress = int.tryParse(additionalInfo['benchPress']!);
     }
     
     double? broadJump;
-    if (additionalInfo['broadJump']?.isNotEmpty == true) {
+    if (additionalInfo['broadJump'] != null && additionalInfo['broadJump']!.isNotEmpty) {
       broadJump = double.tryParse(additionalInfo['broadJump']!);
     }
     
     double? handSize;
-    if (additionalInfo['handSize']?.isNotEmpty == true) {
+    if (additionalInfo['handSize'] != null && additionalInfo['handSize']!.isNotEmpty) {
       handSize = double.tryParse(additionalInfo['handSize']!);
     }
     
     double? verticalJump;
-    if (additionalInfo['verticalJump']?.isNotEmpty == true) {
+    if (additionalInfo['verticalJump'] != null && additionalInfo['verticalJump']!.isNotEmpty) {
       verticalJump = double.tryParse(additionalInfo['verticalJump']!);
     }
     
     double? wingspan;
-    if (additionalInfo['wingspan']?.isNotEmpty == true) {
+    if (additionalInfo['wingspan'] != null && additionalInfo['wingspan']!.isNotEmpty) {
       wingspan = double.tryParse(additionalInfo['wingspan']!);
     }
     
@@ -817,14 +856,14 @@ void _showPlayerDetails(BuildContext context, Player player) {
       rank: player.rank,
       school: player.school,
       notes: player.notes,
-      height: player.height,
-      weight: player.weight,
-      rasScore: player.rasScore,
+      height: height ?? player.height,
+      weight: weight ?? player.weight,
+      rasScore: rasScore ?? player.rasScore,
       description: additionalInfo['description'] ?? player.description,
       strengths: additionalInfo['strengths'] ?? player.strengths,
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
-      fortyTime: player.fortyTime,
-      // Add new athletic measurements - maintain nulls for missing data
+      fortyTime: fortyTime ?? player.fortyTime,
+      // Add all athletic measurements
       tenYardSplit: tenYardSplit,
       twentyYardShuttle: twentyYardShuttle,
       threeConeTime: threeConeTime,
