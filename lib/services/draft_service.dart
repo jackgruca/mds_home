@@ -309,51 +309,15 @@ bool anyUserTeamHasOffers() {
     return nextPick;
   }
   
+// Replace or modify this method in draft_service.dart
 TradePackage? _evaluateTrades(DraftPick nextPick) {
   // Skip if already has trade info or is a user team pick
   if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty) {
     return null;
   }
 
-  // Enhanced QB need check
-  TeamNeed? teamNeeds = _getTeamNeeds(nextPick.teamName);
-  int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
-  int needsToConsider = min(round + 3, teamNeeds?.needs.length ?? 0);
-  
-  bool teamNeedsQB = false;
-  int qbNeedIndex = -1;
-  for (int i = 0; i < needsToConsider; i++) {
-    if (teamNeeds != null && teamNeeds.needs[i] == "QB") {
-      teamNeedsQB = true;
-      qbNeedIndex = i;
-      break;
-    }
-  }
-  
-  debugPrint("\n==== TRADE EVALUATION DEBUG ====");
-  debugPrint("Team: ${nextPick.teamName}");
-  debugPrint("Needs QB: $teamNeedsQB");
-  if (teamNeedsQB) {
-    debugPrint("QB Need Index: $qbNeedIndex");
-  }
-  
-  // More verbose QB prospect check
-  bool valuableQBAvailable = availablePlayers
-      .where((p) => p.position == "QB" && p.rank <= nextPick.pickNumber + 15)
-      .toList()
-      .isNotEmpty;
-  
-  debugPrint("Valuable QB Prospects Available: $valuableQBAvailable");
-  
-  if (teamNeedsQB && valuableQBAvailable) {
-    // 98% chance to stay and draft the QB
-    if (_random.nextDouble() < 0.98) {
-      debugPrint("Highly likely to draft QB - skipping trade");
-      return null;
-    }
-  }
-
   // Adjust the base trade chance using the tradeFrequency parameter
+  int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
   double baseTradeChance = _roundTradeFrequency[round] ?? 0.10;
   // Scale the actual chance by the tradeFrequency (0-1)
   double scaledTradeChance = baseTradeChance * (tradeFrequency * 2);
@@ -362,50 +326,67 @@ TradePackage? _evaluateTrades(DraftPick nextPick) {
   bool evaluateTrades = _random.nextDouble() < scaledTradeChance;
     
   // If we decide not to evaluate trades, skip
-  if (!evaluateTrades && !_qbTrade) {
+  if (!evaluateTrades) {
     return null;
   }
     
-    // Enhanced QB trade logic - more aggressive for top QB prospects
-    bool tryQBTrade = _evaluateQBTradeScenario(nextPick);
-    if (tryQBTrade) {
-      final qbTradeOffer = _tradeService.generateTradeOffersForPick(
-        nextPick.pickNumber, 
-        qbSpecific: true
-      );
-      
-      if (qbTradeOffer.packages.isNotEmpty) {
-        final bestPackage = qbTradeOffer.bestPackage;
-        if (bestPackage != null) {
-          _qbTrade = true;
-          _executeTrade(bestPackage);
-          return bestPackage;
-        }
+  // Enhanced QB trade logic - more aggressive for top QB prospects
+  if (enableQBPremium) {
+    final qbTradeOffer = _tradeService.generateTradeOffersForPick(
+      nextPick.pickNumber, 
+      qbSpecific: true
+    );
+    
+    if (qbTradeOffer.packages.isNotEmpty) {
+      final bestPackage = qbTradeOffer.bestPackage;
+      if (bestPackage != null) {
+        _executeTrade(bestPackage);
+        return bestPackage;
       }
     }
+  }
     
-    // Regular trade evaluation
-    final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
-    
-    // Don't automatically execute user-involved trades
-    if (tradeOffer.isUserInvolved) {
-      return null;
-    }
-    
-    // If we have offers, find the best one that meets criteria
-    if (tradeOffer.packages.isNotEmpty) {
-      // Sort packages by value differential
-      List<TradePackage> viablePackages = List.from(tradeOffer.packages);
-      
-      for (var package in viablePackages) {
-        _executeTrade(package);
-        return package;  // Execute first viable trade
-      }
-    }
-    
+  // Regular trade evaluation
+  final tradeOffer = _tradeService.generateTradeOffersForPick(nextPick.pickNumber);
+  
+  // Don't automatically execute user-involved trades
+  if (tradeOffer.isUserInvolved) {
     return null;
   }
   
+  // If we have offers, use weighted randomness to select one
+  if (tradeOffer.packages.isNotEmpty) {
+    List<TradePackage> packages = tradeOffer.packages;
+    
+    // No need to filter - they are already filtered for viability
+    // Select a package using weighted probability:
+    // 60% chance of taking the best offer (index 0)
+    // 30% chance of taking the second best offer (index 1)
+    // 10% chance of taking the third best offer (index 2)
+    int selectedIndex = 0;
+    double rand = _random.nextDouble();
+    
+    if (packages.length > 1) {
+      if (rand < 0.6) {
+        selectedIndex = 0; // 60% chance
+      } else if (rand < 0.9) {
+        selectedIndex = 1 % packages.length; // 30% chance (modulo to handle case with only 2 packages)
+      } else {
+        selectedIndex = 2 % packages.length; // 10% chance (modulo to handle cases with < 3 packages)
+      }
+    }
+    
+    // Execute the selected trade
+    TradePackage selectedPackage = packages[selectedIndex];
+    debugPrint("Selected trade package ${selectedIndex+1} of ${packages.length} with value ratio: ${(selectedPackage.totalValueOffered / selectedPackage.targetPickValue * 100).toStringAsFixed(1)}%");
+    
+    _executeTrade(selectedPackage);
+    return selectedPackage;
+  }
+  
+  return null;
+}
+
   /// Evaluate if we should try a QB-specific trade scenario
 bool _evaluateQBTradeScenario(DraftPick nextPick) {
   // Skip QB trade logic for user team picks
