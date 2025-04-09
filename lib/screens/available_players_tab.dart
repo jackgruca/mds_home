@@ -598,6 +598,7 @@ if (_debugMode) {
 }).toList();
     
     // Apply sorting
+    // Apply sorting
 switch (_sortOption) {
   case SortOption.rank:
     filteredPlayers.sort((a, b) => a.rank.compareTo(b.rank));
@@ -617,34 +618,41 @@ switch (_sortOption) {
         debugPrint('Comparing RAS: ${a.name} (${a.rasScore}) vs ${b.name} (${b.rasScore})');
       }
       
+      // Always put nulls at the bottom regardless of sort direction
       if (a.rasScore == null && b.rasScore == null) return 0;
-      if (a.rasScore == null) return 1; // Nulls at the bottom
-      if (b.rasScore == null) return -1;
+      if (a.rasScore == null) return 1; // a goes to bottom
+      if (b.rasScore == null) return -1; // b goes to bottom
       
       return a.rasScore!.compareTo(b.rasScore!);
     });
     break;
   case SortOption.height:
     filteredPlayers.sort((a, b) {
+      // Always put nulls at the bottom regardless of sort direction
       if (a.height == null && b.height == null) return 0;
-      if (a.height == null) return 1;
-      if (b.height == null) return -1;
+      if (a.height == null) return 1; // a goes to bottom 
+      if (b.height == null) return -1; // b goes to bottom
+      
       return a.height!.compareTo(b.height!);
     });
     break;
   case SortOption.weight:
     filteredPlayers.sort((a, b) {
+      // Always put nulls at the bottom regardless of sort direction
       if (a.weight == null && b.weight == null) return 0;
-      if (a.weight == null) return 1;
-      if (b.weight == null) return -1;
+      if (a.weight == null) return 1; // a goes to bottom
+      if (b.weight == null) return -1; // b goes to bottom
+      
       return a.weight!.compareTo(b.weight!);
     });
     break;
   case SortOption.fortyTime:
     filteredPlayers.sort((a, b) {
+      // Always put nulls at the bottom regardless of sort direction
       if (a.fortyTime == null && b.fortyTime == null) return 0;
-      if (a.fortyTime == null) return 1;
-      if (b.fortyTime == null) return -1;
+      if (a.fortyTime == null) return 1; // a goes to bottom
+      if (b.fortyTime == null) return -1; // b goes to bottom
+      
       try {
         double aTime = double.parse(a.fortyTime!.replaceAll('s', ''));
         double bTime = double.parse(b.fortyTime!.replaceAll('s', ''));
@@ -656,17 +664,58 @@ switch (_sortOption) {
     break;
   case SortOption.verticalJump:
     filteredPlayers.sort((a, b) {
+      // Always put nulls at the bottom regardless of sort direction
       if (a.verticalJump == null && b.verticalJump == null) return 0;
-      if (a.verticalJump == null) return 1;
-      if (b.verticalJump == null) return -1;
+      if (a.verticalJump == null) return 1; // a goes to bottom
+      if (b.verticalJump == null) return -1; // b goes to bottom
+      
       return a.verticalJump!.compareTo(b.verticalJump!);
     });
     break;
 }
 
-// Reverse if not ascending
+// Reverse the list for non-ascending order, BUT ONLY FOR PLAYERS WITH VALUES
 if (!_sortAscending) {
-  filteredPlayers = filteredPlayers.reversed.toList();
+  // For attributes that can have null values, we need to handle them specially
+  if ([SortOption.ras, SortOption.height, SortOption.weight, 
+      SortOption.fortyTime, SortOption.verticalJump].contains(_sortOption)) {
+    
+    // Split into players with values and nulls
+    var playersWithValues = filteredPlayers.where(
+      (p) {
+        switch (_sortOption) {
+          case SortOption.ras: return p.rasScore != null;
+          case SortOption.height: return p.height != null;
+          case SortOption.weight: return p.weight != null;
+          case SortOption.fortyTime: return p.fortyTime != null && p.fortyTime!.isNotEmpty;
+          case SortOption.verticalJump: return p.verticalJump != null;
+          default: return true;
+        }
+      }
+    ).toList();
+    
+    var playersWithNulls = filteredPlayers.where(
+      (p) {
+        switch (_sortOption) {
+          case SortOption.ras: return p.rasScore == null;
+          case SortOption.height: return p.height == null;
+          case SortOption.weight: return p.weight == null;
+          case SortOption.fortyTime: return p.fortyTime == null || p.fortyTime!.isEmpty;
+          case SortOption.verticalJump: return p.verticalJump == null;
+          default: return false;
+        }
+      }
+    ).toList();
+    
+    // Only reverse players with values
+    playersWithValues = playersWithValues.reversed.toList();
+    
+    // Combine them back
+    filteredPlayers = [...playersWithValues, ...playersWithNulls];
+  } else {
+    // For other attributes (name, position, etc.), just reverse the whole list
+    filteredPlayers = filteredPlayers.reversed.toList();
+  }
 }
 
     // Get all available positions for filters
