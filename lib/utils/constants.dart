@@ -353,6 +353,12 @@ class CollegeTeamESPNIds {
     "Villanova": "222",
     "Villanova Wildcats": "222",
     "Utah State": "328",
+    "Colorado State": "36",
+    "Miami (OH)": "193",
+    "Central Michigan": "2117",
+    "Eastern Kentucky": "2198",
+    "Eastern Washington": "331",
+    "Florida A&M": "50",
   };
 
   
