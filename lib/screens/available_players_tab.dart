@@ -52,6 +52,8 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   bool _showFavorites = false;
   final Set<int> _favoritePlayerIds = {};
   bool _debugMode = false;
+  final Map<int, Player> _enrichedPlayerCache = {};
+
 
 
   
@@ -201,6 +203,33 @@ void initState() {
 }
 
 void _enrichPlayerData(Player player) {
+  // First check if this player is already in the cache
+  if (_enrichedPlayerCache.containsKey(player.id)) {
+    // Copy cached values to this player instance
+    player.height = _enrichedPlayerCache[player.id]!.height;
+    player.weight = _enrichedPlayerCache[player.id]!.weight;
+    player.rasScore = _enrichedPlayerCache[player.id]!.rasScore;
+    player.fortyTime = _enrichedPlayerCache[player.id]!.fortyTime;
+    player.description = _enrichedPlayerCache[player.id]!.description;
+    player.strengths = _enrichedPlayerCache[player.id]!.strengths;
+    player.weaknesses = _enrichedPlayerCache[player.id]!.weaknesses;
+    player.tenYardSplit = _enrichedPlayerCache[player.id]!.tenYardSplit;
+    player.twentyYardShuttle = _enrichedPlayerCache[player.id]!.twentyYardShuttle;
+    player.threeConeTime = _enrichedPlayerCache[player.id]!.threeConeTime;
+    player.armLength = _enrichedPlayerCache[player.id]!.armLength;
+    player.benchPress = _enrichedPlayerCache[player.id]!.benchPress;
+    player.broadJump = _enrichedPlayerCache[player.id]!.broadJump;
+    player.handSize = _enrichedPlayerCache[player.id]!.handSize;
+    player.verticalJump = _enrichedPlayerCache[player.id]!.verticalJump;
+    player.wingspan = _enrichedPlayerCache[player.id]!.wingspan;
+    
+    if (_debugMode) {
+      debugPrint('Retrieved cached data for ${player.name} (ID: ${player.id})');
+    }
+    return;
+  }
+
+  // If not in cache, only try to get data from PlayerDescriptionsService
   // Attempt to get additional player information from description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
@@ -273,36 +302,91 @@ void _enrichPlayerData(Player player) {
       }
     }
     
-    // Fill other fields
-    // ... [all the other athletic measurements from previous response]
+    // Additional fields
+    if ((player.description == null || player.description!.isEmpty) && 
+        additionalInfo['description'] != null && additionalInfo['description']!.isNotEmpty) {
+      player.description = additionalInfo['description'];
+    }
+    
+    if ((player.strengths == null || player.strengths!.isEmpty) && 
+        additionalInfo['strengths'] != null && additionalInfo['strengths']!.isNotEmpty) {
+      player.strengths = additionalInfo['strengths'];
+    }
+    
+    if ((player.weaknesses == null || player.weaknesses!.isEmpty) && 
+        additionalInfo['weaknesses'] != null && additionalInfo['weaknesses']!.isNotEmpty) {
+      player.weaknesses = additionalInfo['weaknesses'];
+    }
+    
+    // Parse other athletic measurements
+    if ((player.tenYardSplit == null || player.tenYardSplit!.isEmpty) && 
+        additionalInfo['tenYardSplit'] != null && additionalInfo['tenYardSplit']!.isNotEmpty) {
+      player.tenYardSplit = additionalInfo['tenYardSplit'];
+    }
+    
+    if ((player.twentyYardShuttle == null || player.twentyYardShuttle!.isEmpty) && 
+        additionalInfo['twentyYardShuttle'] != null && additionalInfo['twentyYardShuttle']!.isNotEmpty) {
+      player.twentyYardShuttle = additionalInfo['twentyYardShuttle'];
+    }
+    
+    if ((player.threeConeTime == null || player.threeConeTime!.isEmpty) && 
+        additionalInfo['threeCone'] != null && additionalInfo['threeCone']!.isNotEmpty) {
+      player.threeConeTime = additionalInfo['threeCone'];
+    }
+    
+    if (player.armLength == null && additionalInfo['armLength'] != null && additionalInfo['armLength']!.isNotEmpty) {
+      try {
+        player.armLength = double.tryParse(additionalInfo['armLength']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse armLength: ${additionalInfo['armLength']}, error: $e');
+      }
+    }
+    
+    if (player.benchPress == null && additionalInfo['benchPress'] != null && additionalInfo['benchPress']!.isNotEmpty) {
+      try {
+        player.benchPress = int.tryParse(additionalInfo['benchPress']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse benchPress: ${additionalInfo['benchPress']}, error: $e');
+      }
+    }
+    
+    if (player.broadJump == null && additionalInfo['broadJump'] != null && additionalInfo['broadJump']!.isNotEmpty) {
+      try {
+        player.broadJump = double.tryParse(additionalInfo['broadJump']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse broadJump: ${additionalInfo['broadJump']}, error: $e');
+      }
+    }
+    
+    if (player.handSize == null && additionalInfo['handSize'] != null && additionalInfo['handSize']!.isNotEmpty) {
+      try {
+        player.handSize = double.tryParse(additionalInfo['handSize']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse handSize: ${additionalInfo['handSize']}, error: $e');
+      }
+    }
+    
+    if (player.verticalJump == null && additionalInfo['verticalJump'] != null && additionalInfo['verticalJump']!.isNotEmpty) {
+      try {
+        player.verticalJump = double.tryParse(additionalInfo['verticalJump']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse verticalJump: ${additionalInfo['verticalJump']}, error: $e');
+      }
+    }
+    
+    if (player.wingspan == null && additionalInfo['wingspan'] != null && additionalInfo['wingspan']!.isNotEmpty) {
+      try {
+        player.wingspan = double.tryParse(additionalInfo['wingspan']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse wingspan: ${additionalInfo['wingspan']}, error: $e');
+      }
+    }
   }
   
-  // Use mock data as fallback for missing values
-  if (player.height == null || player.weight == null || player.rasScore == null ||
-      player.fortyTime == null || player.fortyTime!.isEmpty) {
-    
-    // Use mock data to fill in missing values (without overwriting existing ones)
-    Player enrichedPlayer = MockPlayerData.enrichPlayerData(player);
-    
-    // Only copy missing values
-    if (player.height == null) {
-      player.height = enrichedPlayer.height;
-      if (_debugMode) debugPrint('  Added mock height: ${player.height}');
-    }
-    if (player.weight == null) {
-      player.weight = enrichedPlayer.weight;
-      if (_debugMode) debugPrint('  Added mock weight: ${player.weight}');
-    }
-    if (player.rasScore == null) {
-      player.rasScore = enrichedPlayer.rasScore;
-      if (_debugMode) debugPrint('  Added mock RAS: ${player.rasScore}');
-    }
-    if (player.fortyTime == null || player.fortyTime!.isEmpty) {
-      player.fortyTime = enrichedPlayer.fortyTime;
-      if (_debugMode) debugPrint('  Added mock 40 time: ${player.fortyTime}');
-    }
-    // Copy other athletic measurements as needed
-  }
+  // No mock data generation - leave fields as null if not available
+  
+  // Store the enriched player in the cache
+  _enrichedPlayerCache[player.id] = player;
 }
 
   // Toggle player favorite status
@@ -1274,20 +1358,20 @@ return Card(
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
       fortyTime: fortyTime ?? player.fortyTime,
       // Add all athletic measurements
-      tenYardSplit: tenYardSplit,
-      twentyYardShuttle: twentyYardShuttle,
-      threeConeTime: threeConeTime,
-      armLength: armLength,
-      benchPress: benchPress,
-      broadJump: broadJump,
-      handSize: handSize,
-      verticalJump: verticalJump,
-      wingspan: wingspan,
+      tenYardSplit: tenYardSplit ?? player.tenYardSplit,
+      twentyYardShuttle: twentyYardShuttle ?? player.twentyYardShuttle,
+      threeConeTime: threeConeTime ?? player.threeConeTime,
+      armLength: armLength ?? player.armLength,
+      benchPress: benchPress ?? player.benchPress,
+      broadJump: broadJump ?? player.broadJump,
+      handSize: handSize ?? player.handSize,
+      verticalJump: verticalJump ?? player.verticalJump,
+      wingspan: wingspan ?? player.wingspan,
       isFavorite: player.isFavorite,
     );
   } else {
-    // Fall back to mock data for players without description
-    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+    // Just use the player as is, don't add mock data
+    enrichedPlayer = player;
   }
   
   // Show the dialog with enriched player data

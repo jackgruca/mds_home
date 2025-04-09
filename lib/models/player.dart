@@ -316,31 +316,31 @@ class Player {
   
   // Format height from inches to feet and inches (74 -> 6'2")
   String get formattedHeight {
-    if (height == null) return "N/A";
-    
-    int totalInches = height!.round();
-    int feet = totalInches ~/ 12;
-    int inches = totalInches % 12;
-    
-    return "$feet'$inches\"";
-  }
+  if (height == null) return "N/A";
   
-  // Format weight with lbs
-  String get formattedWeight {
-    if (weight == null) return "N/A";
-    return "${weight!.round()} lbs";
-  }
+  int totalInches = height!.round();
+  int feet = totalInches ~/ 12;
+  int inches = totalInches % 12;
+  
+  return "$feet'$inches\"";
+}
 
-  String get formatted40Time {
-    if (fortyTime == null || fortyTime!.isEmpty) return "N/A";
-    return "${fortyTime}s";
-  }
-  
-  // Format RAS with 1 decimal place
-  String get formattedRAS {
-    if (rasScore == null) return "N/A";
-    return rasScore!.toStringAsFixed(1);
-  }
+// Format weight with lbs
+String get formattedWeight {
+  if (weight == null) return "N/A";
+  return "${weight!.round()} lbs";
+}
+
+String get formatted40Time {
+  if (fortyTime == null || fortyTime!.isEmpty) return "N/A";
+  return "${fortyTime}s";
+}
+
+// Format RAS with 1 decimal place
+String get formattedRAS {
+  if (rasScore == null) return "N/A";
+  return rasScore!.toStringAsFixed(1);
+}
   
   // Create a description for the player if none exists
   String getDefaultDescription() {
