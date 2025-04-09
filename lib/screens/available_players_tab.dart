@@ -635,8 +635,7 @@ Row(
           controller: _searchController,
           decoration: InputDecoration(
             hintText: 'Search Players',
-            prefixIcon: const Icon(Icons.search),
-            // Remove the suffixIcon that contains the filter icon
+            prefixIcon: const Icon(Icons.search, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
@@ -648,159 +647,118 @@ Row(
     ),
     const SizedBox(width: 8),
     
-    // Sort dropdown
-Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
-  decoration: BoxDecoration(
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.grey.shade700 
-        : Colors.grey.shade200,
-    borderRadius: BorderRadius.circular(6.0),
-    border: Border.all(
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.grey.shade600 
-          : Colors.grey.shade400,
-    ),
-  ),
-  child: DropdownButton<SortOption>(
-    value: _sortOption,
-    isDense: true,
-    underline: Container(),
-    icon: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-          size: 16,
+    // Sort dropdown - compact icon version
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade700 
+            : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(6.0),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade600 
+              : Colors.grey.shade400,
         ),
-        const Icon(Icons.arrow_drop_down, size: 20),
-      ],
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<SortOption>(
+          value: _sortOption,
+          isDense: true,
+          icon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 14,
+              ),
+              const Icon(Icons.arrow_drop_down, size: 16),
+            ],
+          ),
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white 
+                : Colors.black87,
+            fontSize: 12,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          borderRadius: BorderRadius.circular(6.0),
+          items: [
+            _buildSortItem(SortOption.rank, 'Rank'),
+            _buildSortItem(SortOption.name, 'Name'),
+            _buildSortItem(SortOption.position, 'Position'),
+            _buildSortItem(SortOption.school, 'School'),
+            _buildSortItem(SortOption.ras, 'RAS'),
+            _buildSortItem(SortOption.height, 'Height'),
+            _buildSortItem(SortOption.weight, 'Weight'),
+            _buildSortItem(SortOption.fortyTime, '40 Time'),
+            _buildSortItem(SortOption.verticalJump, 'Vertical'),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                if (_sortOption == value) {
+                  _sortAscending = !_sortAscending;
+                } else {
+                  _sortOption = value;
+                  switch (value) {
+                    case SortOption.name:
+                    case SortOption.position:
+                    case SortOption.school:
+                      _sortAscending = true;
+                      break;
+                    default:
+                      _sortAscending = false;
+                  }
+                  if (value == SortOption.fortyTime || value == SortOption.rank) {
+                    _sortAscending = true;
+                  }
+                }
+              });
+            }
+          },
+        ),
+      ),
     ),
-    style: TextStyle(
-      color: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.white 
-          : Colors.black87,
-      fontSize: 12,
-    ),
-    items: [
-      _buildSortItem(SortOption.rank, 'Rank'),
-      _buildSortItem(SortOption.name, 'Name'),
-      _buildSortItem(SortOption.position, 'Position'),
-      _buildSortItem(SortOption.school, 'School'),
-      _buildSortItem(SortOption.ras, 'RAS'),
-      _buildSortItem(SortOption.height, 'Height'),
-      _buildSortItem(SortOption.weight, 'Weight'),
-      _buildSortItem(SortOption.fortyTime, '40 Time'),
-      _buildSortItem(SortOption.verticalJump, 'Vertical'),
-    ],
-    onChanged: (value) {
-      if (value != null) {
-        setState(() {
-          // If selecting the same option, toggle direction
-          if (_sortOption == value) {
-            _sortAscending = !_sortAscending;
-          } else {
-            _sortOption = value;
-            // Default to ascending for alphabetical, descending for numerical
-            switch (value) {
-              case SortOption.name:
-              case SortOption.position:
-              case SortOption.school:
-                _sortAscending = true;
-                break;
-              default:
-                _sortAscending = false; // Higher values first for athletic metrics
-            }
-            // Exception for 40 time where lower is better
-            if (value == SortOption.fortyTime) {
-              _sortAscending = true; // Lower is better
-            }
-            if (value == SortOption.rank) {
-              _sortAscending = true; // Lower rank is better
-            }
-          }
-        });
-      }
-    },
-  ),
-),
 
-
-
-    // Make the filter button more visible
-    // Make the filter button more visible
+    // Filter button - icon with glow effect when active
 Container(
   decoration: BoxDecoration(
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.grey.shade700 
-        : Colors.grey.shade200,
+    color: _filterApplied
+        ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+        : (Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade700 
+            : Colors.grey.shade200),
     borderRadius: BorderRadius.circular(6.0),
+    boxShadow: _filterApplied
+        ? [BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            blurRadius: 4,
+            spreadRadius: 1,
+          )]
+        : null,
   ),
   margin: const EdgeInsets.symmetric(horizontal: 8.0),
-  child: TextButton(
-    onPressed: _showAdvancedFilterDialog,
-    style: TextButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      minimumSize: const Size(10, 10),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    ),
-    child: Text(
-      'Filter',
-      style: TextStyle(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Colors.white 
-            : Colors.black87,
-        fontSize: 12,
-      ),
-    ),
-  ),
-),
-
-// Only show in debug builds
-if (kDebugMode)
-  Container(
-    decoration: BoxDecoration(
-      color: _debugMode 
-          ? Colors.red.shade200 
-          : Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade700 
-              : Colors.grey.shade200,
+  child: Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: _showAdvancedFilterDialog,
       borderRadius: BorderRadius.circular(6.0),
-    ),
-    margin: const EdgeInsets.symmetric(horizontal: 4.0),
-    child: TextButton(
-      onPressed: () {
-        setState(() {
-          _debugMode = !_debugMode;
-          if (_debugMode) {
-            // Debug dump of all player data
-            for (var player in allPlayers.take(5)) {
-              debugPrint('Player: ${player.name}, Position: ${player.position}, '
-                  'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
-            }
-              debugPlayerDescriptionsService();
-          }
-        });
-      },
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        minimumSize: const Size(10, 10),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Text(
-        'Debug',
-        style: TextStyle(
-          color: _debugMode 
-              ? Colors.red.shade900
-              : Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : Colors.black87,
-          fontSize: 12,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Icon(
+          Icons.filter_list,
+          color: _filterApplied
+              ? Theme.of(context).colorScheme.primary
+              : (Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white70 
+                  : Colors.black54),
+          size: 20,
         ),
       ),
     ),
   ),
-    const SizedBox(width: 8),
+),
     
     // Player count
     Container(
@@ -821,23 +779,7 @@ if (kDebugMode)
         ),
       ),
     ),
-    if (_filterApplied)
-      Padding(
-        padding: const EdgeInsets.only(left: 8.0),
-        child: Chip(
-          label: const Text('Filters Applied'),
-          backgroundColor: Colors.blue.shade100,
-          deleteIcon: const Icon(Icons.close, size: 18),
-          onDeleted: () {
-            setState(() {
-              _filterApplied = false;
-              _minRasScore = 0.0;
-              _minHeight = 60.0;
-              _maxHeight = 80.0;
-            });
-          },
-        ),
-      ),
+    
     // Reset filter button
     if (_selectedPositions.isNotEmpty || _showFavorites)
       IconButton(
@@ -853,8 +795,51 @@ if (kDebugMode)
         },
         tooltip: 'Clear filter',
       ),
+      
+    // Only show in debug builds
+    if (kDebugMode)
+      Container(
+        decoration: BoxDecoration(
+          color: _debugMode 
+              ? Colors.red.shade200 
+              : Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade700 
+                  : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(6.0),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: IconButton(
+          onPressed: () {
+            setState(() {
+              _debugMode = !_debugMode;
+              if (_debugMode) {
+                // Debug dump of all player data
+                for (var player in allPlayers.take(5)) {
+                  debugPrint('Player: ${player.name}, Position: ${player.position}, '
+                      'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
+                }
+              }
+            });
+          },
+          icon: Icon(
+            Icons.bug_report,
+            color: _debugMode 
+                ? Colors.red.shade900
+                : Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white70 
+                    : Colors.black54,
+            size: 20,
+          ),
+          tooltip: 'Toggle Debug Mode',
+          constraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+        ),
+      ),
   ],
 ),
+    
                 const SizedBox(height: 4),
                 
                 // Compact position filters
@@ -1763,9 +1748,9 @@ DropdownMenuItem<SortOption> _buildSortItem(SortOption option, String label) {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.sort, size: 14),
+        const Icon(Icons.sort, size: 12),
         const SizedBox(width: 4),
-        Text(label),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     ),
   );
