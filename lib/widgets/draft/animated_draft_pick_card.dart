@@ -759,6 +759,8 @@ Color _getValueColor(double ratio) {
     );
   }
   
+// In lib/widgets/player/player_details_dialog.dart or lib/widgets/draft/animated_draft_pick_card.dart
+
 void _showPlayerDetails(BuildContext context, Player player) {
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
@@ -766,51 +768,46 @@ void _showPlayerDetails(BuildContext context, Player player) {
   Player enrichedPlayer;
   
   if (additionalInfo != null) {
-    // If we have additional info, use it for the player
-    // Attempt to parse height from string to double
-    double? height;
-    if (additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
-      String heightStr = additionalInfo['height']!;
-      
-      // Handle height in different formats
-      if (heightStr.contains("'")) {
-        // Format like 6'2"
-        try {
-          List<String> parts = heightStr.replaceAll('"', '').split("'");
-          int feet = int.tryParse(parts[0]) ?? 0;
-          int inches = int.tryParse(parts[1]) ?? 0;
-          height = (feet * 12 + inches).toDouble();
-        } catch (e) {
-          height = null;
-        }
-      } else if (heightStr.contains("-")) {
-        // Format like 6-1 for 6'1"
-        try {
-          List<String> parts = heightStr.split("-");
-          int feet = int.tryParse(parts[0]) ?? 0;
-          int inches = int.tryParse(parts[1]) ?? 0;
-          height = (feet * 12 + inches).toDouble();
-        } catch (e) {
-          height = null;
-        }
-      } else {
-        // Assume it's in inches
-        height = double.tryParse(heightStr);
-      }
+    // Parse existing fields...
+    
+    // Parse the new athletic measurements - only set if they have values
+    String? tenYardSplit = (additionalInfo['tenYardSplit']?.isNotEmpty == true) ? 
+                           additionalInfo['tenYardSplit'] : null;
+    
+    String? twentyYardShuttle = (additionalInfo['twentyYardShuttle']?.isNotEmpty == true) ? 
+                               additionalInfo['twentyYardShuttle'] : null;
+    
+    String? threeConeTime = (additionalInfo['threeCone']?.isNotEmpty == true) ? 
+                           additionalInfo['threeCone'] : null;
+    
+    double? armLength;
+    if (additionalInfo['armLength']?.isNotEmpty == true) {
+      armLength = double.tryParse(additionalInfo['armLength']!);
     }
     
-    // Parse weight
-    double? weight;
-    if (additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
-      weight = double.tryParse(additionalInfo['weight']!);
+    int? benchPress;
+    if (additionalInfo['benchPress']?.isNotEmpty == true) {
+      benchPress = int.tryParse(additionalInfo['benchPress']!);
     }
     
-    // Parse 40 time and RAS
-    String? fortyTime = additionalInfo['fortyTime'];
+    double? broadJump;
+    if (additionalInfo['broadJump']?.isNotEmpty == true) {
+      broadJump = double.tryParse(additionalInfo['broadJump']!);
+    }
     
-    double? rasScore;
-    if (additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
-      rasScore = double.tryParse(additionalInfo['ras']!);
+    double? handSize;
+    if (additionalInfo['handSize']?.isNotEmpty == true) {
+      handSize = double.tryParse(additionalInfo['handSize']!);
+    }
+    
+    double? verticalJump;
+    if (additionalInfo['verticalJump']?.isNotEmpty == true) {
+      verticalJump = double.tryParse(additionalInfo['verticalJump']!);
+    }
+    
+    double? wingspan;
+    if (additionalInfo['wingspan']?.isNotEmpty == true) {
+      wingspan = double.tryParse(additionalInfo['wingspan']!);
     }
     
     enrichedPlayer = Player(
@@ -820,16 +817,26 @@ void _showPlayerDetails(BuildContext context, Player player) {
       rank: player.rank,
       school: player.school,
       notes: player.notes,
-      height: height ?? player.height,
-      weight: weight ?? player.weight,
-      rasScore: rasScore ?? player.rasScore,
+      height: player.height,
+      weight: player.weight,
+      rasScore: player.rasScore,
       description: additionalInfo['description'] ?? player.description,
       strengths: additionalInfo['strengths'] ?? player.strengths,
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
-      fortyTime: fortyTime ?? player.fortyTime,
+      fortyTime: player.fortyTime,
+      // Add new athletic measurements - maintain nulls for missing data
+      tenYardSplit: tenYardSplit,
+      twentyYardShuttle: twentyYardShuttle,
+      threeConeTime: threeConeTime,
+      armLength: armLength,
+      benchPress: benchPress,
+      broadJump: broadJump,
+      handSize: handSize,
+      verticalJump: verticalJump,
+      wingspan: wingspan,
     );
   } else {
-    // Fall back to mock data for players without description
+    // Fall back to mock data for players without any description
     enrichedPlayer = MockPlayerData.enrichPlayerData(player);
   }
   
@@ -841,7 +848,7 @@ void _showPlayerDetails(BuildContext context, Player player) {
     },
   );
 }
-  
+
   Widget _buildTeamLogo(String teamName) {
     return TeamLogoUtils.buildNFLTeamLogo(
       teamName,

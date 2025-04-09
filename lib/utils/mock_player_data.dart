@@ -4,35 +4,14 @@ import '../models/player.dart';
 class MockPlayerData {
   // Method to enrich existing player data with additional attributes
   static Player enrichPlayerData(Player basePlayer) {
-    // Find matching mock data if available
-    MockPlayerInfo? mockInfo = _getMockPlayerInfo(basePlayer.name);
-    
-    // If no exact match, try to match by position
-    mockInfo ??= _getRandomMockPlayerByPosition(basePlayer.position);
-    
-    // If still no match, use generic data
-    if (mockInfo == null) {
-      return Player(
-        id: basePlayer.id,
-        name: basePlayer.name,
-        position: basePlayer.position,
-        rank: basePlayer.rank,
-        school: basePlayer.school,
-        notes: basePlayer.notes,
-        height: basePlayer.position == 'OT' ? 77 : 
-               basePlayer.position == 'QB' ? 75 : 
-               basePlayer.position == 'CB' ? 71 : 73,
-        weight: basePlayer.position == 'OT' ? 315 : 
-                basePlayer.position == 'QB' ? 220 : 
-                basePlayer.position == 'CB' ? 190 : 225,
-        rasScore: 7.5,
-        description: "No detailed scouting report available for ${basePlayer.name}. " "${basePlayer.name} is a ${basePlayer.position} prospect from ${basePlayer.school} " "ranked #${basePlayer.rank} overall in this draft class.",
-        strengths: "Athletic ability, competitive mindset, technical skills",
-        weaknesses: "Needs more development, consistency issues",
-      );
-    }
-    
-    // Return enriched player with mock data
+  // Find matching mock data if available
+  MockPlayerInfo? mockInfo = _getMockPlayerInfo(basePlayer.name);
+  
+  // If no exact match, try to match by position
+  mockInfo ??= _getRandomMockPlayerByPosition(basePlayer.position);
+  
+  // If still no match, use generic data
+  if (mockInfo == null) {
     return Player(
       id: basePlayer.id,
       name: basePlayer.name,
@@ -40,14 +19,46 @@ class MockPlayerData {
       rank: basePlayer.rank,
       school: basePlayer.school,
       notes: basePlayer.notes,
-      height: mockInfo.height,
-      weight: mockInfo.weight,
-      rasScore: mockInfo.rasScore,
-      description: mockInfo.description,
-      strengths: mockInfo.strengths,
-      weaknesses: mockInfo.weaknesses,
+      height: basePlayer.position == 'OT' ? 77 : 
+             basePlayer.position == 'QB' ? 75 : 
+             basePlayer.position == 'CB' ? 71 : 73,
+      weight: basePlayer.position == 'OT' ? 315 : 
+              basePlayer.position == 'QB' ? 220 : 
+              basePlayer.position == 'CB' ? 190 : 225,
+      rasScore: 7.5,
+      description: "No detailed scouting report available for ${basePlayer.name}. " "${basePlayer.name} is a ${basePlayer.position} prospect from ${basePlayer.school} " "ranked #${basePlayer.rank} overall in this draft class.",
+      strengths: "Athletic ability, competitive mindset, technical skills",
+      weaknesses: "Needs more development, consistency issues",
+      // New fields are left as null - will display as N/A
     );
   }
+  
+  // Return enriched player with mock data, including any new fields
+  return Player(
+    id: basePlayer.id,
+    name: basePlayer.name,
+    position: basePlayer.position,
+    rank: basePlayer.rank,
+    school: basePlayer.school,
+    notes: basePlayer.notes,
+    height: mockInfo.height,
+    weight: mockInfo.weight,
+    rasScore: mockInfo.rasScore,
+    description: mockInfo.description,
+    strengths: mockInfo.strengths,
+    weaknesses: mockInfo.weaknesses,
+    // Include the new measurements from mock info (can be null)
+    tenYardSplit: mockInfo.tenYardSplit,
+    twentyYardShuttle: mockInfo.twentyYardShuttle,
+    threeConeTime: mockInfo.threeConeTime,
+    armLength: mockInfo.armLength,
+    benchPress: mockInfo.benchPress,
+    broadJump: mockInfo.broadJump,
+    handSize: mockInfo.handSize,
+    verticalJump: mockInfo.verticalJump,
+    wingspan: mockInfo.wingspan,
+  );
+}
   
   // Helper method to find mock data for a player by name
   static MockPlayerInfo? _getMockPlayerInfo(String playerName) {
@@ -175,6 +186,16 @@ class MockPlayerInfo {
   final String description;
   final String strengths;
   final String weaknesses;
+  // Add optional fields for the new measurements
+  final String? tenYardSplit;
+  final String? twentyYardShuttle;
+  final String? threeConeTime;
+  final double? armLength;
+  final int? benchPress;
+  final double? broadJump;
+  final double? handSize;
+  final double? verticalJump;
+  final double? wingspan;
   
   MockPlayerInfo({
     required this.name,
@@ -185,5 +206,14 @@ class MockPlayerInfo {
     required this.description,
     required this.strengths,
     required this.weaknesses,
+    this.tenYardSplit,
+    this.twentyYardShuttle,
+    this.threeConeTime,
+    this.armLength,
+    this.benchPress,
+    this.broadJump,
+    this.handSize,
+    this.verticalJump,
+    this.wingspan,
   });
 }
