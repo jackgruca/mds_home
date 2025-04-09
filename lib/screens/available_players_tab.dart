@@ -649,8 +649,8 @@ Row(
     
     // Sort dropdown - compact icon version
     Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 0),
-      decoration: BoxDecoration(
+      padding: EdgeInsets.zero,
+        decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark 
             ? Colors.grey.shade700 
             : Colors.grey.shade200,
@@ -681,7 +681,7 @@ Row(
                 : Colors.black87,
             fontSize: 12,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          padding: EdgeInsets.zero,
           borderRadius: BorderRadius.circular(6.0),
           items: [
             _buildSortItem(SortOption.rank, 'Rank'),
@@ -723,12 +723,8 @@ Row(
 
     // Filter button - icon with glow effect when active
 Container(
+  margin: const EdgeInsets.symmetric(horizontal: 8.0),
   decoration: BoxDecoration(
-    color: _filterApplied
-        ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-        : (Theme.of(context).brightness == Brightness.dark 
-            ? Colors.grey.shade700 
-            : Colors.grey.shade200),
     borderRadius: BorderRadius.circular(6.0),
     boxShadow: _filterApplied
         ? [BoxShadow(
@@ -738,27 +734,39 @@ Container(
           )]
         : null,
   ),
-  margin: const EdgeInsets.symmetric(horizontal: 8.0),
-  child: Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: _showAdvancedFilterDialog,
-      borderRadius: BorderRadius.circular(6.0),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Icon(
-          Icons.filter_list,
-          color: _filterApplied
-              ? Theme.of(context).colorScheme.primary
-              : (Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white70 
-                  : Colors.black54),
-          size: 20,
-        ),
+  child: Tooltip(
+  message: 'Filter Players',
+  waitDuration: const Duration(milliseconds: 300),
+  child: TextButton(
+    onPressed: _showAdvancedFilterDialog,
+    style: TextButton.styleFrom(
+      backgroundColor: _filterApplied
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+          : (Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade700 
+              : Colors.grey.shade200),
+      padding: const EdgeInsets.all(8.0),
+      minimumSize: const Size(36, 36),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6.0),
+      ),
+    ),
+    child: Text(
+      "🔍", // Unicode filter/settings symbol
+      style: TextStyle(
+        fontSize: 20,
+        color: _filterApplied
+            ? Theme.of(context).colorScheme.primary
+            : (Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white70 
+                : Colors.black54),
       ),
     ),
   ),
+  ),
 ),
+
+
     
     // Player count
     Container(
