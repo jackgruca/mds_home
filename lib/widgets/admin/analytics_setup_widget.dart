@@ -68,6 +68,45 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
     }
   }
 
+  // Add this method after _setupCollections() in the _AnalyticsSetupWidgetState class
+Future<void> _triggerInitialAggregation() async {
+  setState(() {
+    _isLoading = true;
+    _statusMessage = 'Triggering initial data aggregation...';
+  });
+
+  try {
+    // This is a local call to simulate the aggregation for testing
+    // In production, you'd use Firebase Functions HTTP callable functions
+    
+    // First check if collections exist, if not, set them up
+    if (!_collectionsExist) {
+      await _setupCollections();
+    }
+    
+    // Call the analytics aggregation function via HTTP callable
+    // This would be better using Firebase Functions SDK but this works for testing
+    await FirebaseService.triggerAnalyticsAggregation();
+    
+    setState(() {
+      _isLoading = false;
+      _statusMessage = 'Initial aggregation triggered. Data should be available shortly.';
+    });
+    
+    // Check collections again after a delay to update the status
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _checkCollections();
+      }
+    });
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+      _statusMessage = 'Error triggering aggregation: $e';
+    });
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -135,6 +174,18 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
                   onPressed: _isLoading ? null : _checkCollections,
                   child: const Text('Check Status'),
                 ),
+                // Add this button
+    if (_collectionsExist)
+      Padding(
+        padding: const EdgeInsets.only(left: 16.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+          ),
+          onPressed: _isLoading ? null : _triggerInitialAggregation,
+          child: const Text('Run Initial Aggregation'),
+        ),
+      ),
               ],
             ),
             

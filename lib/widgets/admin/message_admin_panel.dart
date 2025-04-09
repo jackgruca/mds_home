@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../services/message_service.dart';
 import '../../utils/theme_config.dart';
+import '../../main.dart'; 
 
 /// Admin panel to view and manage user messages
 /// This would be hidden behind authentication in a production app
@@ -215,6 +216,17 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
       appBar: AppBar(
         title: const Text('Message Admin Panel'),
         actions: [
+          IconButton(
+      icon: const Icon(Icons.admin_panel_settings),
+      tooltip: 'Main Admin Panel',
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const AdminPanel(), // You'll need to import this
+          ),
+        );
+      },
+    ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
