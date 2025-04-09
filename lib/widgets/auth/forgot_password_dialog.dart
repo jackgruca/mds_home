@@ -1,9 +1,8 @@
-// lib/widgets/auth/forgot_password_dialog.dart
+// Update lib/widgets/auth/forgot_password_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme_config.dart';
-import 'reset_password_dialog.dart';
 
 class ForgotPasswordDialog extends StatefulWidget {
   const ForgotPasswordDialog({super.key});
@@ -33,31 +32,24 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
       });
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.requestPasswordReset(_emailController.text);
-      
-      setState(() {
-        _isSubmitting = false;
-      });
-
-      if (success) {
+      try {
+        await authProvider.requestPasswordReset(_emailController.text);
+        
         setState(() {
+          _isSubmitting = false;
           _emailSent = true;
         });
-      } else {
+      } catch (e) {
         setState(() {
-          _error = authProvider.error ?? 'Failed to send reset email';
+          _isSubmitting = false;
+          _error = e.toString();
         });
       }
     }
   }
 
-  void _proceedToReset() {
-    Navigator.of(context).pop(); // Close current dialog
-    
-    showDialog(
-      context: context,
-      builder: (context) => ResetPasswordDialog(email: _emailController.text),
-    );
+  void _closeDialog() {
+    Navigator.of(context).pop();
   }
 
   @override
@@ -103,7 +95,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 icon: const Icon(Icons.close),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _closeDialog,
               ),
             ],
           ),
@@ -182,7 +174,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           
           // Back to sign in
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: _closeDialog,
             style: TextButton.styleFrom(
               foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
             ),
@@ -212,20 +204,15 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
         ),
         const SizedBox(height: 16),
         Text(
-          'We\'ve sent password reset instructions to ${_emailController.text}. Please check your email.',
+          'We\'ve sent password reset instructions to ${_emailController.text}. Please check your email and follow the link to reset your password.',
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
         ElevatedButton(
-          onPressed: _proceedToReset,
+          onPressed: _closeDialog,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-          child: const Text('Enter Reset Code'),
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
         ),
       ],

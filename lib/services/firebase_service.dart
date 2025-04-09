@@ -8,6 +8,7 @@ import '../models/draft_analytics.dart';
 import '../models/draft_pick.dart';
 import '../models/trade_package.dart';
 
+
 class FirebaseService {
   static FirebaseFirestore? _firestoreInstance;
   static const String draftAnalyticsCollection = 'draftAnalytics';

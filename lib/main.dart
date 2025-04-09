@@ -15,6 +15,8 @@ import 'package:flutter/foundation.dart';
 
 import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
+import 'services/firebase_service.dart';
+
 
 // Secret tap counter for admin access
 int _secretTapCount = 0;

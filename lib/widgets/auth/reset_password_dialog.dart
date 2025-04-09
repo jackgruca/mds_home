@@ -1,4 +1,4 @@
-// lib/widgets/auth/reset_password_dialog.dart
+// Update lib/widgets/auth/reset_password_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -45,38 +45,40 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      // First verify the token
-      final isValid = await authProvider.verifyResetToken(
-        widget.email,
-        _tokenController.text,
-      );
-      
-      if (!isValid) {
+      try {
+        // First verify the token
+        final isValid = await authProvider.verifyResetToken(
+          widget.email,
+          _tokenController.text,
+        );
+        
+        if (!isValid) {
+          setState(() {
+            _isSubmitting = false;
+            _error = 'Invalid or expired reset code. Please try again.';
+          });
+          return;
+        }
+        
+        // Then reset the password
+        final success = await authProvider.resetPassword(
+          widget.email,
+          _tokenController.text,
+          _passwordController.text,
+        );
+        
         setState(() {
           _isSubmitting = false;
-          _error = 'Invalid or expired reset code. Please try again.';
+          if (success) {
+            _isSuccess = true;
+          } else {
+            _error = authProvider.error ?? 'Failed to reset password';
+          }
         });
-        return;
-      }
-      
-      // Then reset the password
-      final success = await authProvider.resetPassword(
-        widget.email,
-        _tokenController.text,
-        _passwordController.text,
-      );
-      
-      setState(() {
-        _isSubmitting = false;
-      });
-
-      if (success) {
+      } catch (e) {
         setState(() {
-          _isSuccess = true;
-        });
-      } else {
-        setState(() {
-          _error = authProvider.error ?? 'Failed to reset password';
+          _isSubmitting = false;
+          _error = e.toString();
         });
       }
     }
