@@ -1,6 +1,7 @@
 // lib/screens/available_players_tab.dart
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/favorite_players_service.dart';
@@ -11,9 +12,18 @@ import '../widgets/player/player_details_dialog.dart';
 import '../utils/mock_player_data.dart';
 import '../services/favorite_players_service.dart';  // Add this import
 
-
-
-enum SortOption { rank, ras }
+enum SortOption { 
+  rank, 
+  name, 
+  position, 
+  school, 
+  ras, 
+  height, 
+  weight, 
+  fortyTime, 
+  verticalJump,
+  // Add more as needed
+}
 
 class AvailablePlayersTab extends StatefulWidget {
   final List<List<dynamic>> availablePlayers;
@@ -39,16 +49,32 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
-  bool _showFavorites = false; // Add this line for favorites filter
-  final Set<int> _favoritePlayerIds = {}; // Store favorite player IDs
-  double _minRasScore = 0.0;
-  double _maxHeight = 80.0;  // 6'8"
-  double _minHeight = 60.0;  // 5'0"
-  bool _filterApplied = false;
-  final bool _isFilterActive = false;
+  bool _showFavorites = false;
+  final Set<int> _favoritePlayerIds = {};
+  bool _debugMode = false;
+  final Map<int, Player> _enrichedPlayerCache = {};
 
-  // Add sort options
-  SortOption _sortOption = SortOption.rank; // Default sort by rank
+
+
+  
+  // Basic filters
+  double _minRasScore = 0.0;
+  double _minHeight = 60.0;  // 5'0"
+  double _maxHeight = 80.0;  // 6'8"
+  bool _filterApplied = false;
+  
+  // Extended filters
+  double? _minWeight;
+  double? _maxWeight;
+  String? _fortyTimeFilter;
+  double? _minFortyTime;
+  double? _maxFortyTime;
+  double? _minVerticalJump;
+  double? _maxVerticalJump;
+  
+  // Sorting options
+  SortOption _sortOption = SortOption.rank;
+  bool _sortAscending = true;
   
   // Track selected (crossed out) players locally
   Set<int> _selectedPlayerIds = {};
@@ -58,18 +84,40 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   final List<String> _defensivePositions = ['EDGE', 'DL', 'IDL', 'DT', 'DE', 'LB', 'ILB', 'OLB', 'CB', 'S', 'FS', 'SS'];
 
   @override
-  void initState() {
-    super.initState();
-    _initializeSelectedPlayers();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
-      });
+void initState() {
+  super.initState();
+  _initializeSelectedPlayers();
+  _searchController.addListener(() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
     });
-    
-    // Initialize favorites service
-    FavoritePlayersService.initialize();
-  }
+  });
+  
+  // Initialize filter values
+  _minRasScore = 0.0;
+  _minHeight = 60.0;  // 5'0"
+  _maxHeight = 80.0;  // 6'8"
+  _minWeight = 150.0;
+  _maxWeight = 350.0;
+  _fortyTimeFilter = null;
+  _minFortyTime = 4.3;
+  _maxFortyTime = 5.0;
+  _minVerticalJump = null;
+  _maxVerticalJump = null;
+  _filterApplied = false;
+  
+  // Initialize player data services
+  PlayerDescriptionsService.initialize().then((_) {
+    if (mounted) {
+      setState(() {
+        // Refresh after descriptions are loaded
+      });
+    }
+  });
+  
+  // Initialize favorites service
+  FavoritePlayersService.initialize();
+}
   
   @override
   void dispose() {
@@ -109,7 +157,238 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     return false;
   }
   
+  // Validate Player Attributes 
+  void _validateAndCorrectPlayerData(List<Player> players) {
+  for (var player in players) {
+    // Validate RAS Score
+    if (player.rasScore != null) {
+      // Ensure it's in the expected range
+      if (player.rasScore! < 0 || player.rasScore! > 10) {
+        debugPrint('Correcting invalid RAS score for ${player.name}: ${player.rasScore}');
+        player.rasScore = player.rasScore!.clamp(0.0, 10.0);
+      }
+    }
+    
+    // Validate Height
+    if (player.height != null) {
+      // Ensure it's in a reasonable range (5'0" to 6'8")
+      if (player.height! < 60 || player.height! > 80) {
+        debugPrint('Correcting invalid height for ${player.name}: ${player.height}');
+        player.height = player.height!.clamp(60.0, 80.0);
+      }
+    }
+    
+    // Validate Weight
+    if (player.weight != null) {
+      // Ensure it's in a reasonable range (150-350 lbs)
+      if (player.weight! < 150 || player.weight! > 350) {
+        debugPrint('Correcting invalid weight for ${player.name}: ${player.weight}');
+        player.weight = player.weight!.clamp(150.0, 350.0);
+      }
+    }
+    
+    // Validate 40 Time
+    if (player.fortyTime != null && player.fortyTime!.isNotEmpty) {
+      try {
+        double time = double.parse(player.fortyTime!.replaceAll('s', ''));
+        if (time < 4.0 || time > 6.0) {
+          debugPrint('Correcting invalid 40 time for ${player.name}: ${player.fortyTime}');
+          player.fortyTime = (time.clamp(4.0, 6.0)).toStringAsFixed(2);
+        }
+      } catch (e) {
+        // If can't parse, leave as is
+      }
+    }
+  }
+}
+
+void _enrichPlayerData(Player player) {
+  // First check if this player is already in the cache
+  if (_enrichedPlayerCache.containsKey(player.id)) {
+    // Copy cached values to this player instance
+    player.height = _enrichedPlayerCache[player.id]!.height;
+    player.weight = _enrichedPlayerCache[player.id]!.weight;
+    player.rasScore = _enrichedPlayerCache[player.id]!.rasScore;
+    player.fortyTime = _enrichedPlayerCache[player.id]!.fortyTime;
+    player.description = _enrichedPlayerCache[player.id]!.description;
+    player.strengths = _enrichedPlayerCache[player.id]!.strengths;
+    player.weaknesses = _enrichedPlayerCache[player.id]!.weaknesses;
+    player.tenYardSplit = _enrichedPlayerCache[player.id]!.tenYardSplit;
+    player.twentyYardShuttle = _enrichedPlayerCache[player.id]!.twentyYardShuttle;
+    player.threeConeTime = _enrichedPlayerCache[player.id]!.threeConeTime;
+    player.armLength = _enrichedPlayerCache[player.id]!.armLength;
+    player.benchPress = _enrichedPlayerCache[player.id]!.benchPress;
+    player.broadJump = _enrichedPlayerCache[player.id]!.broadJump;
+    player.handSize = _enrichedPlayerCache[player.id]!.handSize;
+    player.verticalJump = _enrichedPlayerCache[player.id]!.verticalJump;
+    player.wingspan = _enrichedPlayerCache[player.id]!.wingspan;
+    
+    if (_debugMode) {
+      debugPrint('Retrieved cached data for ${player.name} (ID: ${player.id})');
+    }
+    return;
+  }
+
+  // If not in cache, only try to get data from PlayerDescriptionsService
+  // Attempt to get additional player information from description service
+  Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
+  if (additionalInfo != null && _debugMode) {
+    debugPrint('Found description data for ${player.name}');
+  }
+  
+  if (additionalInfo != null) {
+    // Parse height
+    if (player.height == null && additionalInfo['height'] != null && additionalInfo['height']!.isNotEmpty) {
+      String heightStr = additionalInfo['height']!;
+      
+      if (heightStr.contains("'")) {
+        // Format like 6'2" or 6-2
+        try {
+          List<String> parts = heightStr.replaceAll('"', '').split("'");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          player.height = (feet * 12 + inches).toDouble();
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      } else if (heightStr.contains("-")) {
+        // Format like 6-1 for 6'1"
+        try {
+          List<String> parts = heightStr.split("-");
+          int feet = int.tryParse(parts[0]) ?? 0;
+          int inches = int.tryParse(parts[1]) ?? 0;
+          player.height = (feet * 12 + inches).toDouble();
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      } else {
+        // Try to parse as either just inches or in a different format
+        try {
+          player.height = double.tryParse(heightStr);
+          if (_debugMode) debugPrint('  Parsed height: $heightStr as ${player.height} inches');
+        } catch (e) {
+          if (_debugMode) debugPrint('  Failed to parse height: $heightStr, error: $e');
+        }
+      }
+    }
+    
+    // Parse weight
+    if (player.weight == null && additionalInfo['weight'] != null && additionalInfo['weight']!.isNotEmpty) {
+      try {
+        player.weight = double.tryParse(additionalInfo['weight']!);
+        if (_debugMode) debugPrint('  Parsed weight: ${additionalInfo['weight']} as ${player.weight} lbs');
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse weight: ${additionalInfo['weight']}, error: $e');
+      }
+    }
+    
+    // Parse 40 time
+    if ((player.fortyTime == null || player.fortyTime!.isEmpty) && 
+        additionalInfo['fortyTime'] != null && additionalInfo['fortyTime']!.isNotEmpty) {
+      player.fortyTime = additionalInfo['fortyTime'];
+      if (_debugMode) debugPrint('  Set 40 time: ${player.fortyTime}');
+    }
+    
+    // Parse RAS
+    if (player.rasScore == null && additionalInfo['ras'] != null && additionalInfo['ras']!.isNotEmpty) {
+      try {
+        player.rasScore = double.tryParse(additionalInfo['ras']!);
+        if (_debugMode) debugPrint('  Parsed RAS: ${additionalInfo['ras']} as ${player.rasScore}');
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse RAS: ${additionalInfo['ras']}, error: $e');
+      }
+    }
+    
+    // Additional fields
+    if ((player.description == null || player.description!.isEmpty) && 
+        additionalInfo['description'] != null && additionalInfo['description']!.isNotEmpty) {
+      player.description = additionalInfo['description'];
+    }
+    
+    if ((player.strengths == null || player.strengths!.isEmpty) && 
+        additionalInfo['strengths'] != null && additionalInfo['strengths']!.isNotEmpty) {
+      player.strengths = additionalInfo['strengths'];
+    }
+    
+    if ((player.weaknesses == null || player.weaknesses!.isEmpty) && 
+        additionalInfo['weaknesses'] != null && additionalInfo['weaknesses']!.isNotEmpty) {
+      player.weaknesses = additionalInfo['weaknesses'];
+    }
+    
+    // Parse other athletic measurements
+    if ((player.tenYardSplit == null || player.tenYardSplit!.isEmpty) && 
+        additionalInfo['tenYardSplit'] != null && additionalInfo['tenYardSplit']!.isNotEmpty) {
+      player.tenYardSplit = additionalInfo['tenYardSplit'];
+    }
+    
+    if ((player.twentyYardShuttle == null || player.twentyYardShuttle!.isEmpty) && 
+        additionalInfo['twentyYardShuttle'] != null && additionalInfo['twentyYardShuttle']!.isNotEmpty) {
+      player.twentyYardShuttle = additionalInfo['twentyYardShuttle'];
+    }
+    
+    if ((player.threeConeTime == null || player.threeConeTime!.isEmpty) && 
+        additionalInfo['threeCone'] != null && additionalInfo['threeCone']!.isNotEmpty) {
+      player.threeConeTime = additionalInfo['threeCone'];
+    }
+    
+    if (player.armLength == null && additionalInfo['armLength'] != null && additionalInfo['armLength']!.isNotEmpty) {
+      try {
+        player.armLength = double.tryParse(additionalInfo['armLength']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse armLength: ${additionalInfo['armLength']}, error: $e');
+      }
+    }
+    
+    if (player.benchPress == null && additionalInfo['benchPress'] != null && additionalInfo['benchPress']!.isNotEmpty) {
+      try {
+        player.benchPress = int.tryParse(additionalInfo['benchPress']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse benchPress: ${additionalInfo['benchPress']}, error: $e');
+      }
+    }
+    
+    if (player.broadJump == null && additionalInfo['broadJump'] != null && additionalInfo['broadJump']!.isNotEmpty) {
+      try {
+        player.broadJump = double.tryParse(additionalInfo['broadJump']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse broadJump: ${additionalInfo['broadJump']}, error: $e');
+      }
+    }
+    
+    if (player.handSize == null && additionalInfo['handSize'] != null && additionalInfo['handSize']!.isNotEmpty) {
+      try {
+        player.handSize = double.tryParse(additionalInfo['handSize']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse handSize: ${additionalInfo['handSize']}, error: $e');
+      }
+    }
+    
+    if (player.verticalJump == null && additionalInfo['verticalJump'] != null && additionalInfo['verticalJump']!.isNotEmpty) {
+      try {
+        player.verticalJump = double.tryParse(additionalInfo['verticalJump']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse verticalJump: ${additionalInfo['verticalJump']}, error: $e');
+      }
+    }
+    
+    if (player.wingspan == null && additionalInfo['wingspan'] != null && additionalInfo['wingspan']!.isNotEmpty) {
+      try {
+        player.wingspan = double.tryParse(additionalInfo['wingspan']!);
+      } catch (e) {
+        if (_debugMode) debugPrint('  Failed to parse wingspan: ${additionalInfo['wingspan']}, error: $e');
+      }
+    }
+  }
+  
+  // No mock data generation - leave fields as null if not available
+  
+  // Store the enriched player in the cache
+  _enrichedPlayerCache[player.id] = player;
+}
+
   // Toggle player favorite status
   void _toggleFavorite(int playerId) async {
     final isFavorite = await FavoritePlayersService.toggleFavorite(playerId);
@@ -148,31 +427,79 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
     int rankIndex = columnIndices["RANK_COMBINED"] ?? widget.availablePlayers[0].length - 1;
     int rasIndex = columnIndices["RAS"] ?? -1; // Add index for RAS score
 
-   // Create Player objects from the raw data
-    List<Player> allPlayers = [];
-    for (var row in widget.availablePlayers.skip(1)) {
-      try {
-        // Skip if we don't have enough elements
-        if (row.length <= positionIndex) continue;
-        
-        // Extract data and create Player object
-        Player player = Player.fromCsvRowWithHeaders(row, columnIndices);
-        
-        // Check if this player is favorited - use the service now
-        player.isFavorite = FavoritePlayersService.isFavorite(player.id);
-        
-        allPlayers.add(player);
-      } catch (e) {
-        debugPrint("Error processing player row: $e");
-      }
+// Create Player objects from the raw data
+List<Player> allPlayers = [];
+for (var row in widget.availablePlayers.skip(1)) {
+  try {
+    // Skip if we don't have enough elements
+    if (row.length <= positionIndex) continue;
+    
+    // Extract data and create Player object
+    Player player = Player.fromCsvRowWithHeaders(row, columnIndices);
+    
+    // Check if this player is favorited - use the service now
+    player.isFavorite = FavoritePlayersService.isFavorite(player.id);
+    
+    // Add debugging to see raw player data before enrichment
+    if (_debugMode) {
+      debugPrint('Created player from CSV: ${player.name}, Position: ${player.position}, '
+          'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
     }
     
+    // Enrich player with descriptions and mock data
+    _enrichPlayerData(player);
+    
+    allPlayers.add(player);
+  } catch (e) {
+    debugPrint("Error processing player row: $e");
+  }
+}
+
+void debugPlayerDescriptionsService() {
+  debugPrint('===== DEBUGGING PLAYER DESCRIPTIONS SERVICE =====');
+  
+  // Check if service is initialized
+  debugPrint('Attempting to get description for Travis Hunter...');
+  Map<String, String>? hunterInfo = PlayerDescriptionsService.getPlayerDescription('Travis Hunter');
+  
+  if (hunterInfo != null) {
+    debugPrint('Found data for Travis Hunter:');
+    hunterInfo.forEach((key, value) {
+      debugPrint('  $key: ${value.substring(0, min(30, value.length))}${value.length > 30 ? "..." : ""}');
+    });
+  } else {
+    debugPrint('NO DATA FOUND for Travis Hunter - PlayerDescriptionsService not working correctly');
+  }
+  
+  // Try a few more names
+  List<String> sampleNames = ['Caleb Williams', 'Marvin Harrison Jr', 'Malik Nabers', 'Drake Maye'];
+  for (String name in sampleNames) {
+    Map<String, String>? playerInfo = PlayerDescriptionsService.getPlayerDescription(name);
+    debugPrint('$name: ${playerInfo != null ? "Data Found" : "NO DATA FOUND"}');
+  }
+  
+  debugPrint('=================================================');
+}
+
+// Validate player data before filtering and sorting
+if (_debugMode) {
+  _validateAndCorrectPlayerData(allPlayers);
+}
+    
     // Update filter logic for favorites
-List<Player> filteredPlayers = allPlayers.where((player) {
+    List<Player> filteredPlayers = allPlayers.where((player) {
+  // Debug print to check what's being filtered
+  if (_filterApplied) {
+    debugPrint('Filtering player: ${player.name}, Position: ${player.position}, '
+        'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}, '
+        '40 Time: ${player.fortyTime}, Vertical: ${player.verticalJump}');
+  }
+
   // Existing filters
   bool matchesSearch = _searchQuery.isEmpty || 
-    player.name.toLowerCase().contains(_searchQuery) ||
-    player.school.toLowerCase().contains(_searchQuery);
+    player.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    player.school.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+    player.position.toLowerCase().contains(_searchQuery.toLowerCase());
   
   bool matchesPosition = _selectedPositions.isEmpty || 
     _selectedPositions.contains(player.position);
@@ -181,51 +508,166 @@ List<Player> filteredPlayers = allPlayers.where((player) {
   bool matchesFavorites = !_showFavorites || 
     FavoritePlayersService.isFavorite(player.id);
 
-  // RAS Score Filter (robust null handling)
+  // RAS Score Filter - more lenient with null handling
   bool meetsRasFilter = true;
   if (_filterApplied && _minRasScore > 0) {
-    // If player has no RAS score and we're filtering by RAS, exclude them
     if (player.rasScore == null) {
-      meetsRasFilter = false;
+      // Only exclude nulls if filtering is really intended (e.g., above 5.0)
+      meetsRasFilter = _minRasScore <= 1.0; // Keep nulls if filter is minimal
     } else {
       meetsRasFilter = player.rasScore! >= _minRasScore;
     }
   }
   
-  // Height Filter (convert to inches and handle null)
+  // Height Filter - more lenient
   bool meetsHeightFilter = true;
   if (_filterApplied && (_minHeight > 60 || _maxHeight < 80)) {
-    // If player has no height and we're filtering by height, exclude them
     if (player.height == null) {
-      meetsHeightFilter = false;
+      // Keep players with unknown height unless the filter is very specific
+      meetsHeightFilter = (_maxHeight - _minHeight) > 15;
     } else {
-      meetsHeightFilter = player.height! >= _minHeight && player.height! <= _maxHeight;
+      // Add a small tolerance to the range
+      meetsHeightFilter = player.height! >= (_minHeight - 0.5) && 
+                         player.height! <= (_maxHeight + 0.5);
     }
   }
 
-  return matchesSearch && 
-         matchesPosition && 
-         matchesFavorites && 
-         meetsRasFilter && 
-         meetsHeightFilter;
+  // Weight Filter - more lenient
+  bool meetsWeightFilter = true;
+  if (_filterApplied && _minWeight != null && _maxWeight != null) {
+    if (player.weight == null) {
+      // Keep players with unknown weight unless the filter is very specific
+      meetsWeightFilter = (_maxWeight! - _minWeight!) > 100;
+    } else {
+      // Add a tolerance to the range
+      meetsWeightFilter = player.weight! >= (_minWeight! - 5) && 
+                         player.weight! <= (_maxWeight! + 5);
+    }
+  }
+
+  // 40 Yard Dash Filter - improved parsing
+  bool meetsFortyFilter = true;
+  if (_filterApplied && _fortyTimeFilter != null && _minFortyTime != null && _maxFortyTime != null) {
+    if (player.fortyTime == null || player.fortyTime!.isEmpty) {
+      // Only exclude if we're looking for a specific range
+      meetsFortyFilter = (_maxFortyTime! - _minFortyTime!) > 0.5;
+    } else {
+      try {
+        // Better parsing that handles different formats
+        String cleaned = player.fortyTime!.replaceAll('s', '').trim();
+        double fortyTime = double.parse(cleaned);
+        // Add a small tolerance
+        meetsFortyFilter = fortyTime >= (_minFortyTime! - 0.05) && 
+                          fortyTime <= (_maxFortyTime! + 0.05);
+      } catch (e) {
+        debugPrint('Error parsing 40 time: ${player.fortyTime}, Error: $e');
+        meetsFortyFilter = true; // Keep players with badly formatted times
+      }
+    }
+  }
+
+  // Vertical Jump Filter - more lenient
+  bool meetsVerticalFilter = true;
+  if (_filterApplied && _minVerticalJump != null && _maxVerticalJump != null) {
+    if (player.verticalJump == null) {
+      // Keep players with unknown vertical unless filter is very specific
+      meetsVerticalFilter = (_maxVerticalJump! - _minVerticalJump!) > 10;
+    } else {
+      // Add tolerance
+      meetsVerticalFilter = player.verticalJump! >= (_minVerticalJump! - 1) && 
+                           player.verticalJump! <= (_maxVerticalJump! + 1);
+    }
+  }
+
+  // Combine all filters
+  bool meetsAllCriteria = matchesSearch && 
+                          matchesPosition && 
+                          matchesFavorites && 
+                          meetsRasFilter && 
+                          meetsHeightFilter &&
+                          meetsWeightFilter &&
+                          meetsFortyFilter &&
+                          meetsVerticalFilter;
+
+  // Debug filter results                          
+  if (_filterApplied && !meetsAllCriteria) {
+    debugPrint('Player ${player.name} filtered out by: ${!matchesSearch ? 'search ' : ''}${!matchesPosition ? 'position ' : ''}${!matchesFavorites ? 'favorites ' : ''}${!meetsRasFilter ? 'RAS ' : ''}${!meetsHeightFilter ? 'height ' : ''}${!meetsWeightFilter ? 'weight ' : ''}${!meetsFortyFilter ? '40time ' : ''}${!meetsVerticalFilter ? 'vertical ' : ''}');
+  }
+                          
+  return meetsAllCriteria;
 }).toList();
     
-    // Sort filtered players
-    switch (_sortOption) {
-      case SortOption.rank:
-        // Sort by rank (ascending)
-        filteredPlayers.sort((a, b) => a.rank.compareTo(b.rank));
-        break;
-      case SortOption.ras:
-        // Sort by RAS (descending), null values at the bottom
-        filteredPlayers.sort((a, b) {
-          if (a.rasScore == null && b.rasScore == null) return 0;
-          if (a.rasScore == null) return 1;
-          if (b.rasScore == null) return -1;
-          return b.rasScore!.compareTo(a.rasScore!);
-        });
-        break;
-    }
+    // Apply sorting
+switch (_sortOption) {
+  case SortOption.rank:
+    filteredPlayers.sort((a, b) => a.rank.compareTo(b.rank));
+    break;
+  case SortOption.name:
+    filteredPlayers.sort((a, b) => a.name.compareTo(b.name));
+    break;
+  case SortOption.position:
+    filteredPlayers.sort((a, b) => a.position.compareTo(b.position));
+    break;
+  case SortOption.school:
+    filteredPlayers.sort((a, b) => a.school.compareTo(b.school));
+    break;
+  case SortOption.ras:
+    filteredPlayers.sort((a, b) {
+      if (_debugMode) {
+        debugPrint('Comparing RAS: ${a.name} (${a.rasScore}) vs ${b.name} (${b.rasScore})');
+      }
+      
+      if (a.rasScore == null && b.rasScore == null) return 0;
+      if (a.rasScore == null) return 1; // Nulls at the bottom
+      if (b.rasScore == null) return -1;
+      
+      return a.rasScore!.compareTo(b.rasScore!);
+    });
+    break;
+  case SortOption.height:
+    filteredPlayers.sort((a, b) {
+      if (a.height == null && b.height == null) return 0;
+      if (a.height == null) return 1;
+      if (b.height == null) return -1;
+      return a.height!.compareTo(b.height!);
+    });
+    break;
+  case SortOption.weight:
+    filteredPlayers.sort((a, b) {
+      if (a.weight == null && b.weight == null) return 0;
+      if (a.weight == null) return 1;
+      if (b.weight == null) return -1;
+      return a.weight!.compareTo(b.weight!);
+    });
+    break;
+  case SortOption.fortyTime:
+    filteredPlayers.sort((a, b) {
+      if (a.fortyTime == null && b.fortyTime == null) return 0;
+      if (a.fortyTime == null) return 1;
+      if (b.fortyTime == null) return -1;
+      try {
+        double aTime = double.parse(a.fortyTime!.replaceAll('s', ''));
+        double bTime = double.parse(b.fortyTime!.replaceAll('s', ''));
+        return aTime.compareTo(bTime);
+      } catch (e) {
+        return 0;
+      }
+    });
+    break;
+  case SortOption.verticalJump:
+    filteredPlayers.sort((a, b) {
+      if (a.verticalJump == null && b.verticalJump == null) return 0;
+      if (a.verticalJump == null) return 1;
+      if (b.verticalJump == null) return -1;
+      return a.verticalJump!.compareTo(b.verticalJump!);
+    });
+    break;
+}
+
+// Reverse if not ascending
+if (!_sortAscending) {
+  filteredPlayers = filteredPlayers.reversed.toList();
+}
 
     // Get all available positions for filters
     Set<String> availablePositions = allPlayers
@@ -277,8 +719,7 @@ Row(
           controller: _searchController,
           decoration: InputDecoration(
             hintText: 'Search Players',
-            prefixIcon: const Icon(Icons.search),
-            // Remove the suffixIcon that contains the filter icon
+            prefixIcon: const Icon(Icons.search, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
@@ -290,10 +731,10 @@ Row(
     ),
     const SizedBox(width: 8),
     
-    // Sort dropdown
+    // Sort dropdown - compact icon version
     Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
-      decoration: BoxDecoration(
+      padding: EdgeInsets.zero,
+        decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark 
             ? Colors.grey.shade700 
             : Colors.grey.shade200,
@@ -304,79 +745,112 @@ Row(
               : Colors.grey.shade400,
         ),
       ),
-      child: DropdownButton<SortOption>(
-        value: _sortOption,
-        isDense: true,
-        underline: Container(),
-        icon: const Icon(Icons.arrow_drop_down, size: 20),
-        style: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.white 
-              : Colors.black87,
-          fontSize: 12,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<SortOption>(
+          value: _sortOption,
+          isDense: true,
+          icon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 14,
+              ),
+              const Icon(Icons.arrow_drop_down, size: 16),
+            ],
+          ),
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white 
+                : Colors.black87,
+            fontSize: 12,
+          ),
+          padding: EdgeInsets.zero,
+          borderRadius: BorderRadius.circular(6.0),
+          items: [
+            _buildSortItem(SortOption.rank, 'Rank'),
+            _buildSortItem(SortOption.name, 'Name'),
+            _buildSortItem(SortOption.position, 'Position'),
+            _buildSortItem(SortOption.school, 'School'),
+            _buildSortItem(SortOption.ras, 'RAS'),
+            _buildSortItem(SortOption.height, 'Height'),
+            _buildSortItem(SortOption.weight, 'Weight'),
+            _buildSortItem(SortOption.fortyTime, '40 Time'),
+            _buildSortItem(SortOption.verticalJump, 'Vertical'),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                if (_sortOption == value) {
+                  _sortAscending = !_sortAscending;
+                } else {
+                  _sortOption = value;
+                  switch (value) {
+                    case SortOption.name:
+                    case SortOption.position:
+                    case SortOption.school:
+                      _sortAscending = true;
+                      break;
+                    default:
+                      _sortAscending = false;
+                  }
+                  if (value == SortOption.fortyTime || value == SortOption.rank) {
+                    _sortAscending = true;
+                  }
+                }
+              });
+            }
+          },
         ),
-        items: const [
-          DropdownMenuItem(
-            value: SortOption.rank,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sort, size: 14),
-                SizedBox(width: 4),
-                Text('Rank'),
-              ],
-            ),
-          ),
-          DropdownMenuItem(
-            value: SortOption.ras,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.sort, size: 14),
-                SizedBox(width: 4),
-                Text('RAS'),
-              ],
-            ),
-          ),
-        ],
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _sortOption = value;
-            });
-          }
-        },
       ),
     ),
 
-    // Make the filter button more visible
-    Container(
-  decoration: BoxDecoration(
-    color: Theme.of(context).brightness == Brightness.dark 
-        ? Colors.grey.shade700 
-        : Colors.grey.shade200,
-    borderRadius: BorderRadius.circular(6.0),
-  ),
+    // Filter button - icon with glow effect when active
+Container(
   margin: const EdgeInsets.symmetric(horizontal: 8.0),
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(6.0),
+    boxShadow: _filterApplied
+        ? [BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            blurRadius: 4,
+            spreadRadius: 1,
+          )]
+        : null,
+  ),
+  child: Tooltip(
+  message: 'Filter Players',
+  waitDuration: const Duration(milliseconds: 300),
   child: TextButton(
     onPressed: _showAdvancedFilterDialog,
     style: TextButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      minimumSize: const Size(10, 10),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      backgroundColor: _filterApplied
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+          : (Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade700 
+              : Colors.grey.shade200),
+      padding: const EdgeInsets.all(8.0),
+      minimumSize: const Size(36, 36),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6.0),
+      ),
     ),
     child: Text(
-      'Filter',
+      "🔍", // Unicode filter/settings symbol
       style: TextStyle(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Colors.white 
-            : Colors.black87,
-        fontSize: 12,
+        fontSize: 20,
+        color: _filterApplied
+            ? Theme.of(context).colorScheme.primary
+            : (Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white70 
+                : Colors.black54),
       ),
     ),
   ),
+  ),
 ),
-    const SizedBox(width: 8),
+
+
     
     // Player count
     Container(
@@ -397,23 +871,7 @@ Row(
         ),
       ),
     ),
-    if (_filterApplied)
-      Padding(
-        padding: const EdgeInsets.only(left: 8.0),
-        child: Chip(
-          label: const Text('Filters Applied'),
-          backgroundColor: Colors.blue.shade100,
-          deleteIcon: const Icon(Icons.close, size: 18),
-          onDeleted: () {
-            setState(() {
-              _filterApplied = false;
-              _minRasScore = 0.0;
-              _minHeight = 60.0;
-              _maxHeight = 80.0;
-            });
-          },
-        ),
-      ),
+    
     // Reset filter button
     if (_selectedPositions.isNotEmpty || _showFavorites)
       IconButton(
@@ -429,8 +887,51 @@ Row(
         },
         tooltip: 'Clear filter',
       ),
+      
+    // Only show in debug builds
+    if (kDebugMode)
+      Container(
+        decoration: BoxDecoration(
+          color: _debugMode 
+              ? Colors.red.shade200 
+              : Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade700 
+                  : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(6.0),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: IconButton(
+          onPressed: () {
+            setState(() {
+              _debugMode = !_debugMode;
+              if (_debugMode) {
+                // Debug dump of all player data
+                for (var player in allPlayers.take(5)) {
+                  debugPrint('Player: ${player.name}, Position: ${player.position}, '
+                      'RAS: ${player.rasScore}, Height: ${player.height}, Weight: ${player.weight}');
+                }
+              }
+            });
+          },
+          icon: Icon(
+            Icons.bug_report,
+            color: _debugMode 
+                ? Colors.red.shade900
+                : Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white70 
+                    : Colors.black54,
+            size: 20,
+          ),
+          tooltip: 'Toggle Debug Mode',
+          constraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+        ),
+      ),
   ],
 ),
+    
                 const SizedBox(height: 4),
                 
                 // Compact position filters
@@ -857,20 +1358,20 @@ return Card(
       weaknesses: additionalInfo['weaknesses'] ?? player.weaknesses,
       fortyTime: fortyTime ?? player.fortyTime,
       // Add all athletic measurements
-      tenYardSplit: tenYardSplit,
-      twentyYardShuttle: twentyYardShuttle,
-      threeConeTime: threeConeTime,
-      armLength: armLength,
-      benchPress: benchPress,
-      broadJump: broadJump,
-      handSize: handSize,
-      verticalJump: verticalJump,
-      wingspan: wingspan,
+      tenYardSplit: tenYardSplit ?? player.tenYardSplit,
+      twentyYardShuttle: twentyYardShuttle ?? player.twentyYardShuttle,
+      threeConeTime: threeConeTime ?? player.threeConeTime,
+      armLength: armLength ?? player.armLength,
+      benchPress: benchPress ?? player.benchPress,
+      broadJump: broadJump ?? player.broadJump,
+      handSize: handSize ?? player.handSize,
+      verticalJump: verticalJump ?? player.verticalJump,
+      wingspan: wingspan ?? player.wingspan,
       isFavorite: player.isFavorite,
     );
   } else {
-    // Fall back to mock data for players without description
-    enrichedPlayer = MockPlayerData.enrichPlayerData(player);
+    // Just use the player as is, don't add mock data
+    enrichedPlayer = player;
   }
   
   // Show the dialog with enriched player data
@@ -1033,6 +1534,15 @@ return Card(
   double tempMinRas = _minRasScore;
   double tempMinHeight = _minHeight;
   double tempMaxHeight = _maxHeight;
+  double tempMinWeight = _minWeight ?? 150;
+  double tempMaxWeight = _maxWeight ?? 350;
+  String? tempFortyFilter = _fortyTimeFilter;
+  double? tempMinFortyTime = _minFortyTime;
+  double? tempMaxFortyTime = _maxFortyTime;
+  double? tempMinVertical = _minVerticalJump;
+  double? tempMaxVertical = _maxVerticalJump;
+  
+  // More filter variables can be defined here
 
   showDialog(
     context: context,
@@ -1120,6 +1630,155 @@ return Card(
                       tempMaxHeight = values.end;
                     }),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Weight Filter
+                  const Text('Weight Range (lbs)'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${tempMinWeight.toStringAsFixed(0)} lbs',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${tempMaxWeight.toStringAsFixed(0)} lbs',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  RangeSlider(
+                    values: RangeValues(tempMinWeight, tempMaxWeight),
+                    min: 150.0,
+                    max: 350.0,
+                    divisions: 40,
+                    labels: RangeLabels(
+                      '${tempMinWeight.toStringAsFixed(0)} lbs',
+                      '${tempMaxWeight.toStringAsFixed(0)} lbs'
+                    ),
+                    onChanged: (values) => setState(() {
+                      tempMinWeight = values.start;
+                      tempMaxWeight = values.end;
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // 40 Yard Dash Filter
+                  const Text('40 Yard Dash (seconds)'),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: tempFortyFilter != null,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              tempFortyFilter = "range";
+                              tempMinFortyTime ??= 4.3;
+                              tempMaxFortyTime ??= 5.0;
+                            } else {
+                              tempFortyFilter = null;
+                            }
+                          });
+                        },
+                      ),
+                      const Text('Filter by 40 time'),
+                    ],
+                  ),
+                  if (tempFortyFilter != null)
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${tempMinFortyTime?.toStringAsFixed(2) ?? "4.30"}s',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${tempMaxFortyTime?.toStringAsFixed(2) ?? "5.00"}s',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        RangeSlider(
+                          values: RangeValues(
+                            tempMinFortyTime ?? 4.3,
+                            tempMaxFortyTime ?? 5.0,
+                          ),
+                          min: 4.2,
+                          max: 5.2,
+                          divisions: 20,
+                          labels: RangeLabels(
+                            '${tempMinFortyTime?.toStringAsFixed(2) ?? "4.30"}s',
+                            '${tempMaxFortyTime?.toStringAsFixed(2) ?? "5.00"}s'
+                          ),
+                          onChanged: (values) => setState(() {
+                            tempMinFortyTime = values.start;
+                            tempMaxFortyTime = values.end;
+                          }),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
+                  
+                  // Vertical Jump Filter
+                  const Text('Vertical Jump (inches)'),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: tempMinVertical != null,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              tempMinVertical = 28.0;
+                              tempMaxVertical = 42.0;
+                            } else {
+                              tempMinVertical = null;
+                              tempMaxVertical = null;
+                            }
+                          });
+                        },
+                      ),
+                      const Text('Filter by vertical jump'),
+                    ],
+                  ),
+                  if (tempMinVertical != null)
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${tempMinVertical?.toStringAsFixed(1) ?? "28.0"}"',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${tempMaxVertical?.toStringAsFixed(1) ?? "42.0"}"',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        RangeSlider(
+                          values: RangeValues(
+                            tempMinVertical ?? 28.0,
+                            tempMaxVertical ?? 42.0,
+                          ),
+                          min: 20.0,
+                          max: 45.0,
+                          divisions: 25,
+                          labels: RangeLabels(
+                            '${tempMinVertical?.toStringAsFixed(1) ?? "28.0"}"',
+                            '${tempMaxVertical?.toStringAsFixed(1) ?? "42.0"}"'
+                          ),
+                          onChanged: (values) => setState(() {
+                            tempMinVertical = values.start;
+                            tempMaxVertical = values.end;
+                          }),
+                        ),
+                      ],
+                    ),
+                  
+                  // Additional filters can be added here
                 ],
               ),
             ),
@@ -1137,6 +1796,13 @@ return Card(
                     _minRasScore = 0.0;
                     _minHeight = 60.0;
                     _maxHeight = 80.0;
+                    _minWeight = null;
+                    _maxWeight = null;
+                    _fortyTimeFilter = null;
+                    _minFortyTime = null;
+                    _maxFortyTime = null;
+                    _minVerticalJump = null;
+                    _maxVerticalJump = null;
                     _filterApplied = false;
                   });
                 },
@@ -1149,6 +1815,13 @@ return Card(
                     _minRasScore = tempMinRas;
                     _minHeight = tempMinHeight;
                     _maxHeight = tempMaxHeight;
+                    _minWeight = tempMinWeight;
+                    _maxWeight = tempMaxWeight;
+                    _fortyTimeFilter = tempFortyFilter;
+                    _minFortyTime = tempMinFortyTime;
+                    _maxFortyTime = tempMaxFortyTime;
+                    _minVerticalJump = tempMinVertical;
+                    _maxVerticalJump = tempMaxVertical;
                     _filterApplied = true;
                   });
                 },
@@ -1159,6 +1832,19 @@ return Card(
         },
       );
     },
+  );
+}
+DropdownMenuItem<SortOption> _buildSortItem(SortOption option, String label) {
+  return DropdownMenuItem(
+    value: option,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.sort, size: 12),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    ),
   );
 }
 }
