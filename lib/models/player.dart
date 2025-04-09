@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // lib/models/player.dart (update to make properties mutable)
+
 class Player {
   final int id;
   String name;
@@ -16,8 +17,17 @@ class Player {
   String? strengths;
   String? weaknesses;
   String? fortyTime;
-  bool isFavorite; // Add this line
-
+  // New athletic measurements
+  String? tenYardSplit;
+  String? twentyYardShuttle;
+  String? threeConeTime;
+  double? armLength;
+  int? benchPress;
+  double? broadJump;
+  double? handSize;
+  double? verticalJump;
+  double? wingspan;
+  bool isFavorite;
 
   Player({
     required this.id,
@@ -33,9 +43,30 @@ class Player {
     this.strengths,
     this.weaknesses,
     this.fortyTime,
-    this.isFavorite = false, // Default to false
+    // New athletic measurements
+    this.tenYardSplit,
+    this.twentyYardShuttle,
+    this.threeConeTime,
+    this.armLength,
+    this.benchPress,
+    this.broadJump,
+    this.handSize,
+    this.verticalJump,
+    this.wingspan,
+    this.isFavorite = false,
   });
   
+  // Add formatting getters for the new fields
+  String get formattedTenYardSplit => tenYardSplit != null && tenYardSplit!.isNotEmpty ? "${tenYardSplit}s" : "N/A";
+  String get formattedTwentyYardShuttle => twentyYardShuttle != null && twentyYardShuttle!.isNotEmpty ? "${twentyYardShuttle}s" : "N/A";
+  String get formattedThreeCone => threeConeTime != null && threeConeTime!.isNotEmpty ? "${threeConeTime}s" : "N/A";
+  String get formattedArmLength => armLength != null ? "${armLength!.toStringAsFixed(1)}\"" : "N/A";
+  String get formattedBenchPress => benchPress != null ? "$benchPress reps" : "N/A";
+  String get formattedBroadJump => broadJump != null ? "${broadJump!.toStringAsFixed(1)}\"" : "N/A";
+  String get formattedHandSize => handSize != null ? "${handSize!.toStringAsFixed(1)}\"" : "N/A";
+  String get formattedVerticalJump => verticalJump != null ? "${verticalJump!.toStringAsFixed(1)}\"" : "N/A";
+  String get formattedWingspan => wingspan != null ? "${wingspan!.toStringAsFixed(1)}\"" : "N/A";
+
   // Create a Player from CSV row data
   factory Player.fromCsvRow(List<dynamic> row) {
     try {

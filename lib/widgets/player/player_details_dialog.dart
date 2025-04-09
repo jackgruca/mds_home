@@ -237,6 +237,144 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
             ],
           ),
         ),
+        // Replace the current ExpansionTile showing "Athletic Measurements"
+Container(
+  width: double.infinity,
+  decoration: BoxDecoration(
+    color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    border: Border(
+      bottom: BorderSide(
+        color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        width: 1,
+      ),
+    ),
+  ),
+  child: ExpansionTile(
+    title: Text(
+      'Athletic Measurements',
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        color: isDarkMode ? Colors.white : Colors.black87,
+      ),
+    ),
+    tilePadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+    collapsedBackgroundColor:
+        isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    backgroundColor:
+        isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildCompactStat(
+            context,
+            '10yd',
+            player.formattedTenYardSplit,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            '20yd',
+            player.formattedTwentyYardShuttle,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            '3-Cone',
+            player.formattedThreeCone,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Vertical',
+            player.formattedVerticalJump,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Broad',
+            player.formattedBroadJump,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Bench',
+            player.formattedBenchPress,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Arm',
+            player.formattedArmLength,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Hand',
+            player.formattedHandSize,
+            isDarkMode,
+          ),
+          Container(
+            height: 24,
+            width: 1,
+            color:
+                isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+          ),
+          _buildCompactStat(
+            context,
+            'Wing',
+            player.formattedWingspan,
+            isDarkMode,
+          ),
+        ],
+      ),
+    ],
+  ),
+),
+
         
         // Single scrollable content area
         Expanded(
