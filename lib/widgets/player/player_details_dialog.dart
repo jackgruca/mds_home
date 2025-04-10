@@ -1,6 +1,8 @@
 // lib/widgets/player/player_details_dialog.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/player.dart';
+import '../../services/player_espn_id_service.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/constants.dart';
 
@@ -31,6 +33,18 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
   final headerColor = _getPositionColor(player.position);
   final screenSize = MediaQuery.of(context).size;
   
+  // Get player headshot URL
+  String? headshotUrl;
+  if (player.headshot != null && player.headshot!.isNotEmpty) {
+    headshotUrl = player.headshot;
+  } else {
+    // Try to get ESPN ID for this player
+    String? espnId = PlayerESPNIdService.getESPNId(player.name);
+    if (espnId != null) {
+      headshotUrl = PlayerESPNIdService.buildESPNImageUrl(espnId);
+    }
+  }
+  
   return Container(
     padding: EdgeInsets.zero,
     decoration: BoxDecoration(
@@ -48,7 +62,7 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // Header with player name and position
+        // Header with player name, position and headshot
         Container(
           decoration: BoxDecoration(
             color: headerColor.withOpacity(isDarkMode ? 0.7 : 0.2),
@@ -60,28 +74,79 @@ Widget contentBox(BuildContext context, bool isDarkMode) {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // School logo
-              SizedBox(
-                width: 60,
-                height: 60,
-                child: ClipRRect(
+              // Player headshot - prioritize over school logo
+              headshotUrl != null ? 
+                ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
-                    padding: const EdgeInsets.all(4),
-                    child: player.school.isNotEmpty
-                      ? TeamLogoUtils.buildCollegeTeamLogo(
-                          player.school,
-                          size: 52.0,
-                        )
-                      : const SizedBox(
-                          width: 52,
-                          height: 52,
-                          child: Icon(Icons.school_outlined, size: 32),
+                  child: CachedNetworkImage(
+                    imageUrl: headshotUrl,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 80,
+                      height: 80,
+                      color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                          ),
                         ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 80,
+                      height: 80,
+                      color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person,
+                            size: 36,
+                            color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+                          ),
+                          // Show small school logo as fallback
+                          if (player.school.isNotEmpty)
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: TeamLogoUtils.buildCollegeTeamLogo(
+                                player.school,
+                                size: 24,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ) : 
+                // Fallback to school logo if no headshot
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
+                      padding: const EdgeInsets.all(4),
+                      child: player.school.isNotEmpty
+                        ? TeamLogoUtils.buildCollegeTeamLogo(
+                            player.school,
+                            size: 72.0,
+                          )
+                        : const SizedBox(
+                            width: 72,
+                            height: 72,
+                            child: Icon(Icons.person, size: 48),
+                          ),
+                    ),
                   ),
                 ),
-              ),
+              
               const SizedBox(width: 16),
               
               // Player name and position
