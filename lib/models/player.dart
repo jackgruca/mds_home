@@ -28,6 +28,7 @@ class Player {
   double? verticalJump;
   double? wingspan;
   bool isFavorite;
+  String? headshot;
 
   Player({
     required this.id,
@@ -53,6 +54,7 @@ class Player {
     this.handSize,
     this.verticalJump,
     this.wingspan,
+    this.headshot,
     this.isFavorite = false,
   });
   
