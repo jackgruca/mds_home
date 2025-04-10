@@ -1,8 +1,9 @@
 // lib/providers/auth_provider.dart
 import 'package:flutter/material.dart';
 import '../models/user.dart';
-import '../services/auth_service.dart';
 import '../models/custom_draft_data.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/firestore_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
@@ -21,11 +22,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await AuthService.initialize();
-      _user = AuthService.currentUser;
+      await FirebaseAuthService.initialize();
+      await FirestoreService.initialize();
+      
+      _user = FirebaseAuthService.currentUser;
       _error = null;
+      
+      // Notify listeners when Firebase Auth changes
+      // (Already handled in FirebaseAuthService)
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error initializing auth provider: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -33,77 +40,52 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Register a new user
-  // Enhance the register method
-Future<bool> register({
-  required String name,
-  required String email,
-  required String password,
-  required bool isSubscribed,
-}) async {
-  _isLoading = true;
-  _error = null;
-  notifyListeners();
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+    required bool isSubscribed,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-  try {
-    // Validate email format
-    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _error = 'Please enter a valid email address';
-      _isLoading = false;
+    try {
+      // Validate email format
+      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+        _error = 'Please enter a valid email address';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      
+      // Validate password strength
+      if (password.length < 6) {
+        _error = 'Password must be at least 6 characters long';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      _user = await FirebaseAuthService.register(
+        name: name,
+        email: email,
+        password: password,
+        isSubscribed: isSubscribed,
+      );
+      
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error registering user: $e');
       notifyListeners();
       return false;
-    }
-    
-    // Validate password strength
-    if (password.length < 6) {
-      _error = 'Password must be at least 6 characters long';
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return false;
     }
-
-    _user = await AuthService.register(
-      name: name,
-      email: email,
-      password: password,
-      isSubscribed: isSubscribed,
-    );
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _error = e.toString();
-    notifyListeners();
-    return false;
-  } finally {
-    _isLoading = false;
-    notifyListeners();
   }
-}
-
-// Save user preferences (draft settings, etc.)
-Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
-  if (_user == null) {
-    _error = 'No user logged in';
-    notifyListeners();
-    return false;
-  }
-
-  _isLoading = true;
-  notifyListeners();
-
-  try {
-    _user = await AuthService.updateUserPreferences(
-      preferences: preferences,
-    );
-    _isLoading = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _error = e.toString();
-    _isLoading = false;
-    notifyListeners();
-    return false;
-  }
-}
 
   // Sign in an existing user
   Future<bool> signIn({
@@ -115,7 +97,7 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
     notifyListeners();
 
     try {
-      _user = await AuthService.signIn(
+      _user = await FirebaseAuthService.signIn(
         email: email,
         password: password,
       );
@@ -123,6 +105,7 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
       return true;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error signing in: $e');
       notifyListeners();
       return false;
     } finally {
@@ -137,36 +120,12 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
     notifyListeners();
 
     try {
-      await AuthService.signOut();
+      await FirebaseAuthService.signOut();
       _user = null;
       _error = null;
     } catch (e) {
       _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Update the user's subscription status
-  Future<bool> updateSubscription(bool isSubscribed) async {
-    if (_user == null) {
-      _error = 'No user logged in';
-      notifyListeners();
-      return false;
-    }
-
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      _user = await AuthService.updateSubscription(isSubscribed);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      return false;
+      debugPrint('Error signing out: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -180,50 +139,13 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
     notifyListeners();
 
     try {
-      await AuthService.generatePasswordResetToken(email);
+      await FirebaseAuthService.sendPasswordResetEmail(email);
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Reset a password with token
-  Future<bool> resetPassword(String email, String token, String newPassword) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final success = await AuthService.resetPassword(email, token, newPassword);
-      _isLoading = false;
-      notifyListeners();
-      return success;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Verify a reset token
-  Future<bool> verifyResetToken(String email, String token) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final isValid = await AuthService.verifyResetToken(email, token);
-      _isLoading = false;
-      notifyListeners();
-      return isValid;
-    } catch (e) {
-      _error = e.toString();
+      debugPrint('Error requesting password reset: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -242,12 +164,13 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
     notifyListeners();
 
     try {
-      _user = await AuthService.updateFavoriteTeams(favoriteTeams);
+      _user = await FirebaseAuthService.updateFavoriteTeams(favoriteTeams);
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error updating favorite teams: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -266,123 +189,86 @@ Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
     notifyListeners();
 
     try {
-      _user = await AuthService.updateDraftPreferences(preferences);
+      _user = await FirebaseAuthService.updateUserPreferences(
+        preferences: preferences,
+      );
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error updating draft preferences: $e');
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  Future<bool> _updateUserInDb() async {
-  if (_user == null) {
-    _error = "Cannot update: No user is logged in";
-    return false;
+  // Save user preferences
+  Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
+    return updateDraftPreferences(preferences);
   }
 
-  _isLoading = true;
-  notifyListeners();
-
-  try {
-    // This assumes your AuthService has an updateUser method
-    // If it doesn't, you'll need to add it to your AuthService
-    _user = await AuthService.updateUser(_user!);
+  // Get user's saved custom draft data sets
+  Future<List<CustomDraftData>> getUserCustomDraftData() async {
+    if (!isLoggedIn || user == null) return [];
     
-    _error = null;
-    _isLoading = false;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    debugPrint('Error updating user: $e');
-    _error = 'Failed to update user data: $e';
-    _isLoading = false;
-    notifyListeners();
-    return false;
+    try {
+      return await FirestoreService.getUserCustomDraftData(user!.id);
+    } catch (e) {
+      debugPrint('Error getting custom draft data: $e');
+      _error = 'Failed to get custom draft data: $e';
+      return [];
+    }
   }
-}
+
+  // Save a custom draft data set
+  Future<bool> saveCustomDraftData(CustomDraftData draftData) async {
+    if (!isLoggedIn || user == null) return false;
+    
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      await FirestoreService.saveCustomDraftData(user!.id, draftData);
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error saving custom draft data: $e');
+      _error = 'Failed to save custom draft data: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Delete a custom draft data set
+  Future<bool> deleteCustomDraftData(String name) async {
+    if (!isLoggedIn || user == null) return false;
+    
+    try {
+      _isLoading = true;
+      notifyListeners();
+      
+      await FirestoreService.deleteCustomDraftData(user!.id, name);
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting custom draft data: $e');
+      _error = 'Failed to delete custom draft data: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
 
   // Clear any error messages
   void clearError() {
     _error = null;
     notifyListeners();
   }
-
-  // Get user's saved custom draft data sets
-List<CustomDraftData> getUserCustomDraftData() {
-  if (!isLoggedIn || user == null) return [];
-  
-  final List<dynamic> storedData = user?.customDraftData ?? [];
-  return storedData.map((data) => 
-    CustomDraftData.fromJson(data)
-  ).toList();
-}
-
-// Save a custom draft data set
-Future<bool> saveCustomDraftData(CustomDraftData draftData) async {
-  if (!isLoggedIn || user == null) return false;
-  
-  try {
-    // Get current custom data
-    List<CustomDraftData> currentData = getUserCustomDraftData();
-    
-    // Check if a set with this name already exists
-    int existingIndex = currentData.indexWhere((data) => data.name == draftData.name);
-    
-    if (existingIndex >= 0) {
-      // Update existing data set
-      currentData[existingIndex] = draftData;
-    } else {
-      // Add new data set
-      currentData.add(draftData);
-    }
-    
-    // Convert to JSON for storage
-    List<Map<String, dynamic>> jsonData = currentData.map((data) => 
-      data.toJson()
-    ).toList();
-    
-    // Update user's custom data
-    user?.customDraftData = jsonData;
-    
-    // Save to database
-    return await _updateUserInDb();
-  } catch (e) {
-    debugPrint('Error saving custom draft data: $e');
-    _error = 'Failed to save custom draft data: $e';
-    return false;
-  }
-}
-
-// Delete a custom draft data set
-Future<bool> deleteCustomDraftData(String name) async {
-  if (!isLoggedIn || user == null) return false;
-  
-  try {
-    // Get current custom data
-    List<CustomDraftData> currentData = getUserCustomDraftData();
-    
-    // Remove the data set with the given name
-    currentData.removeWhere((data) => data.name == name);
-    
-    // Convert to JSON for storage
-    List<Map<String, dynamic>> jsonData = currentData.map((data) => 
-      data.toJson()
-    ).toList();
-    
-    // Update user's custom data
-    user?.customDraftData = jsonData;
-    
-    // Save to database
-    return await _updateUserInDb();
-  } catch (e) {
-    debugPrint('Error deleting custom draft data: $e');
-    _error = 'Failed to delete custom draft data: $e';
-    return false;
-  }
-}
-
 }

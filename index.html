@@ -1,66 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Other head elements -->
   <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="NFL Draft Simulator">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="mds_home">
+  <meta name="apple-mobile-web-app-title" content="NFL Draft Simulator">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>mds_home</title>
+  <title>NFL Draft Simulator</title>
   <link rel="manifest" href="manifest.json">
-
-  <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-
-<script>
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
-    authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
-    projectId: "nfl-draft-simulator-9265f",
-    storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
-    messagingSenderId: "900728713837",
-    appId: "1:900728713837:web:3e0c47b05b144c758f8564",
-    measurementId: "G-8QGNSTTZGH"
-  };
   
-  // Initialize Firebase
-  if (typeof firebase !== 'undefined') {
-    console.log("Initializing Firebase from index.html");
-    firebase.initializeApp(firebaseConfig);
-    firebase.analytics();
-  } else {
-    console.error("Firebase SDK not loaded properly");
-  }
-</script>
+  <!-- Add these Firebase scripts in this order -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
 
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
+      authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+      projectId: "nfl-draft-simulator-9265f",
+      storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
+      messagingSenderId: "900728713837",
+      appId: "1:900728713837:web:3e0c47b05b144c758f8564",
+      measurementId: "G-8QGNSTTZGH"
+    };
+    
+    // Initialize Firebase
+    if (typeof firebase !== 'undefined') {
+      console.log("Initializing Firebase");
+      firebase.initializeApp(firebaseConfig);
+      firebase.analytics();
+    } else {
+      console.error("Firebase SDK not loaded properly");
+    }
+  </script>
+
+  <script src="flutter.js" defer></script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
 </body>
 </html>
