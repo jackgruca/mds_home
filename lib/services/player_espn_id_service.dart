@@ -7,7 +7,7 @@ class PlayerESPNIdService {
     // Example mappings - you would expand this
     "Tre Harris": "4567048",
   "Malaki Starks": "4685530",
-  "Kenneth Grant": "4682980",
+  "Kenneth Grant": "4894654",
   "Derrick Harmon": "4432830",
   "Walter Nolen": "4685503",
   "Omarion Hampton": "4685382",
@@ -104,7 +104,7 @@ class PlayerESPNIdService {
   "Shemar Stewart": "4685562",
   "Jihaad Campbell": "4685287",
   "Matthew Golden": "4701936",
-  "Mike Green": "4593261",
+  "Mike Green": "4683188",
   "James Pearce Jr": "5081394",
   "Nick Emmanwori": "4869523",
   "Josh Simmons": "4685360",
