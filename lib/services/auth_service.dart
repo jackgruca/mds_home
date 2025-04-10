@@ -1,13 +1,13 @@
-// Updated lib/services/auth_service.dart
+// Update lib/services/auth_service.dart to add Firestore integration
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/user.dart' as app_user;
+import 'firestore_service.dart';
 
 class AuthService {
   static const String _userKey = 'current_user';
-  static const String _usersKey = 'registered_users';
   
   static app_user.User? _currentUser;
   static final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
@@ -21,9 +21,9 @@ class AuthService {
   // Initialize the auth service
   static Future<void> initialize() async {
     // Listen for auth state changes from Firebase
-    _firebaseAuth.authStateChanges().listen((firebase_auth.User? firebaseUser) {
+    _firebaseAuth.authStateChanges().listen((firebase_auth.User? firebaseUser) async {
       if (firebaseUser != null) {
-        _loadUserData(firebaseUser.uid);
+        await _loadUserData(firebaseUser.uid);
       } else {
         _currentUser = null;
       }
@@ -32,7 +32,7 @@ class AuthService {
     await _loadCurrentUser();
   }
   
-  // Load the current user from shared preferences
+  // Load the current user from shared preferences or Firebase
   static Future<void> _loadCurrentUser() async {
     try {
       // First check if Firebase has a current user
@@ -59,9 +59,17 @@ class AuthService {
   // Load user data from Firestore
   static Future<void> _loadUserData(String uid) async {
     try {
-      // TODO: In Phase 2, we'll add Firestore user data fetching
-      // For now, we'll create a basic user from Firebase Auth
+      // Try to get user from Firestore
+      final firestoreUser = await FirestoreService.getUserData(uid);
       
+      if (firestoreUser != null) {
+        _currentUser = firestoreUser;
+        await _saveCurrentUser(_currentUser!);
+        debugPrint('User loaded from Firestore: ${_currentUser?.name}');
+        return;
+      }
+      
+      // If not in Firestore yet, create a basic user from Firebase Auth
       final firebaseUser = _firebaseAuth.currentUser;
       if (firebaseUser == null) return;
       
@@ -73,6 +81,9 @@ class AuthService {
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );
+      
+      // Save to Firestore
+      await FirestoreService.createUserDocument(_currentUser!);
       
       // Save to preferences for offline access
       await _saveCurrentUser(_currentUser!);
@@ -128,10 +139,11 @@ class AuthService {
         lastLoginAt: DateTime.now(),
       );
       
+      // Save to Firestore
+      await FirestoreService.createUserDocument(user);
+      
       // Save to SharedPreferences for offline access
       await _saveCurrentUser(user);
-      
-      // TODO: In Phase 2, we'll add Firestore user profile creation
       
       return user;
     } catch (e) {
@@ -156,20 +168,39 @@ class AuthService {
         throw Exception('Failed to sign in');
       }
       
-      // Load or create user model
+      // Try to load the user from Firestore
+      final firestoreUser = await FirestoreService.getUserData(userCredential.user!.uid);
+      
+      if (firestoreUser != null) {
+        // Update lastLoginAt
+        final updatedUser = firestoreUser.copyWith(
+          lastLoginAt: DateTime.now(),
+        );
+        
+        // Save to Firestore
+        await FirestoreService.saveUserData(updatedUser);
+        
+        // Save to SharedPreferences
+        await _saveCurrentUser(updatedUser);
+        
+        return updatedUser;
+      }
+      
+      // If not in Firestore yet, create a new user record
       final user = app_user.User(
         id: userCredential.user!.uid,
         name: userCredential.user!.displayName ?? 'User',
         email: email,
-        isSubscribed: false, // This will be updated in Phase 2 from Firestore
+        isSubscribed: false,
         createdAt: DateTime.now(),
         lastLoginAt: DateTime.now(),
       );
       
-      // Save to SharedPreferences for offline access
-      await _saveCurrentUser(user);
+      // Save to Firestore
+      await FirestoreService.createUserDocument(user);
       
-      // TODO: In Phase 2, we'll update lastLoginAt in Firestore
+      // Save to SharedPreferences
+      await _saveCurrentUser(user);
       
       return user;
     } catch (e) {
@@ -204,10 +235,11 @@ class AuthService {
         isSubscribed: isSubscribed,
       );
       
+      // Save to Firestore
+      await FirestoreService.updateSubscription(updatedUser.id, isSubscribed);
+      
       // Save to SharedPreferences
       await _saveCurrentUser(updatedUser);
-      
-      // TODO: In Phase 2, we'll update subscription status in Firestore
       
       return updatedUser;
     } catch (e) {
@@ -229,8 +261,9 @@ class AuthService {
   // Verify a password reset code
   static Future<bool> verifyResetToken(String email, String code) async {
     try {
-      // Firebase handles this differently
-      // We'll just check if the code is not empty for now
+      // Firebase handles verification differently
+      // This is basically a stub - in a real implementation we might
+      // try to verify the code with Firebase
       return code.isNotEmpty;
     } catch (e) {
       debugPrint('Error verifying reset token: $e');
@@ -241,10 +274,15 @@ class AuthService {
   // Reset password using a token
   static Future<bool> resetPassword(String email, String code, String newPassword) async {
     try {
-      // Firebase requires a different approach
-      // This will be fully implemented in the next step
-      // For now, return success if code is not empty
-      return code.isNotEmpty;
+      // In a real Firebase implementation, we'd use confirmPasswordReset
+      // For now, we'll just check if the code is not empty
+      if (code.isEmpty) {
+        return false;
+      }
+      
+      // This is a placeholder implementation
+      // In a real app, you'd use Firebase's confirmPasswordReset method
+      return true;
     } catch (e) {
       debugPrint('Error resetting password: $e');
       throw Exception('Failed to reset password: $e');
@@ -263,10 +301,11 @@ class AuthService {
         favoriteTeams: favoriteTeams,
       );
       
+      // Save to Firestore
+      await FirestoreService.updateFavoriteTeams(updatedUser.id, favoriteTeams);
+      
       // Save to SharedPreferences
       await _saveCurrentUser(updatedUser);
-      
-      // TODO: In Phase 2, we'll update favorite teams in Firestore
       
       return updatedUser;
     } catch (e) {
@@ -274,7 +313,9 @@ class AuthService {
       throw Exception('Failed to update favorite teams: $e');
     }
   }
-  
+
+  // ... continuing from the last function in AuthService
+
   // Update draft preferences
   static Future<app_user.User> updateDraftPreferences(Map<String, dynamic> preferences) async {
     if (_currentUser == null) {
@@ -287,10 +328,11 @@ class AuthService {
         draftPreferences: preferences,
       );
       
+      // Save to Firestore
+      await FirestoreService.updateDraftPreferences(updatedUser.id, preferences);
+      
       // Save to SharedPreferences
       await _saveCurrentUser(updatedUser);
-      
-      // TODO: In Phase 2, we'll update draft preferences in Firestore
       
       return updatedUser;
     } catch (e) {
@@ -299,10 +341,72 @@ class AuthService {
     }
   }
   
-  // Update user in Firestore
+  // Update user data in Firestore and local storage
   static Future<app_user.User> updateUser(app_user.User user) async {
-    // This is a stub to be implemented in Phase 2
-    await _saveCurrentUser(user);
-    return user;
+    try {
+      // Save to Firestore
+      await FirestoreService.saveUserData(user);
+      
+      // Save to SharedPreferences
+      await _saveCurrentUser(user);
+      
+      return user;
+    } catch (e) {
+      debugPrint('Error updating user: $e');
+      throw Exception('Failed to update user: $e');
+    }
+  }
+  
+  // Save custom draft data
+  static Future<bool> saveCustomDraftData(String userId, List<dynamic> customDraftData) async {
+    try {
+      return await FirestoreService.updateCustomDraftData(userId, customDraftData);
+    } catch (e) {
+      debugPrint('Error saving custom draft data: $e');
+      return false;
+    }
+  }
+  
+  // Check if user email is verified
+  static bool isEmailVerified() {
+    final firebaseUser = _firebaseAuth.currentUser;
+    return firebaseUser?.emailVerified ?? false;
+  }
+  
+  // Send email verification
+  static Future<void> sendEmailVerification() async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser != null && !firebaseUser.emailVerified) {
+      await firebaseUser.sendEmailVerification();
+    }
+  }
+  
+  // Delete user account
+  static Future<bool> deleteAccount() async {
+    try {
+      final firebaseUser = _firebaseAuth.currentUser;
+      
+      if (firebaseUser == null) {
+        return false;
+      }
+      
+      final userId = firebaseUser.uid;
+      
+      // Delete user data from Firestore
+      await FirestoreService.deleteUserData(userId);
+      
+      // Delete the Firebase Auth user
+      await firebaseUser.delete();
+      
+      // Clear local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userKey);
+      _currentUser = null;
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting account: $e');
+      return false;
+    }
   }
 }

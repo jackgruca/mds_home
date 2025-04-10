@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/user_preferences_screen.dart';
+import '../../screens/user_profile_screen.dart';
 import '../../utils/theme_config.dart';
 import 'auth_dialog.dart';
 
@@ -52,101 +53,106 @@ class HeaderAuthButton extends StatelessWidget {
         if (user != null) {
           // User is logged in - show avatar with dropdown
           return PopupMenuButton<String>(
-            offset: const Offset(0, 40),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                    child: Text(
-                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_drop_down, size: 16),
-                ],
-              ),
+  offset: const Offset(0, 40),
+  child: Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+          child: Text(
+            user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'account',
-                enabled: false,
-                child: Row(
-                  children: [
-                    Icon(Icons.person, 
-                      size: 16, 
-                      color: isDarkMode ? Colors.white70 : Colors.black87
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      user.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, size: 16),
-                    SizedBox(width: 8),
-                    Text('Profile Settings'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'signout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, size: 16),
-                    SizedBox(width: 8),
-                    Text('Sign Out'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'preferences',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, size: 16),
-                    SizedBox(width: 8),
-                    Text('User Preferences'),
-                  ],
-                ),
-              ),
-            ],
-            onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  // TODO: Implement profile screen
-                  break;
-                case 'signout':
-                  _handleSignOut(context);
-                  break;
-                case 'preferences':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserPreferencesScreen(),
-                    ),
-                  );
-                  break;
-              }
-            },
-          );
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Icon(Icons.arrow_drop_down, size: 16),
+      ],
+    ),
+  ),
+  itemBuilder: (context) => [
+    PopupMenuItem(
+      value: 'account',
+      enabled: false,
+      child: Row(
+        children: [
+          Icon(Icons.person, 
+            size: 16, 
+            color: isDarkMode ? Colors.white70 : Colors.black87
+          ),
+          const SizedBox(width: 8),
+          Text(
+            user.name,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    ),
+    const PopupMenuDivider(),
+    const PopupMenuItem(
+      value: 'profile',
+      child: Row(
+        children: [
+          Icon(Icons.account_circle, size: 16),
+          SizedBox(width: 8),
+          Text('My Profile'),
+        ],
+      ),
+    ),
+    const PopupMenuItem(
+      value: 'preferences',
+      child: Row(
+        children: [
+          Icon(Icons.settings, size: 16),
+          SizedBox(width: 8),
+          Text('User Preferences'),
+        ],
+      ),
+    ),
+    const PopupMenuItem(
+      value: 'signout',
+      child: Row(
+        children: [
+          Icon(Icons.logout, size: 16),
+          SizedBox(width: 8),
+          Text('Sign Out'),
+        ],
+      ),
+    ),
+  ],
+  onSelected: (value) {
+    switch (value) {
+      case 'profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserProfileScreen(),
+          ),
+        );
+        break;
+      case 'preferences':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserPreferencesScreen(),
+          ),
+        );
+        break;
+      case 'signout':
+        _handleSignOut(context);
+        break;
+    }
+  },
+);
         } else {
           // User is not logged in - show sign in button
           return TextButton.icon(

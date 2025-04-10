@@ -105,6 +105,33 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+    // Update user profile
+  Future<bool> updateUser(app_user.User updatedUser) async {
+    if (_user == null) {
+      _error = "Cannot update: No user is logged in";
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _user = await AuthService.updateUser(updatedUser);
+      
+      _error = null;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error updating user: $e');
+      _error = 'Failed to update user data: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Update the user's subscription status
   Future<bool> updateSubscription(bool isSubscribed) async {
     if (_user == null) {

@@ -10,6 +10,8 @@ import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
+import '../widgets/auth/email_verification_banner.dart';
+
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
@@ -208,7 +210,8 @@ Future<void> _loadUserPreferences() async {
 
       body: SafeArea(
         child: Column(
-          children: [            
+          children: [      
+            const EmailVerificationBanner(),       
             if (_showFeedbackBanner)
               UserFeedbackBanner(
                 onDismiss: () {
