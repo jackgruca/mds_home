@@ -1,4 +1,6 @@
 // lib/services/draft_pick_grade_service.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
 import '../models/player.dart';
@@ -33,111 +35,325 @@ class DraftPickGradeService {
     // Beyond fifth need or not a need: no boost
   };
 
-  /// Calculate comprehensive grade for an individual pick
-  static Map<String, dynamic> calculatePickGrade(
-    DraftPick pick, 
-    List<TeamNeed> teamNeeds,
-    {bool considerTeamNeeds = true}
-  ) {
-    if (pick.selectedPlayer == null) {
-      return {
-        'grade': 'N/A',
-        'letter': 'N/A',
-        'value': 0.0,
-        'colorScore': 50,
-        'factors': {},
-      };
-    }
+/// Calculate comprehensive grade for an individual pick with improved factors
+static Map<String, dynamic> calculatePickGrade(
+  DraftPick pick, 
+  List<TeamNeed> teamNeeds,
+  {bool considerTeamNeeds = true, bool debug = true}
+) {
+  final StringBuffer debugLog = StringBuffer();
+  
+  if (debug) {
+    debugLog.writeln("\n===== PICK GRADE CALCULATION DEBUG =====");
+    debugLog.writeln("Team: ${pick.teamName} | Pick #${pick.pickNumber}");
+  }
+  
+  if (pick.selectedPlayer == null) {
+    if (debug) debugLog.writeln("No player selected, returning N/A");
+    if (debug) debugPrint(debugLog.toString());
+    
+    return {
+      'grade': 'N/A',
+      'letter': 'N/A',
+      'value': 0.0,
+      'colorScore': 50,
+      'factors': {},
+    };
+  }
 
-    final player = pick.selectedPlayer!;
-    final int pickNumber = pick.pickNumber;
-    final int playerRank = player.rank;
-    final String position = player.position;
-    
-    // Base value differential (traditional calculation)
-    int baseValueDiff = pickNumber - playerRank;
-    
-    // Calculate round for expectation adjustment
-    int round = DraftValueService.getRoundForPick(pickNumber);
-    double roundFactor = getRoundExpectationFactor(round);
-    
-    // Apply positional value coefficient
-    double positionCoefficient = positionValueCoefficients[position] ?? 1.0;
-    
-    // Apply team need factor if requested
-    double needFactor = 1.0;
-    int needIndex = -1;
-    
-    if (considerTeamNeeds) {
-      // Find team needs
-      TeamNeed? teamNeed = teamNeeds.firstWhere(
+  final player = pick.selectedPlayer!;
+  final int pickNumber = pick.pickNumber;
+  final int playerRank = player.rank;
+  final String position = player.position;
+  
+  if (debug) {
+    debugLog.writeln("Player: ${player.name} (${player.position})");
+    debugLog.writeln("Pick Number: $pickNumber | Player Rank: $playerRank");
+  }
+  
+  // Base value differential (traditional calculation)
+  int baseValueDiff = pickNumber - playerRank;
+  
+  // Calculate pick round for expectation & weighting
+  int round = DraftValueService.getRoundForPick(pickNumber);
+  
+  if (debug) {
+    debugLog.writeln("Round: $round | Base Value Differential: $baseValueDiff");
+  }
+  
+  // 1. NEED FACTOR - Now with both positive and negative impact
+  double needFactor = 0.0;
+  int needIndex = -1;
+  bool isInNeedRange = false;
+  
+  if (considerTeamNeeds) {
+    // Find the matching team need from the original set
+    TeamNeed? teamNeed;
+    try {
+      teamNeed = teamNeeds.firstWhere(
         (need) => need.teamName == pick.teamName,
-        orElse: () => TeamNeed(teamName: pick.teamName, needs: [])
       );
-      
-      // Check if position is in team needs
-      needIndex = teamNeed.needs.indexOf(position);
-      if (needIndex >= 0 && needIndex < needImportanceFactor.length) {
-        needFactor = 1.0 + needImportanceFactor[needIndex]!;
+    } catch (e) {
+      // If no team found, create an empty one
+      teamNeed = TeamNeed(teamName: pick.teamName, needs: []);
+      if (debug) {
+        debugLog.writeln("WARNING: No team needs found for ${pick.teamName}, using empty needs list");
       }
     }
     
-    // Draft value analysis
-    double draftValueDiff = 0.0;
-    double pickValue = DraftValueService.getValueForPick(pickNumber);
-    double projectedPickValue = 0.0;
+    // BUGFIX: Access the ORIGINAL needs from CSV directly
+    // This is stored in TeamNeed.toList() which contains the original data
+    // We'll recreate the original needs list from this data
+    List<String> originalNeeds = [];
     
-    // If player rank is within reason, get the draft value for that position
-    if (playerRank > 0 && playerRank <= 262) {
-      projectedPickValue = DraftValueService.getValueForPick(playerRank);
-      draftValueDiff = (projectedPickValue - pickValue) / 100; // Scale appropriately
+    // Get original needs from CSV (should be preserved in the model)
+    // This should correctly reflect the order and contents of the original needs
+    for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
+      if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
+        originalNeeds.add(need.toString());
+      }
     }
-
-    // Combine all factors with appropriate weights
-    double valueDiffWeight = 0.4;     // 40% of grade is value differential
-    double positionWeight = 0.25;     // 25% is position value
-    double needWeight = 0.25;         // 25% is team need
-    double roundExpWeight = 0.1;      // 10% is round expectation
     
-    // Calculate adjusted value differential
-    double adjustedValueDiff = baseValueDiff * roundFactor;
+    if (debug) {
+      debugLog.writeln("\nNEEDS ANALYSIS:");
+      debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
+    }
     
-    // Calculate combined score 
-    double combinedScore = (
-      (adjustedValueDiff * valueDiffWeight) +
-      (positionCoefficient * 5 * positionWeight) + // Scale position coefficient
-      ((needFactor - 1.0) * 20 * needWeight) +    // Scale need factor
-      (draftValueDiff * roundExpWeight)
-    );
+    // Calculate eligible need range (round + 3)
+    int eligibleNeedRange = round + 3;
+    eligibleNeedRange = min(eligibleNeedRange, originalNeeds.length);
     
-    // Store all the factors for analysis
-    Map<String, dynamic> factors = {
-      'baseValueDiff': baseValueDiff,
-      'adjustedValueDiff': adjustedValueDiff,
-      'positionCoefficient': positionCoefficient,
-      'needFactor': needFactor,
-      'needIndex': needIndex,
-      'roundFactor': roundFactor,
-      'draftValueDiff': draftValueDiff,
-      'pickValue': pickValue,
-      'projectedPickValue': projectedPickValue,
-      'round': round,
-    };
+    // Check if position is in original needs list
+    needIndex = originalNeeds.indexOf(position);
     
-    // Convert to letter grade
-    String letterGrade = getLetterGrade(combinedScore);
+    // Determine if position is within the eligible range
+    isInNeedRange = needIndex >= 0 && needIndex < eligibleNeedRange;
     
-    // Calculate color gradient value (0-100 scale for UI)
-    int colorScore = getColorScore(combinedScore);
-    
-    return {
-      'grade': combinedScore,
-      'letter': letterGrade,
-      'value': baseValueDiff,
-      'colorScore': colorScore,
-      'factors': factors,
-    };
+    // Calculate need factor based on need priority and eligibility
+    if (isInNeedRange) {
+      // Position is in eligible need range - positive boost
+      if (needIndex == 0) needFactor = 0.35;      // Top need: +35%
+      else if (needIndex == 1) needFactor = 0.30; // Second need: +30%
+      else if (needIndex == 2) needFactor = 0.25; // Third need: +25%
+      else if (needIndex == 3) needFactor = 0.20; // Fourth need: +20%
+      else if (needIndex == 4) needFactor = 0.15; // Fifth need: +15%
+      else needFactor = 0.10;                     // Other eligible needs: +10%
+      
+      if (debug) {
+        debugLog.writeln("✓ Position is need #${needIndex+1} - within eligible range (0-$eligibleNeedRange)");
+        debugLog.writeln("✓ Need Factor: +${needFactor.toStringAsFixed(2)} (+${(needFactor * 10).toStringAsFixed(1)} points)");
+      }
+    } else if (needIndex >= eligibleNeedRange) {
+      // Position is a need but outside eligible range - neutral
+      needFactor = 0.0;
+      
+      if (debug) {
+        debugLog.writeln("⚠ Position is need #${needIndex+1} - outside eligible range (0-$eligibleNeedRange)");
+        debugLog.writeln("⚠ Need Factor: ${needFactor.toStringAsFixed(2)} (0 points)");
+      }
+    } else {
+      // Position not in needs list at all - penalty
+      // Penalty is stronger in early rounds, milder in later rounds
+      if (round == 1) needFactor = -0.30;      // 1st round: -30%
+      else if (round == 2) needFactor = -0.25; // 2nd round: -25%
+      else if (round == 3) needFactor = -0.20; // 3rd round: -20%
+      else if (round == 4) needFactor = -0.15; // 4th round: -15%
+      else needFactor = -0.10;                 // 5th+ round: -10%
+      
+      if (debug) {
+        debugLog.writeln("✗ Position is not in team needs list");
+        debugLog.writeln("✗ Need Factor: ${needFactor.toStringAsFixed(2)} (${(needFactor * 10).toStringAsFixed(1)} points)");
+      }
+    }
+  } else {
+    if (debug) {
+      debugLog.writeln("Team needs consideration disabled");
+      debugLog.writeln("Need Factor: ${needFactor.toStringAsFixed(2)} (0 points)");
+    }
   }
+  
+  // 2. POSITION VALUE - Premium for valuable positions
+  double positionValue = 0.0;
+  
+  // Premium positions get additional value
+  if (['QB', 'EDGE', 'OT'].contains(position)) {
+    positionValue = 0.25; // +25% for premier positions
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Premier position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else if (['CB', 'WR'].contains(position)) {
+    positionValue = 0.20; // +20% for key positions  
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Key position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else if (['S', 'DT', 'TE'].contains(position)) {
+    positionValue = 0.15; // +15% for valuable positions
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Valuable position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else if (['IOL', 'LB'].contains(position)) {
+    positionValue = 0.10; // +10% for solid positions
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Solid position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else if (['RB'].contains(position)) {
+    positionValue = 0.05; // Small bonus for devalued positions
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Devalued position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else {
+    positionValue = 0.10; // Default +10% for unspecified positions
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Standard position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  }
+  
+  // 3. VALUE DIFFERENTIAL - Scaled by round (bigger deal in early rounds)
+  double valueFactor = 0.0;
+  
+  if (debug) debugLog.writeln("\nVALUE DIFFERENTIAL ANALYSIS:");
+  
+  // Scale based on round - value is more critical in early rounds
+  if (round == 1) {
+    // Round 1: Value matters a lot
+    if (baseValueDiff >= 15) {
+      valueFactor = 0.40;      // Exceptional value
+      if (debug) debugLog.writeln("Round 1 with exceptional value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 10) {
+      valueFactor = 0.35;      // Great value
+      if (debug) debugLog.writeln("Round 1 with great value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 5) {
+      valueFactor = 0.25;      // Good value
+      if (debug) debugLog.writeln("Round 1 with good value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 0) {
+      valueFactor = 0.15;      // Fair value
+      if (debug) debugLog.writeln("Round 1 with fair value (+$baseValueDiff)");
+    } else if (baseValueDiff >= -5) {
+      valueFactor = 0.0;       // Slight reach
+      if (debug) debugLog.writeln("Round 1 with slight reach ($baseValueDiff)");
+    } else if (baseValueDiff >= -10) {
+      valueFactor = -0.20;     // Moderate reach
+      if (debug) debugLog.writeln("Round 1 with moderate reach ($baseValueDiff)");
+    } else {
+      valueFactor = -0.35;     // Major reach
+      if (debug) debugLog.writeln("Round 1 with major reach ($baseValueDiff)");
+    }
+  } 
+  else if (round == 2) {
+    // Round 2: Value still important
+    if (baseValueDiff >= 15) {
+      valueFactor = 0.35;      // Exceptional value
+      if (debug) debugLog.writeln("Round 2 with exceptional value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 10) {
+      valueFactor = 0.30;      // Great value
+      if (debug) debugLog.writeln("Round 2 with great value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 5) {
+      valueFactor = 0.20;      // Good value
+      if (debug) debugLog.writeln("Round 2 with good value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 0) {
+      valueFactor = 0.10;      // Fair value
+      if (debug) debugLog.writeln("Round 2 with fair value (+$baseValueDiff)");
+    } else if (baseValueDiff >= -10) {
+      valueFactor = -0.15;     // Reach
+      if (debug) debugLog.writeln("Round 2 with reach ($baseValueDiff)");
+    } else {
+      valueFactor = -0.25;     // Major reach
+      if (debug) debugLog.writeln("Round 2 with major reach ($baseValueDiff)");
+    }
+  }
+  else if (round == 3) {
+    // Round 3: Value moderately important
+    if (baseValueDiff >= 15) {
+      valueFactor = 0.30;      // Exceptional value
+      if (debug) debugLog.writeln("Round 3 with exceptional value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 10) {
+      valueFactor = 0.25;      // Great value
+      if (debug) debugLog.writeln("Round 3 with great value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 5) {
+      valueFactor = 0.15;      // Good value
+      if (debug) debugLog.writeln("Round 3 with good value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 0) {
+      valueFactor = 0.05;      // Fair value
+      if (debug) debugLog.writeln("Round 3 with fair value (+$baseValueDiff)");
+    } else if (baseValueDiff >= -10) {
+      valueFactor = -0.10;     // Reach
+      if (debug) debugLog.writeln("Round 3 with reach ($baseValueDiff)");
+    } else {
+      valueFactor = -0.20;     // Major reach
+      if (debug) debugLog.writeln("Round 3 with major reach ($baseValueDiff)");
+    }
+  }
+  else {
+    // Rounds 4+: Value less important
+    if (baseValueDiff >= 15) {
+      valueFactor = 0.25;      // Exceptional value
+      if (debug) debugLog.writeln("Late round with exceptional value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 10) {
+      valueFactor = 0.20;      // Great value
+      if (debug) debugLog.writeln("Late round with great value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 5) {
+      valueFactor = 0.10;      // Good value
+      if (debug) debugLog.writeln("Late round with good value (+$baseValueDiff)");
+    } else if (baseValueDiff >= 0) {
+      valueFactor = 0.05;      // Fair value
+      if (debug) debugLog.writeln("Late round with fair value (+$baseValueDiff)");
+    } else if (baseValueDiff >= -10) {
+      valueFactor = -0.05;     // Reach
+      if (debug) debugLog.writeln("Late round with reach ($baseValueDiff)");
+    } else {
+      valueFactor = -0.15;     // Major reach
+      if (debug) debugLog.writeln("Late round with major reach ($baseValueDiff)");
+    }
+  }
+  
+  if (debug) {
+    debugLog.writeln("Value Factor: ${valueFactor >= 0 ? '+' : ''}${valueFactor.toStringAsFixed(2)} (${(valueFactor * 10).toStringAsFixed(1)} points)");
+  }
+  
+  // 4. COMBINE FACTORS - Base score is 5 (C grade), adjust up or down
+  // Base of 5 allows more room for both positive and negative adjustments
+  double baseScore = 5.0;
+  
+  // Build up score with our factors
+  double needPoints = needFactor * 10;
+  double positionPoints = positionValue * 10;
+  double valuePoints = valueFactor * 10;
+  double finalScore = baseScore + needPoints + positionPoints + valuePoints;
+  
+  if (debug) {
+    debugLog.writeln("\nSCORE CALCULATION:");
+    debugLog.writeln("Base Score: ${baseScore.toStringAsFixed(1)}");
+    debugLog.writeln("Need Points: ${needPoints >= 0 ? '+' : ''}${needPoints.toStringAsFixed(1)}");
+    debugLog.writeln("Position Points: +${positionPoints.toStringAsFixed(1)}");
+    debugLog.writeln("Value Points: ${valuePoints >= 0 ? '+' : ''}${valuePoints.toStringAsFixed(1)}");
+    debugLog.writeln("FINAL SCORE: ${finalScore.toStringAsFixed(1)}");
+  }
+  
+  // Convert to letter grade using new scale
+  String letterGrade = getLetterGrade(finalScore);
+  
+  // Calculate color gradient value (0-100 scale for UI)
+  int colorScore = getColorScore(finalScore);
+  
+  if (debug) {
+    debugLog.writeln("LETTER GRADE: $letterGrade");
+    debugLog.writeln("===== END PICK GRADE CALCULATION =====\n");
+    debugPrint(debugLog.toString());
+  }
+  
+  // Store all factors for analysis
+  Map<String, dynamic> factors = {
+    'baseValueDiff': baseValueDiff,
+    'needFactor': needFactor,
+    'needIndex': needIndex,
+    'isInNeedRange': isInNeedRange,
+    'eligibleNeedRange': round + 3,
+    'positionValue': positionValue,
+    'valueFactor': valueFactor,
+    'round': round,
+    'baseScore': baseScore,
+    'needPoints': needPoints,
+    'positionPoints': positionPoints,
+    'valuePoints': valuePoints,
+    'debugLog': debugLog.toString(), // Store the debug log for later analysis
+  };
+  
+  return {
+    'grade': finalScore,
+    'letter': letterGrade,
+    'value': baseValueDiff,
+    'colorScore': colorScore,
+    'factors': factors,
+  };
+}
 
   /// Get round expectation factor - similar adjustment to your team grade system
   static double getRoundExpectationFactor(int round) {
@@ -155,84 +371,87 @@ class DraftPickGradeService {
 
   /// Convert numeric grade to letter grade
   static String getLetterGrade(double score) {
-    // More forgiving grading scale
-    if (score >= 8) return 'A+';  // Was 15
-    if (score >= 6) return 'A';    // Was 10
-    if (score >= 4) return 'A-';   // Was 7
-    if (score >= 2) return 'B+';   // Was 5
-    if (score >= 0) return 'B';    // Was 3
-    if (score >= -2) return 'B-';   // Was 1
-    if (score >= -4) return 'C+';  // Was 0
-    if (score >= -6) return 'C';   // Was -3
-    if (score >= -8) return 'C-';  // Was -5
-    if (score >= -10) return 'D+';  // Was -8
-    if (score >= -12) return 'D';  // No change
-    return 'F';                   // No change
-  }
+  if (score >= 10.0) return 'A+';  // Outstanding pick
+  if (score >= 9.0) return 'A';    // Excellent pick
+  if (score >= 8.0) return 'A-';   // Very good pick
+  if (score >= 7.0) return 'B+';   // Good pick
+  if (score >= 6.0) return 'B';    // Solid pick
+  if (score >= 5.0) return 'B-';   // Decent pick
+  if (score >= 4.0) return 'C+';   // Average pick
+  if (score >= 3.0) return 'C';    // Mediocre pick
+  if (score >= 2.0) return 'C-';   // Below average pick
+  if (score >= 1.0) return 'D+';   // Poor pick
+  if (score >= 0.0) return 'D';    // Very poor pick
+  return 'F';                      // Terrible pick
+}
   
   /// Get color score for gradients (0-100)
   static int getColorScore(double score) {
-    // Convert score to 0-100 scale for color gradients with new thresholds
-    if (score >= 8) return 100;      // A+
-    if (score >= 6) return 95;        // A
-    if (score >= 4) return 90;        // A-
-    if (score >= 2) return 85;        // B+
-    if (score >= 0) return 80;        // B
-    if (score >= -2) return 75;        // B-
-    if (score >= -4) return 65;       // C+
-    if (score >= -6) return 60;       // C
-    if (score >= -8) return 55;       // C-
-    if (score >= -10) return 45;       // D+
-    if (score >= -12) return 30;      // D
-    return 10;                        // F
-  }
+  // Convert score to 0-100 scale for color gradients
+  if (score >= 10.0) return 100;      // A+
+  if (score >= 9.0) return 95;        // A
+  if (score >= 8.0) return 90;        // A-
+  if (score >= 7.0) return 85;        // B+
+  if (score >= 6.0) return 80;        // B
+  if (score >= 5.0) return 75;        // B-
+  if (score >= 4.0) return 65;        // C+
+  if (score >= 3.0) return 60;        // C
+  if (score >= 2.0) return 55;        // C-
+  if (score >= 1.0) return 45;        // D+
+  if (score >= 0.0) return 30;        // D
+  return 10;                          // F
+}
 
   /// Generate pick grade description
   static String getGradeDescription(Map<String, dynamic> gradeInfo) {
-    final double baseValueDiff = gradeInfo['factors']['baseValueDiff'];
-    final double positionCoefficient = gradeInfo['factors']['positionCoefficient'];
-    final int needIndex = gradeInfo['factors']['needIndex'];
-    final String letterGrade = gradeInfo['letter'];
-    
-    String description = '';
-    
-    // Value component
-    if (baseValueDiff >= 15) {
-      description += 'Exceptional value. ';
-    } else if (baseValueDiff >= 10) {
-      description += 'Great value. ';
-    } else if (baseValueDiff >= 5) {
-      description += 'Good value. ';
-    } else if (baseValueDiff >= 0) {
-      description += 'Fair value. ';
-    } else if (baseValueDiff >= -10) {
-      description += 'Slight reach. ';
-    } else {
-      description += 'Significant reach. ';
-    }
-    
-    // Position component
-    if (positionCoefficient >= 1.3) {
-      description += 'Premium position. ';
-    } else if (positionCoefficient >= 1.1) {
-      description += 'Valuable position. ';
-    } else if (positionCoefficient <= 0.9) {
-      description += 'Devalued position. ';
-    }
-    
-    // Need component
-    if (needIndex >= 0 && needIndex <= 1) {
-      description += 'Fills top team need.';
-    } else if (needIndex >= 2 && needIndex <= 3) {
-      description += 'Addresses secondary team need.';
-    } else if (needIndex >= 0) { // Any other positive need index
-      description += 'Addresses team need.';
-    } else {
-      description += 'Does not address immediate team needs.';
-    }
-    
-    return description;
+  final factors = gradeInfo['factors'];
+  final double baseValueDiff = factors['baseValueDiff'];
+  final double positionValue = factors['positionValue'];
+  final int needIndex = factors['needIndex'];
+  final bool isInNeedRange = factors['isInNeedRange'];
+  final String letterGrade = gradeInfo['letter'];
+  
+  String description = '';
+  
+  // Value component
+  if (baseValueDiff >= 15) {
+    description += 'Exceptional value. ';
+  } else if (baseValueDiff >= 10) {
+    description += 'Great value. ';
+  } else if (baseValueDiff >= 5) {
+    description += 'Good value. ';
+  } else if (baseValueDiff >= 0) {
+    description += 'Fair value. ';
+  } else if (baseValueDiff >= -10) {
+    description += 'Slight reach. ';
+  } else {
+    description += 'Significant reach. ';
   }
+  
+  // Position component
+  if (positionValue >= 0.25) {
+    description += 'Premium position. ';
+  } else if (positionValue >= 0.15) {
+    description += 'Valuable position. ';
+  } else if (positionValue <= 0.05) {
+    description += 'Devalued position. ';
+  }
+  
+  // Need component - now with negative assessments
+  if (needIndex >= 0 && needIndex <= 1 && isInNeedRange) {
+    description += 'Fills top team need.';
+  } else if (needIndex >= 2 && needIndex <= 3 && isInNeedRange) {
+    description += 'Addresses secondary team need.';
+  } else if (needIndex >= 0 && isInNeedRange) {
+    description += 'Addresses team need.';
+  } else if (needIndex >= 0 && !isInNeedRange) {
+    description += 'Addresses lower priority need.';
+  } else {
+    description += 'Does not address team needs.';
+  }
+  
+  return description;
+}
   
   /// Get color for grade display
   static Color getGradeColor(String grade, [double opacity = 1.0]) {

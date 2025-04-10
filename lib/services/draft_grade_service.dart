@@ -149,12 +149,25 @@ static String _generateTeamGradeDescription(
 }
 
 /// Calculate team overall grade with a comprehensive approach
+/// Calculate team overall grade with improved weighting and factors
 static Map<String, dynamic> calculateTeamGrade(
   List<DraftPick> picks,
   List<TradePackage> trades,
-  List<TeamNeed> teamNeeds
+  List<TeamNeed> teamNeeds,
+  {bool debug = true}
 ) {
+  final StringBuffer debugLog = StringBuffer();
+  
+  if (debug) {
+    debugLog.writeln("\n===== TEAM GRADE CALCULATION DEBUG =====");
+  }
+  
   if (picks.isEmpty) {
+    if (debug) {
+      debugLog.writeln("No picks made, returning N/A");
+      debugPrint(debugLog.toString());
+    }
+    
     return {
       'grade': 'N/A',
       'value': 0.0,
@@ -167,109 +180,321 @@ static Map<String, dynamic> calculateTeamGrade(
   // Get team name from first pick
   String teamName = picks.first.teamName;
   
-  // Simply get the letter grades for all picks
-  List<String> letterGrades = [];
-  List<double> weights = [];
+  if (debug) {
+    debugLog.writeln("Team: $teamName");
+    debugLog.writeln("Total Picks: ${picks.length}");
+    debugLog.writeln("Total Trades: ${trades.length}");
+  }
+  
+  // 1. INDIVIDUAL PICK GRADES - Calculate for each pick
+  if (debug) debugLog.writeln("\n1. INDIVIDUAL PICK GRADES:");
+  
+  List<Map<String, dynamic>> pickGrades = [];
+  double totalPickScore = 0.0;
+  double weightedTotal = 0.0;
+  double totalWeight = 0.0;
+  List<String> letterGrades = []; // Track letter grades for debugging
   
   for (var pick in picks) {
     if (pick.selectedPlayer == null) continue;
     
-    // Calculate the pick grade
-    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-    String letter = gradeInfo['letter'];
-    letterGrades.add(letter);
+    // Calculate pick grade
+    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds, debug: false);
+    double pickScore = gradeInfo['grade'];
+    String letterGrade = gradeInfo['letter'];
+    letterGrades.add(letterGrade); // Store letter grade
+    pickGrades.add(gradeInfo);
     
-    // Add weight based on round
+    // Determine pick weight - much higher for early rounds
+    double pickWeight;
     int round = DraftValueService.getRoundForPick(pick.pickNumber);
-    if (round == 1) weights.add(3.0);         // 1st round counts 3x
-    else if (round == 2) weights.add(2.0);    // 2nd round counts 2x
-    else if (round == 3) weights.add(1.5);    // 3rd round counts 1.5x
-    else weights.add(1.0);                    // Later rounds count 1x
-  }
-  
-  // Convert letter grades to numeric values (simple 4.0 scale)
-  List<double> numericGrades = [];
-  for (var letter in letterGrades) {
-    double value;
-    if (letter == 'A+') value = 4.3;
-    else if (letter == 'A') value = 4.0;
-    else if (letter == 'A-') value = 3.7;
-    else if (letter == 'B+') value = 3.3;
-    else if (letter == 'B') value = 3.0;
-    else if (letter == 'B-') value = 2.7;
-    else if (letter == 'C+') value = 2.3;
-    else if (letter == 'C') value = 2.0;
-    else if (letter == 'C-') value = 1.7;
-    else if (letter == 'D+') value = 1.3;
-    else if (letter == 'D') value = 1.0;
-    else value = 0.0; // F
     
-    numericGrades.add(value);
+    // Exponentially decreasing weights by round
+    if (round == 1) pickWeight = 4.0;      // 1st round: 4x weight
+    else if (round == 2) pickWeight = 2.0; // 2nd round: 2x weight
+    else if (round == 3) pickWeight = 1.0; // 3rd round: 1x weight
+    else if (round == 4) pickWeight = 0.5; // 4th round: 0.5x weight
+    else if (round == 5) pickWeight = 0.25; // 5th round: 0.25x weight
+    else pickWeight = 0.1;                 // Later rounds: minimal impact
+    
+    // Extra weight for very early picks
+    if (pick.pickNumber <= 10) pickWeight *= 1.5; // Top 10 picks are extra important
+    else if (pick.pickNumber <= 20) pickWeight *= 1.2; // Top 20 picks are very important
+    
+    // Add to totals
+    totalPickScore += pickScore;
+    weightedTotal += pickScore * pickWeight;
+    totalWeight += pickWeight;
+    
+    if (debug) {
+      debugLog.writeln("Pick #${pick.pickNumber} (Round $round): ${pick.selectedPlayer!.name} (${pick.selectedPlayer!.position})");
+      debugLog.writeln("  Grade: $letterGrade (${pickScore.toStringAsFixed(1)}) | Weight: ${pickWeight.toStringAsFixed(1)}");
+      debugLog.writeln("  Weighted Contribution: ${(pickScore * pickWeight).toStringAsFixed(1)}");
+    }
   }
   
-  // Simple weighted average
-  double totalValue = 0;
-  double totalWeight = 0;
+  // Calculate weighted average score from picks
+  double avgPickScore = totalWeight > 0 ? weightedTotal / totalWeight : 0.0;
   
-  for (int i = 0; i < numericGrades.length; i++) {
-    totalValue += numericGrades[i] * weights[i];
-    totalWeight += weights[i];
+  if (debug) {
+    debugLog.writeln("\nTotal Pick Score: ${totalPickScore.toStringAsFixed(1)}");
+    debugLog.writeln("Total Weight: ${totalWeight.toStringAsFixed(1)}");
+    debugLog.writeln("Weighted Total: ${weightedTotal.toStringAsFixed(1)}");
+    debugLog.writeln("WEIGHTED AVERAGE PICK SCORE: ${avgPickScore.toStringAsFixed(2)}");
+    debugLog.writeln("Individual Letter Grades: ${letterGrades.join(', ')}");
   }
   
-  double avgGrade = totalValue / totalWeight;
+  // 2. TRADE VALUE ASSESSMENT - Separate component
+  if (debug) debugLog.writeln("\n2. TRADE VALUE ASSESSMENT:");
   
-  // Minimal trade adjustment (optional)
-  double tradeImpact = 0.0;
-  if (trades.isNotEmpty) {
+  double tradeGradeScore = 6.0; // Default "B-" trade grade (neutral)
+  double tradeFactor = 0.0;     // How much trades impact overall grade
+  
+  if (trades.isEmpty) {
+    if (debug) debugLog.writeln("No trades executed - using neutral trade grade (6.0)");
+  } else {
+    double totalTradeValue = 0.0;
+    double tradeCount = 0;
+    
     for (var trade in trades) {
+      double tradeValue = 0.0;
+      
+      // Determine value based on team's role in trade
       if (trade.teamOffering == teamName) {
-        tradeImpact -= trade.valueDifferential < 0 ? 0.1 : 0.0;
+        // Team traded up - assess the value given vs received
+        tradeValue = (trade.valueDifferential / trade.targetPickValue) * 10;
+        tradeCount++;
+        
+        if (debug) {
+          debugLog.writeln("Trade Up: $teamName received pick #${trade.targetPick.pickNumber}");
+          debugLog.writeln("  Value Differential: ${trade.valueDifferential.toStringAsFixed(1)} (${(trade.valueDifferential / trade.targetPickValue * 100).toStringAsFixed(1)}%)");
+          debugLog.writeln("  Trade Value Score: ${tradeValue.toStringAsFixed(2)}");
+        }
       } else if (trade.teamReceiving == teamName) {
-        tradeImpact += trade.valueDifferential > 0 ? 0.1 : 0.0;
+        // Team traded down - assess the value received vs given up
+        tradeValue = (trade.valueDifferential / trade.targetPickValue) * 10;
+        tradeCount++;
+        
+        if (debug) {
+          debugLog.writeln("Trade Down: $teamName gave up pick #${trade.targetPick.pickNumber}");
+          debugLog.writeln("  Value Differential: ${trade.valueDifferential.toStringAsFixed(1)} (${(trade.valueDifferential / trade.targetPickValue * 100).toStringAsFixed(1)}%)");
+          debugLog.writeln("  Trade Value Score: ${tradeValue.toStringAsFixed(2)}");
+        }
+      }
+      
+      totalTradeValue += tradeValue;
+    }
+    
+    // Average trade value and convert to grade score
+    if (tradeCount > 0) {
+      double avgTradeValue = totalTradeValue / tradeCount;
+      
+      // Convert to grade score (0-10 scale)
+      tradeGradeScore = 6.0 + avgTradeValue;
+      
+      // Ensure it stays in reasonable range
+      tradeGradeScore = max(0.0, min(10.0, tradeGradeScore));
+      
+      // Calculate trade impact factor - more impactful if multiple trades
+      tradeFactor = min(0.3, 0.15 * tradeCount);
+      
+      if (debug) {
+        debugLog.writeln("Total Trade Count: $tradeCount");
+        debugLog.writeln("Average Trade Value: ${avgTradeValue.toStringAsFixed(2)}");
+        debugLog.writeln("TRADE GRADE SCORE: ${tradeGradeScore.toStringAsFixed(2)}");
+        debugLog.writeln("Trade Factor (weight in final grade): ${tradeFactor.toStringAsFixed(2)}");
       }
     }
   }
   
-  // Apply minimal trade impact
-  tradeImpact = tradeImpact.clamp(-0.2, 0.2);
-  avgGrade += tradeImpact;
+  // 3. NEEDS ASSESSMENT - How well did team address its needs
+if (debug) debugLog.writeln("\n3. NEEDS ASSESSMENT:");
+
+double needsGradeScore = 6.0; // Default "B-" needs grade
+double needsFactor = 0.2;     // How much needs impact overall grade
+
+// Find team needs
+TeamNeed? teamNeed = teamNeeds.firstWhere(
+  (need) => need.teamName == teamName,
+  orElse: () => TeamNeed(teamName: teamName, needs: [])
+);
+
+// BUGFIX: Get the original needs from CSV data
+List<String> originalNeeds = [];
+
+// Get original needs from the TeamNeed object's raw data
+for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
+  if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
+    originalNeeds.add(need.toString());
+  }
+}
+
+if (debug) {
+  debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
+}
+
+if (originalNeeds.isNotEmpty) {
+  // Count how many top needs were addressed
+  Set<String> addressedNeeds = {};
+  for (var pick in picks) {
+    if (pick.selectedPlayer != null) {
+      addressedNeeds.add(pick.selectedPlayer!.position);
+    }
+  }
   
-  // Convert back to letter grade
-  String finalGrade;
-  if (avgGrade >= 4.2) finalGrade = 'A+';
-  else if (avgGrade >= 3.85) finalGrade = 'A';
-  else if (avgGrade >= 3.5) finalGrade = 'A-';
-  else if (avgGrade >= 3.15) finalGrade = 'B+';
-  else if (avgGrade >= 2.85) finalGrade = 'B';
-  else if (avgGrade >= 2.5) finalGrade = 'B-';
-  else if (avgGrade >= 2.15) finalGrade = 'C+';
-  else if (avgGrade >= 1.85) finalGrade = 'C';
-  else if (avgGrade >= 1.5) finalGrade = 'C-';
-  else if (avgGrade >= 1.15) finalGrade = 'D+';
-  else if (avgGrade >= 0.85) finalGrade = 'D';
-  else finalGrade = 'F';
+  if (debug) {
+    debugLog.writeln("Positions Drafted: ${addressedNeeds.join(', ')}");
+  }
   
-  // Generate a description
-  String description = _generateTeamGradeDescription(finalGrade, {
-    'avgGrade': avgGrade,
-    'letterGrades': letterGrades,
+  // Calculate needs satisfaction
+  int topNeedsCount = min(5, originalNeeds.length); // Consider top 5 needs
+  int weightedNeedsScore = 0;
+  
+  for (int i = 0; i < topNeedsCount; i++) {
+    if (i < originalNeeds.length && addressedNeeds.contains(originalNeeds[i])) {
+      // Higher weight for addressing top needs
+      int positionBonus = 0;
+      if (i == 0) {
+        positionBonus = 2;  // Double credit for top need
+        if (debug) debugLog.writeln("✓ Addressed TOP need (${originalNeeds[i]}): +2 points");
+      } else if (i == 1) {
+        positionBonus = 2;  // Double credit for second need
+        if (debug) debugLog.writeln("✓ Addressed SECOND need (${originalNeeds[i]}): +2 points");
+      } else {
+        positionBonus = 1;
+        if (debug) debugLog.writeln("✓ Addressed need #${i+1} (${originalNeeds[i]}): +1 point");
+      }
+      weightedNeedsScore += positionBonus;
+    } else if (i < originalNeeds.length) {
+      if (debug) debugLog.writeln("✗ Did NOT address need #${i+1} (${originalNeeds[i]})");
+    }
+  }
+  
+  // Calculate score (base 6, +0.5 for each weighted need addressed)
+  double needsSatisfactionScore = 6.0 + (weightedNeedsScore * 0.5);
+  
+  // Ensure it stays in reasonable range
+  needsGradeScore = max(0.0, min(10.0, needsSatisfactionScore));
+  
+  if (debug) {
+    debugLog.writeln("Weighted Needs Score: $weightedNeedsScore");
+    debugLog.writeln("NEEDS GRADE SCORE: ${needsGradeScore.toStringAsFixed(2)}");
+  }
+}
+  
+  // 4. COMBINE ALL COMPONENTS - Weighted by importance
+  if (debug) debugLog.writeln("\n4. FINAL GRADE CALCULATION:");
+  
+  // BUGFIX: Adjust factors based on team size and number of picks
+  // For teams with fewer picks, emphasize pick quality more
+  double pickFactor = 1.0 - tradeFactor - needsFactor;
+  
+  // For teams with 3 or fewer picks, adjust the weighting
+  if (picks.length <= 3) {
+    pickFactor = 0.7; // 70% weight on pick quality
+    needsFactor = 0.2; // 20% weight on needs addressed
+    tradeFactor = 0.1; // 10% weight on trades (unless no trades)
+    
+    if (trades.isEmpty) {
+      pickFactor = 0.8; // Increase pick factor if no trades
+      tradeFactor = 0.0;
+    }
+    
+    if (debug) {
+      debugLog.writeln("Team has ${picks.length} picks - adjusting component weights");
+      debugLog.writeln("Adjusted Pick Factor: ${pickFactor.toStringAsFixed(2)}");
+      debugLog.writeln("Adjusted Needs Factor: ${needsFactor.toStringAsFixed(2)}");
+      debugLog.writeln("Adjusted Trade Factor: ${tradeFactor.toStringAsFixed(2)}");
+    }
+  }
+  
+  double pickComponent = avgPickScore * pickFactor;
+  double tradeComponent = tradeGradeScore * tradeFactor;
+  double needsComponent = needsGradeScore * needsFactor;
+  
+  double finalScore = pickComponent + tradeComponent + needsComponent;
+  
+  // BUGFIX: Ensure grade isn't drastically worse than individual pick grades
+  String expectedGradeFromPickScore = getTeamLetterGrade(avgPickScore);
+  double minimumScoreThreshold = 0.0;
+  
+  // If all picks are B- or better, ensure final grade is at least B-
+  if (letterGrades.every((grade) => 
+      grade == 'B-' || grade == 'B' || grade == 'B+' || 
+      grade == 'A-' || grade == 'A' || grade == 'A+')) {
+    minimumScoreThreshold = 6.0; // B- threshold
+    if (debug) {
+      debugLog.writeln("All picks are B- or better, ensuring team grade is at least B-");
+    }
+  }
+  // If all picks are C+ or better, ensure final grade is at least C+
+  else if (letterGrades.every((grade) => 
+      grade == 'C+' || grade == 'B-' || grade == 'B' || grade == 'B+' || 
+      grade == 'A-' || grade == 'A' || grade == 'A+')) {
+    minimumScoreThreshold = 5.5; // C+ threshold
+    if (debug) {
+      debugLog.writeln("All picks are C+ or better, ensuring team grade is at least C+");
+    }
+  }
+  
+  // Apply minimum threshold if needed
+  if (finalScore < minimumScoreThreshold) {
+    double originalScore = finalScore;
+    finalScore = minimumScoreThreshold;
+    if (debug) {
+      debugLog.writeln("Applied minimum grade threshold: ${originalScore.toStringAsFixed(2)} → ${finalScore.toStringAsFixed(2)}");
+    }
+  }
+  
+  if (debug) {
+    debugLog.writeln("Pick Component: ${avgPickScore.toStringAsFixed(2)} × ${pickFactor.toStringAsFixed(2)} = ${pickComponent.toStringAsFixed(2)}");
+    debugLog.writeln("Trade Component: ${tradeGradeScore.toStringAsFixed(2)} × ${tradeFactor.toStringAsFixed(2)} = ${tradeComponent.toStringAsFixed(2)}");
+    debugLog.writeln("Needs Component: ${needsGradeScore.toStringAsFixed(2)} × ${needsFactor.toStringAsFixed(2)} = ${needsComponent.toStringAsFixed(2)}");
+    debugLog.writeln("FINAL SCORE: ${finalScore.toStringAsFixed(2)}");
+    debugLog.writeln("Expected Grade from Pick Score: $expectedGradeFromPickScore");
+  }
+  
+  // 5. DETERMINE FINAL GRADE - Convert score to letter grade
+  String finalGrade = getTeamLetterGrade(finalScore);
+  
+  if (debug) {
+    debugLog.writeln("FINAL LETTER GRADE: $finalGrade");
+    debugLog.writeln("===== END TEAM GRADE CALCULATION =====\n");
+    debugPrint(debugLog.toString());
+  }
+  
+  // Generate a description based on the final grade
+  String description = generateTeamGradeDescription(finalGrade, {
+    'pickGrades': pickGrades,
+    'tradeGradeScore': tradeGradeScore,
+    'needsGradeScore': needsGradeScore,
+    'avgPickScore': avgPickScore,
+    'finalScore': finalScore,
+    'tradeFactor': tradeFactor,
+    'needsFactor': needsFactor,
+    'pickFactor': pickFactor
   });
   
   return {
     'grade': finalGrade,
-    'value': avgGrade,
+    'value': finalScore,
     'description': description,
     'letterGrade': finalGrade,
     'factors': {
+      'avgPickScore': avgPickScore,
+      'tradeGradeScore': tradeGradeScore,
+      'needsGradeScore': needsGradeScore,
+      'finalScore': finalScore,
+      'tradeFactor': tradeFactor,
+      'needsFactor': needsFactor,
+      'pickFactor': pickFactor,
+      'totalPicks': picks.length,
+      'individualGrades': pickGrades,
       'letterGrades': letterGrades,
-      'numericGrades': numericGrades,
-      'weights': weights,
-      'avgGrade': avgGrade,
-      'tradeImpact': tradeImpact,
+      'debugLog': debugLog.toString(), // Store the debug log for later analysis
     },
   };
 }
-
   /// Calculate how well a team addressed their needs
   static double calculateNeedsSatisfactionScore(
     List<DraftPick> picks,
@@ -350,38 +575,93 @@ static Map<String, dynamic> calculateTeamGrade(
   }
 
   /// Convert numeric grade to letter grade for team overall
-  static String getTeamLetterGrade(double value) {
-    if (value >= 15) return 'A+';
-    if (value >= 10) return 'A';
-    if (value >= 5) return 'B+';
-    if (value >= 0) return 'B';
-    if (value >= -5) return 'C+';
-    if (value >= -10) return 'C';
-    if (value >= -15) return 'D';
-    return 'F';
-  }
+  static String getTeamLetterGrade(double score) {
+  if (score >= 8.5) return 'A+';
+  if (score >= 8.0) return 'A';
+  if (score >= 7.5) return 'A-';
+  if (score >= 7.0) return 'B+';
+  if (score >= 6.5) return 'B';
+  if (score >= 6.0) return 'B-';
+  if (score >= 5.5) return 'C+';
+  if (score >= 5.0) return 'C';
+  if (score >= 4.5) return 'C-';
+  if (score >= 4.0) return 'D+';
+  if (score >= 3.5) return 'D';
+  return 'F';
+}
 
   /// Generate description based on team grade
   static String generateTeamGradeDescription(
-    String grade, 
-    Map<String, dynamic> factors
-  ) {
-    if (grade.startsWith('A+')) {
-      return 'Outstanding draft with exceptional value and need fulfillment';
-    } else if (grade.startsWith('A')) {
-      return 'Excellent draft with great value picks and strategic trades';
-    } else if (grade.startsWith('B+')) {
-      return 'Very good draft with solid value and good need fulfillment';
-    } else if (grade.startsWith('B')) {
-      return 'Solid draft with good value picks addressing team needs';
-    } else if (grade.startsWith('C+')) {
-      return 'Average draft with some good picks but missed opportunities';
-    } else if (grade.startsWith('C')) {
-      return 'Below average draft with several reaches or missed needs';
-    } else if (grade.startsWith('D')) {
-      return 'Poor draft with significant reaches and unfilled needs';
+  String grade, 
+  Map<String, dynamic> factors
+) {
+  final double finalScore = factors['finalScore'] ?? 0.0;
+  final double avgPickScore = factors['avgPickScore'] ?? 0.0;
+  final double tradeGradeScore = factors['tradeGradeScore'] ?? 0.0;
+  final double needsGradeScore = factors['needsGradeScore'] ?? 0.0;
+  
+  String description = "";
+  
+  // Overall assessment based on grade
+  if (grade.startsWith('A+')) {
+    description = "Outstanding draft with exceptional value and strategic decision-making. ";
+  } else if (grade.startsWith('A')) {
+    description = "Excellent draft with great value selections and solid team-building approach. ";
+  } else if (grade.startsWith('B+')) {
+    description = "Very good draft with several quality picks addressing key team needs. ";
+  } else if (grade.startsWith('B')) {
+    description = "Solid draft that balances value and need effectively. ";
+  } else if (grade.startsWith('C+')) {
+    description = "Average draft with some good selections mixed with missed opportunities. ";
+  } else if (grade.startsWith('C')) {
+    description = "Below average draft with questionable value decisions. ";
+  } else if (grade.startsWith('D')) {
+    description = "Poor draft that failed to maximize value or address critical needs. ";
+  } else {
+    description = "Disappointing draft with major reaches and strategic miscalculations. ";
+  }
+  
+  // Add context about pick quality
+  if (avgPickScore >= 8.0) {
+    description += "Consistently found excellent value throughout the draft. ";
+  } else if (avgPickScore >= 7.0) {
+    description += "Made several strong selections with good value. ";
+  } else if (avgPickScore >= 6.0) {
+    description += "Made mostly solid selections with reasonable value. ";
+  } else if (avgPickScore >= 5.0) {
+    description += "Pick quality was average with some reaches. ";
+  } else {
+    description += "Made too many questionable picks with poor value. ";
+  }
+  
+  // Add context about trades if relevant
+  if (factors['tradeFactor'] > 0.05) {
+    if (tradeGradeScore >= 8.0) {
+      description += "Executed trades masterfully to maximize draft capital. ";
+    } else if (tradeGradeScore >= 7.0) {
+      description += "Made smart trade decisions to improve draft position. ";
+    } else if (tradeGradeScore >= 6.0) {
+      description += "Trade decisions were generally reasonable. ";
+    } else if (tradeGradeScore >= 5.0) {
+      description += "Trade execution was questionable in terms of value. ";
     } else {
-      return 'Very poor draft with major reaches and strategic errors';
+      description += "Trade decisions significantly hurt draft capital. ";
     }
   }
+  
+  // Add context about needs
+  if (needsGradeScore >= 8.0) {
+    description += "Excellently addressed critical team needs.";
+  } else if (needsGradeScore >= 7.0) {
+    description += "Successfully filled most important team needs.";
+  } else if (needsGradeScore >= 6.0) {
+    description += "Reasonably addressed several team needs.";
+  } else if (needsGradeScore >= 5.0) {
+    description += "Failed to address some critical team needs.";
+  } else {
+    description += "Largely ignored major team needs.";
+  }
+  
+  return description;
+}
 }
