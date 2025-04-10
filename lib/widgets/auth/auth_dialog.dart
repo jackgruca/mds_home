@@ -291,24 +291,24 @@ class _AuthDialogState extends State<AuthDialog> {
                 const SizedBox(height: 24),
                 
                 // Submit button
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(_authMode == AuthMode.signIn ? 'Sign In' : 'Create Account'),
-                ),
+ElevatedButton(
+  onPressed: _isSubmitting ? null : _submitForm,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+    foregroundColor: Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 12),
+  ),
+  child: _isSubmitting
+      ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        )
+      : Text(_authMode == AuthMode.signIn ? 'Sign In' : 'Create Account'),
+),
                 
                 const SizedBox(height: 16),
                 

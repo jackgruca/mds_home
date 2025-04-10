@@ -33,34 +33,77 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Register a new user
-  Future<bool> register({
-    required String name,
-    required String email,
-    required String password,
-    required bool isSubscribed,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  // Enhance the register method
+Future<bool> register({
+  required String name,
+  required String email,
+  required String password,
+  required bool isSubscribed,
+}) async {
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
 
-    try {
-      _user = await AuthService.register(
-        name: name,
-        email: email,
-        password: password,
-        isSubscribed: isSubscribed,
-      );
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      return false;
-    } finally {
+  try {
+    // Validate email format
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      _error = 'Please enter a valid email address';
       _isLoading = false;
       notifyListeners();
+      return false;
     }
+    
+    // Validate password strength
+    if (password.length < 6) {
+      _error = 'Password must be at least 6 characters long';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    _user = await AuthService.register(
+      name: name,
+      email: email,
+      password: password,
+      isSubscribed: isSubscribed,
+    );
+    notifyListeners();
+    return true;
+  } catch (e) {
+    _error = e.toString();
+    notifyListeners();
+    return false;
+  } finally {
+    _isLoading = false;
+    notifyListeners();
   }
+}
+
+// Save user preferences (draft settings, etc.)
+Future<bool> saveUserPreferences(Map<String, dynamic> preferences) async {
+  if (_user == null) {
+    _error = 'No user logged in';
+    notifyListeners();
+    return false;
+  }
+
+  _isLoading = true;
+  notifyListeners();
+
+  try {
+    _user = await AuthService.updateUserPreferences(
+      preferences: preferences,
+    );
+    _isLoading = false;
+    notifyListeners();
+    return true;
+  } catch (e) {
+    _error = e.toString();
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+}
 
   // Sign in an existing user
   Future<bool> signIn({

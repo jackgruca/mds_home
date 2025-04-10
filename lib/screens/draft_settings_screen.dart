@@ -125,7 +125,7 @@ void initState() {
     }
   }
   
-  void _saveSettings() {
+  void _saveSettings() async {
   // Remove null values from collections
   final customTeamNeeds = _customTeamNeeds;
   final customPlayerRankings = _customPlayerRankings;
@@ -140,11 +140,21 @@ void initState() {
     'enableQBPremium': _enableQBPremium,
     'showAnalytics': _showAnalytics,
     'selectedYear': _selectedYear,
-    'customTeamNeeds': customTeamNeeds,
-    'customPlayerRankings': customPlayerRankings,
     'tradeFrequency': _tradeFrequency,
     'needVsValueBalance': _needVsValueBalance,
+    'lastUpdated': DateTime.now().toIso8601String(),
   };
+  
+  // Save to user preferences if logged in
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  if (authProvider.isLoggedIn) {
+    final success = await authProvider.saveUserPreferences({'draftPreferences': settings});
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Settings saved to your profile')),
+      );
+    }
+  }
   
   // Call the callback
   widget.onSettingsSaved(settings);

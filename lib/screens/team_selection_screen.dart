@@ -99,7 +99,19 @@ Future<void> _loadUserPreferences() async {
       _enableQBPremium = prefs['enableQBPremium'] ?? true;
       _showAnalytics = prefs['showAnalytics'] ?? true;
       _selectedYear = prefs['defaultYear'] ?? _selectedYear;
+      _tradeFrequency = prefs['tradeFrequency'] ?? 0.5;
+      _needVsValueBalance = prefs['needVsValueBalance'] ?? 0.3;
     });
+    
+    // Show a snackbar to let the user know settings were loaded
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your saved preferences have been loaded'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
 
@@ -1116,7 +1128,16 @@ Future<void> _loadUserPreferences() async {
     );
   }
   
-  void _startDraft() {
+  void _startDraft() async {
+  // Save team selections for logged in users
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  if (authProvider.isLoggedIn) {
+    final List<String> selectedTeamsList = _selectedTeams.toList();
+    if (selectedTeamsList.isNotEmpty) {
+      await authProvider.updateFavoriteTeams(selectedTeamsList);
+    }
+  }
+
   // Log analytics
   AnalyticsService.logEvent('draft_started', parameters: {
     'teams': _selectedTeams.join(','),
@@ -1128,9 +1149,7 @@ Future<void> _loadUserPreferences() async {
   });
 
   // Convert to list of team identifiers
-  List<String> teamIdentifiers = _selectedTeams.map((team) {
-    return NFLTeamMappings.fullNameToAbbreviation[team] ?? team;
-  }).toList();
+  List<String> teamIdentifiers = _selectedTeams.toList();
   
   Navigator.push(
     context,
@@ -1139,7 +1158,7 @@ Future<void> _loadUserPreferences() async {
         randomnessFactor: _randomness,
         numberOfRounds: _numberOfRounds,
         speedFactor: _speed,
-        selectedTeams: teamIdentifiers, // Pass list instead of single team
+        selectedTeams: teamIdentifiers,
         draftYear: _selectedYear,
         enableTrading: _enableTrading,
         enableUserTradeProposals: _enableUserTradeProposals,

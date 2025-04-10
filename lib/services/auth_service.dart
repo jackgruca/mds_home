@@ -424,6 +424,39 @@ static Future<User> updateUser(User user) async {
     }
   }
 
+  // Add this method to update user preferences
+static Future<User> updateUserPreferences({
+  required Map<String, dynamic> preferences,
+}) async {
+  if (_currentUser == null) {
+    throw Exception('No user logged in');
+  }
+  
+  try {
+    // Get current user and password
+    final String password = await _getUserPassword(_currentUser!.id);
+    
+    // Create updated user with preferences
+    Map<String, dynamic> updatedPreferences = 
+      _currentUser!.draftPreferences != null 
+      ? {..._currentUser!.draftPreferences!, ...preferences}
+      : preferences;
+    
+    final updatedUser = _currentUser!.copyWith(
+      draftPreferences: updatedPreferences,
+    );
+    
+    // Save updated user
+    await _updateUser(updatedUser, password);
+    await _saveCurrentUser(updatedUser);
+    
+    return updatedUser;
+  } catch (e) {
+    debugPrint('Error updating user preferences: $e');
+    throw Exception('Failed to update preferences: $e');
+  }
+}
+
   static Future<User> updateDraftPreferences(Map<String, dynamic> preferences) async {
     if (_currentUser == null) {
       throw Exception('No user logged in');
