@@ -11,7 +11,7 @@ class AuthProvider extends ChangeNotifier {
 
   // Getters
   User? get user => _user;
-  bool get isLoggedIn => _user != null;
+ get isLoggedIn => _user != null;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -106,7 +106,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
     // Update user profile
-  Future<bool> updateUser(app_user.User updatedUser) async {
+  Future<bool> updateUser(User updatedUser) async {
     if (_user == null) {
       _error = "Cannot update: No user is logged in";
       notifyListeners();
@@ -330,66 +330,78 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Save a custom draft data set
-  Future<bool> saveCustomDraftData(CustomDraftData draftData) async {
-    if (!isLoggedIn || user == null) return false;
+  // Save a custom draft data set
+Future<bool> saveCustomDraftData(CustomDraftData draftData) async {
+  if (!isLoggedIn || user == null) return false;
+  
+  try {
+    // Get current custom data
+    List<CustomDraftData> currentData = getUserCustomDraftData();
     
-    try {
-      // Get current custom data
-      List<CustomDraftData> currentData = getUserCustomDraftData();
-      
-      // Check if a set with this name already exists
-      int existingIndex = currentData.indexWhere((data) => data.name == draftData.name);
-      
-      if (existingIndex >= 0) {
-        // Update existing data set
-        currentData[existingIndex] = draftData;
-      } else {
-        // Add new data set
-        currentData.add(draftData);
-      }
-      
-      // Convert to JSON for storage
-      List<Map<String, dynamic>> jsonData = currentData.map((data) => 
-        data.toJson()
-      ).toList();
-      
-      // Update user's custom data
-      user?.customDraftData = jsonData;
-      
-      // Save to database
-      return await _updateUserInDb();
-    } catch (e) {
-      debugPrint('Error saving custom draft data: $e');
-      _error = 'Failed to save custom draft data: $e';
-      return false;
+    // Check if a set with this name already exists
+    int existingIndex = currentData.indexWhere((data) => data.name == draftData.name);
+    
+    if (existingIndex >= 0) {
+      // Update existing data set
+      currentData[existingIndex] = draftData;
+    } else {
+      // Add new data set
+      currentData.add(draftData);
     }
+    
+    // Convert to JSON for storage
+    List<Map<String, dynamic>> jsonData = currentData.map((data) => 
+      data.toJson()
+    ).toList();
+    
+    // Since user.customDraftData is final, we need to create a new User object
+    final updatedUser = user!.copyWith(
+      customDraftData: jsonData
+    );
+    
+    // Update user in AuthProvider
+    _user = updatedUser;
+    
+    // Save to database (this method should update both local storage and Firestore)
+    return await _updateUserInDb();
+  } catch (e) {
+    debugPrint('Error saving custom draft data: $e');
+    _error = 'Failed to save custom draft data: $e';
+    return false;
   }
+}
 
   // Delete a custom draft data set
-  Future<bool> deleteCustomDraftData(String name) async {
-    if (!isLoggedIn || user == null) return false;
+  // Delete a custom draft data set
+Future<bool> deleteCustomDraftData(String name) async {
+  if (!isLoggedIn || user == null) return false;
+  
+  try {
+    // Get current custom data
+    List<CustomDraftData> currentData = getUserCustomDraftData();
     
-    try {
-      // Get current custom data
-      List<CustomDraftData> currentData = getUserCustomDraftData();
-      
-      // Remove the data set with the given name
-      currentData.removeWhere((data) => data.name == name);
-      
-      // Convert to JSON for storage
-      List<Map<String, dynamic>> jsonData = currentData.map((data) => 
-        data.toJson()
-      ).toList();
-      
-      // Update user's custom data
-      user?.customDraftData = jsonData;
-      
-      // Save to database
-      return await _updateUserInDb();
-    } catch (e) {
-      debugPrint('Error deleting custom draft data: $e');
-      _error = 'Failed to delete custom draft data: $e';
-      return false;
-    }
+    // Remove the data set with the given name
+    currentData.removeWhere((data) => data.name == name);
+    
+    // Convert to JSON for storage
+    List<Map<String, dynamic>> jsonData = currentData.map((data) => 
+      data.toJson()
+    ).toList();
+    
+    // Create a new User object with updated customDraftData
+    final updatedUser = user!.copyWith(
+      customDraftData: jsonData
+    );
+    
+    // Update user in AuthProvider
+    _user = updatedUser;
+    
+    // Save to database
+    return await _updateUserInDb();
+  } catch (e) {
+    debugPrint('Error deleting custom draft data: $e');
+    _error = 'Failed to delete custom draft data: $e';
+    return false;
   }
+}
 }

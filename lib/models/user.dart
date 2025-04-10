@@ -1,4 +1,4 @@
-// lib/models/user.dart
+// Update lib/models/user.dart
 class User {
   final String id;
   final String name;
@@ -10,8 +10,7 @@ class User {
   final DateTime? resetTokenExpiry;
   final List<String>? favoriteTeams;
   final Map<String, dynamic>? draftPreferences;
-  List<dynamic>? customDraftData; // Add this field
-
+  final List<dynamic>? customDraftData; // Changed to List<dynamic>?
 
   User({
     required this.id,
@@ -24,6 +23,7 @@ class User {
     this.resetTokenExpiry,
     this.favoriteTeams,
     this.draftPreferences,
+    this.customDraftData, // Added this parameter
   });
 
   // Update factory constructor
@@ -43,6 +43,7 @@ class User {
           ? List<String>.from(json['favoriteTeams'])
           : null,
       draftPreferences: json['draftPreferences'],
+      customDraftData: json['customDraftData'], // Added this field
     );
   }
 
@@ -59,6 +60,7 @@ class User {
       'resetTokenExpiry': resetTokenExpiry?.toIso8601String(),
       'favoriteTeams': favoriteTeams,
       'draftPreferences': draftPreferences,
+      'customDraftData': customDraftData, // Added this field
     };
   }
 
@@ -74,6 +76,7 @@ class User {
     DateTime? resetTokenExpiry,
     List<String>? favoriteTeams,
     Map<String, dynamic>? draftPreferences,
+    List<dynamic>? customDraftData, // Added this parameter
   }) {
     return User(
       id: id ?? this.id,
@@ -86,6 +89,7 @@ class User {
       resetTokenExpiry: resetTokenExpiry ?? this.resetTokenExpiry,
       favoriteTeams: favoriteTeams ?? this.favoriteTeams,
       draftPreferences: draftPreferences ?? this.draftPreferences,
+      customDraftData: customDraftData ?? this.customDraftData, // Added this field
     );
   }
 }

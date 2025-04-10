@@ -58,15 +58,15 @@ class FirestoreService {
       
       // Add optional fields if they exist
       if (user.favoriteTeams != null) {
-        userData['favoriteTeams'] = user.favoriteTeams;
+        userData['favoriteTeams'] = user.favoriteTeams!;
       }
       
       if (user.draftPreferences != null) {
-        userData['draftPreferences'] = user.draftPreferences;
+        userData['draftPreferences'] = user.draftPreferences!;
       }
       
       if (user.customDraftData != null) {
-        userData['customDraftData'] = user.customDraftData;
+        userData['customDraftData'] = user.customDraftData!;
       }
       
       await _getUserRef(user.id).set(userData, SetOptions(merge: true));
