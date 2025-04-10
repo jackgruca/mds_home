@@ -62,7 +62,7 @@ class DraftApp extends StatefulWidget {
   this.customTeamNeeds,
   this.customPlayerRankings,
   this.tradeFrequency = 0.5,
-  this.needVsValueBalance = 0.5,
+  this.needVsValueBalance = 0.3,
 });
 
   @override

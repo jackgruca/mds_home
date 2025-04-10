@@ -90,7 +90,7 @@ class DraftService {
   this.enableUserTradeProposals = true,
   this.enableQBPremium = true,
   this.tradeFrequency = 0.5,
-  this.needVsValueBalance = 0.5,
+  this.needVsValueBalance = 0.3,
 }) {
   // Sort players by rank initially
   availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));

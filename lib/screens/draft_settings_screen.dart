@@ -45,7 +45,7 @@ class DraftSettingsScreen extends StatefulWidget {
     required this.selectedYear,
     required this.availableYears,
     this.tradeFrequency = 0.5,
-    this.needVsValueBalance = 0.5,
+    this.needVsValueBalance = 0.3,
   });
 
   @override
@@ -88,7 +88,7 @@ void initState() {
   
   // Initialize new sliders with default values or passed values
   _tradeFrequency = widget.tradeFrequency ?? 0.5;
-  _needVsValueBalance = widget.needVsValueBalance ?? 0.5;
+  _needVsValueBalance = widget.needVsValueBalance ?? 0.3;
   
   // Initialize tab controller
   _tabController = TabController(length: 2, vsync: this);
@@ -628,7 +628,7 @@ void _showQuickLoadDialog() {
         _enableQBPremium = true;
         _showAnalytics = true;
         _tradeFrequency = 0.5;
-        _needVsValueBalance = 0.5;
+        _needVsValueBalance = 0.3;
       });
     },
     icon: const Icon(Icons.restore),
