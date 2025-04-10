@@ -1,5 +1,6 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
+import 'package:mds_home/providers/firebase_auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
@@ -50,7 +51,9 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeManager()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        //ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => FirebaseAuthProvider()),
+
       ],
       child: const MyApp(),
     ),
