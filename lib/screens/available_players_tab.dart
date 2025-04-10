@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../services/favorite_players_service.dart';
 import '../services/player_descriptions_service.dart';
+import '../services/player_espn_id_service.dart';
 import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
 import '../widgets/player/player_details_dialog.dart';
@@ -222,6 +223,8 @@ void _enrichPlayerData(Player player) {
     player.handSize = _enrichedPlayerCache[player.id]!.handSize;
     player.verticalJump = _enrichedPlayerCache[player.id]!.verticalJump;
     player.wingspan = _enrichedPlayerCache[player.id]!.wingspan;
+    player.headshot = _enrichedPlayerCache[player.id]!.headshot;
+
     
     if (_debugMode) {
       debugPrint('Retrieved cached data for ${player.name} (ID: ${player.id})');
@@ -383,8 +386,14 @@ void _enrichPlayerData(Player player) {
     }
   }
   
-  // No mock data generation - leave fields as null if not available
-  
+  // Add headshot URL from ESPN ID service
+  if (player.headshot == null || player.headshot!.isEmpty) {
+    player.headshot = PlayerESPNIdService.getPlayerImageUrl(player.name);
+    if (_debugMode && player.headshot != null) {
+      debugPrint('Found headshot for ${player.name}: ${player.headshot}');
+    }
+  }
+
   // Store the enriched player in the cache
   _enrichedPlayerCache[player.id] = player;
 }
@@ -1307,6 +1316,12 @@ return Card(
   // Attempt to get additional player information from description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
   
+  // Try to get headshot URL if not already set
+  String? headshotUrl = player.headshot;
+  if (headshotUrl == null || headshotUrl.isEmpty) {
+    headshotUrl = PlayerESPNIdService.getPlayerImageUrl(player.name);
+  }
+
   Player enrichedPlayer;
   
   if (additionalInfo != null) {
@@ -1416,6 +1431,7 @@ return Card(
       handSize: handSize ?? player.handSize,
       verticalJump: verticalJump ?? player.verticalJump,
       wingspan: wingspan ?? player.wingspan,
+      headshot: headshotUrl ?? player.headshot,
       isFavorite: player.isFavorite,
     );
   } else {
