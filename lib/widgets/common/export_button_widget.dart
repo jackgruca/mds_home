@@ -1,42 +1,23 @@
 // lib/widgets/common/export_button_widget.dart
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../services/draft_export_service.dart';
-import '../../models/draft_pick.dart';
-import '../../models/team_need.dart';
-import '../../models/trade_package.dart';
-import '../../utils/theme_config.dart'; // Import theme for consistency
-
-import 'dart:io';
+import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import '../../services/draft_export_service.dart';
+import 'dart:html' as html;
+import 'dart:js' as js;
+
 import '../../models/draft_pick.dart';
 import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
 import '../../utils/theme_config.dart';
-import 'dart:html' as html;
-import 'dart:js' as js;
-import 'dart:js_util' as js_util;
-
-import 'dart:async';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
 import '../draft/shareable_draft_card.dart';
 
-/// Widget for exporting draft results with an enhanced design
-// lib/widgets/common/export_button_widget.dart
+/// Widget for copying draft results as images
 class ExportButtonWidget extends StatelessWidget {
   final List<DraftPick> completedPicks;
   final List<TeamNeed> teamNeeds;
@@ -56,130 +37,56 @@ class ExportButtonWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Export Button
-        PopupMenuButton<String>(
-          tooltip: 'Export Options',
-          offset: const Offset(0, 40),
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Export'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: null, // Not used since PopupMenuButton handles tap
-          ),
-          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            // Download Image Options
-            PopupMenuItem<String>(
-              value: 'download_header',
-              enabled: false,
-              child: _buildPopupHeader(context, 'Download Image', Icons.image),
-            ),
-            PopupMenuItem<String>(
-              value: 'download_your_picks',
-              child: _buildPopupItem(context, 'Your Picks', Icons.person),
-            ),
-            PopupMenuItem<String>(
-              value: 'download_first_round',
-              child: _buildPopupItem(context, 'First Round', Icons.looks_one),
-            ),
-            PopupMenuItem<String>(
-              value: 'download_full_draft',
-              child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
-            ),
-            
-            // Divider
-            const PopupMenuDivider(),
-            
-            // Export As Options
-            PopupMenuItem<String>(
-              value: 'export_header',
-              enabled: false,
-              child: _buildPopupHeader(context, 'Export As', Icons.share),
-            ),
-            PopupMenuItem<String>(
-              value: 'export_html',
-              child: _buildPopupItem(context, 'Web Page (HTML)', Icons.web),
-            ),
-            PopupMenuItem<String>(
-              value: 'export_clipboard',
-              child: _buildPopupItem(context, 'Text to Clipboard', Icons.text_fields),
-            ),
-          ],
-          onSelected: (value) => _handleExportAction(value, context),
-        ),
-        
-        const SizedBox(width: 8), // Space between buttons
-        
-        // Copy Image Button - Separate Button
-        PopupMenuButton<String>(
-          tooltip: 'Copy Image Options',
-          offset: const Offset(0, 40),
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.content_copy, size: 18),
-            label: const Text('Copy Image'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? Colors.indigo : Colors.deepPurple,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: null, // Not used since PopupMenuButton handles tap
-          ),
-          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(
-              value: 'copy_your_picks',
-              child: _buildPopupItem(context, 'Your Picks', Icons.person),
-            ),
-            PopupMenuItem<String>(
-              value: 'copy_first_round',
-              child: _buildPopupItem(context, 'First Round', Icons.looks_one),
-            ),
-            PopupMenuItem<String>(
-              value: 'copy_full_draft',
-              child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
-            ),
-          ],
-          onSelected: (value) => _handleCopyAction(value, context),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopupHeader(BuildContext context, String title, IconData icon) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        icon, 
-        color: Theme.of(context).primaryColor,
-        size: 20,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
+Widget build(BuildContext context) {
+  final theme = Theme.of(context);
+  final isDarkMode = theme.brightness == Brightness.dark;
   
+  return PopupMenuButton<String>(
+    tooltip: 'Copy Image Options',
+    offset: const Offset(0, 40),
+    child: Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.green.shade600,
+          width: 2.0,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.content_copy, size: 18),
+        label: const Text('Copy Image'),
+        style: ElevatedButton.styleFrom(
+          // Change the background color to green
+          backgroundColor: Colors.green.shade600,
+          // Set text color to white
+          foregroundColor: Colors.white,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        onPressed: null, // Not used since PopupMenuButton handles tap
+      ),
+    ),
+    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: 'copy_your_picks',
+        child: _buildPopupItem(context, 'Your Picks', Icons.person),
+      ),
+      PopupMenuItem<String>(
+        value: 'copy_first_round',
+        child: _buildPopupItem(context, 'First Round', Icons.looks_one),
+      ),
+      PopupMenuItem<String>(
+        value: 'copy_full_draft',
+        child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
+      ),
+    ],
+    onSelected: (value) => _handleCopyAction(value, context),
+  );
+}
+
   Widget _buildPopupItem(BuildContext context, String title, IconData icon) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -196,27 +103,33 @@ class ExportButtonWidget extends StatelessWidget {
     );
   }
 
-  void _handleExportAction(String action, BuildContext context) {
-    if (action.startsWith('download_')) {
-      _handleDownloadImage(action.replaceFirst('download_', ''), context);
-    } else if (action == 'export_html') {
-      _exportFullDraft(context);
-    } else if (action == 'export_clipboard') {
-      _copyToClipboard(context);
-    }
-  }
-  
-  // Update the _handleCopyAction method in export_button_widget.dart
-void _handleCopyAction(String action, BuildContext context) {
-  final exportMode = _getExportMode(action.replaceFirst('copy_', ''));
-  
-  // Skip dialog and directly attempt to copy to clipboard
-  _captureAndCopyImage(context, exportMode);
-}
+  // Handle copy action immediately when selected from dropdown
+  void _handleCopyAction(String action, BuildContext context) {
+    // Show immediate feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20, 
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            ),
+            SizedBox(width: 10),
+            Text('Copying image to clipboard...'),
+          ],
+        ),
+        duration: Duration(seconds: 1),
+      ),
+    );
 
-  Future<void> _handleDownloadImage(String mode, BuildContext context) async {
-    final exportMode = _getExportMode(mode);
-    await _captureAndSaveImage(context, exportMode);
+    final exportMode = _getExportMode(action.replaceFirst('copy_', ''));
+    
+    // Direct capture and copy
+    _captureAndCopyImage(context, exportMode);
   }
 
   String _getExportMode(String mode) {
@@ -231,212 +144,456 @@ void _handleCopyAction(String action, BuildContext context) {
     }
   }
 
-// Add this method to your ExportButtonWidget class
-Future<void> _captureAndSaveImage(BuildContext context, String exportMode) async {
-  // This will call the proper capture method
-  await _captureImage(context, exportMode, false);
-}
+  // The main method that handles capturing and copying the image
+  Future<void> _captureAndCopyImage(BuildContext context, String exportMode) async {
+    if (shareableCardKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to generate image')),
+      );
+      return;
+    }
 
-Future<void> _captureAndCopyImage(BuildContext context, String exportMode) async {
-  // This will call the proper capture method
-  await _captureImage(context, exportMode, true);
-}
+    try {
+      // Create a temporary GlobalKey
+      final GlobalKey repaintKey = GlobalKey();
+      
+      // Calculate proper height based on export mode
+      double cardHeight;
+      if (exportMode == "your_picks") {
+        // For user picks, calculate based on estimated number of picks
+        int userPickCount = completedPicks.where((p) => 
+          p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
+          p.selectedPlayer != null
+        ).length;
+        
+        // Make sure we have at least enough height, with a reasonable minimum
+        cardHeight = max(250.0, 150.0 + (userPickCount * 80.0));
+      } else if (exportMode == "first_round") {
+        cardHeight = 900.0; // For first round layout
+      } else {
+        // For full draft, calculate based on the number of rounds
+        Map<String, List<DraftPick>> picksByRound = {};
+        for (var pick in completedPicks) {
+          if (pick.selectedPlayer != null) {
+            if (!picksByRound.containsKey(pick.round)) {
+              picksByRound[pick.round] = [];
+            }
+            picksByRound[pick.round]!.add(pick);
+          }
+        }
+        int numRounds = picksByRound.length;
+        
+        // Height based on number of rounds (max 7 for NFL draft)
+        cardHeight = 200.0 + (numRounds * 100.0);
+        cardHeight = min(1200.0, cardHeight); // Cap at 1200px
+      }
+      
+      // Create a temporary card with fixed dimensions
+      final card = Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: 800,
+          height: cardHeight,
+          child: RepaintBoundary(
+            key: repaintKey,
+            child: ShareableDraftCard(
+              picks: completedPicks,
+              userTeam: filterTeam == "All Teams" ? userTeam : filterTeam,
+              teamNeeds: teamNeeds,
+              exportMode: exportMode,
+              cardKey: repaintKey,
+            ),
+          ),
+        ),
+      );
+      
+      // Create a container in overlay to host our widget
+      final overlayState = Overlay.of(context);
+      final OverlayEntry overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          left: -2000, // Place offscreen but still render
+          top: -2000,
+          child: card,
+        ),
+      );
+      
+      // Add to overlay
+      overlayState.insert(overlayEntry);
+      
+      // Wait for rendering
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      try {
+        // Find the RenderRepaintBoundary
+        final RenderRepaintBoundary? boundary = repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        
+        if (boundary == null) {
+          throw Exception('Could not find the card to render');
+        }
+        
+        // Capture the image with high pixel ratio for quality
+        final ui.Image image = await boundary.toImage(pixelRatio: 3.0); // Higher quality
+        final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        
+        // Remove overlay
+        overlayEntry.remove();
+        
+        if (byteData == null) {
+          throw Exception('Failed to capture image');
+        }
+        
+        // Convert to bytes
+        final Uint8List pngBytes = byteData.buffer.asUint8List();
+        
+        // Copy to clipboard
+        await _directCopyToClipboard(pngBytes, context);
+      } catch (e) {
+        // Make sure to remove overlay on error
+        overlayEntry.remove();
+        rethrow;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating image: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
 
-
-// Update the _enhancedCopyToClipboard method in export_button_widget.dart
-// Update the _enhancedCopyToClipboard method in export_button_widget.dart
-Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
+  // Optimized clipboard handling specifically for desktop browsers
+Future<void> _directCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
   try {
     if (kIsWeb) {
       // Create a blob from the image bytes
       final blob = html.Blob([imageBytes], 'image/png');
       final url = html.Url.createObjectUrlFromBlob(blob);
       
-      // Detect if on mobile
+      // Detect if on desktop
       final isMobile = html.window.navigator.userAgent.contains('Mobile') || 
                        html.window.navigator.userAgent.contains('Android') ||
                        html.window.navigator.userAgent.contains('iPhone');
       
-      if (isMobile) {
-        // For mobile, we'll use a different approach that's more reliable
-        // Create a fullscreen div with the image that users can manually copy
-        final div = html.DivElement()
-          ..style.position = 'fixed'
-          ..style.top = '0'
-          ..style.left = '0'
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..style.backgroundColor = 'rgba(0,0,0,0.9)'
-          ..style.zIndex = '9999'
-          ..style.display = 'flex'
-          ..style.flexDirection = 'column'
-          ..style.alignItems = 'center'
-          ..style.padding = '20px'
-          ..style.boxSizing = 'border-box';
-          
-        // Add the image
-        final img = html.ImageElement(src: url)
-          ..style.maxWidth = '100%'
-          ..style.maxHeight = 'calc(100% - 80px)'
-          ..style.objectFit = 'contain';
-          
-        // Instructions
-        final instructions = html.DivElement()
-          ..style.color = 'white'
-          ..style.padding = '15px'
-          ..style.backgroundColor = 'rgba(0,0,0,0.7)'
-          ..style.borderRadius = '8px'
-          ..style.marginTop = '15px'
-          ..style.maxWidth = '90%'
-          ..style.textAlign = 'center'
-          ..innerHtml = '''
-            <div style="font-weight: bold; margin-bottom: 8px;">Press and hold the image, then tap "Copy"</div>
-            <div style="font-size: 14px;">This is the most reliable way to copy images on mobile browsers</div>
-          ''';
-          
-        // Close button
-        final closeButton = html.DivElement()
-          ..style.position = 'absolute'
-          ..style.top = '10px'
-          ..style.right = '10px'
-          ..style.color = 'white'
-          ..style.fontSize = '20px'
-          ..style.fontWeight = 'bold'
-          ..style.padding = '10px'
-          ..style.cursor = 'pointer'
-          ..text = '×';
-          
-        // Add click handler to close
-        closeButton.onClick.listen((event) {
-          div.remove();
-          html.Url.revokeObjectUrl(url);
-        });
-        
-        // Add all elements to the div
-        div.append(img);
-        div.append(instructions);
-        div.append(closeButton);
-        
-        // Add div to the document
-        html.document.body!.append(div);
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Press and hold the image, then tap "Copy"'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        
-        // Don't revoke URL now, as it's being used in the modal
-        // It will be revoked when the modal is closed
-      } else {
-        // Desktop browser implementation using Clipboard API
+      if (!isMobile) {
+        // Desktop-specific implementation with more reliable clipboard access
         bool success = false;
-        try {
-          // Use a completer to handle the async nature of the clipboard API
-          final completer = Completer<bool>();
-          
-          // Add callback functions to js context
-          js.context['dartSuccessCallback'] = js.allowInterop(() {
-            success = true;
-            completer.complete(true);
-          });
-          
-          js.context['dartFailureCallback'] = js.allowInterop(() {
-            success = false;
-            completer.complete(false);
-          });
-          
-          // Directly inject a script tag with our code to avoid Promise issues
-          final scriptTag = html.ScriptElement()
-            ..text = '''
-              (function() {
-                fetch("$url")
-                  .then(response => response.blob())
-                  .then(blob => {
-                    try {
-                      const item = new ClipboardItem({"image/png": blob});
-                      navigator.clipboard.write([item])
-                        .then(() => {
-                          dartSuccessCallback();
-                        })
-                        .catch(err => {
-                          dartFailureCallback();
-                        });
-                    } catch(e) {
-                      dartFailureCallback();
+        
+        // Create and append a canvas element to draw the image on
+        final result = await js.context.callMethod('eval', ['''
+          (async function() {
+            try {
+              // Create a hidden canvas element
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              // Create an image from our blob URL
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              
+              // Set up promise to wait for image to load
+              const imgLoaded = new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = "$url";
+              });
+              
+              // Wait for image to load
+              await imgLoaded;
+              
+              // Set canvas dimensions to match image
+              canvas.width = img.width;
+              canvas.height = img.height;
+              
+              // Draw image to canvas
+              ctx.drawImage(img, 0, 0);
+              
+              // Get data URL from canvas
+              const dataUrl = canvas.toDataURL('image/png');
+              
+              // Copy to clipboard using modern Clipboard API
+              if (navigator.clipboard) {
+                try {
+                  // Convert base64 to blob
+                  const base64Data = dataUrl.split(',')[1];
+                  const byteCharacters = atob(base64Data);
+                  const byteArrays = [];
+                  
+                  for (let i = 0; i < byteCharacters.length; i += 512) {
+                    const slice = byteCharacters.slice(i, i + 512);
+                    const byteNumbers = new Array(slice.length);
+                    
+                    for (let j = 0; j < slice.length; j++) {
+                      byteNumbers[j] = slice.charCodeAt(j);
                     }
-                  })
-                  .catch(() => {
-                    dartFailureCallback();
-                  });
-              })();
-            ''';
-          
-          // Add the script to the document
-          html.document.body!.append(scriptTag);
-          
-          // Wait for the result
-          success = await completer.future.timeout(
-            const Duration(seconds: 2),
-            onTimeout: () => false,
-          );
-          
-          // Clean up
-          scriptTag.remove();
-          
-          if (success && context.mounted) {
+                    
+                    byteArrays.push(new Uint8Array(byteNumbers));
+                  }
+                  
+                  const imgBlob = new Blob(byteArrays, {type: 'image/png'});
+                  
+                  // Use ClipboardItem API
+                  const clipboardItem = new ClipboardItem({'image/png': imgBlob});
+                  await navigator.clipboard.write([clipboardItem]);
+                  return "success";
+                } catch (e) {
+                  console.error("Clipboard API error: " + e);
+                  
+                  // Fallback to execCommand for older browsers
+                  try {
+                    // Create a temporary textarea element
+                    const textarea = document.createElement('textarea');
+                    textarea.value = dataUrl;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    
+                    // Execute copy command
+                    const successful = document.execCommand('copy');
+                    
+                    // Clean up
+                    document.body.removeChild(textarea);
+                    
+                    if (successful) {
+                      return "legacy_success";
+                    } else {
+                      return "legacy_failure";
+                    }
+                  } catch (e2) {
+                    console.error("Legacy clipboard error: " + e2);
+                    return "all_methods_failed";
+                  }
+                }
+              } else {
+                return "clipboard_api_unavailable";
+              }
+            } catch (e) {
+              console.error("General error: " + e);
+              return "general_error";
+            }
+          })()
+        ''']);
+        
+        // Check result status
+        success = result == "success" || result == "legacy_success";
+        
+        if (success) {
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Image copied to clipboard successfully!'),
                 duration: Duration(seconds: 2),
               ),
             );
-          } else if (context.mounted) {
-            // Fallback to opening in new tab
-            html.window.open(url, '_blank');
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image opened in new tab for copying'),
-                duration: Duration(seconds: 2),
-              ),
-            );
           }
-          
-          // Clean up URL
-          Future.delayed(const Duration(seconds: 10), () {
-            html.Url.revokeObjectUrl(url);
-          });
-        } catch (e) {
-          print('Desktop clipboard API error: $e');
-          // Fallback to opening in new tab
-          html.window.open(url, '_blank');
+        } else {
+          // Fallback - use navigator API to directly download without opening a new tab
+          js.context.callMethod('eval', ['''
+            (function() {
+              // Create a temporary button that triggers download
+              const downloadLink = document.createElement('a');
+              downloadLink.href = "$url";
+              downloadLink.download = "draft_image.png";
+              
+              // Append to document
+              document.body.appendChild(downloadLink);
+              
+              // Trigger click
+              downloadLink.click();
+              
+              // Clean up
+              document.body.removeChild(downloadLink);
+            })()
+          ''']);
           
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Image opened in new tab for copying'),
-                duration: Duration(seconds: 2),
+                content: Text('Clipboard access denied - Image downloaded instead'),
+                duration: Duration(seconds: 3),
               ),
             );
           }
+        }
+      } else {
+        // Mobile implementation
+        try {
+          // Try modern Clipboard API first
+          final result = await js.context.callMethod('eval', ['''
+            (async function() {
+              try {
+                const response = await fetch("$url");
+                const blob = await response.blob();
+                const item = new ClipboardItem({"image/png": blob});
+                await navigator.clipboard.write([item]);
+                return "success";
+              } catch(e) {
+                console.error("Mobile clipboard API error: " + e);
+                return "error";
+              }
+            })()
+          ''']);
           
-          // Clean up URL
-          Future.delayed(const Duration(seconds: 10), () {
-            html.Url.revokeObjectUrl(url);
-          });
+          if (result == "success") {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Image copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            // Create a modal with the image for easy manual copying
+            js.context.callMethod('eval', ['''
+              (function() {
+                // Remove any previous temp elements
+                var oldElem = document.getElementById('tempCopyImage');
+                if (oldElem) oldElem.remove();
+                
+                // Create modal container
+                var modalContainer = document.createElement('div');
+                modalContainer.id = 'tempCopyImage';
+                modalContainer.style.position = 'fixed';
+                modalContainer.style.zIndex = '10000';
+                modalContainer.style.top = '0';
+                modalContainer.style.left = '0';
+                modalContainer.style.width = '100%';
+                modalContainer.style.height = '100%';
+                modalContainer.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                modalContainer.style.display = 'flex';
+                modalContainer.style.flexDirection = 'column';
+                modalContainer.style.alignItems = 'center';
+                modalContainer.style.justifyContent = 'center';
+                
+                // Create image
+                var img = document.createElement('img');
+                img.src = "$url";
+                img.style.maxWidth = '90%';
+                img.style.maxHeight = '70%';
+                img.style.objectFit = 'contain';
+                
+                // Create instruction text
+                var instructions = document.createElement('div');
+                instructions.style.color = 'white';
+                instructions.style.margin = '20px';
+                instructions.style.textAlign = 'center';
+                instructions.style.fontFamily = 'sans-serif';
+                instructions.innerHTML = '<b>Tap and hold on the image to copy</b><br>Tap outside to close';
+                
+                // Add close functionality
+                modalContainer.onclick = function(e) {
+                  if (e.target === modalContainer) {
+                    modalContainer.remove();
+                  }
+                };
+                
+                // Add everything to DOM
+                modalContainer.appendChild(img);
+                modalContainer.appendChild(instructions);
+                document.body.appendChild(modalContainer);
+                
+                // Auto close after 30 seconds
+                setTimeout(function() {
+                  var elem = document.getElementById('tempCopyImage');
+                  if (elem) elem.remove();
+                }, 30000);
+              })();
+            ''']);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Press and hold the image to copy it'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          // Final fallback - show the modal anyway
+          js.context.callMethod('eval', ['''
+            (function() {
+              // Remove any previous temp elements
+              var oldElem = document.getElementById('tempCopyImage');
+              if (oldElem) oldElem.remove();
+              
+              // Create modal container
+              var modalContainer = document.createElement('div');
+              modalContainer.id = 'tempCopyImage';
+              modalContainer.style.position = 'fixed';
+              modalContainer.style.zIndex = '10000';
+              modalContainer.style.top = '0';
+              modalContainer.style.left = '0';
+              modalContainer.style.width = '100%';
+              modalContainer.style.height = '100%';
+              modalContainer.style.backgroundColor = 'rgba(0,0,0,0.8)';
+              modalContainer.style.display = 'flex';
+              modalContainer.style.flexDirection = 'column';
+              modalContainer.style.alignItems = 'center';
+              modalContainer.style.justifyContent = 'center';
+              
+              // Create image
+              var img = document.createElement('img');
+              img.src = "$url";
+              img.style.maxWidth = '90%';
+              img.style.maxHeight = '70%';
+              img.style.objectFit = 'contain';
+              
+              // Create instruction text
+              var instructions = document.createElement('div');
+              instructions.style.color = 'white';
+              instructions.style.margin = '20px';
+              instructions.style.textAlign = 'center';
+              instructions.style.fontFamily = 'sans-serif';
+              instructions.innerHTML = '<b>Tap and hold on the image to copy</b><br>Tap outside to close';
+              
+              // Add close functionality
+              modalContainer.onclick = function(e) {
+                if (e.target === modalContainer) {
+                  modalContainer.remove();
+                }
+              };
+              
+              // Add everything to DOM
+              modalContainer.appendChild(img);
+              modalContainer.appendChild(instructions);
+              document.body.appendChild(modalContainer);
+              
+              // Auto close after 30 seconds
+              setTimeout(function() {
+                var elem = document.getElementById('tempCopyImage');
+                if (elem) elem.remove();
+              }, 30000);
+            })();
+          ''']);
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Press and hold the image to copy it'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         }
       }
+      
+      // Clean up URL resource after a delay
+      Future.delayed(const Duration(seconds: 30), () {
+        html.Url.revokeObjectUrl(url);
+      });
     } else {
       // Native mobile app implementation
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/temp_clipboard_image.png');
+      // This isn't a direct clipboard copy, but it's the closest we can get
+      // outside the web platform
+      
+      final tempDir = await Directory.systemTemp.createTemp();
+      final file = File('${tempDir.path}/draft_image.png');
       await file.writeAsBytes(imageBytes);
       
-      // Use Share.shareXFiles for sharing
+      // This will show the share sheet which lets users copy
       await Share.shareXFiles(
         [XFile(file.path)],
         text: 'Check out my NFL Draft results',
@@ -455,380 +612,11 @@ Future<void> _enhancedCopyToClipboard(Uint8List imageBytes, BuildContext context
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error sharing image: $e'),
+          content: Text('Error copying image: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
     }
   }
 }
-
-// Add this method to your ExportButtonWidget class
-Future<void> _captureImage(BuildContext context, String exportMode, bool forClipboard) async {
-  if (shareableCardKey == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unable to generate image')),
-    );
-    return;
-  }
-
-  try {
-    // Show loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(forClipboard ? 'Copying to clipboard...' : 'Generating image...'),
-          ],
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-    
-    // Wait for the UI to settle
-    await Future.delayed(const Duration(milliseconds: 100));
-    
-    // Create a temporary GlobalKey
-    final GlobalKey repaintKey = GlobalKey();
-    
-    // Calculate a proper height based on the export mode
-      double cardHeight;
-  if (exportMode == "your_picks") {
-    // For user picks, calculate based on estimated number of picks
-    int userPickCount = completedPicks.where((p) => 
-      p.teamName == (filterTeam == "All Teams" ? userTeam : filterTeam) && 
-      p.selectedPlayer != null
-    ).length;
-    
-    // Make sure we have at least enough height, with a reasonable minimum
-    cardHeight = max(250.0, 150.0 + (userPickCount * 80.0));
-  } else if (exportMode == "first_round") {
-    // Set a taller height for first round to fit all 32 picks
-    cardHeight = 900.0; // More reasonable height with dynamic sizing
-  } else {
-    // For full draft, calculate based on the number of rounds
-    // Group picks by round to count
-    Map<String, List<DraftPick>> picksByRound = {};
-    for (var pick in completedPicks) {
-      if (pick.selectedPlayer != null) {
-        if (!picksByRound.containsKey(pick.round)) {
-          picksByRound[pick.round] = [];
-        }
-        picksByRound[pick.round]!.add(pick);
-      }
-    }
-    int numRounds = picksByRound.length;
-    
-    // Height based on number of rounds (max 7 for NFL draft)
-    // Each round needs about 150px plus additional for header/footer
-    cardHeight = 200.0 + (numRounds * 100.0);
-    cardHeight = min(1200.0, cardHeight); // Cap at 1200px
-  }
-    
-    // Create a temporary card with fixed dimensions that don't conflict
-    final card = Material(
-      color: Colors.transparent,
-      child: SizedBox(
-        width: 800,
-        height: cardHeight, // Use a single fixed height instead of constraints
-        child: RepaintBoundary(
-          key: repaintKey,
-          child: ShareableDraftCard(
-            picks: completedPicks,
-            userTeam: filterTeam == "All Teams" ? userTeam : filterTeam,
-            teamNeeds: teamNeeds,
-            exportMode: exportMode,
-            cardKey: repaintKey,
-          ),
-        ),
-      ),
-    );
-    
-    // Create a container in overlay to host our widget
-    final overlayState = Overlay.of(context);
-    final OverlayEntry overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: 20,
-        top: 20,
-        child: card,
-      ),
-    );
-    
-    // Add to overlay
-    overlayState.insert(overlayEntry);
-    
-    // Wait for rendering
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    try {
-      // Find the RenderRepaintBoundary
-      final RenderRepaintBoundary? boundary = repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      
-      if (boundary == null) {
-        throw Exception('Could not find the card to render');
-      }
-      
-      // Capture the image with high pixel ratio for quality
-      final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      // Remove overlay
-      overlayEntry.remove();
-      
-      if (byteData == null) {
-        throw Exception('Failed to capture image');
-      }
-      
-      // Convert to bytes
-      final Uint8List pngBytes = byteData.buffer.asUint8List();
-      
-      // Process the image based on the forClipboard flag
-      if (forClipboard) {
-        await _enhancedCopyToClipboard(pngBytes, context);
-      } else {
-        await _saveImage(pngBytes, context, exportMode);
-      }
-    } catch (e) {
-      // Make sure to remove overlay on error
-      overlayEntry.remove();
-      rethrow;
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating image: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
-  }
-}
-
-  // Helper for web clipboard API
-  Future<bool> _tryWebClipboardAPI(String imageUrl, BuildContext context) async {
-    try {
-      // Try navigator.clipboard.write API with ClipboardItem
-      // Note: This has limited browser support - primarily Chrome
-      final jsCode = '''
-        async function copyImageToClipboard() {
-          try {
-            const response = await fetch("$imageUrl");
-            const blob = await response.blob();
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                [blob.type]: blob
-              })
-            ]);
-            return true;
-          } catch (err) {
-            console.error("Copy failed: ", err);
-            return false;
-          }
-        }
-        copyImageToClipboard();
-      ''';
-      final result = js.context.callMethod('eval', [jsCode]) as bool?;
-      
-      if (result == true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image copied to clipboard successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print('Web clipboard API error: $e');
-      return false;
-    }
-  }
-
-  // Helper for instruction steps
-  Widget _buildInstructionStep(int number, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              color: Colors.blue,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '$number',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _saveImage(Uint8List imageBytes, BuildContext context, String exportMode) async {
-    try {
-      String fileName;
-      switch (exportMode) {
-        case 'your_picks':
-          fileName = '${userTeam ?? "team"}_picks.png';
-          break;
-        case 'first_round':
-          fileName = 'first_round_picks.png';
-          break;
-        default:
-          fileName = 'draft_results.png';
-      }
-      
-      if (kIsWeb) {
-        // For web, download via anchor click
-        final blob = html.Blob([imageBytes], 'image/png');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..click();
-        
-        // Clean up
-        Future.delayed(const Duration(milliseconds: 100), () {
-          html.Url.revokeObjectUrl(url);
-        });
-      } else {
-        // For mobile platforms
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/$fileName');
-        await file.writeAsBytes(imageBytes);
-        
-        // Save to gallery on mobile
-        final result = await ImageGallerySaver.saveFile(file.path);
-        
-        // Also offer to share
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'Check out my NFL mock draft results!',
-        );
-      }
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image saved successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving image: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
-  }
-
-  // Existing methods
-  Future<void> _exportFullDraft(BuildContext context) async {
-    try {
-      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-      
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isDarkMode ? Colors.white : Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text('Preparing draft results...'),
-            ],
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-      
-      // Use enhanced export service
-      await DraftExportService.shareDraftResults(
-        context: context,
-        picks: completedPicks,
-        teamNeeds: teamNeeds,
-        title: 'NFL Draft Simulator Results',
-        userTeam: userTeam,
-        trades: executedTrades,
-        isWeb: kIsWeb,
-      );
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Draft results exported successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting draft results: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _copyToClipboard(BuildContext context) async {
-    final formattedText = DraftExportService.generateFormattedClipboardText(
-      completedPicks,
-      userTeam,
-    );
-    
-    await Clipboard.setData(ClipboardData(text: formattedText));
-    
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Draft results copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
 }

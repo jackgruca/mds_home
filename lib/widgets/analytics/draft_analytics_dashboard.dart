@@ -746,6 +746,31 @@ Widget build(BuildContext context) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+            Padding(
+        padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 4.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Draft Analytics",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            // Add the export button here
+            ExportButtonWidget(
+              completedPicks: widget.completedPicks,
+              teamNeeds: widget.teamNeeds,
+              userTeam: widget.userTeam,
+              executedTrades: widget.executedTrades,
+              filterTeam: _selectedTeam,
+              shareableCardKey: _shareableCardKey,
+            ),
+          ],
+        ),
+      ),
       // Add TabBar for Draft Results and Community Analytics
       TabBar(
   controller: _tabController,
