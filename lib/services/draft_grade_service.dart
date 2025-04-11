@@ -159,6 +159,8 @@ static Map<String, dynamic> calculateTeamGrade(
   
   if (debug) {
     debugLog.writeln("\n===== TEAM GRADE CALCULATION DEBUG =====");
+    // Force immediate debug print to ensure visibility
+    debugPrint("Starting team grade calculation...");
   }
   
   if (picks.isEmpty) {
@@ -182,134 +184,172 @@ static Map<String, dynamic> calculateTeamGrade(
   if (debug) {
     debugLog.writeln("Team: $teamName");
     debugLog.writeln("Total Picks: ${picks.length}");
+    debugPrint("Calculating grade for team: $teamName with ${picks.length} picks");
   }
   
-  // 1. CONVERT LETTER GRADES TO NUMERIC VALUES (GPA style)
-  if (debug) debugLog.writeln("\n1. CONVERTING PICK GRADES TO NUMERIC VALUES:");
-  
-  double totalWeightedScore = 0.0;
+  // Store raw grades and their mapped numeric values
+  List<String> pickLetterGrades = [];
+  List<double> pickNumericValues = [];
+  List<int> pickNumbers = [];
+  double totalScore = 0.0;
   double totalWeight = 0.0;
-  List<String> letterGrades = [];
   
-  for (var pick in picks) {
-    if (pick.selectedPlayer == null) continue;
+  // SIMPLIFIED APPROACH: Directly convert letter grades to numeric values
+  for (var pick in picks.where((p) => p.selectedPlayer != null)) {
+    // Get grade info from DraftPickGradeService
+    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(
+      pick, teamNeeds, debug: false);
     
-    // Get the already calculated grade
-    Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds, debug: false);
     String letterGrade = gradeInfo['letter'];
-    letterGrades.add(letterGrade);
+    pickLetterGrades.add(letterGrade);
+    pickNumbers.add(pick.pickNumber);
     
-    // Convert letter grade to numeric value (4.0 scale)
-    double numericGrade = _letterToNumeric(letterGrade);
+    // Convert letter grade to numeric value (0-10 scale)
+    double numericValue = _letterToNumericValue(letterGrade);
+    pickNumericValues.add(numericValue);
     
-    // Get round weight
+    // Calculate weight based on round
     int round = int.tryParse(pick.round) ?? DraftValueService.getRoundForPick(pick.pickNumber);
-    double roundWeight;
-    
-    // Apply round-based weight
-    switch (round) {
-      case 1: roundWeight = 1.3; break;
-      case 2: roundWeight = 1.2; break;
-      case 3: roundWeight = 1.1; break;
-      case 4: roundWeight = 1.0; break;
-      case 5: roundWeight = 0.9; break;
-      case 6: roundWeight = 0.8; break;
-      case 7: roundWeight = 0.7; break;
-      default: roundWeight = 0.6; break;
-    }
-    
-    // Apply extra weight for top picks
-    double pickWeight = roundWeight;
-    if (pick.pickNumber <= 10) {
-      pickWeight *= 1.2; // 20% more weight for top 10 picks
-      if (debug) debugLog.writeln("  Applied top 10 bonus (1.2x)");
-    }
-    
-    // Add to weighted total
-    totalWeightedScore += numericGrade * pickWeight;
-    totalWeight += pickWeight;
+    double weight = _getPickWeight(round, pick.pickNumber);
     
     if (debug) {
-      debugLog.writeln("Pick #${pick.pickNumber} (Round $round): ${pick.selectedPlayer!.name}");
-      debugLog.writeln("  Grade: $letterGrade (${numericGrade.toStringAsFixed(1)} points)");
-      debugLog.writeln("  Weight: ${pickWeight.toStringAsFixed(1)}");
-      debugLog.writeln("  Weighted Value: ${(numericGrade * pickWeight).toStringAsFixed(1)}");
+      debugLog.writeln("Pick #${pick.pickNumber}: ${pick.selectedPlayer!.name}");
+      debugLog.writeln("  Grade: $letterGrade (${numericValue.toStringAsFixed(2)} points)");
+      debugLog.writeln("  Weight: ${weight.toStringAsFixed(2)}");
+      debugLog.writeln("  Weighted Score: ${(numericValue * weight).toStringAsFixed(2)}");
     }
+    
+    totalScore += numericValue * weight;
+    totalWeight += weight;
   }
   
-  // Calculate weighted GPA
-  double weightedGPA = totalWeight > 0 ? totalWeightedScore / totalWeight : 0.0;
+  // Calculate weighted average
+  double weightedAverage = totalWeight > 0 ? totalScore / totalWeight : 0.0;
   
   if (debug) {
-    debugLog.writeln("\nTotal Weighted Score: ${totalWeightedScore.toStringAsFixed(1)}");
-    debugLog.writeln("Total Weight: ${totalWeight.toStringAsFixed(1)}");
-    debugLog.writeln("Weighted GPA: ${weightedGPA.toStringAsFixed(2)}");
+    debugLog.writeln("\nRaw letter grades: ${pickLetterGrades.join(', ')}");
+    debugLog.writeln("Raw numeric values: ${pickNumericValues.map((v) => v.toStringAsFixed(2)).join(', ')}");
+    debugLog.writeln("Total weighted score: ${totalScore.toStringAsFixed(2)}");
+    debugLog.writeln("Total weight: ${totalWeight.toStringAsFixed(2)}");
+    debugLog.writeln("Weighted average: ${weightedAverage.toStringAsFixed(2)}");
   }
   
-  // 2. APPLY TRADE ADJUSTMENT
-  double tradeAdjustment = 0.0;
-  
+  // Apply trade adjustment if any trades were made
+  double tradeValue = 0.0;
   if (trades.isNotEmpty) {
-    // Calculate net trade value
-    double netTradeValue = 0.0;
     for (var trade in trades) {
       if (trade.teamOffering == teamName) {
-        netTradeValue -= trade.valueDifferential;
+        tradeValue -= trade.valueDifferential;
       } else if (trade.teamReceiving == teamName) {
-        netTradeValue += trade.valueDifferential;
+        tradeValue += trade.valueDifferential;
       }
     }
     
-    // Convert trade value to GPA adjustment (scale appropriately)
-    // For example, 50 trade points = 0.5 GPA points
-    tradeAdjustment = netTradeValue * 0.01;
-    
-    // Cap adjustment to prevent huge swings
+    // Scale trade value - use a more modest impact (50 trade points = 0.5 grade points)
+    double tradeAdjustment = tradeValue / 100.0;
+    // Cap the adjustment to prevent extreme swings
     tradeAdjustment = tradeAdjustment.clamp(-1.0, 1.0);
     
     if (debug) {
-      debugLog.writeln("\nTrade Adjustment: ${tradeAdjustment.toStringAsFixed(2)} GPA points");
+      debugLog.writeln("\nTrade value: ${tradeValue.toStringAsFixed(2)}");
+      debugLog.writeln("Trade adjustment: ${tradeAdjustment.toStringAsFixed(2)}");
     }
+    
+    // Apply trade adjustment
+    weightedAverage += tradeAdjustment;
   }
   
-  // 3. CALCULATE FINAL GPA
-  double finalGPA = weightedGPA + tradeAdjustment;
-  
-  // Ensure minimum grade based on pick quality
-  if (letterGrades.every((grade) => _letterToNumeric(grade) >= 3.0)) {
-    // If all picks are B or better, ensure at least a B- (2.7)
-    finalGPA = max(finalGPA, 2.7);
-    if (debug) debugLog.writeln("Applied minimum B- threshold");
-  } else if (letterGrades.every((grade) => _letterToNumeric(grade) >= 2.3)) {
-    // If all picks are C+ or better, ensure at least a C+ (2.3)
-    finalGPA = max(finalGPA, 2.3);
-    if (debug) debugLog.writeln("Applied minimum C+ threshold");
-  }
-  
-  // Convert numeric grade back to letter
-  String finalGrade = _numericToLetter(finalGPA);
+  // Convert final average to letter grade
+  String finalGrade = _numericToLetterGrade(weightedAverage);
   
   if (debug) {
-    debugLog.writeln("\nFinal GPA: ${finalGPA.toStringAsFixed(2)}");
-    debugLog.writeln("Final Letter Grade: $finalGrade");
-    debugLog.writeln("===== END TEAM GRADE CALCULATION =====\n");
+    debugLog.writeln("\nFinal weighted average: ${weightedAverage.toStringAsFixed(2)}");
+    debugLog.writeln("Final letter grade: $finalGrade");
+    // Force immediate debug print to ensure this is visible
+    debugPrint("Team $teamName final grade calculation: ${weightedAverage.toStringAsFixed(2)} = $finalGrade");
+    debugPrint("Individual pick grades: ${pickLetterGrades.join(', ')}");
+    debugPrint("Pick numbers: ${pickNumbers.join(', ')}");
     debugPrint(debugLog.toString());
   }
   
   return {
     'grade': finalGrade,
-    'value': finalGPA,
-    'description': _generateDescription(finalGrade, letterGrades),
+    'value': weightedAverage,
+    'description': _generateSimpleDescription(finalGrade, pickLetterGrades),
     'letterGrade': finalGrade,
     'factors': {
-      'weightedGPA': weightedGPA,
-      'tradeAdjustment': tradeAdjustment,
-      'finalGPA': finalGPA,
-      'individualGrades': letterGrades,
+      'pickGrades': pickLetterGrades,
+      'numericValues': pickNumericValues,
+      'weightedAverage': weightedAverage,
+      'tradeValue': tradeValue,
       'debugLog': debugLog.toString(),
     },
   };
 }
+
+// Simple consistent letter to numeric conversion (0-10 scale)
+static double _letterToNumericValue(String letterGrade) {
+  switch (letterGrade) {
+    case 'A+': return 10.0;
+    case 'A': return 9.5;
+    case 'A-': return 9.0;
+    case 'B+': return 8.5;
+    case 'B': return 8.0;
+    case 'B-': return 7.5;
+    case 'C+': return 7.0;
+    case 'C': return 6.5;
+    case 'C-': return 6.0;
+    case 'D+': return 5.5;
+    case 'D': return 5.0;
+    case 'F': return 4.0;
+    default: return 6.5; // Default to C
+  }
+}
+
+// Simple numeric to letter conversion using same scale
+static String _numericToLetterGrade(double score) {
+  if (score >= 9.75) return 'A+';
+  if (score >= 9.25) return 'A';
+  if (score >= 8.75) return 'A-';
+  if (score >= 8.25) return 'B+';
+  if (score >= 7.75) return 'B';
+  if (score >= 7.25) return 'B-';
+  if (score >= 6.75) return 'C+';
+  if (score >= 6.25) return 'C';
+  if (score >= 5.75) return 'C-';
+  if (score >= 5.25) return 'D+';
+  if (score >= 4.75) return 'D';
+  return 'F';
+}
+
+// Get weight based on round and pick number
+static double _getPickWeight(int round, int pickNumber) {
+  // Higher weights for earlier picks
+  if (pickNumber <= 10) return 2.0;   // Top 10 picks
+  if (pickNumber <= 32) return 1.5;   // First round
+  if (pickNumber <= 64) return 1.2;   // Second round
+  if (pickNumber <= 96) return 1.0;   // Third round
+  if (pickNumber <= 128) return 0.8;  // Fourth round
+  if (pickNumber <= 160) return 0.7;  // Fifth round
+  if (pickNumber <= 192) return 0.6;  // Sixth round
+  return 0.5;                         // Seventh round and later
+}
+
+// Simple description generation
+static String _generateSimpleDescription(String grade, List<String> pickGrades) {
+  if (grade.startsWith('A')) {
+    return 'Outstanding draft with excellent value selections.';
+  } else if (grade.startsWith('B')) {
+    return 'Strong draft that effectively balanced value and need.';
+  } else if (grade.startsWith('C')) {
+    return 'Average draft with some good picks but room for improvement.';
+  } else if (grade.startsWith('D')) {
+    return 'Below average draft that missed opportunities for better value.';
+  } else {
+    return 'Disappointing draft with major reaches and strategic issues.';
+  }
+}
+
 
 // Convert letter grade to numeric GPA value
 static double _letterToNumeric(String letterGrade) {
