@@ -149,7 +149,6 @@ static String _generateTeamGradeDescription(
 }
 
 /// Calculate team overall grade with a comprehensive approach
-/// Calculate team overall grade with improved weighting and factors
 static Map<String, dynamic> calculateTeamGrade(
   List<DraftPick> picks,
   List<TradePackage> trades,
@@ -308,79 +307,79 @@ static Map<String, dynamic> calculateTeamGrade(
   }
   
   // 3. NEEDS ASSESSMENT - How well did team address its needs
-if (debug) debugLog.writeln("\n3. NEEDS ASSESSMENT:");
+  if (debug) debugLog.writeln("\n3. NEEDS ASSESSMENT:");
 
-double needsGradeScore = 6.0; // Default "B-" needs grade
-double needsFactor = 0.2;     // How much needs impact overall grade
+  double needsGradeScore = 6.0; // Default "B-" needs grade
+  double needsFactor = 0.2;     // How much needs impact overall grade
 
-// Find team needs
-TeamNeed? teamNeed = teamNeeds.firstWhere(
-  (need) => need.teamName == teamName,
-  orElse: () => TeamNeed(teamName: teamName, needs: [])
-);
+  // Find team needs
+  TeamNeed? teamNeed = teamNeeds.firstWhere(
+    (need) => need.teamName == teamName,
+    orElse: () => TeamNeed(teamName: teamName, needs: [])
+  );
 
-// BUGFIX: Get the original needs from CSV data
-List<String> originalNeeds = [];
+  // BUGFIX: Get the original needs from CSV data
+  List<String> originalNeeds = [];
 
-// Get original needs from the TeamNeed object's raw data
-for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
-  if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
-    originalNeeds.add(need.toString());
-  }
-}
-
-if (debug) {
-  debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
-}
-
-if (originalNeeds.isNotEmpty) {
-  // Count how many top needs were addressed
-  Set<String> addressedNeeds = {};
-  for (var pick in picks) {
-    if (pick.selectedPlayer != null) {
-      addressedNeeds.add(pick.selectedPlayer!.position);
+  // Get original needs from the TeamNeed object's raw data
+  for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
+    if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
+      originalNeeds.add(need.toString());
     }
   }
-  
+
   if (debug) {
-    debugLog.writeln("Positions Drafted: ${addressedNeeds.join(', ')}");
+    debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
   }
-  
-  // Calculate needs satisfaction
-  int topNeedsCount = min(5, originalNeeds.length); // Consider top 5 needs
-  int weightedNeedsScore = 0;
-  
-  for (int i = 0; i < topNeedsCount; i++) {
-    if (i < originalNeeds.length && addressedNeeds.contains(originalNeeds[i])) {
-      // Higher weight for addressing top needs
-      int positionBonus = 0;
-      if (i == 0) {
-        positionBonus = 2;  // Double credit for top need
-        if (debug) debugLog.writeln("✓ Addressed TOP need (${originalNeeds[i]}): +2 points");
-      } else if (i == 1) {
-        positionBonus = 2;  // Double credit for second need
-        if (debug) debugLog.writeln("✓ Addressed SECOND need (${originalNeeds[i]}): +2 points");
-      } else {
-        positionBonus = 1;
-        if (debug) debugLog.writeln("✓ Addressed need #${i+1} (${originalNeeds[i]}): +1 point");
+
+  if (originalNeeds.isNotEmpty) {
+    // Count how many top needs were addressed
+    Set<String> addressedNeeds = {};
+    for (var pick in picks) {
+      if (pick.selectedPlayer != null) {
+        addressedNeeds.add(pick.selectedPlayer!.position);
       }
-      weightedNeedsScore += positionBonus;
-    } else if (i < originalNeeds.length) {
-      if (debug) debugLog.writeln("✗ Did NOT address need #${i+1} (${originalNeeds[i]})");
+    }
+    
+    if (debug) {
+      debugLog.writeln("Positions Drafted: ${addressedNeeds.join(', ')}");
+    }
+    
+    // Calculate needs satisfaction
+    int topNeedsCount = min(5, originalNeeds.length); // Consider top 5 needs
+    int weightedNeedsScore = 0;
+    
+    for (int i = 0; i < topNeedsCount; i++) {
+      if (i < originalNeeds.length && addressedNeeds.contains(originalNeeds[i])) {
+        // Higher weight for addressing top needs
+        int positionBonus = 0;
+        if (i == 0) {
+          positionBonus = 2;  // Double credit for top need
+          if (debug) debugLog.writeln("✓ Addressed TOP need (${originalNeeds[i]}): +2 points");
+        } else if (i == 1) {
+          positionBonus = 2;  // Double credit for second need
+          if (debug) debugLog.writeln("✓ Addressed SECOND need (${originalNeeds[i]}): +2 points");
+        } else {
+          positionBonus = 1;
+          if (debug) debugLog.writeln("✓ Addressed need #${i+1} (${originalNeeds[i]}): +1 point");
+        }
+        weightedNeedsScore += positionBonus;
+      } else if (i < originalNeeds.length) {
+        if (debug) debugLog.writeln("✗ Did NOT address need #${i+1} (${originalNeeds[i]})");
+      }
+    }
+    
+    // Calculate score (base 6, +0.5 for each weighted need addressed)
+    double needsSatisfactionScore = 6.0 + (weightedNeedsScore * 0.5);
+    
+    // Ensure it stays in reasonable range
+    needsGradeScore = max(0.0, min(10.0, needsSatisfactionScore));
+    
+    if (debug) {
+      debugLog.writeln("Weighted Needs Score: $weightedNeedsScore");
+      debugLog.writeln("NEEDS GRADE SCORE: ${needsGradeScore.toStringAsFixed(2)}");
     }
   }
-  
-  // Calculate score (base 6, +0.5 for each weighted need addressed)
-  double needsSatisfactionScore = 6.0 + (weightedNeedsScore * 0.5);
-  
-  // Ensure it stays in reasonable range
-  needsGradeScore = max(0.0, min(10.0, needsSatisfactionScore));
-  
-  if (debug) {
-    debugLog.writeln("Weighted Needs Score: $weightedNeedsScore");
-    debugLog.writeln("NEEDS GRADE SCORE: ${needsGradeScore.toStringAsFixed(2)}");
-  }
-}
   
   // 4. COMBINE ALL COMPONENTS - Weighted by importance
   if (debug) debugLog.writeln("\n4. FINAL GRADE CALCULATION:");
