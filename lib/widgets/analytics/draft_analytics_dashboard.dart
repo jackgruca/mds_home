@@ -121,34 +121,50 @@ Widget _buildRoundSummary() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      // Round selector tabs
+      // Round selector tabs - MODIFIED to include the export button
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            for (int i = 1; i <= maxRound; i++)
-              Padding(
-                padding: const EdgeInsets.only(right: 6.0), // Reduced from 8.0
-                child: ChoiceChip(
-                  label: Text(
-                    'Round $i',
-                    style: const TextStyle(fontSize: 12), // Reduced default size
+            // This Row contains all the round selector buttons
+            Row(
+              children: [
+                for (int i = 1; i <= maxRound; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6.0), // Reduced from 8.0
+                    child: ChoiceChip(
+                      label: Text(
+                        'Round $i',
+                        style: const TextStyle(fontSize: 12), // Reduced default size
+                      ),
+                      selected: _selectedRound == i,
+                      visualDensity: VisualDensity.compact, // Make chips more compact
+                      labelPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 0,
+                      ), // Reduced padding
+                      onSelected: (bool selected) {
+                        if (selected) {
+                          setState(() {
+                            _selectedRound = i;
+                          });
+                        }
+                      },
+                    ),
                   ),
-                  selected: _selectedRound == i,
-                  visualDensity: VisualDensity.compact, // Make chips more compact
-                  labelPadding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 0,
-                  ), // Reduced padding
-                  onSelected: (bool selected) {
-                    if (selected) {
-                      setState(() {
-                        _selectedRound = i;
-                      });
-                    }
-                  },
-                ),
-              ),
+              ],
+            ),
+            
+            // Add the Export button here, with matching styling
+            ExportButtonWidget(
+              completedPicks: widget.completedPicks,
+              teamNeeds: widget.teamNeeds,
+              userTeam: widget.userTeam,
+              executedTrades: widget.executedTrades,
+              filterTeam: _selectedTeam,
+              shareableCardKey: _shareableCardKey,
+            ),
           ],
         ),
       ),
@@ -876,15 +892,16 @@ Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
             color: Theme.of(context).primaryColor,
           ),
         ),
-        if (showExportButton)
+        // Add the export button if this is the Round-by-Round Summary section
+        if (title == "Round-by-Round Summary")
           ExportButtonWidget(
-  completedPicks: widget.completedPicks,
-  teamNeeds: widget.teamNeeds,
-  userTeam: widget.userTeam,
-  executedTrades: widget.executedTrades,
-  filterTeam: _selectedTeam,
-  shareableCardKey: _shareableCardKey,
-),
+            completedPicks: widget.completedPicks,
+            teamNeeds: widget.teamNeeds,
+            userTeam: widget.userTeam,
+            executedTrades: widget.executedTrades,
+            filterTeam: _selectedTeam,
+            shareableCardKey: _shareableCardKey,
+          ),
       ],
     ),
   );

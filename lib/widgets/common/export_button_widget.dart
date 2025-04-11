@@ -37,59 +37,57 @@ class ExportButtonWidget extends StatelessWidget {
   });
 
   @override
-Widget build(BuildContext context) {
-  return PopupMenuButton<String>(
-    tooltip: 'Copy Image Options',
-    offset: const Offset(0, 40),
-    child: Container(
-      // Reduce the vertical padding from 10 to 6
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.green.shade600,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.green.shade700,
-          width: 2.0,
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Copy Image Options',
+      offset: const Offset(0, 40),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.green.shade600,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.green.shade700,
+            width: 2.0,
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.content_copy,
+              size: 18,
+              color: Colors.white,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Copy Image',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.content_copy,
-            size: 18,
-            color: Colors.white,
-          ),
-          SizedBox(width: 8),
-          Text(
-            'Copy Image',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    ),
-    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-      // Menu items remain unchanged
-      PopupMenuItem<String>(
-        value: 'copy_your_picks',
-        child: _buildPopupItem(context, 'Your Picks', Icons.person),
-      ),
-      PopupMenuItem<String>(
-        value: 'copy_first_round',
-        child: _buildPopupItem(context, 'First Round', Icons.looks_one),
-      ),
-      PopupMenuItem<String>(
-        value: 'copy_full_draft',
-        child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
-      ),
-    ],
-    onSelected: (value) => _handleCopyAction(value, context),
-  );
-}
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'copy_your_picks',
+          child: _buildPopupItem(context, 'Your Picks', Icons.person),
+        ),
+        PopupMenuItem<String>(
+          value: 'copy_first_round',
+          child: _buildPopupItem(context, 'First Round', Icons.looks_one),
+        ),
+        PopupMenuItem<String>(
+          value: 'copy_full_draft',
+          child: _buildPopupItem(context, 'Full Draft', Icons.list_alt),
+        ),
+      ],
+      onSelected: (value) => _handleCopyAction(value, context),
+    );
+  }
 
   Widget _buildPopupItem(BuildContext context, String title, IconData icon) {
     return ListTile(
@@ -269,187 +267,254 @@ Widget build(BuildContext context) {
   }
 
   // Optimized clipboard handling specifically for desktop browsers
-Future<void> _directCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
-  try {
-    if (kIsWeb) {
-      // Create a blob from the image bytes
-      final blob = html.Blob([imageBytes], 'image/png');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      
-      // Detect if on desktop
-      final isMobile = html.window.navigator.userAgent.contains('Mobile') || 
+  Future<void> _directCopyToClipboard(Uint8List imageBytes, BuildContext context) async {
+    try {
+      if (kIsWeb) {
+        // Create a blob from the image bytes
+        final blob = html.Blob([imageBytes], 'image/png');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        
+        // Detect if on desktop
+        final isMobile = html.window.navigator.userAgent.contains('Mobile') || 
                        html.window.navigator.userAgent.contains('Android') ||
                        html.window.navigator.userAgent.contains('iPhone');
-      
-      if (!isMobile) {
-        // Desktop-specific implementation with more reliable clipboard access
-        bool success = false;
         
-        // Create and append a canvas element to draw the image on
-        final result = await js.context.callMethod('eval', ['''
-          (async function() {
-            try {
-              // Create a hidden canvas element
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              // Create an image from our blob URL
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              
-              // Set up promise to wait for image to load
-              const imgLoaded = new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = "$url";
-              });
-              
-              // Wait for image to load
-              await imgLoaded;
-              
-              // Set canvas dimensions to match image
-              canvas.width = img.width;
-              canvas.height = img.height;
-              
-              // Draw image to canvas
-              ctx.drawImage(img, 0, 0);
-              
-              // Get data URL from canvas
-              const dataUrl = canvas.toDataURL('image/png');
-              
-              // Copy to clipboard using modern Clipboard API
-              if (navigator.clipboard) {
-                try {
-                  // Convert base64 to blob
-                  const base64Data = dataUrl.split(',')[1];
-                  const byteCharacters = atob(base64Data);
-                  const byteArrays = [];
-                  
-                  for (let i = 0; i < byteCharacters.length; i += 512) {
-                    const slice = byteCharacters.slice(i, i + 512);
-                    const byteNumbers = new Array(slice.length);
-                    
-                    for (let j = 0; j < slice.length; j++) {
-                      byteNumbers[j] = slice.charCodeAt(j);
-                    }
-                    
-                    byteArrays.push(new Uint8Array(byteNumbers));
-                  }
-                  
-                  const imgBlob = new Blob(byteArrays, {type: 'image/png'});
-                  
-                  // Use ClipboardItem API
-                  const clipboardItem = new ClipboardItem({'image/png': imgBlob});
-                  await navigator.clipboard.write([clipboardItem]);
-                  return "success";
-                } catch (e) {
-                  console.error("Clipboard API error: " + e);
-                  
-                  // Fallback to execCommand for older browsers
-                  try {
-                    // Create a temporary textarea element
-                    const textarea = document.createElement('textarea');
-                    textarea.value = dataUrl;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    
-                    // Execute copy command
-                    const successful = document.execCommand('copy');
-                    
-                    // Clean up
-                    document.body.removeChild(textarea);
-                    
-                    if (successful) {
-                      return "legacy_success";
-                    } else {
-                      return "legacy_failure";
-                    }
-                  } catch (e2) {
-                    console.error("Legacy clipboard error: " + e2);
-                    return "all_methods_failed";
-                  }
-                }
-              } else {
-                return "clipboard_api_unavailable";
-              }
-            } catch (e) {
-              console.error("General error: " + e);
-              return "general_error";
-            }
-          })()
-        ''']);
-        
-        // Check result status
-        success = result == "success" || result == "legacy_success";
-        
-        if (success) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image copied to clipboard successfully!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        } else {
-          // Fallback - use navigator API to directly download without opening a new tab
-          js.context.callMethod('eval', ['''
-            (function() {
-              // Create a temporary button that triggers download
-              const downloadLink = document.createElement('a');
-              downloadLink.href = "$url";
-              downloadLink.download = "draft_image.png";
-              
-              // Append to document
-              document.body.appendChild(downloadLink);
-              
-              // Trigger click
-              downloadLink.click();
-              
-              // Clean up
-              document.body.removeChild(downloadLink);
-            })()
-          ''']);
+        if (!isMobile) {
+          // Desktop-specific implementation with more reliable clipboard access
+          bool success = false;
           
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Clipboard access denied - Image downloaded instead'),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        }
-      } else {
-        // Mobile implementation
-        try {
-          // Try modern Clipboard API first
+          // Create and append a canvas element to draw the image on
           final result = await js.context.callMethod('eval', ['''
             (async function() {
               try {
-                const response = await fetch("$url");
-                const blob = await response.blob();
-                const item = new ClipboardItem({"image/png": blob});
-                await navigator.clipboard.write([item]);
-                return "success";
-              } catch(e) {
-                console.error("Mobile clipboard API error: " + e);
-                return "error";
+                // Create a hidden canvas element
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Create an image from our blob URL
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                // Set up promise to wait for image to load
+                const imgLoaded = new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = "$url";
+                });
+                
+                // Wait for image to load
+                await imgLoaded;
+                
+                // Set canvas dimensions to match image
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw image to canvas
+                ctx.drawImage(img, 0, 0);
+                
+                // Get data URL from canvas
+                const dataUrl = canvas.toDataURL('image/png');
+                
+                // Copy to clipboard using modern Clipboard API
+                if (navigator.clipboard) {
+                  try {
+                    // Convert base64 to blob
+                    const base64Data = dataUrl.split(',')[1];
+                    const byteCharacters = atob(base64Data);
+                    const byteArrays = [];
+                    
+                    for (let i = 0; i < byteCharacters.length; i += 512) {
+                      const slice = byteCharacters.slice(i, i + 512);
+                      const byteNumbers = new Array(slice.length);
+                      
+                      for (let j = 0; j < slice.length; j++) {
+                        byteNumbers[j] = slice.charCodeAt(j);
+                      }
+                      
+                      byteArrays.push(new Uint8Array(byteNumbers));
+                    }
+                    
+                    const imgBlob = new Blob(byteArrays, {type: 'image/png'});
+                    
+                    // Use ClipboardItem API
+                    const clipboardItem = new ClipboardItem({'image/png': imgBlob});
+                    await navigator.clipboard.write([clipboardItem]);
+                    return "success";
+                  } catch (e) {
+                    console.error("Clipboard API error: " + e);
+                    
+                    // Fallback to execCommand for older browsers
+                    try {
+                      // Create a temporary textarea element
+                      const textarea = document.createElement('textarea');
+                      textarea.value = dataUrl;
+                      document.body.appendChild(textarea);
+                      textarea.select();
+                      
+                      // Execute copy command
+                      const successful = document.execCommand('copy');
+                      
+                      // Clean up
+                      document.body.removeChild(textarea);
+                      
+                      if (successful) {
+                        return "legacy_success";
+                      } else {
+                        return "legacy_failure";
+                      }
+                    } catch (e2) {
+                      console.error("Legacy clipboard error: " + e2);
+                      return "all_methods_failed";
+                    }
+                  }
+                } else {
+                  return "clipboard_api_unavailable";
+                }
+              } catch (e) {
+                console.error("General error: " + e);
+                return "general_error";
               }
             })()
           ''']);
           
-          if (result == "success") {
+          // Check result status
+          success = result == "success" || result == "legacy_success";
+          
+          if (success) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Image copied to clipboard'),
+                  content: Text('Image copied to clipboard successfully!'),
                   duration: Duration(seconds: 2),
                 ),
               );
             }
           } else {
-            // Create a modal with the image for easy manual copying
+            // Fallback - use navigator API to directly download without opening a new tab
+            js.context.callMethod('eval', ['''
+              (function() {
+                // Create a temporary button that triggers download
+                const downloadLink = document.createElement('a');
+                downloadLink.href = "$url";
+                downloadLink.download = "draft_image.png";
+                
+                // Append to document
+                document.body.appendChild(downloadLink);
+                
+                // Trigger click
+                downloadLink.click();
+                
+                // Clean up
+                document.body.removeChild(downloadLink);
+              })()
+            ''']);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Clipboard access denied - Image downloaded instead'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        } else {
+          // Mobile implementation
+          try {
+            // Try modern Clipboard API first
+            final result = await js.context.callMethod('eval', ['''
+              (async function() {
+                try {
+                  const response = await fetch("$url");
+                  const blob = await response.blob();
+                  const item = new ClipboardItem({"image/png": blob});
+                  await navigator.clipboard.write([item]);
+                  return "success";
+                } catch(e) {
+                  console.error("Mobile clipboard API error: " + e);
+                  return "error";
+                }
+              })()
+            ''']);
+            
+            if (result == "success") {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Image copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            } else {
+              // Create a modal with the image for easy manual copying
+              js.context.callMethod('eval', ['''
+                (function() {
+                  // Remove any previous temp elements
+                  var oldElem = document.getElementById('tempCopyImage');
+                  if (oldElem) oldElem.remove();
+                  
+                  // Create modal container
+                  var modalContainer = document.createElement('div');
+                  modalContainer.id = 'tempCopyImage';
+                  modalContainer.style.position = 'fixed';
+                  modalContainer.style.zIndex = '10000';
+                  modalContainer.style.top = '0';
+                  modalContainer.style.left = '0';
+                  modalContainer.style.width = '100%';
+                  modalContainer.style.height = '100%';
+                  modalContainer.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                  modalContainer.style.display = 'flex';
+                  modalContainer.style.flexDirection = 'column';
+                  modalContainer.style.alignItems = 'center';
+                  modalContainer.style.justifyContent = 'center';
+                  
+                  // Create image
+                  var img = document.createElement('img');
+                  img.src = "$url";
+                  img.style.maxWidth = '90%';
+                  img.style.maxHeight = '70%';
+                  img.style.objectFit = 'contain';
+                  
+                  // Create instruction text
+                  var instructions = document.createElement('div');
+                  instructions.style.color = 'white';
+                  instructions.style.margin = '20px';
+                  instructions.style.textAlign = 'center';
+                  instructions.style.fontFamily = 'sans-serif';
+                  instructions.innerHTML = '<b>Tap and hold on the image to copy</b><br>Tap outside to close';
+                  
+                  // Add close functionality
+                  modalContainer.onclick = function(e) {
+                    if (e.target === modalContainer) {
+                      modalContainer.remove();
+                    }
+                  };
+                  
+                  // Add everything to DOM
+                  modalContainer.appendChild(img);
+                  modalContainer.appendChild(instructions);
+                  document.body.appendChild(modalContainer);
+                  
+                  // Auto close after 30 seconds
+                  setTimeout(function() {
+                    var elem = document.getElementById('tempCopyImage');
+                    if (elem) elem.remove();
+                  }, 30000);
+                })();
+              ''']);
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Press and hold the image to copy it'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            // Final fallback - show the modal anyway
             js.context.callMethod('eval', ['''
               (function() {
                 // Remove any previous temp elements
@@ -515,112 +580,45 @@ Future<void> _directCopyToClipboard(Uint8List imageBytes, BuildContext context) 
               );
             }
           }
-        } catch (e) {
-          // Final fallback - show the modal anyway
-          js.context.callMethod('eval', ['''
-            (function() {
-              // Remove any previous temp elements
-              var oldElem = document.getElementById('tempCopyImage');
-              if (oldElem) oldElem.remove();
-              
-              // Create modal container
-              var modalContainer = document.createElement('div');
-              modalContainer.id = 'tempCopyImage';
-              modalContainer.style.position = 'fixed';
-              modalContainer.style.zIndex = '10000';
-              modalContainer.style.top = '0';
-              modalContainer.style.left = '0';
-              modalContainer.style.width = '100%';
-              modalContainer.style.height = '100%';
-              modalContainer.style.backgroundColor = 'rgba(0,0,0,0.8)';
-              modalContainer.style.display = 'flex';
-              modalContainer.style.flexDirection = 'column';
-              modalContainer.style.alignItems = 'center';
-              modalContainer.style.justifyContent = 'center';
-              
-              // Create image
-              var img = document.createElement('img');
-              img.src = "$url";
-              img.style.maxWidth = '90%';
-              img.style.maxHeight = '70%';
-              img.style.objectFit = 'contain';
-              
-              // Create instruction text
-              var instructions = document.createElement('div');
-              instructions.style.color = 'white';
-              instructions.style.margin = '20px';
-              instructions.style.textAlign = 'center';
-              instructions.style.fontFamily = 'sans-serif';
-              instructions.innerHTML = '<b>Tap and hold on the image to copy</b><br>Tap outside to close';
-              
-              // Add close functionality
-              modalContainer.onclick = function(e) {
-                if (e.target === modalContainer) {
-                  modalContainer.remove();
-                }
-              };
-              
-              // Add everything to DOM
-              modalContainer.appendChild(img);
-              modalContainer.appendChild(instructions);
-              document.body.appendChild(modalContainer);
-              
-              // Auto close after 30 seconds
-              setTimeout(function() {
-                var elem = document.getElementById('tempCopyImage');
-                if (elem) elem.remove();
-              }, 30000);
-            })();
-          ''']);
-          
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Press and hold the image to copy it'),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
+        }
+        
+        // Clean up URL resource after a delay
+        Future.delayed(const Duration(seconds: 30), () {
+          html.Url.revokeObjectUrl(url);
+        });
+      } else {
+        // Native mobile app implementation
+        // This isn't a direct clipboard copy, but it's the closest we can get
+        // outside the web platform
+        
+        final tempDir = await Directory.systemTemp.createTemp();
+        final file = File('${tempDir.path}/draft_image.png');
+        await file.writeAsBytes(imageBytes);
+        
+        // This will show the share sheet which lets users copy
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Check out my NFL Draft results',
+        );
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image ready to share'),
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
       }
-      
-      // Clean up URL resource after a delay
-      Future.delayed(const Duration(seconds: 30), () {
-        html.Url.revokeObjectUrl(url);
-      });
-    } else {
-      // Native mobile app implementation
-      // This isn't a direct clipboard copy, but it's the closest we can get
-      // outside the web platform
-      
-      final tempDir = await Directory.systemTemp.createTemp();
-      final file = File('${tempDir.path}/draft_image.png');
-      await file.writeAsBytes(imageBytes);
-      
-      // This will show the share sheet which lets users copy
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Check out my NFL Draft results',
-      );
-      
+    } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image ready to share'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text('Error copying image: $e'),
+            backgroundColor: Colors.red.shade700,
           ),
         );
       }
     }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error copying image: $e'),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
   }
-}
 }
