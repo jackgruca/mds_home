@@ -319,18 +319,37 @@ static Map<String, dynamic> calculateTeamGrade(
   );
 
   // BUGFIX: Get the original needs from CSV data
-  List<String> originalNeeds = [];
+  List<String> originalNeeds = TeamNeedsSnapshot.getOriginalNeeds(teamName);
+  if (originalNeeds.isEmpty) {
+    // If no original needs found, use the needs from the TeamNeed object
+    originalNeeds = teamNeed.needs;
+  }
 
-  // Get original needs from the TeamNeed object's raw data
-  for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
+try {
+  // Get the raw data which contains the original need positions in order
+  List<dynamic> rawData = teamNeed.toList();
+  
+  // CSV format has team name at index 1, then needs from index 2 onwards
+  // Need to skip the first two elements (index and team name)
+  // Also skip the last element which contains the selected positions string
+  for (int i = 2; i < rawData.length - 1; i++) {
+    var need = rawData[i];
+    // Only add non-empty, non-null, non-dash entries
     if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
       originalNeeds.add(need.toString());
     }
   }
-
-  if (debug) {
-    debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
+  
+  if (originalNeeds.isEmpty) {
+    debugLog.writeln("WARNING: Could not extract original needs from CSV for $teamName");
   }
+} catch (e) {
+  debugPrint("Error extracting original needs: $e");
+}
+
+if (debug) {
+  debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
+}
 
   if (originalNeeds.isNotEmpty) {
     // Count how many top needs were addressed
@@ -663,4 +682,51 @@ static Map<String, dynamic> calculateTeamGrade(
   
   return description;
 }
+}
+
+class TeamNeedsSnapshot {
+  static final Map<String, List<String>> _originalNeeds = {};
+  
+  // Initialize the snapshot with original team needs
+  static void initialize(List<TeamNeed> teamNeeds) {
+    _originalNeeds.clear();
+    
+    for (var need in teamNeeds) {
+      // Get the raw data from CSV
+      List<dynamic> rawData = need.toList();
+      List<String> needs = [];
+      
+      // Extract all non-empty needs from the raw data
+      // Skip the first two elements (index and team name)
+      // Skip the last element (selected positions column)
+      for (int i = 2; i < rawData.length - 1; i++) {
+        var needValue = rawData[i];
+        if (needValue != null && 
+            needValue.toString().isNotEmpty && 
+            needValue.toString() != '-') {
+          needs.add(needValue.toString());
+        }
+      }
+      
+      _originalNeeds[need.teamName] = needs;
+      debugPrint("Initialized original needs for ${need.teamName}: ${needs.join(', ')}");
+    }
+  }
+  
+  // Get original needs for a specific team
+  static List<String> getOriginalNeeds(String teamName) {
+    return _originalNeeds[teamName] ?? [];
+  }
+  
+  // Check if position was an original need for the team
+  static bool wasOriginalNeed(String teamName, String position) {
+    List<String> needs = getOriginalNeeds(teamName);
+    return needs.contains(position);
+  }
+  
+  // Get the original need index for a position
+  static int getOriginalNeedIndex(String teamName, String position) {
+    List<String> needs = getOriginalNeeds(teamName);
+    return needs.indexOf(position);
+  }
 }

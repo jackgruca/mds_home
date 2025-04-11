@@ -8,6 +8,7 @@ import '../models/team_need.dart';
 import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../services/data_service.dart';
+import '../services/draft_grade_service.dart';
 import '../services/draft_pick_grade_service.dart';
 import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
@@ -505,6 +506,8 @@ List<Color> _getTeamGradientColors(String teamName) {
       // Load default team needs
       teamNeeds = await DataService.loadTeamNeeds(year: widget.draftYear);
     }
+
+    TeamNeedsSnapshot.initialize(teamNeeds);
     
     // Use custom player rankings if provided
     if (widget.customPlayerRankings != null) {

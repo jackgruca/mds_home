@@ -6,6 +6,7 @@ import '../models/draft_pick.dart';
 import '../models/player.dart';
 import '../models/team_need.dart';
 import '../services/draft_value_service.dart';
+import 'draft_grade_service.dart';
 
 /// Service for grading individual draft picks with sophisticated methodology
 class DraftPickGradeService {
@@ -83,78 +84,44 @@ static Map<String, dynamic> calculatePickGrade(
   
   // 1. NEED FACTOR - Now with both positive and negative impact
   double needFactor = 0.0;
-  int needIndex = -1;
-  bool isInNeedRange = false;
+int needIndex = -1;
+bool isInNeedRange = false;
+
+if (considerTeamNeeds) {
+  // Get original needs from the snapshot
+  List<String> originalNeeds = TeamNeedsSnapshot.getOriginalNeeds(pick.teamName);
   
-  if (considerTeamNeeds) {
-    // Find the matching team need from the original set
-    TeamNeed? teamNeed;
-    try {
-      teamNeed = teamNeeds.firstWhere(
-        (need) => need.teamName == pick.teamName,
-      );
-    } catch (e) {
-      // If no team found, create an empty one
-      teamNeed = TeamNeed(teamName: pick.teamName, needs: []);
-      if (debug) {
-        debugLog.writeln("WARNING: No team needs found for ${pick.teamName}, using empty needs list");
-      }
-    }
-    
-    // FIXED: Extract the original needs from the raw CSV data
-    List<String> originalNeeds = [];
-    List<dynamic> rawData = teamNeed.toList();
-    
-    // The raw CSV format has team name at index 1, followed by needs starting at index 2
-    // We need to extract these needs (skip the already-drafted positions)
-    for (int i = 2; i < rawData.length; i++) {
-      var need = rawData[i];
-      // Check if this is a valid need (not empty, not the selected positions column)
-      if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
-        // Don't add already selected positions (which are stored in the last element)
-        if (i < rawData.length - 1) {
-          originalNeeds.add(need.toString());
-        }
-      }
-    }
-    
-    // If that approach didn't work, try to add back selected positions to form original list
-    if (originalNeeds.isEmpty) {
-      originalNeeds = List.from(teamNeed.needs); // Start with current needs
-      
-      // Get last column which has comma-separated selectedPositions
-      String selectedPositionsStr = '';
-      if (rawData.isNotEmpty && rawData.last != null) {
-        selectedPositionsStr = rawData.last.toString();
-      }
-      
-      // Add back the selected positions to recreate original need list
-      if (selectedPositionsStr.isNotEmpty) {
-        List<String> selectedPositions = selectedPositionsStr.split(',').map((s) => s.trim()).toList();
-        for (var position in selectedPositions) {
-          if (position.isNotEmpty && !originalNeeds.contains(position)) {
-            originalNeeds.add(position);
-          }
-        }
-      }
-    }
-    
+  // Find the matching team need for current state
+  TeamNeed? teamNeed;
+  try {
+    teamNeed = teamNeeds.firstWhere(
+      (need) => need.teamName == pick.teamName,
+    );
+  } catch (e) {
+    // If no team found, create an empty one
+    teamNeed = TeamNeed(teamName: pick.teamName, needs: []);
     if (debug) {
-      debugLog.writeln("\nNEEDS ANALYSIS:");
-      debugLog.writeln("Original Team Needs (reconstructed): ${originalNeeds.join(', ')}");
-      debugLog.writeln("Current Team Needs: ${teamNeed.needs.join(', ')}");
-      debugLog.writeln("Selected Positions: ${teamNeed.selectedPositions.join(', ')}");
+      debugLog.writeln("WARNING: No team needs found for ${pick.teamName}, using empty needs list");
     }
-    
-    // Calculate eligible need range (round + 3)
-    int eligibleNeedRange = round + 3;
-    eligibleNeedRange = min(eligibleNeedRange, originalNeeds.length);
-    
-    // Check if position is in original needs list
-    needIndex = originalNeeds.indexOf(position);
-    
-    // Determine if position is within the eligible range
-    isInNeedRange = needIndex >= 0 && needIndex < eligibleNeedRange;
+  }
+  
+  if (debug) {
+    debugLog.writeln("\nNEEDS ANALYSIS:");
+    debugLog.writeln("Original Team Needs (from snapshot): ${originalNeeds.join(', ')}");
+    debugLog.writeln("Current Team Needs: ${teamNeed.needs.join(', ')}");
+    debugLog.writeln("Selected Positions: ${teamNeed.selectedPositions.join(', ')}");
+  }
+  
+  // Calculate eligible need range (round + 3)
+  int eligibleNeedRange = round + 3;
+  eligibleNeedRange = min(eligibleNeedRange, originalNeeds.length);
+  
+  // Check if position is in original needs list
+  needIndex = originalNeeds.indexOf(position);
+  
+  // Determine if position is within the eligible range
+  isInNeedRange = needIndex >= 0 && needIndex < eligibleNeedRange;
+
     
     // Calculate need factor based on need priority and eligibility
     if (isInNeedRange) {
