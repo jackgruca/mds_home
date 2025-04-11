@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
 import '../../models/trade_package.dart';
+import '../../services/draft_grade_service.dart';
 import '../../services/draft_value_service.dart';
 import '../../models/team_need.dart';
 import '../../services/draft_pick_grade_service.dart';
@@ -592,62 +593,44 @@ Color _getPickNumberColor(String round) {
 }
 
   void _calculateTeamGrades() {
-    // Group picks by team
-    Map<String, List<DraftPick>> teamPicks = {};
-    
-    for (var pick in widget.completedPicks) {
-      if (pick.selectedPlayer != null) {
-        teamPicks.putIfAbsent(pick.teamName, () => []);
-        teamPicks[pick.teamName]!.add(pick);
-      }
-    }
-    
-    // Calculate grade for each team
-    for (var entry in teamPicks.entries) {
-      String team = entry.key;
-      List<DraftPick> picks = entry.value;
-      
-      // Calculate average value differential
-      double totalDiff = 0;
-      for (var pick in picks) {
-        totalDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
-      double avgDiff = picks.isEmpty ? 0 : totalDiff / picks.length;
-      
-      // Calculate trade value
-      double tradeValue = 0;
-      for (var trade in widget.executedTrades) {
-        if (trade.teamOffering == team) {
-          tradeValue -= trade.valueDifferential;
-        } else if (trade.teamReceiving == team) {
-          tradeValue += trade.valueDifferential;
-        }
-      }
-      
-      // Combine metrics for final grade
-      double combinedValue = avgDiff + (tradeValue / 100);
-      
-      // Determine letter grade
-      String grade;
-      if (combinedValue >= 15) grade = 'A+';
-      else if (combinedValue >= 10) grade = 'A';
-      else if (combinedValue >= 5) grade = 'B+';
-      else if (combinedValue >= 0) grade = 'B';
-      else if (combinedValue >= -5) grade = 'C+';
-      else if (combinedValue >= -10) grade = 'C';
-      else grade = 'D';
-      
-      // Store team metrics
-      _teamGrades[team] = {
-        'grade': grade,
-        'avgDiff': avgDiff,
-        'tradeValue': tradeValue,
-        'combinedValue': combinedValue,
-        'pickCount': picks.length,
-        'isUserTeam': team == widget.userTeam,
-      };
+  // Group picks by team
+  Map<String, List<DraftPick>> teamPicks = {};
+  
+  for (var pick in widget.completedPicks) {
+    if (pick.selectedPlayer != null) {
+      teamPicks.putIfAbsent(pick.teamName, () => []);
+      teamPicks[pick.teamName]!.add(pick);
     }
   }
+  
+  // Calculate grade for each team using the service
+  for (var entry in teamPicks.entries) {
+    String team = entry.key;
+    List<DraftPick> picks = entry.value;
+    
+    // Get trades for this team
+    List<TradePackage> teamTrades = widget.executedTrades.where(
+      (trade) => trade.teamOffering == team || trade.teamReceiving == team
+    ).toList();
+    
+    // Use the service for calculation
+    Map<String, dynamic> gradeInfo = DraftGradeService.calculateTeamGrade(
+      picks,
+      teamTrades,
+      widget.teamNeeds,
+      debug: true
+    );
+    
+    // Store team metrics (adapted to match the service output)
+    _teamGrades[team] = {
+      'grade': gradeInfo['grade'],
+      'avgDiff': gradeInfo['value'],
+      'combinedValue': gradeInfo['value'],
+      'pickCount': picks.length,
+      'isUserTeam': team == widget.userTeam,
+    };
+  }
+}
 
   void _identifyPositionRuns() {
   // Create list of picks in order
