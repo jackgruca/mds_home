@@ -38,38 +38,42 @@ class ExportButtonWidget extends StatelessWidget {
 
   @override
 Widget build(BuildContext context) {
-  final theme = Theme.of(context);
-  final isDarkMode = theme.brightness == Brightness.dark;
-  
   return PopupMenuButton<String>(
     tooltip: 'Copy Image Options',
     offset: const Offset(0, 40),
     child: Container(
+      // Reduce the vertical padding from 10 to 6
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
+        color: Colors.green.shade600,
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.green.shade600,
+          color: Colors.green.shade700,
           width: 2.0,
         ),
-        borderRadius: BorderRadius.circular(8),
       ),
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.content_copy, size: 18),
-        label: const Text('Copy Image'),
-        style: ElevatedButton.styleFrom(
-          // Change the background color to green
-          backgroundColor: Colors.green.shade600,
-          // Set text color to white
-          foregroundColor: Colors.white,
-          elevation: 2,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.content_copy,
+            size: 18,
+            color: Colors.white,
           ),
-        ),
-        onPressed: null, // Not used since PopupMenuButton handles tap
+          SizedBox(width: 8),
+          Text(
+            'Copy Image',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     ),
     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+      // Menu items remain unchanged
       PopupMenuItem<String>(
         value: 'copy_your_picks',
         child: _buildPopupItem(context, 'Your Picks', Icons.person),
