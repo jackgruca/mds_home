@@ -6,6 +6,7 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mds_home/services/draft_grade_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/draft_pick.dart';
@@ -852,7 +853,7 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
         (trade) => trade.teamOffering == team || trade.teamReceiving == team
       ).toList();
       
-      final gradeInfo = _calculateTeamGrade(teamPicks[team]!, teamTradeList, team);
+      final gradeInfo = _calculateTeamGrade(teamPicks[team]!, teamTradeList, teamNeeds, team);
       teamGrades[team] = gradeInfo['grade'];
     }
     
@@ -884,81 +885,21 @@ static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNe
     };
   }
   
-  /// Calculate team grade based on picks and trades
+  /// Calculate team grade based on picks, trades, and team needs
   static Map<String, dynamic> _calculateTeamGrade(
-    List<DraftPick> teamPicks, 
-    List<TradePackage> teamTrades,
-    String teamName
-  ) {
-    if (teamPicks.isEmpty) {
-      return {
-        'grade': 'N/A',
-        'value': 0.0,
-        'description': 'No picks made',
-        'pickCount': 0,
-      };
-    }
-    
-    // Calculate average rank differential
-    double totalDiff = 0;
-    for (var pick in teamPicks) {
-      if (pick.selectedPlayer != null) {
-        totalDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
-    }
-    double avgDiff = totalDiff / teamPicks.length;
-    
-    // Calculate trade value
-    double tradeValue = 0;
-    for (var trade in teamTrades) {
-      if (trade.teamOffering == teamName) {
-        tradeValue -= trade.valueDifferential;
-      } else if (trade.teamReceiving == teamName) {
-        tradeValue += trade.valueDifferential;
-      }
-    }
-    
-    // Trade value per pick
-    double tradeValuePerPick = teamPicks.isNotEmpty ? tradeValue / teamPicks.length : 0;
-    
-    // Combine metrics for final grade
-    double combinedValue = avgDiff + (tradeValuePerPick / 10);
-    
-    // Determine letter grade based on value
-    String grade;
-    String description;
-    
-    if (combinedValue >= 15) {
-      grade = 'A+';
-      description = 'Outstanding draft with exceptional value';
-    } else if (combinedValue >= 10) {
-      grade = 'A';
-      description = 'Excellent draft with great value picks';
-    } else if (combinedValue >= 5) {
-      grade = 'B+';
-      description = 'Very good draft with solid value picks';
-    } else if (combinedValue >= 0) {
-      grade = 'B';
-      description = 'Solid draft with good value picks';
-    } else if (combinedValue >= -5) {
-      grade = 'C+';
-      description = 'Average draft with some reaches';
-    } else if (combinedValue >= -10) {
-      grade = 'C';
-      description = 'Below average draft with several reaches';
-    } else {
-      grade = 'D';
-      description = 'Poor draft with significant reaches';
-    }
-    
-    return {
-      'grade': grade,
-      'value': avgDiff,
-      'description': description,
-      'pickCount': teamPicks.length,
-      'tradeValue': tradeValue,
-    };
-  }
+  List<DraftPick> teamPicks, 
+  List<TradePackage> teamTrades,
+  List<TeamNeed> teamNeeds,
+  String team
+) {
+  // Call the centralized service instead of local calculation
+  return DraftGradeService.calculateTeamGrade(
+    teamPicks,
+    teamTrades,
+    teamNeeds,
+    debug: true
+  );
+}
   
   /// Get NFL team abbreviation for logo URLs
   static String _getTeamAbbreviation(String teamName) {
