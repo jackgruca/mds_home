@@ -155,16 +155,6 @@ Widget _buildRoundSummary() {
                   ),
               ],
             ),
-            
-            // Add the Export button here, with matching styling
-            ExportButtonWidget(
-              completedPicks: widget.completedPicks,
-              teamNeeds: widget.teamNeeds,
-              userTeam: widget.userTeam,
-              executedTrades: widget.executedTrades,
-              filterTeam: _selectedTeam,
-              shareableCardKey: _shareableCardKey,
-            ),
           ],
         ),
       ),
@@ -774,15 +764,6 @@ Widget build(BuildContext context) {
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).primaryColor,
               ),
-            ),
-            // Add the export button here
-            ExportButtonWidget(
-              completedPicks: widget.completedPicks,
-              teamNeeds: widget.teamNeeds,
-              userTeam: widget.userTeam,
-              executedTrades: widget.executedTrades,
-              filterTeam: _selectedTeam,
-              shareableCardKey: _shareableCardKey,
             ),
           ],
         ),
