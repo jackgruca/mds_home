@@ -101,22 +101,49 @@ static Map<String, dynamic> calculatePickGrade(
       }
     }
     
-    // BUGFIX: Access the ORIGINAL needs from CSV directly
-    // This is stored in TeamNeed.toList() which contains the original data
-    // We'll recreate the original needs list from this data
+    // FIXED: Extract the original needs from the raw CSV data
     List<String> originalNeeds = [];
+    List<dynamic> rawData = teamNeed.toList();
     
-    // Get original needs from CSV (should be preserved in the model)
-    // This should correctly reflect the order and contents of the original needs
-    for (var need in teamNeed.toList().sublist(2)) { // Skip index and team name
+    // The raw CSV format has team name at index 1, followed by needs starting at index 2
+    // We need to extract these needs (skip the already-drafted positions)
+    for (int i = 2; i < rawData.length; i++) {
+      var need = rawData[i];
+      // Check if this is a valid need (not empty, not the selected positions column)
       if (need != null && need.toString().isNotEmpty && need.toString() != '-') {
-        originalNeeds.add(need.toString());
+        // Don't add already selected positions (which are stored in the last element)
+        if (i < rawData.length - 1) {
+          originalNeeds.add(need.toString());
+        }
+      }
+    }
+    
+    // If that approach didn't work, try to add back selected positions to form original list
+    if (originalNeeds.isEmpty) {
+      originalNeeds = List.from(teamNeed.needs); // Start with current needs
+      
+      // Get last column which has comma-separated selectedPositions
+      String selectedPositionsStr = '';
+      if (rawData.isNotEmpty && rawData.last != null) {
+        selectedPositionsStr = rawData.last.toString();
+      }
+      
+      // Add back the selected positions to recreate original need list
+      if (selectedPositionsStr.isNotEmpty) {
+        List<String> selectedPositions = selectedPositionsStr.split(',').map((s) => s.trim()).toList();
+        for (var position in selectedPositions) {
+          if (position.isNotEmpty && !originalNeeds.contains(position)) {
+            originalNeeds.add(position);
+          }
+        }
       }
     }
     
     if (debug) {
       debugLog.writeln("\nNEEDS ANALYSIS:");
-      debugLog.writeln("Original Team Needs (from CSV): ${originalNeeds.join(', ')}");
+      debugLog.writeln("Original Team Needs (reconstructed): ${originalNeeds.join(', ')}");
+      debugLog.writeln("Current Team Needs: ${teamNeed.needs.join(', ')}");
+      debugLog.writeln("Selected Positions: ${teamNeed.selectedPositions.join(', ')}");
     }
     
     // Calculate eligible need range (round + 3)
