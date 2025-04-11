@@ -534,7 +534,7 @@ int _getMaxRound() {
 Widget _buildRoundSummary(int round) {
   // Filter picks by the selected round
   List<DraftPick> roundPicks = widget.completedPicks
-      .where((pick) => int.tryParse(pick.round) == round)
+      .where((pick) => DraftValueService.getRoundForPick(pick.pickNumber) == round)
       .toList();
   
   // Sort by pick number
@@ -978,7 +978,7 @@ Widget _buildUserPicksList() {
                         children: [
                           // Round indicator
                           Text(
-                            'Round ${pick.round}',
+                            'Round ${DraftValueService.getRoundForPick(pick.pickNumber)}',
                             style: TextStyle(
                               fontSize: 10,
                               color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,

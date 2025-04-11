@@ -728,7 +728,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   }
   
   // Calculate round based on pick number (1-indexed)
-  int round = (nextPick.pickNumber / 32).ceil();
+  int round = DraftValueService.getRoundForPick(nextPick.pickNumber);
   
   // Get needs based on round (only consider round+3 needs)
   int needsToConsider = min(round + 3, teamNeed.needs.length);

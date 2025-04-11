@@ -1,6 +1,7 @@
 // lib/models/draft_pick.dart
 import 'package:flutter/material.dart';
 
+import '../services/draft_value_service.dart';
 import 'player.dart';
 
 class DraftPick {
@@ -51,7 +52,7 @@ class DraftPick {
       round = row[4].toString();
     } else {
       // Calculate round from pick number if not provided
-      round = ((pickNumber - 1) / 32 + 1).floor().toString();
+      round = DraftValueService.getRoundForPick(pickNumber).toString();
     }
     
     // Get other optional fields
@@ -105,7 +106,7 @@ factory DraftPick.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> colu
     
     String round = roundIndex >= 0 && roundIndex < row.length
         ? row[roundIndex].toString()
-        : ((pickNumber - 1) / 32 + 1).floor().toString(); // Calculate round from pick number
+        : DraftValueService.getRoundForPick(pickNumber).toString(); // Correctly calculate round
     
     String? tradeInfo = tradeIndex >= 0 && tradeIndex < row.length
         ? row[tradeIndex].toString()
