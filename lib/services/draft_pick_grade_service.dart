@@ -15,6 +15,7 @@ class DraftPickGradeService {
     'QB': 1.5,   // Premium for franchise QBs
     'EDGE': 1.3, // Elite pass rushers
     'OT': 1.3,   // Elite offensive tackles
+    'CB | WR': 1.3, // Travis Hunter 
     'CB': 1.2,   // Cornerbacks
     'WR': 1.15,  // Wide receivers
     'S': 1.1,    // Safeties
@@ -117,7 +118,8 @@ if (considerTeamNeeds) {
   eligibleNeedRange = min(eligibleNeedRange, originalNeeds.length);
   
   // Check if position is in original needs list
-  needIndex = originalNeeds.indexOf(position);
+  List<String> positionParts = position.split(' | ');
+  int needIndex = originalNeeds.indexWhere((need) => positionParts.contains(need));
   
   // Determine if position is within the eligible range
   isInNeedRange = needIndex >= 0 && needIndex < eligibleNeedRange;
@@ -170,146 +172,176 @@ if (considerTeamNeeds) {
   double positionValue = 0.0;
   
   // Premium positions get additional value
-  if (['QB', 'EDGE', 'OT'].contains(position)) {
-    positionValue = 0.25; // +25% for premier positions
+  if (['QB'].contains(position)) {
+    positionValue = 1.5; // +25% for premier positions
     if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Premier position: +${(positionValue * 10).toStringAsFixed(1)} points)");
-  } else if (['CB', 'WR'].contains(position)) {
-    positionValue = 0.20; // +20% for key positions  
+  } else if (['EDGE', 'OT', 'CB | WR'].contains(position)) {
+    positionValue = 1.3; // +20% for key positions  
     if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Key position: +${(positionValue * 10).toStringAsFixed(1)} points)");
-  } else if (['S', 'DT', 'TE'].contains(position)) {
-    positionValue = 0.15; // +15% for valuable positions
+  } else if (['CB', 'WR'].contains(position)) {
+    positionValue = 1.2; // +20% for key positions  
+    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Key position: +${(positionValue * 10).toStringAsFixed(1)} points)");
+  } else if (['S', 'DL', 'TE'].contains(position)) {
+    positionValue = 1.1; // +15% for valuable positions
     if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Valuable position: +${(positionValue * 10).toStringAsFixed(1)} points)");
-  } else if (['IOL', 'LB'].contains(position)) {
-    positionValue = 0.10; // +10% for solid positions
+  } else if (['IOL', 'LB', 'RB'].contains(position)) {
+    positionValue = 1.0; // +10% for solid positions
     if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Solid position: +${(positionValue * 10).toStringAsFixed(1)} points)");
-  } else if (['RB'].contains(position)) {
-    positionValue = 0.05; // Small bonus for devalued positions
-    if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Devalued position: +${(positionValue * 10).toStringAsFixed(1)} points)");
   } else {
-    positionValue = 0.10; // Default +10% for unspecified positions
+    positionValue = 0.90; // Default +10% for unspecified positions
     if (debug) debugLog.writeln("\nPOSITION VALUE: +${positionValue.toStringAsFixed(2)} (Standard position: +${(positionValue * 10).toStringAsFixed(1)} points)");
   }
   
   // 3. VALUE DIFFERENTIAL - Scaled by round (bigger deal in early rounds)
-  double valueFactor = 0.0;
-  
-  if (debug) debugLog.writeln("\nVALUE DIFFERENTIAL ANALYSIS:");
-  
-  // Scale based on round - value is more critical in early rounds
-  if (round == 1) {
-    // Round 1: Value matters a lot
-    if (baseValueDiff >= 15) {
-      valueFactor = 0.40;      // Exceptional value
-      if (debug) debugLog.writeln("Round 1 with exceptional value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 10) {
-      valueFactor = 0.35;      // Great value
-      if (debug) debugLog.writeln("Round 1 with great value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 5) {
-      valueFactor = 0.25;      // Good value
-      if (debug) debugLog.writeln("Round 1 with good value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 0) {
-      valueFactor = 0.15;      // Fair value
-      if (debug) debugLog.writeln("Round 1 with fair value (+$baseValueDiff)");
-    } else if (baseValueDiff >= -5) {
-      valueFactor = 0.0;       // Slight reach
-      if (debug) debugLog.writeln("Round 1 with slight reach ($baseValueDiff)");
-    } else if (baseValueDiff >= -10) {
-      valueFactor = -0.20;     // Moderate reach
-      if (debug) debugLog.writeln("Round 1 with moderate reach ($baseValueDiff)");
-    } else {
-      valueFactor = -0.35;     // Major reach
-      if (debug) debugLog.writeln("Round 1 with major reach ($baseValueDiff)");
-    }
-  } 
-  else if (round == 2) {
-    // Round 2: Value still important
-    if (baseValueDiff >= 15) {
-      valueFactor = 0.35;      // Exceptional value
-      if (debug) debugLog.writeln("Round 2 with exceptional value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 10) {
-      valueFactor = 0.30;      // Great value
-      if (debug) debugLog.writeln("Round 2 with great value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 5) {
-      valueFactor = 0.20;      // Good value
-      if (debug) debugLog.writeln("Round 2 with good value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 0) {
-      valueFactor = 0.10;      // Fair value
-      if (debug) debugLog.writeln("Round 2 with fair value (+$baseValueDiff)");
-    } else if (baseValueDiff >= -10) {
-      valueFactor = -0.15;     // Reach
-      if (debug) debugLog.writeln("Round 2 with reach ($baseValueDiff)");
-    } else {
-      valueFactor = -0.25;     // Major reach
-      if (debug) debugLog.writeln("Round 2 with major reach ($baseValueDiff)");
-    }
+  // Replace the VALUE DIFFERENTIAL section with this more granular approach
+// 3. VALUE DIFFERENTIAL - Using percentage-based scaling for more granularity
+double valueFactor = 0.0;
+
+if (debug) debugLog.writeln("\nVALUE DIFFERENTIAL ANALYSIS:");
+
+// Calculate value differential as a percentage of pick position
+// This makes it scale appropriately for any pick number
+double percentDiff = 0.0;
+if (playerRank > 0) {
+  percentDiff = (pickNumber - playerRank) / playerRank * 100;
+} else {
+  percentDiff = 0.0; // Avoid division by zero
+}
+
+// Apply round-based scaling to the percentage
+// Scale is more stringent in early rounds
+if (round == 1) {
+  // First round: Very fine-grained value assessment
+  if (percentDiff >= 40) {
+    valueFactor = 0.45;      // Exceptional value (>30% value)
+    if (debug) debugLog.writeln("Round 1 with exceptional value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 26) {
+    valueFactor = 0.40;      // Outstanding value (20-30% value)
+    if (debug) debugLog.writeln("Round 1 with outstanding value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 20) {
+    valueFactor = 0.35;      // Excellent value (15-20% value)
+    if (debug) debugLog.writeln("Round 1 with excellent value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 14) {
+    valueFactor = 0.30;      // Great value (10-15% value)
+    if (debug) debugLog.writeln("Round 1 with great value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 7) {
+    valueFactor = 0.20;      // Good value (5-10% value)
+    if (debug) debugLog.writeln("Round 1 with good value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 0) {
+    valueFactor = 0.10;      // Fair value (0-5% value)
+    if (debug) debugLog.writeln("Round 1 with fair value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -7) {
+    valueFactor = 0.0;       // Slight reach (-5-0% value)
+    if (debug) debugLog.writeln("Round 1 with slight reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -14) {
+    valueFactor = -0.15;     // Moderate reach (-10 to -5% value)
+    if (debug) debugLog.writeln("Round 1 with moderate reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -20) {
+    valueFactor = -0.25;     // Significant reach (-15 to -10% value)
+    if (debug) debugLog.writeln("Round 1 with significant reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -26) {
+    valueFactor = -0.35;     // Major reach (-20 to -15% value)
+    if (debug) debugLog.writeln("Round 1 with major reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else {
+    valueFactor = -0.45;     // Extreme reach (< -20% value)
+    if (debug) debugLog.writeln("Round 1 with extreme reach (${percentDiff.toStringAsFixed(1)}%)");
   }
-  else if (round == 3) {
-    // Round 3: Value moderately important
-    if (baseValueDiff >= 15) {
-      valueFactor = 0.30;      // Exceptional value
-      if (debug) debugLog.writeln("Round 3 with exceptional value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 10) {
-      valueFactor = 0.25;      // Great value
-      if (debug) debugLog.writeln("Round 3 with great value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 5) {
-      valueFactor = 0.15;      // Good value
-      if (debug) debugLog.writeln("Round 3 with good value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 0) {
-      valueFactor = 0.05;      // Fair value
-      if (debug) debugLog.writeln("Round 3 with fair value (+$baseValueDiff)");
-    } else if (baseValueDiff >= -10) {
-      valueFactor = -0.10;     // Reach
-      if (debug) debugLog.writeln("Round 3 with reach ($baseValueDiff)");
-    } else {
-      valueFactor = -0.20;     // Major reach
-      if (debug) debugLog.writeln("Round 3 with major reach ($baseValueDiff)");
-    }
+} 
+else if (round == 2) {
+  // Round 2: Still important but slightly more forgiving
+  if (percentDiff >= 40) {
+    valueFactor = 0.40;      // Exceptional value
+    if (debug) debugLog.writeln("Round 2 with exceptional value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 26) {
+    valueFactor = 0.35;      // Great value
+    if (debug) debugLog.writeln("Round 2 with great value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 14) {
+    valueFactor = 0.25;      // Good value
+    if (debug) debugLog.writeln("Round 2 with good value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 0) {
+    valueFactor = 0.10;      // Fair value
+    if (debug) debugLog.writeln("Round 2 with fair value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -14) {
+    valueFactor = -0.10;     // Slight reach
+    if (debug) debugLog.writeln("Round 2 with slight reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -26) {
+    valueFactor = -0.20;     // Moderate reach
+    if (debug) debugLog.writeln("Round 2 with moderate reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else {
+    valueFactor = -0.30;     // Major reach
+    if (debug) debugLog.writeln("Round 2 with major reach (${percentDiff.toStringAsFixed(1)}%)");
   }
-  else {
-    // Rounds 4+: Value less important
-    if (baseValueDiff >= 15) {
-      valueFactor = 0.25;      // Exceptional value
-      if (debug) debugLog.writeln("Late round with exceptional value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 10) {
-      valueFactor = 0.20;      // Great value
-      if (debug) debugLog.writeln("Late round with great value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 5) {
-      valueFactor = 0.10;      // Good value
-      if (debug) debugLog.writeln("Late round with good value (+$baseValueDiff)");
-    } else if (baseValueDiff >= 0) {
-      valueFactor = 0.05;      // Fair value
-      if (debug) debugLog.writeln("Late round with fair value (+$baseValueDiff)");
-    } else if (baseValueDiff >= -10) {
-      valueFactor = -0.05;     // Reach
-      if (debug) debugLog.writeln("Late round with reach ($baseValueDiff)");
-    } else {
-      valueFactor = -0.15;     // Major reach
-      if (debug) debugLog.writeln("Late round with major reach ($baseValueDiff)");
-    }
+}
+else if (round == 3) {
+  // Round 3: Moderately important
+  if (percentDiff >= 40) {
+    valueFactor = 0.35;      // Exceptional value
+    if (debug) debugLog.writeln("Round 3 with exceptional value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 26) {
+    valueFactor = 0.25;      // Great value
+    if (debug) debugLog.writeln("Round 3 with great value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 14) {
+    valueFactor = 0.15;      // Good value
+    if (debug) debugLog.writeln("Round 3 with good value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 0) {
+    valueFactor = 0.05;      // Fair value
+    if (debug) debugLog.writeln("Round 3 with fair value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -20) {
+    valueFactor = -0.05;     // Slight reach
+    if (debug) debugLog.writeln("Round 3 with slight reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -33) {
+    valueFactor = -0.15;     // Moderate reach
+    if (debug) debugLog.writeln("Round 3 with moderate reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else {
+    valueFactor = -0.25;     // Major reach
+    if (debug) debugLog.writeln("Round 3 with major reach (${percentDiff.toStringAsFixed(1)}%)");
   }
-  
-  if (debug) {
-    debugLog.writeln("Value Factor: ${valueFactor >= 0 ? '+' : ''}${valueFactor.toStringAsFixed(2)} (${(valueFactor * 10).toStringAsFixed(1)} points)");
+}
+else {
+  // Rounds 4+: Less important, more forgiving
+  if (percentDiff >= 50) {
+    valueFactor = 0.30;      // Exceptional value
+    if (debug) debugLog.writeln("Late round with exceptional value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 30) {
+    valueFactor = 0.20;      // Great value
+    if (debug) debugLog.writeln("Late round with great value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= 15) {
+    valueFactor = 0.10;      // Good value
+    if (debug) debugLog.writeln("Late round with good value (+${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -14) {
+    valueFactor = 0.0;       // Fair value/Neutral
+    if (debug) debugLog.writeln("Late round with fair value (${percentDiff.toStringAsFixed(1)}%)");
+  } else if (percentDiff >= -33) {
+    valueFactor = -0.10;     // Reach
+    if (debug) debugLog.writeln("Late round with reach (${percentDiff.toStringAsFixed(1)}%)");
+  } else {
+    valueFactor = -0.20;     // Major reach
+    if (debug) debugLog.writeln("Late round with major reach (${percentDiff.toStringAsFixed(1)}%)");
   }
+}
+
+if (debug) {
+  debugLog.writeln("Value differential as percentage: ${percentDiff.toStringAsFixed(1)}%");
+  debugLog.writeln("Value Factor: ${valueFactor >= 0 ? '+' : ''}${valueFactor.toStringAsFixed(2)} (${(valueFactor * 10).toStringAsFixed(1)} points)");
+}
   
   // 4. COMBINE FACTORS - Base score is 5 (C grade), adjust up or down
-  // Base of 5 allows more room for both positive and negative adjustments
-  double baseScore = 5.0;
-  
-  // Build up score with our factors
-  double needPoints = needFactor * 10;
-  double positionPoints = positionValue * 10;
-  double valuePoints = valueFactor * 10;
-  double finalScore = baseScore + needPoints + positionPoints + valuePoints;
-  
-  if (debug) {
-    debugLog.writeln("\nSCORE CALCULATION:");
-    debugLog.writeln("Base Score: ${baseScore.toStringAsFixed(1)}");
-    debugLog.writeln("Need Points: ${needPoints >= 0 ? '+' : ''}${needPoints.toStringAsFixed(1)}");
-    debugLog.writeln("Position Points: +${positionPoints.toStringAsFixed(1)}");
-    debugLog.writeln("Value Points: ${valuePoints >= 0 ? '+' : ''}${valuePoints.toStringAsFixed(1)}");
-    debugLog.writeln("FINAL SCORE: ${finalScore.toStringAsFixed(1)}");
-  }
+  double baseScore = 4.0;  // Changed from 5.0 to 4.0
+
+// Build up score with our factors
+double needPoints = needFactor * 10;
+double positionPoints = positionValue;
+double valuePoints = valueFactor * 10;
+double finalScore = baseScore + (needPoints*positionPoints) + valuePoints;
+
+if (debug) {
+  debugLog.writeln("\nSCORE CALCULATION:");
+  debugLog.writeln("Base Score: ${baseScore.toStringAsFixed(1)}");
+  debugLog.writeln("Need Points: ${needPoints >= 0 ? '+' : ''}${needPoints.toStringAsFixed(1)}");
+  debugLog.writeln("Position Points: ${positionPoints.toStringAsFixed(1)}x");
+  debugLog.writeln("Value Points: ${valuePoints >= 0 ? '+' : ''}${valuePoints.toStringAsFixed(1)}");
+  debugLog.writeln("FINAL SCORE: ${finalScore.toStringAsFixed(1)}");
+}
   
   // Convert to letter grade using new scale
   String letterGrade = getLetterGrade(finalScore);
@@ -365,35 +397,35 @@ if (considerTeamNeeds) {
 
   /// Convert numeric grade to letter grade
   static String getLetterGrade(double score) {
-  if (score >= 10.0) return 'A+';  // Outstanding pick
-  if (score >= 9.0) return 'A';    // Excellent pick
-  if (score >= 8.0) return 'A-';   // Very good pick
-  if (score >= 7.0) return 'B+';   // Good pick
-  if (score >= 6.0) return 'B';    // Solid pick
-  if (score >= 5.0) return 'B-';   // Decent pick
-  if (score >= 4.0) return 'C+';   // Average pick
-  if (score >= 3.0) return 'C';    // Mediocre pick
-  if (score >= 2.0) return 'C-';   // Below average pick
-  if (score >= 1.0) return 'D+';   // Poor pick
-  if (score >= 0.0) return 'D';    // Very poor pick
+  if (score >= 9.0) return 'A+';  // Outstanding pick
+  if (score >= 8.0) return 'A';    // Excellent pick
+  if (score >= 7.0) return 'A-';   // Very good pick
+  if (score >= 6.0) return 'B+';   // Good pick
+  if (score >= 5.0) return 'B';    // Solid pick
+  if (score >= 4.0) return 'B-';   // Decent pick
+  if (score >= 3.0) return 'C+';   // Average pick
+  if (score >= 2.0) return 'C';    // Mediocre pick
+  if (score >= 1.0) return 'C-';   // Below average pick
+  if (score >= 0.0) return 'D+';   // Poor pick
+  if (score >= -1.0) return 'D';   // Very poor pick
   return 'F';                      // Terrible pick
 }
   
   /// Get color score for gradients (0-100)
   static int getColorScore(double score) {
   // Convert score to 0-100 scale for color gradients
-  if (score >= 10.0) return 100;      // A+
-  if (score >= 9.0) return 95;        // A
-  if (score >= 8.0) return 90;        // A-
-  if (score >= 7.0) return 85;        // B+
-  if (score >= 6.0) return 80;        // B
-  if (score >= 5.0) return 75;        // B-
-  if (score >= 4.0) return 65;        // C+
-  if (score >= 3.0) return 60;        // C
-  if (score >= 2.0) return 55;        // C-
-  if (score >= 1.0) return 45;        // D+
-  if (score >= 0.0) return 30;        // D
-  return 10;                          // F
+  if (score >= 9.0) return 100;      // A+
+  if (score >= 8.0) return 95;       // A
+  if (score >= 7.0) return 90;       // A-
+  if (score >= 6.0) return 85;       // B+
+  if (score >= 5.0) return 80;       // B
+  if (score >= 4.0) return 75;       // B-
+  if (score >= 3.0) return 65;       // C+
+  if (score >= 2.0) return 60;       // C
+  if (score >= 1.0) return 55;       // C-
+  if (score >= 0.0) return 45;       // D+
+  if (score >= -1.0) return 30;      // D
+  return 10;                         // F
 }
 
   /// Generate pick grade description
