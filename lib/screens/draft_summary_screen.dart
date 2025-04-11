@@ -363,12 +363,25 @@ Widget build(BuildContext context) {
   child: Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      const Text(
-        'Draft Summary',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16.0,
-        ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Draft Summary',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16.0,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'from @StickToTheModel on X',
+            style: TextStyle(
+              fontSize: 10.0,
+              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+        ],
       ),
       Row(
         children: [

@@ -163,7 +163,7 @@ Widget build(BuildContext context) {
             color: Colors.amber,
             child: const Center(
               child: Text(
-                "STICKTOTHEMODEL",
+                "@StickToTheModel on X",
                 style: TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
