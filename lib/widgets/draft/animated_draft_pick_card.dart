@@ -609,31 +609,32 @@ Color _getValueColor(double ratio) {
                             ),
                             // Team needs
                             if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
-                              Wrap(
-                                spacing: 4.0,
-                                children: widget.teamNeeds!.take(3).map((need) => 
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                                    margin: const EdgeInsets.only(top: 2.0),
-                                    decoration: BoxDecoration(
-                                      color: _getPositionColor(need).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(3.0),
-                                      border: Border.all(
-                                        color: _getPositionColor(need).withOpacity(0.5),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      need,
-                                      style: TextStyle(
-                                        fontSize: 10.0,
-                                        fontWeight: FontWeight.bold,
-                                        color: _getPositionColor(need),
-                                      ),
-                                    ),
-                                  )
-                                ).toList(),
-                              )
+  Wrap(
+    spacing: 4.0,
+    children: widget.teamNeeds!.take(3).map((need) => 
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+        margin: const EdgeInsets.only(top: 2.0),
+        decoration: BoxDecoration(
+          // Transparent background (no fill)
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(3.0),
+          border: Border.all(
+            color: _getPositionColor(need),
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          need,
+          style: TextStyle(
+            fontSize: 10.0,
+            fontWeight: FontWeight.bold, // Bold
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+          ),
+        ),
+      )
+    ).toList(),
+  )
                             else
                               Text(
                                 'No team needs data',
@@ -649,26 +650,28 @@ Color _getValueColor(double ratio) {
                     
                     // Position badge for selected player
                     if (widget.draftPick.selectedPlayer != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        margin: const EdgeInsets.only(right: 4.0),
-                        decoration: BoxDecoration(
-                          color: _getPositionColor(widget.draftPick.selectedPlayer!.position).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          widget.draftPick.selectedPlayer!.position,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
-                          ),
-                        ),
-                      ),
+  Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    margin: const EdgeInsets.only(right: 4.0),
+    decoration: BoxDecoration(
+      // Transparent background (no fill)
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
+        width: 2, // Thicker border
+      ),
+    ),
+    child: Text(
+      widget.draftPick.selectedPlayer!.position,
+      style: TextStyle(
+        fontWeight: FontWeight.bold, // Always bold
+        fontSize: 12,
+        // White in dark mode, black in light mode
+        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+      ),
+    ),
+  ),
                     
                     // Trade icon if applicable
                     if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
