@@ -1126,7 +1126,7 @@ Container(
                   bool positionDrafted = isPositionDraftedByCurrentTeam(player.position);
                   
                   // Replace the existing player row section with this
-// In the ListView.builder itemBuilder method
+                  // In the ListView.builder itemBuilder method
 return Card(
   elevation: 1.0,
   margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
@@ -1141,9 +1141,7 @@ return Card(
   ),
   color: isSelected ? 
       (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
-      (positionDrafted ? 
-        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
-        (isDarkMode ? Colors.grey.shade800 : Colors.white)),
+      (isDarkMode ? Colors.grey.shade800 : Colors.white),
   child: InkWell(
     onTap: () {
       _showPlayerDetails(context, player);
@@ -1197,10 +1195,8 @@ return Card(
                     fontWeight: FontWeight.bold,
                     fontSize: 14.0,
                     color: positionDrafted 
-                      ? Colors.grey 
-                      : (Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white 
-                          : Colors.black),
+                      ? (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600)
+                      : (isDarkMode ? Colors.white : Colors.black),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1213,10 +1209,8 @@ return Card(
                           style: TextStyle(
                             fontSize: 12.0,
                             color: positionDrafted 
-                              ? Colors.grey.shade400 
-                              : (Theme.of(context).brightness == Brightness.dark 
-                                  ? Colors.grey.shade300 
-                                  : Colors.grey.shade600),
+                              ? (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade500)
+                              : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1227,26 +1221,28 @@ return Card(
             ),
           ),
                     
-          // Position badge
+          // Position badge - Update with lighter purple and white text
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              player.position,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: positionDrafted ? Colors.grey : _getPositionColor(player.position),
-              ),
-            ),
-          ),
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+    // Transparent background (no fill)
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(
+      color: _getPositionColor(player.position),
+      width: 2, // Thicker border
+    ),
+  ),
+  child: Text(
+    player.position,
+    style: TextStyle(
+      fontWeight: FontWeight.bold, // Always bold
+      fontSize: 12,
+      // White in dark mode, black in light mode
+      color: isDarkMode ? Colors.white : Colors.black,
+    ),
+  ),
+),
 
           // Favorite Star - New Section
          GestureDetector(
@@ -1282,16 +1278,14 @@ return Card(
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  // Visual indication of previously drafted position
                                   backgroundColor: positionDrafted ? Colors.green : Colors.green,
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
                                   minimumSize: const Size(0, 28),
                                 ),
                                 child: Text(
-                                  // Change text to indicate if this is a duplicate position
                                   positionDrafted ? 'Draft' : 'Draft',
-                                  style: TextStyle(
-                                    color: positionDrafted ? Colors.white : Colors.white,
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -1911,5 +1905,26 @@ DropdownMenuItem<SortOption> _buildSortItem(SortOption option, String label) {
       ],
     ),
   );
+}
+// Helper method for brighter position colors
+Color _getPositionColorBrighter(String position, bool isDarkMode) {
+  // Offensive position colors
+  if (['QB', 'RB', 'FB'].contains(position)) {
+    return isDarkMode ? Colors.blue.shade500 : Colors.blue.shade700; // Backfield
+  } else if (['WR', 'TE'].contains(position)) {
+    return isDarkMode ? Colors.green.shade500 : Colors.green.shade700; // Receivers
+  } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
+    return isDarkMode ? Colors.purple.shade300 : Colors.purple.shade700; // O-Line - lighter purple in dark mode
+  } 
+  // Defensive position colors
+  else if (['EDGE', 'DL', 'IDL', 'DT', 'DE'].contains(position)) {
+    return isDarkMode ? Colors.red.shade500 : Colors.red.shade700; // D-Line
+  } else if (['LB', 'ILB', 'OLB'].contains(position)) {
+    return isDarkMode ? Colors.orange.shade500 : Colors.orange.shade700; // Linebackers
+  } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
+    return isDarkMode ? Colors.teal.shade400 : Colors.teal.shade700; // Secondary
+  }
+  // Default color
+  return isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
 }
 }

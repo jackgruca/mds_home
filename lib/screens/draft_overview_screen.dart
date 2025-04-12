@@ -318,29 +318,29 @@ Widget _buildStatusBarContent() {
           
           // Team need chips in a row
           ...teamNeeds.map((need) => 
-            Padding(
-              padding: const EdgeInsets.only(right: 3),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _getPositionColor(need).withOpacity(isDarkMode ? 0.3 : 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: _getPositionColor(need).withOpacity(isDarkMode ? 0.6 : 0.5),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  need,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: _getPositionColor(need),
-                  ),
-                ),
-              ),
-            )
-          ),
+  Padding(
+    padding: const EdgeInsets.only(right: 3),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: _getPositionColor(need),
+          width: 2,
+        ),
+      ),
+      child: Text(
+        need,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.normal,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+    ),
+  )
+),
         ],
       ],
     );
