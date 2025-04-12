@@ -1142,7 +1142,7 @@ return Card(
   color: isSelected ? 
       (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
       (positionDrafted ? 
-        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade50) :
+        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade200) :
         (isDarkMode ? Colors.grey.shade800 : Colors.white)),
   child: InkWell(
     onTap: () {
