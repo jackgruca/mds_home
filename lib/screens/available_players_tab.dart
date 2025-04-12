@@ -1139,11 +1139,10 @@ return Card(
       width: 1.0,
     ),
   ),
+  // Change this line - don't use positionDrafted for background color
   color: isSelected ? 
       (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade700) : 
-      (positionDrafted ? 
-        (isDarkMode ? Colors.grey.shade800.withOpacity(0.7) : Colors.grey.shade200) :
-        (isDarkMode ? Colors.grey.shade800 : Colors.white)),
+      (isDarkMode ? Colors.grey.shade800 : Colors.white),
   child: InkWell(
     onTap: () {
       _showPlayerDetails(context, player);
@@ -1185,7 +1184,7 @@ return Card(
           
           const SizedBox(width: 8.0),
           
-          // Player info
+          // Player info - modify text colors based on positionDrafted
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,11 +1195,10 @@ return Card(
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14.0,
+                    // Modify color based on positionDrafted
                     color: positionDrafted 
-                      ? Colors.grey 
-                      : (Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white 
-                          : Colors.black),
+                      ? (isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600)
+                      : (isDarkMode ? Colors.white : Colors.black),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1212,11 +1210,10 @@ return Card(
                           player.school,
                           style: TextStyle(
                             fontSize: 12.0,
+                            // Modify color based on positionDrafted
                             color: positionDrafted 
-                              ? Colors.grey.shade400 
-                              : (Theme.of(context).brightness == Brightness.dark 
-                                  ? Colors.grey.shade300 
-                                  : Colors.grey.shade600),
+                              ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
+                              : (isDarkMode ? Colors.grey.shade300 : Colors.grey.shade600),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1227,14 +1224,18 @@ return Card(
             ),
           ),
                     
-          // Position badge
+          // Position badge - modify colors based on positionDrafted
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
+              // Use very light opacity for background if position is drafted
               color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
               borderRadius: BorderRadius.circular(4),
               border: Border.all(
-                color: positionDrafted ? Colors.grey.shade400 : _getPositionColor(player.position),
+                // Lighter border if position is drafted
+                color: positionDrafted 
+                  ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
+                  : _getPositionColor(player.position),
                 width: 1,
               ),
             ),
@@ -1243,7 +1244,10 @@ return Card(
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
-                color: positionDrafted ? Colors.grey : _getPositionColor(player.position),
+                // Lighter text if position is drafted
+                color: positionDrafted 
+                  ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
+                  : _getPositionColor(player.position),
               ),
             ),
           ),
