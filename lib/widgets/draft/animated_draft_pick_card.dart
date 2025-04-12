@@ -609,32 +609,31 @@ Color _getValueColor(double ratio) {
                             ),
                             // Team needs
                             if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
-  Wrap(
-    spacing: 4.0,
-    children: widget.teamNeeds!.take(3).map((need) => 
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-        margin: const EdgeInsets.only(top: 2.0),
-        decoration: BoxDecoration(
-          // Transparent background (no fill)
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(3.0),
-          border: Border.all(
-            color: _getPositionColor(need),
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          need,
-          style: TextStyle(
-            fontSize: 10.0,
-            fontWeight: FontWeight.bold, // Bold
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-          ),
-        ),
-      )
-    ).toList(),
-  )
+                              Wrap(
+                                spacing: 4.0,
+                                children: widget.teamNeeds!.take(3).map((need) => 
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                                    margin: const EdgeInsets.only(top: 2.0),
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      borderRadius: BorderRadius.circular(3.0),
+                                      border: Border.all(
+                                        color: _getPositionColor(need),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      need,
+                                      style: TextStyle(
+                                        fontSize: 10.0,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDarkMode ? Colors.white : Colors.black,
+                                      ),
+                                    ),
+                                  )
+                                ).toList(),
+                              )
                             else
                               Text(
                                 'No team needs data',
@@ -648,35 +647,10 @@ Color _getValueColor(double ratio) {
                         )
                     ),
                     
-                    // Position badge for selected player
-                    if (widget.draftPick.selectedPlayer != null)
-  Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    margin: const EdgeInsets.only(right: 4.0),
-    decoration: BoxDecoration(
-      // Transparent background (no fill)
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(4),
-      border: Border.all(
-        color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
-        width: 2, // Thicker border
-      ),
-    ),
-    child: Text(
-      widget.draftPick.selectedPlayer!.position,
-      style: TextStyle(
-        fontWeight: FontWeight.bold, // Always bold
-        fontSize: 12,
-        // White in dark mode, black in light mode
-        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-      ),
-    ),
-  ),
-                    
-                    // Trade icon if applicable
+                    // Trade icon if applicable - MOVED BEFORE POSITION BADGE
                     if (widget.draftPick.tradeInfo != null && widget.draftPick.tradeInfo!.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(right: 4.0),
+                        padding: const EdgeInsets.only(right: 8.0),
                         child: InkWell(
                           onTap: () => _showTradeDetails(context, widget.draftPick, widget.allDraftPicks),
                           borderRadius: BorderRadius.circular(12),
@@ -690,20 +664,29 @@ Color _getValueColor(double ratio) {
                           ),
                         ),
                       ),
-                        
-                    // // Info icon for analysis (only show if player is selected)
-                    // if (widget.draftPick.selectedPlayer != null)
-                    //   IconButton(
-                    //     padding: EdgeInsets.zero,
-                    //     constraints: const BoxConstraints(),
-                    //     visualDensity: VisualDensity.compact,
-                    //     icon: Icon(
-                    //       Icons.info_outline,
-                    //       size: 16,
-                    //       color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    //     ),
-                    //     onPressed: () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!),
-                    //   ),
+                    
+                    // Position badge for selected player
+                    if (widget.draftPick.selectedPlayer != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(right: 4.0),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: _getPositionColor(widget.draftPick.selectedPlayer!.position),
+                            width: 2,
+                          ),
+                        ),
+                        child: Text(
+                          widget.draftPick.selectedPlayer!.position,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ),
                     
                     // Show rank info for selected players
                     if (widget.draftPick.selectedPlayer != null)
