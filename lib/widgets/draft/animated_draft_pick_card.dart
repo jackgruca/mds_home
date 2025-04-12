@@ -726,7 +726,7 @@ Color _getValueColor(double ratio) {
                         ),
                       ),
                     
-                    // Current pick indicator (small triangle/arrow on right side)
+                    // Current pick indicator (small triangle/arrow on right side) 
                     if (widget.isCurrentPick)
                       Padding(
                         padding: const EdgeInsets.only(left: 4.0),
