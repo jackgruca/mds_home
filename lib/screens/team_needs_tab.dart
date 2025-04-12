@@ -301,23 +301,25 @@ String _getTeamInitials(String teamName) {
   }
   
   Color _getPositionColor(String position) {
-    // Offensive position colors
-    if (['QB', 'RB', 'FB'].contains(position)) {
-      return Colors.blue.shade700; // Backfield
-    } else if (['WR', 'TE'].contains(position)) {
-      return Colors.green.shade700; // Receivers
-    } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
-      return Colors.purple.shade700; // O-Line
-    } 
-    // Defensive position colors
-    else if (['EDGE', 'DL', 'IDL', 'DT', 'DE'].contains(position)) {
-      return Colors.red.shade700; // D-Line
-    } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-      return Colors.orange.shade700; // Linebackers
-    } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-      return Colors.teal.shade700; // Secondary
-    }
-    // Default color
-    return Colors.grey.shade700;
+  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  
+  // Offensive position colors
+  if (['QB', 'RB', 'FB'].contains(position)) {
+    return isDarkMode ? Colors.blue.shade400 : Colors.blue.shade700; // Backfield
+  } else if (['WR', 'TE'].contains(position)) {
+    return isDarkMode ? Colors.green.shade400 : Colors.green.shade700; // Receivers
+  } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
+    return isDarkMode ? Colors.purple.shade400 : Colors.purple.shade700; // O-Line
+  } 
+  // Defensive position colors
+  else if (['EDGE', 'DL', 'IDL', 'DT', 'DE'].contains(position)) {
+    return isDarkMode ? Colors.red.shade400 : Colors.red.shade700; // D-Line
+  } else if (['LB', 'ILB', 'OLB'].contains(position)) {
+    return isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700; // Linebackers
+  } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
+    return isDarkMode ? Colors.teal.shade400 : Colors.teal.shade700; // Secondary
   }
+  // Default color
+  return isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700;
+}
 }

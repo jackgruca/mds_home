@@ -1226,31 +1226,28 @@ return Card(
                     
           // Position badge - modify colors based on positionDrafted
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              // Use very light opacity for background if position is drafted
-              color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                // Lighter border if position is drafted
-                color: positionDrafted 
-                  ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
-                  : _getPositionColor(player.position),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              player.position,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                // Lighter text if position is drafted
-                color: positionDrafted 
-                  ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
-                  : _getPositionColor(player.position),
-              ),
-            ),
-          ),
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+    color: _getPositionColor(player.position).withOpacity(positionDrafted ? 0.1 : 0.2),
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(
+      color: positionDrafted 
+        ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
+        : _getPositionColor(player.position),
+      width: 1,
+    ),
+  ),
+  child: Text(
+    player.position,
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 12,
+      color: positionDrafted 
+        ? (isDarkMode ? Colors.grey.shade500 : Colors.grey.shade500)
+        : _getPositionColor(player.position),
+    ),
+  ),
+),
 
           // Favorite Star - New Section
          GestureDetector(
@@ -1513,12 +1510,12 @@ return Card(
     }
   
     Color getTextColor() {
-      if (isDarkMode) {
-        return isOffensive ? Colors.blue.shade200 : Colors.red.shade200;
-      } else {
-        return isOffensive ? Colors.blue.shade700 : Colors.red.shade700;
-      }
-    }
+  if (isDarkMode) {
+    return isOffensive ? Colors.blue.shade300 : Colors.red.shade300;
+  } else {
+    return isOffensive ? Colors.blue.shade700 : Colors.red.shade700;
+  }
+}
 
     return Container(
       margin: const EdgeInsets.only(right: 6),
