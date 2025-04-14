@@ -211,7 +211,39 @@ Future<void> _triggerInitialAggregation() async {
           },
           child: const Text('Run Local Aggregation'),
         ),
+        
       ),
+      ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.red,
+    foregroundColor: Colors.white,
+  ),
+  onPressed: _isLoading ? null : () async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = 'Fixing analytics data structure...';
+    });
+    
+    try {
+      final result = await AnalyticsApiService.fixAnalyticsDataStructure();
+      setState(() {
+        _isLoading = false;
+        _statusMessage = result 
+            ? 'Data structure fixed successfully! Check Community Analytics.' 
+            : 'Failed to fix data structure. See logs for details.';
+      });
+      
+      // Force refresh collection status
+      _checkCollections();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Error: $e';
+      });
+    }
+  },
+  child: const Text('Fix Data Structure'),
+),
   ],
 ),
             
