@@ -6,12 +6,17 @@ import '../../services/player_espn_id_service.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/constants.dart';
 
+// In lib/widgets/player/player_details_dialog.dart
 class PlayerDetailsDialog extends StatelessWidget {
   final Player player;
+  final bool canDraft; // New parameter to determine if draft button should be shown
+  final VoidCallback? onDraft; // New callback for when draft button is pressed
   
   const PlayerDetailsDialog({
     super.key,
     required this.player,
+    this.canDraft = false, // Default to false
+    this.onDraft,
   });
 
   @override
@@ -583,8 +588,7 @@ Container(
           ),
         ),
         
-        // Footer
-        Container(
+      Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade50,
@@ -603,11 +607,30 @@ Container(
                   color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Close'),
+              Row(
+                children: [
+                  // Draft button (only show when canDraft is true)
+                  if (canDraft && onDraft != null) 
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ElevatedButton(
+                        onPressed: onDraft,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text('Draft'),
+                      ),
+                    ),
+                  // Existing close button
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             ],
           ),
