@@ -1,5 +1,6 @@
 // lib/widgets/analytics/team_draft_patterns_tab.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
 import '../../services/analytics_cache_manager.dart';
@@ -145,6 +146,50 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
   result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
   return result;
 }
+Widget _buildDebugInfo() {
+  return ExpansionTile(
+    title: const Text('Debugging Information', 
+      style: TextStyle(fontSize: 12, color: Colors.grey)),
+    children: [
+      FutureBuilder(
+        future: FirebaseFirestore.instance
+            .collection('precomputedAnalytics')
+            .doc('metadata')
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CircularProgressIndicator();
+          }
+          
+          final data = snapshot.data?.data();
+          final lastUpdated = data?['lastUpdated'] as Timestamp?;
+          final processed = data?['documentsProcessed'];
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Metadata: ${data != null ? 'Found' : 'Not found'}'),
+              if (lastUpdated != null)
+                Text('Last updated: ${lastUpdated.toDate()}'),
+              Text('Documents processed: ${processed ?? 'Unknown'}'),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  AnalyticsCacheManager.clearCache();
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cache cleared'))
+                  );
+                },
+                child: const Text('Clear Cache & Reload'),
+              ),
+            ],
+          );
+        },
+      ),
+    ],
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -225,6 +270,8 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildDebugInfo(),
+
                       // Top Positions by Pick
                       Card(
                         elevation: 2,

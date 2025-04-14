@@ -1,5 +1,7 @@
 // lib/widgets/admin/analytics_setup_widget.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../services/analytics_api_service.dart';
 import '../../services/firebase_service.dart';
 
 class AnalyticsSetupWidget extends StatefulWidget {
@@ -154,81 +156,144 @@ Future<void> _triggerInitialAggregation() async {
             const SizedBox(height: 16),
             
             Row(
-              children: [
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _setupCollections,
-                  child: _isLoading 
-                    ? const SizedBox(
-                        height: 20, 
-                        width: 20, 
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_collectionsExist 
-                        ? 'Recreate Collections'
-                        : 'Setup Collections'),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                TextButton(
-                  onPressed: _isLoading ? null : _checkCollections,
-                  child: const Text('Check Status'),
-                ),
-                // Add this button
+  children: [
+    ElevatedButton(
+      onPressed: _isLoading ? null : _setupCollections,
+      child: _isLoading 
+        ? const SizedBox(
+            height: 20, 
+            width: 20, 
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(_collectionsExist 
+            ? 'Recreate Collections'
+            : 'Setup Collections'),
+    ),
+    
+    const SizedBox(width: 16),
+    
+    TextButton(
+      onPressed: _isLoading ? null : _checkCollections,
+      child: const Text('Check Status'),
+    ),
+    
+    // Add this button right here
     if (_collectionsExist)
       Padding(
         padding: const EdgeInsets.only(left: 16.0),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.secondary,
+            backgroundColor: Colors.orange,
           ),
-          onPressed: _isLoading ? null : _triggerInitialAggregation,
-          child: const Text('Run Initial Aggregation'),
+          onPressed: _isLoading ? null : () async {
+            setState(() {
+              _isLoading = true;
+              _statusMessage = 'Running local aggregation...';
+            });
+            
+            try {
+              final result = await AnalyticsApiService.runRobustAggregation();
+              setState(() {
+                _isLoading = false;
+                _statusMessage = result 
+                    ? 'Local aggregation successful! Check Community Analytics.' 
+                    : 'Local aggregation failed. See logs for details.';
+              });
+              
+              // Force refresh collection status
+              _checkCollections();
+            } catch (e) {
+              setState(() {
+                _isLoading = false;
+                _statusMessage = 'Error: $e';
+              });
+            }
+          },
+          child: const Text('Run Local Aggregation'),
         ),
       ),
-              ],
-            ),
+  ],
+),
             
             const SizedBox(height: 16),
             
             if (_statusMessage.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
+  Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: _collectionsExist 
+        ? (isDarkMode ? Colors.green.shade900.withOpacity(0.2) : Colors.green.shade100)
+        : (isDarkMode ? Colors.orange.shade900.withOpacity(0.2) : Colors.orange.shade100),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: _collectionsExist 
+          ? (isDarkMode ? Colors.green.shade700 : Colors.green.shade300)
+          : (isDarkMode ? Colors.orange.shade700 : Colors.orange.shade300),
+        width: 0.5,
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              _collectionsExist ? Icons.check_circle : Icons.info_outline,
+              size: 16,
+              color: _collectionsExist 
+                ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
+                : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _statusMessage,
+                style: TextStyle(
                   color: _collectionsExist 
-                    ? (isDarkMode ? Colors.green.shade900.withOpacity(0.2) : Colors.green.shade100)
-                    : (isDarkMode ? Colors.orange.shade900.withOpacity(0.2) : Colors.orange.shade100),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: _collectionsExist 
-                      ? (isDarkMode ? Colors.green.shade700 : Colors.green.shade300)
-                      : (isDarkMode ? Colors.orange.shade700 : Colors.orange.shade300),
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _collectionsExist ? Icons.check_circle : Icons.info_outline,
-                      size: 16,
-                      color: _collectionsExist 
-                        ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
-                        : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _statusMessage,
-                        style: TextStyle(
-                          color: _collectionsExist 
-                            ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
-                            : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
-                        ),
-                      ),
-                    ),
-                  ],
+                    ? (isDarkMode ? Colors.green.shade400 : Colors.green.shade700)
+                    : (isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700),
                 ),
               ),
+            ),
+          ],
+        ),
+        // Add a progress indicator
+        if (_isLoading && _statusMessage.contains('aggregation'))
+          FutureBuilder(
+            future: FirebaseFirestore.instance
+                .collection('precomputedAnalytics')
+                .doc('metadata')
+                .get(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              
+              final data = snapshot.data?.data();
+              final inProgress = data?['inProgress'] ?? false;
+              final processed = data?['documentsProcessed'] ?? 0;
+              final picks = data?['picksProcessed'] ?? 0;
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  const LinearProgressIndicator(
+                    value: null, // Indeterminate
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Processed $processed documents with $picks picks',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              );
+            }
+          ),
+      ],
+    ),
+  ),
           ],
         ),
       ),

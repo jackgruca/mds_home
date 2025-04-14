@@ -91,6 +91,204 @@ class AnalyticsApiService {
     return false;
   }
 }
+
+/// Run a robust local aggregation for analytics data with pagination
+static Future<bool> runRobustAggregation() async {
+  try {
+    await FirebaseService.initialize();
+    final db = FirebaseFirestore.instance;
+    debugPrint('Running robust manual aggregation with pagination...');
+    
+    // Initialize aggregation variables
+    final positionCounts = <String, int>{};
+    final pickPositions = <int, Map<String, int>>{};
+    int totalPicks = 0;
+    int totalDocuments = 0;
+    
+    // Process in batches
+    const batchSize = 20; // Process 20 documents at a time
+    DocumentSnapshot? lastDoc;
+    bool hasMoreData = true;
+    
+    // Process documents in batches
+    while (hasMoreData) {
+      debugPrint('Processing batch starting after document: ${lastDoc?.id ?? "start"}');
+      
+      // Build query with pagination
+      Query query = db.collection('draftAnalytics').limit(batchSize);
+      if (lastDoc != null) {
+        query = query.startAfterDocument(lastDoc);
+      }
+      
+      // Get batch of documents
+      final querySnapshot = await query.get();
+      final batchDocs = querySnapshot.docs;
+      
+      // Check if we've reached the end
+      if (batchDocs.isEmpty) {
+        hasMoreData = false;
+        debugPrint('No more documents to process');
+        break;
+      }
+      
+      // Update the last document for next batch
+      lastDoc = batchDocs.last;
+      totalDocuments += batchDocs.length;
+      
+      // Process each document in this batch
+      for (final doc in batchDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (final pick in picks) {
+          // Only process if required fields exist
+          if (pick['position'] == null || pick['pickNumber'] == null) continue;
+          
+          final position = pick['position'] as String;
+          final pickNumber = pick['pickNumber'] is int 
+              ? pick['pickNumber'] as int 
+              : int.tryParse(pick['pickNumber'].toString()) ?? 0;
+          
+          if (pickNumber <= 0) continue; // Skip invalid pick numbers
+          
+          // Global position counts
+          positionCounts[position] = (positionCounts[position] ?? 0) + 1;
+          totalPicks++;
+          
+          // Position by pick
+          if (!pickPositions.containsKey(pickNumber)) {
+            pickPositions[pickNumber] = {};
+          }
+          pickPositions[pickNumber]![position] = 
+              (pickPositions[pickNumber]![position] ?? 0) + 1;
+        }
+      }
+      
+      // Update progress after each batch
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'documentsProcessed': totalDocuments,
+        'inProgress': true,
+        'picksProcessed': totalPicks,
+      }, SetOptions(merge: true));
+      
+      debugPrint('Processed batch of ${batchDocs.length} documents ($totalDocuments total, $totalPicks picks)');
+      
+      // Brief pause to prevent overloading
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    
+    // If no data was processed, return early
+    if (totalPicks == 0) {
+      debugPrint('No pick data found to aggregate');
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'documentsProcessed': totalDocuments,
+        'inProgress': false,
+        'error': 'No pick data found'
+      }, SetOptions(merge: true));
+      return false;
+    }
+    
+    debugPrint('Finished data collection. Formatting and saving results...');
+    
+    // 3. Create the formatted position distribution
+    final positionDistribution = {
+      'overall': {
+        'total': totalPicks,
+        'positions': positionCounts.map((pos, count) => MapEntry(pos, {
+          'count': count,
+          'percentage': '${((count / totalPicks) * 100).toStringAsFixed(1)}%'
+        }))
+      }
+    };
+    
+    // Save position distribution
+    await db.collection('precomputedAnalytics').doc('positionDistribution').set({
+      'overall': positionDistribution['overall'],
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    debugPrint('Saved position distribution. Processing positions by pick...');
+    
+    // 4. Create formatted positions by pick - only process first 200 picks to avoid timeout
+    final sortedPicks = pickPositions.keys.toList()..sort();
+    final processedPicks = sortedPicks.take(200).toList();
+    
+    final positionsByPick = processedPicks.map((pickNumber) {
+      final positions = pickPositions[pickNumber]!;
+      final totalForPick = positions.values.fold(0, (a, b) => a + b);
+      
+      final sortedPositions = positions.entries
+        .map((e) => {
+          'position': e.key,
+          'count': e.value,
+          'percentage': '${((e.value / totalForPick) * 100).toStringAsFixed(1)}%'
+        })
+        .toList()
+        ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      
+      return {
+        'pick': pickNumber,
+        'positions': sortedPositions,
+        'totalDrafts': totalForPick,
+        'round': pickNumber <= 32 ? '1' : (pickNumber <= 64 ? '2' : (pickNumber <= 105 ? '3' : '4+'))
+      };
+    }).toList();
+    
+    // Save positions by pick
+    await db.collection('precomputedAnalytics').doc('positionsByPick').set({
+      'data': positionsByPick,
+      'lastUpdated': FieldValue.serverTimestamp()
+    });
+    
+    // Also save round-specific data for rounds 1-4
+    for (int round = 1; round <= 4; round++) {
+      final roundStart = (round - 1) * 32 + 1;
+      final roundEnd = round * 32;
+      
+      final roundPicks = positionsByPick.where((pick) => 
+        (pick['pick'] as int) >= roundStart && 
+        (pick['pick'] as int) <= roundEnd
+      ).toList();
+      
+      if (roundPicks.isNotEmpty) {
+        await db.collection('precomputedAnalytics').doc('positionsByPickRound$round').set({
+          'data': roundPicks,
+          'lastUpdated': FieldValue.serverTimestamp()
+        });
+      }
+    }
+    
+    // 5. Update completion metadata
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'lastUpdated': FieldValue.serverTimestamp(),
+      'documentsProcessed': totalDocuments,
+      'picksProcessed': totalPicks,
+      'inProgress': false,
+      'manualProcessing': true,
+    }, SetOptions(merge: true));
+    
+    debugPrint('Manual aggregation completed successfully!');
+    debugPrint('Processed $totalDocuments documents containing $totalPicks total picks');
+    
+    return true;
+  } catch (e) {
+    debugPrint('Error in robust aggregation: $e');
+    // Update metadata to show error
+    try {
+      final db = FirebaseFirestore.instance;
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'inProgress': false,
+        'error': e.toString()
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // Ignore errors updating metadata
+    }
+    return false;
+  }
+}
   
   /// Get metadata about the analytics cache
   static Future<Map<String, dynamic>> getAnalyticsMetadata() async {
