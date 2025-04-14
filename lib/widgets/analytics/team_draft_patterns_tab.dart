@@ -43,57 +43,95 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
 
   // Optimized data loading - only fetches what's needed based on selection
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
+  try {
+    debugPrint('Loading team draft patterns data...');
+    
+    // Try to get positions by pick with better error handling
     try {
-      // Create a list of futures to execute in parallel
-      final futures = <Future>[];
-      
-      // Future for position data
-      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
+      debugPrint('Fetching positions data for team: $_selectedTeam, round: $_selectedRound');
+      final positionsData = await AnalyticsQueryService.getConsolidatedPositionsByPick(
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
         round: _selectedRound,
         year: widget.draftYear,
-      ).then((data) {
-        _topPicksByPosition = data;
-      });
-      futures.add(positionFuture);
+      );
       
-      // Future for player data
-      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
-        year: widget.draftYear,
-      ).then((data) {
-        _topPlayersByPick = data;
-      });
-      futures.add(playerFuture);
+      debugPrint('Positions data received: ${positionsData.length} items');
       
-      // Only load consensus needs once, or when team changes
-      if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
-        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
-          year: widget.draftYear,
-        ).then((data) {
-          _consensusNeeds = data;
-        });
-        futures.add(needsFuture);
+      // Inspect the first item if available
+      if (positionsData.isNotEmpty) {
+        debugPrint('First item: ${positionsData.first}');
       }
       
-      // Wait for all futures to complete
-      await Future.wait(futures);
-
       setState(() {
-        _isLoading = false;
+        _topPicksByPosition = positionsData;
       });
     } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
+      debugPrint('Error getting positions: $e');
       setState(() {
-        _isLoading = false;
+        _topPicksByPosition = [];
       });
     }
+    
+    // Try to get player data with better error handling
+    try {
+      debugPrint('Fetching players data for team: $_selectedTeam, round: $_selectedRound');
+      final playersData = await AnalyticsQueryService.getConsolidatedPlayersByPick(
+        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+        round: _selectedRound,
+        year: widget.draftYear,
+      );
+      
+      debugPrint('Players data received: ${playersData.length} items');
+      
+      setState(() {
+        _topPlayersByPick = playersData;
+      });
+    } catch (e) {
+      debugPrint('Error getting players: $e');
+      setState(() {
+        _topPlayersByPick = [];
+      });
+    }
+    
+    // Try to get consensus needs with better error handling
+    if (_selectedTeam != 'All Teams') {
+      try {
+        debugPrint('Fetching consensus needs');
+        final needs = await AnalyticsQueryService.getConsensusTeamNeeds(
+          year: widget.draftYear,
+        );
+        
+        debugPrint('Needs data received for ${needs.keys.length} teams');
+        
+        setState(() {
+          _consensusNeeds = needs;
+        });
+      } catch (e) {
+        debugPrint('Error getting consensus needs: $e');
+        setState(() {
+          _consensusNeeds = {};
+        });
+      }
+    }
+    
+    setState(() {
+      _isLoading = false;
+    });
+    
+    debugPrint('Team draft patterns data loaded successfully');
+  } catch (e) {
+    debugPrint('Error in _loadData: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
+
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
@@ -146,6 +184,7 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
   result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
   return result;
 }
+
 Widget _buildDebugInfo() {
   return ExpansionTile(
     title: const Text('Debugging Information', 
@@ -193,6 +232,12 @@ Widget _buildDebugInfo() {
 
   @override
   Widget build(BuildContext context) {
+    // Add this debugging code at the very start of the build method
+  debugPrint('TeamDraftPatternsTab - picked data: ${_topPicksByPosition.length} items');
+  if (_topPicksByPosition.isNotEmpty) {
+    debugPrint('First item: ${_topPicksByPosition.first}');
+  }
+  
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -257,27 +302,57 @@ Widget _buildDebugInfo() {
                 )),
                 ],
               ),
-            ],
-          ),
-        ),
+              const SizedBox(width: 16),
+      ElevatedButton(
+        onPressed: () async {
+          final db = FirebaseFirestore.instance;
+          final doc = await db.collection('precomputedAnalytics').doc('positionsByPickRound1').get();
+          
+          if (doc.exists) {
+            final data = doc.data();
+            debugPrint('Document structure: ${data?.keys.join(', ')}');
+            
+            if (data?.containsKey('data') == true) {
+              final items = data!['data'];
+              if (items is List) {
+                debugPrint('Items count: ${items.length}');
+                if (items.isNotEmpty) {
+                  debugPrint('First item: ${items.first}');
+                }
+              } else {
+                debugPrint('Data is not a list: ${items.runtimeType}');
+              }
+            } else {
+              debugPrint('Document does not contain data field');
+            }
+          } else {
+            debugPrint('Document does not exist');
+          }
+        },
+        child: const Text('Debug Document Structure'),
+      ),
+    ],
+  ),
+),
 
         // Main content
         _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Expanded(
-                child: SingleChildScrollView(
+    ? const Center(child: CircularProgressIndicator())
+    : Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Add the debug info here, at the top of this list
+              _buildDebugInfo(),
+              
+              // Top Positions by Pick
+              Card(
+                elevation: 2,
+                child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDebugInfo(),
-
-                      // Top Positions by Pick
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
@@ -353,68 +428,77 @@ Widget _buildDebugInfo() {
   }
 
   // Update _buildPositionTrendsTable in team_draft_patterns_tab.dart
-
-Widget _buildPositionTrendsTable() {
+  Widget _buildPositionTrendsTable() {
   if (_topPicksByPosition.isEmpty) {
     return const Center(
       child: Padding(
         padding: EdgeInsets.all(16.0),
-        child: Text('No position trend data available'),
+        child: Column(
+          children: [
+            Text('No position trend data available'),
+            SizedBox(height: 20),
+            Text('Debug - Data structure may not match expected format', 
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
       ),
     );
   }
 
-  return Table(
-    columnWidths: const {
-      0: FlexColumnWidth(1),
-      1: FlexColumnWidth(1),
-      2: FlexColumnWidth(2),
-      3: FlexColumnWidth(2),
-      4: FlexColumnWidth(2),
-    },
-    border: TableBorder.all(
-      color: Colors.grey.shade300,
-      width: 1,
-    ),
-    children: [
-      // Header
-      TableRow(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade800 
-              : Colors.grey.shade200,
+  // Use a ListView instead of a Table for more flexibility with data formats
+  return ListView.builder(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    itemCount: _topPicksByPosition.length,
+    itemBuilder: (context, index) {
+      final data = _topPicksByPosition[index];
+      
+      // Safely extract data with null checks
+      final pickNumber = data['pick'] ?? 'N/A';
+      final round = data['round'] ?? 'N/A';
+      
+      // Create a simple card for each pick
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Pick #$pickNumber (Round $round)', 
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              
+              // Safely handle positions list
+              Builder(builder: (context) {
+                final positions = data['positions'];
+                if (positions is List && positions.isNotEmpty) {
+                  return Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: List.generate(
+                      positions.length > 3 ? 3 : positions.length,
+                      (i) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getPositionColor(positions[i]['position'] ?? 'N/A').withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${positions[i]['position'] ?? 'N/A'} (${positions[i]['percentage'] ?? '0%'})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return const Text('No position data available');
+              }),
+            ],
+          ),
         ),
-        children: [
-          _buildTableHeader('Pick'),
-          _buildTableHeader('Round'),
-          _buildTableHeader('1st Position (%)'),
-          _buildTableHeader('2nd Position (%)'),
-          _buildTableHeader('3rd Position (%)'),
-        ],
-      ),
-      // Data rows
-      ..._topPicksByPosition.map((data) {
-        final positionsList = data['positions'] as List<dynamic>;
-        return TableRow(
-          children: [
-            _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${data['round'] ?? 'N/A'}'),
-            _buildPositionCell(
-              positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
-              positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
-              positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
-              positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
-            ),
-          ],
-        );
-      }),
-    ],
+      );
+    },
   );
 }
 
