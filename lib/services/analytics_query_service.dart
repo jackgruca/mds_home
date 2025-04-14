@@ -128,17 +128,94 @@ class AnalyticsQueryService {
 
   /// Get consolidated position trends by pick - OPTIMIZED
   static Future<List<Map<String, dynamic>>> getConsolidatedPositionsByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    // First try to get data from precomputed stats
-    return PrecomputedAnalyticsService.getConsolidatedPositionsByPick(
-      team: team,
-      round: round,
-      year: year,
-    );
-  }
+  String? team,
+  int? round,
+  int? year,
+}) async {
+  final cacheKey = 'positions_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
+  
+  return AnalyticsCacheManager.getCachedData(
+    cacheKey,
+    () async {
+      try {
+        // Add more detailed logging
+        debugPrint('Fetching positions by pick: team=$team, round=$round, year=$year');
+        
+        // Try API first with more detailed logging
+        final filters = {
+          if (team != null) 'team': team,
+          if (round != null) 'round': round,
+          if (year != null) 'year': year,
+        };
+        
+        String dataType = 'positionsByPick';
+        if (round != null) {
+          dataType = 'positionsByPickRound$round';
+        }
+        
+        debugPrint('Calling API for dataType: $dataType with filters: $filters');
+        
+        final apiData = await AnalyticsApiService.getAnalyticsData(
+          dataType: dataType,
+          filters: filters,
+        );
+        
+        if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+          debugPrint('Received API data for positions by pick');
+          
+          if (apiData['data'].containsKey('data')) {
+            return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
+          }
+        } else if (apiData.containsKey('error')) {
+          debugPrint('API error: ${apiData['error']}');
+        }
+        
+        // Fallback to Firestore
+        await ensureInitialized();
+        
+        String docId = 'positionsByPick';
+        if (round != null) {
+          docId = 'positionsByPickRound$round';
+        }
+        
+        final precomputedDoc = await _firestore
+            .collection(precomputedAnalyticsCollection)
+            .doc(docId)
+            .get();
+            
+        if (precomputedDoc.exists && precomputedDoc.data() != null) {
+          final data = precomputedDoc.data()!;
+          
+          // For all teams data
+          if (team == null || team == 'All Teams') {
+            debugPrint('Using precomputed positions by pick for round: ${round ?? 'all'}');
+            return List<Map<String, dynamic>>.from(data['data'] ?? []);
+          }
+          
+          // For team-specific data
+          if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
+            debugPrint('Using precomputed positions by pick for team: $team, round: ${round ?? 'all'}');
+            return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
+          }
+        }
+        
+        // Fall back to direct query if needed
+        // (This will use your existing implementation if available)
+        debugPrint('No precomputed data, attempting direct query...');
+        
+        return await getTopPositionsByTeam(
+          team: team,
+          round: round,
+          year: year,
+        );
+      } catch (e) {
+        debugPrint('Error getting consolidated positions by pick: $e');
+        return [];
+      }
+    },
+    expiry: const Duration(minutes: 5), // Reduce cache time to 5 minutes
+  );
+}
 
   /// Get consolidated player selections by pick - OPTIMIZED
   static Future<List<Map<String, dynamic>>> getConsolidatedPlayersByPick({

@@ -67,6 +67,30 @@ class AnalyticsApiService {
       return {'error': 'Failed to fetch analytics data: $e'};
     }
   }
+
+  static Future<bool> forceRefreshAnalytics() async {
+  try {
+    // Ensure Firebase is initialized
+    await FirebaseService.initialize();
+    
+    debugPrint('Forcing analytics refresh...');
+    
+    // Call directly to the metadata document
+    final db = FirebaseFirestore.instance;
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'forceRefresh': true,
+      'refreshRequestTime': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    
+    // Clear local cache
+    AnalyticsCacheManager.clearCache();
+    
+    return true;
+  } catch (e) {
+    debugPrint('Error forcing analytics refresh: $e');
+    return false;
+  }
+}
   
   /// Get metadata about the analytics cache
   static Future<Map<String, dynamic>> getAnalyticsMetadata() async {

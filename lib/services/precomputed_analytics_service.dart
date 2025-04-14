@@ -232,6 +232,10 @@ class PrecomputedAnalyticsService {
     int? year,
   ) async {
     try {
+    // Add more detailed logging
+    debugPrint('Fetching positions by pick: team=$team, round=$round, year=$year');
+
+
       // Try API first
       final filters = {
         if (team != null) 'team': team,
@@ -243,6 +247,8 @@ class PrecomputedAnalyticsService {
       if (round != null) {
         dataType = 'positionsByPickRound$round';
       }
+
+      debugPrint('Calling API for dataType: $dataType with filters: $filters');
       
       final apiData = await AnalyticsApiService.getAnalyticsData(
         dataType: dataType,
@@ -255,6 +261,8 @@ class PrecomputedAnalyticsService {
         if (apiData['data'].containsKey('data')) {
           return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
         }
+      } else if (apiData.containsKey('error')) {
+        debugPrint('API error: ${apiData['error']}');
       }
       
       // Fall back to Firestore if API fails

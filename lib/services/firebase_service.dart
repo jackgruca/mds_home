@@ -77,6 +77,13 @@ class FirebaseService {
     
     try {
       debugPrint('Starting to save draft analytics...');
+
+      final picksWithPlayers = completedPicks
+        .where((pick) => pick.selectedPlayer != null)
+        .length;
+    
+    debugPrint('Saving $picksWithPlayers picks with players selected');
+
       
       // Convert picks to records
       final List<DraftPickRecord> pickRecords = completedPicks
@@ -228,21 +235,48 @@ static Future<bool> triggerAnalyticsAggregation() async {
     
     debugPrint('Manually triggering analytics aggregation...');
     
-    // For a simple test implementation, we'll directly write to the
-    // precomputedAnalytics/metadata document to indicate an aggregation was requested
     final db = FirebaseFirestore.instance;
+    
+    // First, check if there's any draft analytics data
+    final analyticsQuery = await db.collection('draftAnalytics').limit(1).get();
+    
+    if (analyticsQuery.docs.isEmpty) {
+      debugPrint('No draft analytics documents found to process');
+      
+      // Create a test document to trigger aggregation if none exists
+      await db.collection('draftAnalytics').add({
+        'userTeam': 'TestTeam',
+        'timestamp': FieldValue.serverTimestamp(),
+        'year': DateTime.now().year,
+        'picks': [
+          {
+            'pickNumber': 1,
+            'originalTeam': 'TestTeam',
+            'actualTeam': 'TestTeam',
+            'playerId': 12345,
+            'playerName': 'Test Player',
+            'position': 'QB',
+            'playerRank': 1,
+            'school': 'Test University',
+            'round': '1',
+          }
+        ],
+        'trades': [],
+        'testData': true // Mark as test data
+      });
+      
+      debugPrint('Created test data to trigger aggregation');
+    }
+    
+    // Update metadata to trigger aggregation
     await db.collection('precomputedAnalytics').doc('metadata').set({
       'lastUpdated': FieldValue.serverTimestamp(),
       'manualTrigger': true,
       'triggerTimestamp': FieldValue.serverTimestamp(),
+      'processNow': true, // Add this flag for immediate processing
     }, SetOptions(merge: true));
     
-    // In a real implementation, you would call a Firebase HTTP function
-    // const functions = FirebaseFunctions.instance;
-    // final callable = functions.httpsCallable('triggerAnalyticsAggregation');
-    // final result = await callable.call();
-    
-    debugPrint('Analytics aggregation triggered. Check Firebase logs.');
+    debugPrint('Analytics aggregation triggered with enhanced flags');
     return true;
   } catch (e) {
     debugPrint('Error triggering analytics aggregation: $e');

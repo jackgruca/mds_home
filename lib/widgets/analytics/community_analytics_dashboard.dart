@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/analytics_provider.dart';
+import '../../services/analytics_api_service.dart';
+import '../../services/analytics_cache_manager.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
@@ -28,6 +30,7 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
     with AutomaticKeepAliveClientMixin {
   String _selectedTab = 'Team Draft Patterns';
   late AnalyticsProvider _analyticsProvider;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -133,6 +136,89 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
         );
     }
   }
+
+  Widget _buildEmptyStateWithRefresh() {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.analytics_outlined,
+          size: 64,
+          color: Colors.grey,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "No community analytics data available yet",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "This could be because no data has been uploaded or the analytics aggregation hasn't run yet",
+          style: TextStyle(color: Colors.grey),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.refresh),
+          label: const Text("Force Refresh Analytics"),
+          onPressed: () async {
+            setState(() {
+              _isLoading = true;
+            });
+            
+            try {
+              // Force a refresh
+              final success = await AnalyticsApiService.forceRefreshAnalytics();
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success 
+                          ? 'Analytics refresh requested. Data may take a few minutes to update.' 
+                          : 'Failed to request refresh. Please try again.'
+                    ),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+              
+              // Clear all caches
+              AnalyticsCacheManager.clearCache();
+              
+              // Wait a moment then reload by recreating widget
+              await Future.delayed(const Duration(seconds: 2));
+              
+              // This will force the widget to rebuild and fetch fresh data
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              
+              // Still reset loading state on error
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          },
+        ),
+      ],
+    ),
+  );
+}
 
   // Helper method to format a date
   String _formatDate(DateTime date) {
