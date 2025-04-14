@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/draft_pick.dart';
+import '../models/player.dart';
 import '../widgets/draft/animated_draft_pick_card.dart';
 
 class DraftOrderTab extends StatefulWidget {
@@ -10,13 +11,15 @@ class DraftOrderTab extends StatefulWidget {
   final ScrollController? scrollController;
   final List<List<dynamic>> teamNeeds; // Still need this for team needs
   final int? currentPickNumber; // Add this to track the current pick 
-  
+  final Function(int)? onPlayerSelected;
+
   const DraftOrderTab({
     required this.draftOrder,
     this.userTeam,
     this.scrollController,
     required this.teamNeeds,
     this.currentPickNumber, // New parameter
+    this.onPlayerSelected,
     super.key,
   });
 
@@ -88,14 +91,22 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
         
         // Add key for better list diffing and animation
         return AnimatedDraftPickCard(
-          key: ValueKey('draft-pick-${draftPick.pickNumber}'),
-          draftPick: draftPick,
-          isUserTeam: isUserTeam,
-          isRecentPick: isRecentPick,
-          teamNeeds: _getTeamNeeds(draftPick.teamName),
-          isCurrentPick: isCurrentPick, // Pass the isCurrentPick flag
-          allDraftPicks: widget.draftOrder,
-        );
+  key: ValueKey('draft-pick-${draftPick.pickNumber}'),
+  draftPick: draftPick,
+  isUserTeam: isUserTeam,
+  isRecentPick: isRecentPick,
+  teamNeeds: _getTeamNeeds(draftPick.teamName),
+  isCurrentPick: isCurrentPick,
+  allDraftPicks: widget.draftOrder,
+  // Add this line to pass a selection callback when appropriate
+  onSelect: widget.currentPickNumber == draftPick.pickNumber && isUserTeam ? 
+    (Player player) {
+      // Find the widget's selection callback and call it with the player's ID
+      if (widget.onPlayerSelected != null) {
+        widget.onPlayerSelected!(player.id);
+      }
+    } : null,
+);
       },
     );
   }

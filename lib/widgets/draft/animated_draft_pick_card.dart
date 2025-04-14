@@ -881,16 +881,14 @@ void _showPlayerDetails(BuildContext context, Player player) {
   }
   
   // Determine if this is being shown during user's turn to pick
-  bool canDraft = false;
+   bool canDraft = widget.isCurrentPick && widget.isUserTeam && widget.onSelect != null;
   VoidCallback? onDraftCallback;
   
-  // Check if we're in user pick mode and this is a selectable player
-  if (widget.isUserTeam && widget.isCurrentPick) {
-    canDraft = true;
+  if (canDraft) {
     onDraftCallback = () {
       Navigator.of(context).pop(); // Close the dialog
       
-      // If there's an onSelect callback, call it
+      // Call the player selection callback
       if (widget.onSelect != null) {
         widget.onSelect!(player);
       }
