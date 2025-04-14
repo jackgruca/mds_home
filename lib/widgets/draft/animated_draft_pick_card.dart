@@ -19,6 +19,7 @@ class AnimatedDraftPickCard extends StatefulWidget {
   final List<String>? teamNeeds;
   final bool isCurrentPick; // New property to highlight current pick
   final List<DraftPick> allDraftPicks; // Add this line
+  final Function(Player)? onSelect; // Add this line
 
   
   const AnimatedDraftPickCard({
@@ -29,6 +30,7 @@ class AnimatedDraftPickCard extends StatefulWidget {
     this.teamNeeds,
     this.isCurrentPick = false, // Default to false
     required this.allDraftPicks, 
+    this.onSelect, 
   });
 
   @override
@@ -760,7 +762,6 @@ Color _getValueColor(double ratio) {
   }
   
 // In lib/widgets/player/player_details_dialog.dart or lib/widgets/draft/animated_draft_pick_card.dart
-
 void _showPlayerDetails(BuildContext context, Player player) {
   // Attempt to get additional player information from our description service
   Map<String, String>? additionalInfo = PlayerDescriptionsService.getPlayerDescription(player.name);
@@ -879,11 +880,32 @@ void _showPlayerDetails(BuildContext context, Player player) {
     enrichedPlayer = MockPlayerData.enrichPlayerData(player);
   }
   
+  // Determine if this is being shown during user's turn to pick
+  bool canDraft = false;
+  VoidCallback? onDraftCallback;
+  
+  // Check if we're in user pick mode and this is a selectable player
+  if (widget.isUserTeam && widget.isCurrentPick) {
+    canDraft = true;
+    onDraftCallback = () {
+      Navigator.of(context).pop(); // Close the dialog
+      
+      // If there's an onSelect callback, call it
+      if (widget.onSelect != null) {
+        widget.onSelect!(player);
+      }
+    };
+  }
+  
   // Show the dialog with enriched player data
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return PlayerDetailsDialog(player: enrichedPlayer);
+      return PlayerDetailsDialog(
+        player: enrichedPlayer,
+        canDraft: canDraft,
+        onDraft: onDraftCallback,
+      );
     },
   );
 }

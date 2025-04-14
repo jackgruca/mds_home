@@ -1440,11 +1440,30 @@ return Card(
     enrichedPlayer = player;
   }
   
+  // Determine if this player can be drafted
+  bool canDraft = widget.selectionEnabled;
+  VoidCallback? onDraftCallback;
+  
+  if (canDraft) {
+    onDraftCallback = () {
+      Navigator.of(context).pop(); // Close the dialog
+      
+      // Call the player selection callback
+      if (widget.onPlayerSelected != null) {
+        widget.onPlayerSelected!(player.id);
+      }
+    };
+  }
+  
   // Show the dialog with enriched player data
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return PlayerDetailsDialog(player: enrichedPlayer);
+      return PlayerDetailsDialog(
+        player: enrichedPlayer,
+        canDraft: canDraft,
+        onDraft: onDraftCallback,
+      );
     },
   );
 }
