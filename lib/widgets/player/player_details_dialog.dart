@@ -600,13 +600,13 @@ Container(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Draft Position: Not Selected',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                ),
-              ),
+              // Text(
+              //   'Draft Position: Not Selected',
+              //   style: TextStyle(
+              //     fontStyle: FontStyle.italic,
+              //     color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+              //   ),
+              // ),
               Row(
                 children: [
                   // Draft button (only show when canDraft is true)

@@ -1,55 +1,117 @@
-// firebase/functions/aggregateAnalytics.js
+// firebase/functions/analyticsAggregation.js
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-exports.dailyAnalyticsAggregation = functions.pubsub
-    .schedule('0 2 * * *')  // Run at 2 AM every day
-    .timeZone('America/New_York')
-    .onRun(async (context) => {
-        const db = admin.firestore();
+exports.dailyAnalyticsAggregation = functions.runWith({
+    timeoutSeconds: 300,  // Increase timeout to 5 minutes
+    memory: '1GB'         // Increase memory allocation
+})
+.pubsub
+.schedule('0 2 * * *')  // Run at 2 AM every day
+.timeZone('America/New_York')
+.onRun(async (context) => {
+    const db = admin.firestore();
+    
+    try {
+        console.log('Starting daily analytics aggregation...');
         
-        try {
-            console.log('Starting daily analytics aggregation...');
-            
-            // Get all draft analytics documents
-            const analyticsSnapshot = await db.collection('draftAnalytics').get();
-            console.log(`Processing ${analyticsSnapshot.size} draft analytics documents`);
-            
-            if (analyticsSnapshot.empty) {
-                console.log('No analytics data to process');
-                return null;
+        // Process draft analytics in smaller batches to avoid timeout
+        const batchSize = 50;
+        let lastDoc = null;
+        let processedCount = 0;
+        let allAnalytics = [];
+        
+        // Update status to show we're starting
+        await db.collection('precomputedAnalytics').doc('metadata').set({
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            inProgress: true,
+            documentsProcessed: 0,
+        }, {merge: true});
+        
+        // Process documents in batches to avoid connection timeout
+        while (true) {
+            let query = db.collection('draftAnalytics').limit(batchSize);
+            if (lastDoc) {
+                query = query.startAfter(lastDoc);
             }
             
-            // Run all aggregations in parallel for efficiency
-            const aggregationPromises = [
-                aggregatePositionDistribution(analyticsSnapshot),
-                aggregateTeamNeeds(analyticsSnapshot),
-                aggregatePositionsByPick(analyticsSnapshot),
-                aggregatePlayersByPick(analyticsSnapshot),
-                aggregatePlayerDeviations(analyticsSnapshot),
-                // Add our new aggregations
-                aggregateTeamPerformanceMetrics(analyticsSnapshot),
-                aggregatePickCorrelations(analyticsSnapshot),
-                aggregateHistoricalTrends(analyticsSnapshot)
-            ];
+            console.log(`Fetching batch of draft analytics (limit: ${batchSize})...`);
+            const analyticsSnapshot = await query.get();
             
-            // Wait for all aggregations to complete
-            await Promise.all(aggregationPromises);
+            if (analyticsSnapshot.empty) {
+                console.log('No more documents to process');
+                break;
+            }
             
-            // Update metadata
-            await db.collection('precomputedAnalytics').doc('metadata').set({
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                documentsProcessed: analyticsSnapshot.size,
+            // Collect documents from this batch
+            analyticsSnapshot.forEach(doc => {
+                allAnalytics.push(doc);
             });
             
-            console.log('Daily analytics aggregation completed successfully');
-            return null;
-        } catch (error) {
-            console.error('Error in daily analytics aggregation:', error);
+            processedCount += analyticsSnapshot.size;
+            console.log(`Processed ${processedCount} documents so far`);
+            
+            // Update the last document for pagination
+            lastDoc = analyticsSnapshot.docs[analyticsSnapshot.docs.length - 1];
+            
+            // Update progress
+            await db.collection('precomputedAnalytics').doc('metadata').set({
+                documentsProcessed: processedCount,
+                inProgress: true,
+            }, {merge: true});
+        }
+        
+        console.log(`Processing ${allAnalytics.length} total draft analytics documents`);
+        
+        // Skip further processing if no documents found
+        if (allAnalytics.length === 0) {
+            console.log('No analytics data to process');
+            await db.collection('precomputedAnalytics').doc('metadata').set({
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                documentsProcessed: 0,
+                inProgress: false,
+            }, {merge: true});
             return null;
         }
-    });
-
+        
+        // Run all aggregations in parallel but with smaller batches
+        const aggregationPromises = [
+            aggregatePositionDistribution(allAnalytics),
+            aggregateTeamNeeds(allAnalytics),
+            aggregatePositionsByPick(allAnalytics),
+            aggregatePlayersByPick(allAnalytics),
+            aggregatePlayerDeviations(allAnalytics),
+            // Add any other aggregation functions
+            aggregateTeamPerformanceMetrics(allAnalytics),
+            aggregatePickCorrelations(allAnalytics),
+            aggregateHistoricalTrends(allAnalytics)
+        ];
+        
+        // Wait for all aggregations to complete
+        await Promise.all(aggregationPromises);
+        
+        // Update metadata with final stats
+        await db.collection('precomputedAnalytics').doc('metadata').set({
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            documentsProcessed: processedCount,
+            inProgress: false,
+        }, {merge: true});
+        
+        console.log('Daily analytics aggregation completed successfully');
+        return null;
+    } catch (error) {
+        console.error('Error in daily analytics aggregation:', error);
+        
+        // Update metadata to show the error
+        await db.collection('precomputedAnalytics').doc('metadata').set({
+            lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            error: error.toString(),
+            inProgress: false,
+        }, {merge: true});
+        
+        return null;
+    }
+});
     // Add this to analyticsAggregation.js
 
 // Cached version that will be updated when the aggregation runs
