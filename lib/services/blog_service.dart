@@ -1,58 +1,31 @@
 // lib/services/blog_service.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../models/blog_post.dart';
 
 class BlogService {
-  static const String _postsKey = 'blog_posts';
-  
-  // Temporary sample posts for initial testing
-  static final List<BlogPost> _samplePosts = [
-    BlogPost(
-      id: '1',
-      title: 'Understanding NFL Draft Value Charts',
-      content: 'The NFL Draft Value Chart was originally developed by Jimmy Johnson...',
-      author: 'Draft Expert',
-      publishedDate: DateTime.now().subtract(const Duration(days: 7)),
-    ),
-    BlogPost(
-      id: '2',
-      title: 'Top QB Prospects for 2025',
-      content: 'With the college football season underway, let\'s look at the top QB prospects...',
-      author: 'Talent Scout',
-      publishedDate: DateTime.now().subtract(const Duration(days: 3)),
-    ),
-  ];
+  static const String _blogsAssetPath = 'assets/data/blog_posts.json';
+  static List<BlogPost>? _cachedPosts;
   
   // Get all blog posts
   static Future<List<BlogPost>> getAllPosts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final postsJson = prefs.getString(_postsKey);
-      
-      if (postsJson != null) {
-        final List<dynamic> decoded = jsonDecode(postsJson);
-        return decoded.map((item) => BlogPost.fromJson(item)).toList();
-      }
-      
-      // If no saved posts, save and return sample posts
-      await _saveSamplePosts();
-      return _samplePosts;
-    } catch (e) {
-      debugPrint('Error getting blog posts: $e');
-      return _samplePosts; // Fallback to sample posts on error
+    if (_cachedPosts != null) {
+      return _cachedPosts!;
     }
-  }
-  
-  // Save sample posts for initial testing
-  static Future<void> _saveSamplePosts() async {
+    
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final postsJson = jsonEncode(_samplePosts.map((post) => post.toJson()).toList());
-      await prefs.setString(_postsKey, postsJson);
+      final jsonString = await rootBundle.loadString(_blogsAssetPath);
+      final List<dynamic> jsonList = json.decode(jsonString);
+      _cachedPosts = jsonList.map((json) => BlogPost.fromJson(json)).toList();
+      
+      // Sort by published date (newest first)
+      _cachedPosts!.sort((a, b) => b.publishedDate.compareTo(a.publishedDate));
+      
+      return _cachedPosts!;
     } catch (e) {
-      debugPrint('Error saving sample posts: $e');
+      debugPrint('Error loading blog posts: $e');
+      return [];
     }
   }
   
@@ -64,5 +37,11 @@ class BlogService {
     } catch (e) {
       return null;
     }
+  }
+  
+  // Get posts by tag
+  static Future<List<BlogPost>> getPostsByTag(String tag) async {
+    final posts = await getAllPosts();
+    return posts.where((post) => post.tags.contains(tag.toLowerCase())).toList();
   }
 }
