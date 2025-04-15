@@ -7,6 +7,8 @@ import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
 import 'services/precomputed_analytics_service.dart'; // Add this
 import 'utils/analytics_server.dart';
+import 'utils/blog_route_handler.dart';
+import 'utils/seo_manager.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
 import 'services/message_service.dart';
@@ -46,6 +48,11 @@ void main() async {
     };
   }
   
+  // Initialize SEO Manager for web
+  if (kIsWeb) {
+    SEOManager.registerJavaScriptHandlers();
+  }
+
   runApp(
     MultiProvider(
       providers: [
@@ -99,27 +106,43 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeManager>(
-      builder: (context, themeManager, _) {
-        return MaterialApp(
-          navigatorObservers: [AnalyticsRouteObserver()],
-          debugShowCheckedModeBanner: false,
-          title: 'NFL Draft App',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeManager.themeMode,
-          home: const TeamSelectionScreen(), // Keep this
-          routes: {
-            // Remove the '/' route if it exists
-            '/draft': (context) => DraftApp(
-              selectedTeams: ModalRoute.of(context)?.settings.arguments != null 
-              ? [ModalRoute.of(context)?.settings.arguments as String] 
-              : null,
-            ),
-            // Other routes...
-          },
-        );
+  builder: (context, themeManager, _) {
+    return MaterialApp(
+      navigatorObservers: [AnalyticsRouteObserver()],
+      debugShowCheckedModeBanner: false,
+      title: 'NFL Draft App',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeManager.themeMode,
+      home: const TeamSelectionScreen(), // Keep this
+      // Replace the routes parameter with onGenerateRoute
+      onGenerateRoute: (settings) {
+        // First try to handle blog routes
+        final blogRoute = BlogRouteHandler.handleRoute(settings);
+        if (blogRoute != null) {
+          return blogRoute;
+        }
+        
+        // Fall back to regular routes
+        switch (settings.name) {
+          case '/draft':
+            return MaterialPageRoute(
+              builder: (context) => DraftApp(
+                selectedTeams: settings.arguments != null 
+                ? [settings.arguments as String] 
+                : null,
+              ),
+            );
+          // Other routes...
+          default:
+            return MaterialPageRoute(
+              builder: (context) => const TeamSelectionScreen(),
+            );
+        }
       },
     );
+  },
+);
   }
 }
 

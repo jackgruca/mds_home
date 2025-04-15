@@ -29,7 +29,14 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>mds_home</title>
+  <title>NFL Draft Simulator</title>
+  <meta id="meta-description" name="description" content="NFL Draft Simulator - Simulate your own NFL draft picks">
+  <meta id="meta-keywords" name="keywords" content="NFL, draft, simulator, football, fantasy">
+  <meta id="meta-og-title" property="og:title" content="NFL Draft Simulator">
+  <meta id="meta-og-description" property="og:description" content="NFL Draft Simulator - Simulate your own NFL draft picks">
+  <meta id="meta-og-url" property="og:url" content="">
+  <meta id="meta-og-image" property="og:image" content="">
+
   <link rel="manifest" href="manifest.json">
 
   <!-- Firebase SDK -->
@@ -57,6 +64,70 @@
   } else {
     console.error("Firebase SDK not loaded properly");
   }
+
+  function updateMetadata(title, description, keywords, url, imageUrl) {
+      document.title = title || 'NFL Draft Simulator';
+      
+      const metaDescription = document.getElementById('meta-description');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', description || 'NFL Draft Simulator - Simulate your own NFL draft picks');
+      }
+      
+      const metaKeywords = document.getElementById('meta-keywords');
+      if (metaKeywords) {
+        metaKeywords.setAttribute('content', keywords || 'NFL, draft, simulator, football, fantasy');
+      }
+      
+      const metaOgTitle = document.getElementById('meta-og-title');
+      if (metaOgTitle) {
+        metaOgTitle.setAttribute('content', title || 'NFL Draft Simulator');
+      }
+      
+      const metaOgDescription = document.getElementById('meta-og-description');
+      if (metaOgDescription) {
+        metaOgDescription.setAttribute('content', description || 'NFL Draft Simulator - Simulate your own NFL draft picks');
+      }
+      
+      const metaOgUrl = document.getElementById('meta-og-url');
+      if (metaOgUrl) {
+        metaOgUrl.setAttribute('content', url || window.location.href);
+      }
+      
+      const metaOgImage = document.getElementById('meta-og-image');
+      if (metaOgImage && imageUrl) {
+        metaOgImage.setAttribute('content', imageUrl);
+      }
+    }
+    
+    // Function to parse URL and update metadata for blog posts
+    function updateBlogMetadata() {
+      const path = window.location.pathname;
+      if (path.startsWith('/blog/')) {
+        // Extract slug from URL
+        const slug = path.replace('/blog/', '').split('/')[0];
+        
+        // Call the Flutter app's metadata method once it's ready
+        window.addEventListener('flutterInAppWebViewPlatformReady', function(event) {
+          if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+            window.flutter_inappwebview.callHandler('getBlogMetadata', slug)
+              .then(function(result) {
+                if (result) {
+                  updateMetadata(
+                    result.title + ' | NFL Draft Simulator', 
+                    result.description,
+                    result.keywords,
+                    window.location.href,
+                    result.imageUrl
+                  );
+                }
+              });
+          }
+        });
+      }
+    }
+    
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', updateBlogMetadata);
 </script>
 
 </head>

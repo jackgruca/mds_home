@@ -1,5 +1,6 @@
 // lib/widgets/admin/message_admin_panel.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/admin/blog_admin_panel.dart';
 import '../../services/message_service.dart';
 import '../../utils/theme_config.dart';
 import '../../main.dart'; 
@@ -216,6 +217,17 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
       appBar: AppBar(
         title: const Text('Message Admin Panel'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.article),
+            tooltip: 'Blog Management',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const BlogAdminPanel(),
+                ),
+              );
+            },
+          ),
           IconButton(
       icon: const Icon(Icons.admin_panel_settings),
       tooltip: 'Main Admin Panel',

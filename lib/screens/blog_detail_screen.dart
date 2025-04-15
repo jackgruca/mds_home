@@ -30,6 +30,12 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
 
     try {
       final post = await BlogService.getPostById(widget.postId);
+      
+      if (post != null) {
+        // Increment view count
+        BlogService.incrementViewCount(widget.postId);
+      }
+      
       setState(() {
         _post = post;
         _isLoading = false;
@@ -143,7 +149,25 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                                 ),
                               ],
                             ),
+                            
+                            if (_post!.categories.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 4,
+                                children: _post!.categories.map((category) {
+                                  return Chip(
+                                    label: Text(category),
+                                    padding: EdgeInsets.zero,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                            
                             const SizedBox(height: 24),
+                            
+                            // Main content
                             Text(
                               _post!.content,
                               style: const TextStyle(
@@ -151,6 +175,31 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                                 height: 1.6,
                               ),
                             ),
+                            
+                            // Tags
+                            if (_post!.tags.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              const Divider(),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: _post!.tags.map((tag) {
+                                  return Chip(
+                                    label: Text(
+                                      '#$tag',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    backgroundColor: isDarkMode
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade200,
+                                    padding: EdgeInsets.zero,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                           ],
                         ),
                       ),
