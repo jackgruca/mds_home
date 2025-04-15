@@ -5,7 +5,7 @@ import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 
 class SitemapGenerator {
-  static const String baseUrl = 'https://yourdomain.com';
+  static const String baseUrl = 'https://sticktothemodel.com';
   
   static Future<String> generateSitemap() async {
     final blogPosts = await BlogService.getAllPosts();
