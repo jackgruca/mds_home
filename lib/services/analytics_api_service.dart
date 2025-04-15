@@ -68,6 +68,142 @@ class AnalyticsApiService {
     }
   }
 
+// In lib/services/analytics_api_service.dart
+static Future<bool> runRobustAggregationWithContinuation() async {
+  try {
+    await FirebaseService.initialize();
+    final db = FirebaseFirestore.instance;
+    debugPrint('Starting robust aggregation with continuation...');
+    
+    // Get current metadata
+    final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    final metadata = metadataDoc.data() ?? {};
+    final inProgress = metadata['inProgress'] == true;
+    final continuationToken = metadata['continuationToken'];
+    
+    // Update UI status
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'lastStarted': FieldValue.serverTimestamp(),
+      'inProgress': true,
+      'statusMessage': 'Starting aggregation process',
+    }, SetOptions(merge: true));
+    
+    // Use a while loop with a timeout to avoid UI freezing
+    bool complete = false;
+    int batchesProcessed = 0;
+    const maxBatches = 10; // Process up to 10 batches at a time in the UI
+    DateTime startTime = DateTime.now();
+    
+    while (!complete && batchesProcessed < maxBatches) {
+      // Call the HTTP function directly from Firestore (simplified for your setup)
+      final result = await processSingleBatch(continuationToken);
+      
+      // Check if complete or error
+      if (result['error'] != null) {
+        debugPrint('Error processing batch: ${result['error']}');
+        return false;
+      }
+      
+      complete = result['complete'] == true;
+      batchesProcessed++;
+      
+      // If there's a new continuation token, update it
+      if (result['continuationToken'] != null) {
+        debugPrint('Processed batch $batchesProcessed, continuing from ${result['continuationToken']}');
+      }
+      
+      // Check if we've been running too long (30 seconds max in UI)
+      if (DateTime.now().difference(startTime).inSeconds > 30) {
+        debugPrint('Time limit reached, pausing aggregation');
+        break;
+      }
+    }
+    
+    if (complete) {
+      debugPrint('Aggregation process completed successfully!');
+      return true;
+    } else {
+      debugPrint('Aggregation in progress: $batchesProcessed batches processed');
+      return true; // Return success for UI feedback, but process isn't complete
+    }
+  } catch (e) {
+    debugPrint('Error in runRobustAggregationWithContinuation: $e');
+    return false;
+  }
+}
+
+// Process a single batch of documents
+static Future<Map<String, dynamic>> processSingleBatch(String? continuationToken) async {
+  try {
+    final db = FirebaseFirestore.instance;
+    const batchSize = 20;
+    
+    // Query for the next batch
+    Query query = db.collection('draftAnalytics').limit(batchSize);
+    if (continuationToken != null) {
+      final lastDocRef = await db.collection('draftAnalytics').doc(continuationToken).get();
+      if (lastDocRef.exists) {
+        query = query.startAfterDocument(lastDocRef);
+      }
+    }
+    
+    // Get documents
+    final querySnapshot = await query.get();
+    final batchDocs = querySnapshot.docs;
+    
+    // Check if we're done
+    if (batchDocs.isEmpty) {
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        'inProgress': false,
+        'continuationToken': null,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'completionMessage': 'Aggregation completed successfully'
+      }, SetOptions(merge: true));
+      
+      return {'complete': true};
+    }
+    
+    // Process documents - simpler approach
+    int totalPicks = 0;
+    for (final doc in batchDocs) {
+      final data = doc.data();
+      // Fix null issue using a safe null-aware approach by casting data to Map<String, dynamic>
+      final picksData = (data as Map<String, dynamic>)['picks'];
+      if (picksData != null && picksData is List) {
+        totalPicks += picksData.length;
+      }
+    }
+    
+    // Get the last document for continuation
+    final lastDoc = batchDocs.last;
+    
+    // Update metadata with progress
+    final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    final metadata = metadataDoc.data() ?? {};
+    final previousProcessed = metadata['documentsProcessed'] ?? 0;
+    final previousPicks = metadata['picksProcessed'] ?? 0;
+    
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      'inProgress': true,
+      'continuationToken': lastDoc.id,
+      'lastUpdated': FieldValue.serverTimestamp(),
+      'documentsProcessed': previousProcessed + batchDocs.length,
+      'picksProcessed': previousPicks + totalPicks,
+      'lastBatchSize': batchDocs.length
+    }, SetOptions(merge: true));
+    
+    return {
+      'complete': false,
+      'continuationToken': lastDoc.id,
+      'documentsProcessed': previousProcessed + batchDocs.length,
+      'picksProcessed': previousPicks + totalPicks
+    };
+  } catch (e) {
+    debugPrint('Error processing batch: $e');
+    return {'error': e.toString()};
+  }
+}
+
   static Future<bool> forceRefreshAnalytics() async {
   try {
     // Ensure Firebase is initialized
@@ -480,7 +616,7 @@ static Future<bool> fixAnalyticsDataStructure() async {
     return false;
   }
 }
-  
+
   /// Get metadata about the analytics cache
   static Future<Map<String, dynamic>> getAnalyticsMetadata() async {
     try {
@@ -501,4 +637,24 @@ static Future<bool> fixAnalyticsDataStructure() async {
       return {'error': 'Failed to fetch analytics metadata: $e'};
     }
   }
+  // Add to lib/services/analytics_api_service.dart
+
+static Future<Map<String, dynamic>> processAnalyticsBatch() async {
+  try {
+    await FirebaseService.initialize();
+    final db = FirebaseFirestore.instance;
+    
+    // Get the current continuation token
+    final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    final metadata = metadataDoc.exists ? metadataDoc.data() : {};
+    final continuationToken = metadata?['continuationToken'];
+    
+    // Process a single batch
+    return await processSingleBatch(continuationToken);
+  } catch (e) {
+    debugPrint('Error processing analytics batch: $e');
+    return {'error': e.toString()};
+  }
+}
+
 }

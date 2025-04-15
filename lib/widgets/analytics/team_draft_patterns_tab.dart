@@ -2,10 +2,12 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../services/analytics_data_adapter.dart';
 import '../../services/analytics_query_service.dart';
 import '../../services/analytics_cache_manager.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import 'analytics_freshness_indicator.dart';
 
 class TeamDraftPatternsTab extends StatefulWidget {
   final String initialTeam;
@@ -59,6 +61,11 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
         year: widget.draftYear,
       );
       
+      // Use the adapter here to normalize the data format
+      setState(() {
+        _topPicksByPosition = AnalyticsDataAdapter.adaptPositionData(positionsData);
+      });
+
       debugPrint('Positions data received: ${positionsData.length} items');
       
       // Inspect the first item if available
@@ -95,6 +102,17 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
       setState(() {
         _topPlayersByPick = [];
       });
+    }
+
+    try {
+      final db = FirebaseFirestore.instance;
+      final doc = await db.collection('precomputedAnalytics').doc('positionsByPickRound1').get();
+      debugPrint('Document exists: ${doc.exists}');
+      if (doc.exists) {
+        debugPrint('Document data: ${doc.data()}');
+      }
+    } catch (e) {
+      debugPrint('Error accessing Firestore directly: $e');
     }
     
     // Try to get consensus needs with better error handling
@@ -243,6 +261,16 @@ Widget _buildDebugInfo() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: AnalyticsFreshnessIndicator(
+          onRefresh: () {
+            AnalyticsCacheManager.clearCache();
+            setState(() {});
+            _loadData();
+          },
+        ),
+      ),
         // Team and round selectors
         Padding(
           padding: const EdgeInsets.all(16.0),
@@ -337,12 +365,12 @@ Widget _buildDebugInfo() {
 
         // Main content
         _isLoading
-    ? const Center(child: CircularProgressIndicator())
-    : Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          ? const Expanded(child: Center(child: CircularProgressIndicator()))
+          : Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Add the debug info here, at the top of this list
               _buildDebugInfo(),

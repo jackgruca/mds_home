@@ -2,6 +2,250 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
+// In your Firebase functions file (firebase/functions/analyticsAggregation.js)
+async function runRobustAggregationWithContinuation(continuationToken = null) {
+    const db = admin.firestore();
+    let lastProcessedDoc = null;
+    let processedCount = 0;
+    let totalPicks = 0;
+    const BATCH_SIZE = 20; // Smaller batches to avoid timeouts
+    
+    try {
+      // Get metadata to check current progress
+      const metadataRef = db.collection('precomputedAnalytics').doc('metadata');
+      const metadataDoc = await metadataRef.get();
+      const metadata = metadataDoc.exists ? metadataDoc.data() : {};
+      
+      // Initialize or retrieve continuation data
+      let lastDoc = continuationToken;
+      processedCount = metadata.documentsProcessed || 0;
+      totalPicks = metadata.picksProcessed || 0;
+      const positionCounts = metadata.positionCountsTemp || {};
+      const pickPositions = metadata.pickPositionsTemp || {};
+      
+      console.log(`Continuing aggregation from document ${lastDoc || 'start'}`);
+      console.log(`Previously processed: ${processedCount} docs, ${totalPicks} picks`);
+      
+      // Build query with pagination
+      let query = db.collection('draftAnalytics').limit(BATCH_SIZE);
+      if (lastDoc) {
+        // Convert the string ID to a document reference
+        const lastDocRef = db.collection('draftAnalytics').doc(lastDoc);
+        const lastDocSnapshot = await lastDocRef.get();
+        if (lastDocSnapshot.exists) {
+          query = query.startAfter(lastDocSnapshot);
+        }
+      }
+      
+      // Get batch of documents
+      const querySnapshot = await query.get();
+      const batchDocs = querySnapshot.docs;
+      
+      // Check if we've reached the end
+      if (batchDocs.length === 0) {
+        console.log('No more documents to process');
+        
+        // Finalize by saving results and cleaning up temp data
+        await saveFinalResults(db, positionCounts, pickPositions, totalPicks, processedCount);
+        return { 
+          complete: true, 
+          documentsProcessed: processedCount,
+          picksProcessed: totalPicks
+        };
+      }
+      
+      // Process this batch
+      let batchPickCount = 0;
+      for (const doc of batchDocs) {
+        const data = doc.data();
+        const picks = data.picks || [];
+        
+        for (const pick of picks) {
+          // Skip invalid picks
+          if (!pick.position || !pick.pickNumber) continue;
+          
+          const position = pick.position;
+          const pickNumber = parseInt(pick.pickNumber, 10);
+          if (isNaN(pickNumber) || pickNumber <= 0) continue;
+          
+          // Update position counts
+          positionCounts[position] = (positionCounts[position] || 0) + 1;
+          
+          // Update pick positions
+          if (!pickPositions[pickNumber]) {
+            pickPositions[pickNumber] = {};
+          }
+          pickPositions[pickNumber][position] = (pickPositions[pickNumber][position] || 0) + 1;
+          
+          batchPickCount++;
+        }
+      }
+      
+      // Update progress counters
+      processedCount += batchDocs.length;
+      totalPicks += batchPickCount;
+      lastProcessedDoc = batchDocs[batchDocs.length - 1].id;
+      
+      // Save progress and temporary data
+      await metadataRef.set({
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        documentsProcessed: processedCount,
+        picksProcessed: totalPicks,
+        inProgress: true,
+        continuationToken: lastProcessedDoc,
+        positionCountsTemp: positionCounts,
+        pickPositionsTemp: pickPositions,
+        lastBatchSize: batchDocs.length,
+        lastBatchPicks: batchPickCount
+      }, { merge: true });
+      
+      console.log(`Processed batch with ${batchDocs.length} documents (${batchPickCount} picks)`);
+      console.log(`Total processed: ${processedCount} documents, ${totalPicks} picks`);
+      
+      // Return continuation token for next run
+      return { 
+        complete: false, 
+        continuationToken: lastProcessedDoc,
+        documentsProcessed: processedCount,
+        picksProcessed: totalPicks
+      };
+    } catch (error) {
+      console.error('Error in aggregation batch:', error);
+      
+      // Save error state but preserve continuation token
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        inProgress: true, // Still in progress despite error
+        error: error.toString(),
+        continuationToken: lastProcessedDoc || continuationToken
+      }, { merge: true });
+      
+      return { 
+        error: error.toString(),
+        continuationToken: lastProcessedDoc || continuationToken,
+        documentsProcessed: processedCount,
+        picksProcessed: totalPicks
+      };
+    }
+  }
+  
+  // Helper function to save final results once all documents are processed
+  async function saveFinalResults(db, positionCounts, pickPositions, totalPicks, processedCount) {
+    // Format position distribution
+    const positionDistribution = {
+      overall: {
+        total: totalPicks,
+        positions: {}
+      }
+    };
+    
+    // Calculate percentages for position counts
+    for (const [position, count] of Object.entries(positionCounts)) {
+      positionDistribution.overall.positions[position] = {
+        count: count,
+        percentage: `${((count / totalPicks) * 100).toFixed(1)}%`
+      };
+    }
+    
+    // Save position distribution
+    await db.collection('precomputedAnalytics').doc('positionDistribution').set({
+      overall: positionDistribution.overall,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Format positions by pick - process in chunks to avoid document size limits
+    const positionsByPick = [];
+    const MAX_PICKS_PER_DOC = 100;
+    const allPickNumbers = Object.keys(pickPositions).map(Number).sort((a, b) => a - b);
+    
+    // Process in rounds
+    for (let round = 1; round <= 7; round++) {
+      const roundStart = (round - 1) * 32 + 1;
+      const roundEnd = round * 32;
+      const roundPicks = [];
+      
+      for (const pickNumber of allPickNumbers) {
+        if (pickNumber >= roundStart && pickNumber <= roundEnd) {
+          const positions = pickPositions[pickNumber];
+          if (!positions) continue;
+          
+          const totalForPick = Object.values(positions).reduce((sum, count) => sum + count, 0);
+          const sortedPositions = Object.entries(positions)
+            .map(([position, count]) => ({
+              position,
+              count,
+              percentage: `${((count / totalForPick) * 100).toFixed(1)}%`
+            }))
+            .sort((a, b) => b.count - a.count);
+          
+          roundPicks.push({
+            pick: pickNumber,
+            positions: sortedPositions,
+            totalDrafts: totalForPick,
+            round: round.toString()
+          });
+        }
+      }
+      
+      // Save round-specific data if not empty
+      if (roundPicks.length > 0) {
+        // Split into chunks if needed
+        for (let i = 0; i < roundPicks.length; i += MAX_PICKS_PER_DOC) {
+          const chunk = roundPicks.slice(i, i + MAX_PICKS_PER_DOC);
+          
+          // For first chunk, save to main document
+          if (i === 0) {
+            await db.collection('precomputedAnalytics').doc(`positionsByPickRound${round}`).set({
+              data: chunk,
+              lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+          } 
+          // For additional chunks, use separate documents
+          else {
+            await db.collection('precomputedAnalytics').doc(`positionsByPickRound${round}_chunk${Math.floor(i/MAX_PICKS_PER_DOC) + 1}`).set({
+              data: chunk,
+              lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        }
+      }
+    }
+    
+    // Clean up temporary data
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      documentsProcessed: processedCount,
+      picksProcessed: totalPicks,
+      inProgress: false,
+      continuationToken: null,
+      positionCountsTemp: admin.firestore.FieldValue.delete(),
+      pickPositionsTemp: admin.firestore.FieldValue.delete()
+    }, { merge: true });
+    
+    console.log('Finalized aggregation and saved all results');
+  }
+  
+  // HTTP callable function to start or continue aggregation
+  exports.continueAnalyticsAggregation = functions.https.onCall(async (data, context) => {
+    try {
+      // Get the current continuation token from Firestore
+      const db = admin.firestore();
+      const metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+      const metadata = metadataDoc.exists ? metadataDoc.data() : {};
+      
+      // Use provided token or get from metadata
+      const continuationToken = data?.continuationToken || metadata.continuationToken;
+      
+      // Run the aggregation batch
+      const result = await runRobustAggregationWithContinuation(continuationToken);
+      
+      return result;
+    } catch (error) {
+      console.error('Error in continueAnalyticsAggregation:', error);
+      return { error: error.toString() };
+    }
+  });
+
 exports.dailyAnalyticsAggregation = functions.runWith({
     timeoutSeconds: 300,  // Increase timeout to 5 minutes
     memory: '1GB'         // Increase memory allocation
