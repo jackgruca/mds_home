@@ -1,5 +1,6 @@
 // lib/screens/blog_list_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/utils/seo_helper.dart';
 import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
@@ -17,10 +18,11 @@ class _BlogListScreenState extends State<BlogListScreen> {
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadPosts();
-  }
+void initState() {
+  super.initState();
+  SEOHelper.updateForBlogList();
+  _loadPosts();
+}
 
   Future<void> _loadPosts() async {
     setState(() {
@@ -93,11 +95,9 @@ class _BlogListScreenState extends State<BlogListScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       child: InkWell(
                         onTap: () {
-                          Navigator.push(
+                          Navigator.pushNamed(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => BlogDetailScreen(postId: post.id),
-                            ),
+                            '/blog/${post.id}',  // This will match the BlogRouter pattern
                           );
                         },
                         child: Column(

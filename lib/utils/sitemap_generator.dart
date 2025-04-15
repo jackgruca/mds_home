@@ -49,4 +49,10 @@ class SitemapGenerator {
     final file = File(outputPath);
     await file.writeAsString(sitemap);
   }
+  
+  Future<void> main() async {
+  final sitemap = await SitemapGenerator.generateSitemap();
+  final file = File('web/sitemap.xml');
+  await file.writeAsString(sitemap);
+}
 }

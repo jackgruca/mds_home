@@ -18,66 +18,117 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  
+  <!-- Dynamic meta tags that will be updated -->
+  <title>NFL Draft Simulator</title>
+  <meta id="description" name="description" content="NFL Draft Simulator - Build your team, make trades, and simulate the NFL draft.">
+  <meta name="keywords" content="NFL, Draft, Fantasy Football, Mock Draft, NFL Draft Simulator">
+  
+  <!-- Open Graph Tags for social sharing -->
+  <meta id="og-title" property="og:title" content="NFL Draft Simulator">
+  <meta id="og-description" property="og:description" content="Build your team, make trades, and simulate the NFL draft.">
+  <meta property="og:image" content="https://sticktothemodel.com/images/preview.jpg">
+  <meta id="og-url" property="og:url" content="https://sticktothemodel.com">
+  <meta property="og:type" content="website">
+  
+  <!-- Twitter Card Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta id="twitter-title" name="twitter:title" content="NFL Draft Simulator">
+  <meta id="twitter-description" name="twitter:description" content="Build your team, make trades, and simulate the NFL draft.">
+  <meta name="twitter:image" content="https://sticktothemodel.com/images/preview.jpg">
+  
+  <!-- Canonical URL -->
+  <link id="canonical-link" rel="canonical" href="https://sticktothemodel.com">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="mds_home">
+  <meta name="apple-mobile-web-app-title" content="NFL Draft Simulator">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>mds_home</title>
   <link rel="manifest" href="manifest.json">
 
   <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
 
-<script>
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
-    authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
-    projectId: "nfl-draft-simulator-9265f",
-    storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
-    messagingSenderId: "900728713837",
-    appId: "1:900728713837:web:3e0c47b05b144c758f8564",
-    measurementId: "G-8QGNSTTZGH"
-  };
-  
-  // Initialize Firebase
-  if (typeof firebase !== 'undefined') {
-    console.log("Initializing Firebase from index.html");
-    firebase.initializeApp(firebaseConfig);
-    firebase.analytics();
-  } else {
-    console.error("Firebase SDK not loaded properly");
+  <!-- Script to handle URL rewriting -->
+  <script>
+    // Single Page App URL handling for Flutter web
+    (function(l) {
+      if (l.search[1] === '/' ) {
+        var decoded = l.search.slice(1).split('&').map(function(s) { 
+          return s.replace(/~and~/g, '&')
+        }).join('?');
+        window.history.replaceState(null, null,
+            l.pathname.slice(0, -1) + decoded + l.hash
+        );
+      }
+    }(window.location))
+  </script>
+
+  <!-- Script to update meta tags for SEO -->
+  <script>
+    // Function to update meta tags for SEO
+    function updateMetaTags(title, description, url) {
+      document.title = title;
+      document.getElementById('description').content = description;
+      document.getElementById('og-title').content = title;
+      document.getElementById('og-description').content = description;
+      document.getElementById('og-url').content = url;
+      document.getElementById('twitter-title').content = title;
+      document.getElementById('twitter-description').content = description;
+      document.getElementById('canonical-link').href = url;
+    }
+    
+    // This will be called from Flutter
+    window.updateMetaTags = updateMetaTags;
+  </script>
+
+  <!-- Structured Data for SEO -->
+  <script id="structured-data" type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "NFL Draft Simulator",
+    "url": "https://sticktothemodel.com"
   }
-</script>
+  </script>
 
-  <!-- SEO Meta Tags -->
-  <meta name="description" content="NFL Draft Simulator - Build your team, make trades, and simulate the NFL draft.">
-  <meta name="keywords" content="NFL, Draft, Fantasy Football, Mock Draft, NFL Draft Simulator">
-  
-  <!-- Open Graph Tags for social sharing -->
-  <meta property="og:title" content="NFL Draft Simulator">
-  <meta property="og:description" content="Build your team, make trades, and simulate the NFL draft.">
-  <meta property="og:image" content="https://sticktothemodel.com/images/preview.jpg">
-  <meta property="og:url" content="https://sticktothemodel.com">
-  <meta property="og:type" content="website">
-  
-  <!-- Twitter Card Tags -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="NFL Draft Simulator">
-  <meta name="twitter:description" content="Build your team, make trades, and simulate the NFL draft.">
-  <meta name="twitter:image" content="https://sticktothemodel.com/images/preview.jpg">
-  
-  <!-- Canonical URL -->
-  <link rel="canonical" href="https://sticktothemodel.com">
+  <script>
+    // Function to update structured data
+    function updateStructuredData(jsonData) {
+      document.getElementById('structured-data').innerHTML = JSON.stringify(jsonData);
+    }
+    
+    window.updateStructuredData = updateStructuredData;
+  </script>
+
+  <script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
+      authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+      projectId: "nfl-draft-simulator-9265f",
+      storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
+      messagingSenderId: "900728713837",
+      appId: "1:900728713837:web:3e0c47b05b144c758f8564",
+      measurementId: "G-8QGNSTTZGH"
+    };
+    
+    // Initialize Firebase
+    if (typeof firebase !== 'undefined') {
+      console.log("Initializing Firebase from index.html");
+      firebase.initializeApp(firebaseConfig);
+      firebase.analytics();
+    } else {
+      console.error("Firebase SDK not loaded properly");
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

@@ -1,5 +1,7 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
+import 'package:mds_home/screens/blog_list_screen.dart';
+import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
@@ -108,16 +110,26 @@ class _MyAppState extends State<MyApp> {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeManager.themeMode,
           home: const TeamSelectionScreen(), // Keep this
-          routes: {
-            // Remove the '/' route if it exists
-            '/draft': (context) => DraftApp(
-              selectedTeams: ModalRoute.of(context)?.settings.arguments != null 
-              ? [ModalRoute.of(context)?.settings.arguments as String] 
-              : null,
-            ),
-            // Other routes...
-          },
-        );
+          onGenerateRoute: (settings) {
+          // First check if this is a blog route
+          final blogRoute = BlogRouter.handleBlogRoute(settings);
+          if (blogRoute != null) {
+            return blogRoute;
+          }
+          
+          // Otherwise handle regular routes
+          switch (settings.name) {
+            case '/':
+              return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+            case '/blog':
+              return MaterialPageRoute(builder: (_) => const BlogListScreen());
+            // Other routes
+            default:
+              return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+          }
+        },
+        initialRoute: '/',
+      );
       },
     );
   }

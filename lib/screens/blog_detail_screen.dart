@@ -1,5 +1,6 @@
 // lib/screens/blog_detail_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/utils/seo_helper.dart';
 import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
@@ -18,10 +19,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadPost();
-  }
+void initState() {
+  super.initState();
+  _loadPost();
+}
 
   Future<void> _loadPost() async {
     setState(() {
@@ -44,6 +45,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         );
       }
     }
+    if (_post != null) {
+    SEOHelper.updateForBlogPost(_post!);
+  }
   }
 
   @override
