@@ -5,7 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../models/blog_post.dart';
 
 class BlogService {
-  static const String _blogsAssetPath = 'assets/data/blog_posts.json';
+  static const String _blogsAssetPath = 'assets/blog_posts.json';
   static List<BlogPost>? _cachedPosts;
   
   // Get all blog posts
