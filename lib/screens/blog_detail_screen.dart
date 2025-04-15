@@ -1,4 +1,4 @@
-// lib/screens/blog_detail_screen.dart
+// lib/screens/blog_detail_screen.dart 
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/seo_helper.dart';
 import '../models/blog_post.dart';
