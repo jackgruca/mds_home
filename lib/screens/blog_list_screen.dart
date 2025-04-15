@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
+import '../widgets/blog/tag_cloud_widget.dart';
 import 'blog_detail_screen.dart';
+import 'tag_results_screen.dart';
 
 class BlogListScreen extends StatefulWidget {
   const BlogListScreen({super.key});
@@ -21,6 +23,8 @@ class _BlogListScreenState extends State<BlogListScreen> {
   bool _loadingMore = false;
   bool _hasMorePosts = true;
   DocumentSnapshot? _lastDocument;
+  bool _showTagCloud = false;
+
   
   final ScrollController _scrollController = ScrollController();
 
@@ -182,12 +186,21 @@ class _BlogListScreenState extends State<BlogListScreen> {
       appBar: AppBar(
         title: const Text('NFL Draft Blog'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () => _loadPosts(refresh: true),
-          ),
-        ],
+  IconButton(
+    icon: const Icon(Icons.tag),
+    tooltip: 'Tags',
+    onPressed: () {
+      setState(() {
+        _showTagCloud = !_showTagCloud;
+      });
+    },
+  ),
+  IconButton(
+    icon: const Icon(Icons.refresh),
+    tooltip: 'Refresh',
+    onPressed: () => _loadPosts(refresh: true),
+  ),
+],
       ),
       body: Column(
         children: [
@@ -413,6 +426,20 @@ class _BlogListScreenState extends State<BlogListScreen> {
                         },
                       ),
           ),
+          if (_showTagCloud)
+  Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: TagCloudWidget(
+      onTagSelected: (tag) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TagResultsScreen(tag: tag),
+          ),
+        );
+      },
+    ),
+  ),
         ],
       ),
     );

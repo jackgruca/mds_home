@@ -14,7 +14,8 @@ class BlogPost {
   final List<String> tags;
   final String slug;
   final int viewCount;
-  
+  final bool isRichContent;
+
   BlogPost({
     required this.id,
     required this.title,
@@ -28,6 +29,7 @@ class BlogPost {
     this.tags = const [],
     required this.slug,
     this.viewCount = 0,
+    this.isRichContent = false,
   });
   
   // Create from Firestore document
@@ -46,6 +48,7 @@ class BlogPost {
       tags: List<String>.from(data['tags'] ?? []),
       slug: data['slug'] ?? '',
       viewCount: data['viewCount'] ?? 0,
+      isRichContent: data['isRichContent'] ?? false,
     );
   }
   
@@ -63,6 +66,7 @@ class BlogPost {
       'tags': tags,
       'slug': slug,
       'viewCount': viewCount,
+      'isRichContent': isRichContent,
     };
   }
   
@@ -89,6 +93,8 @@ class BlogPost {
     List<String>? tags,
     String? slug,
     int? viewCount,
+    bool? isRichContent,
+
   }) {
     return BlogPost(
       id: id ?? this.id,
@@ -103,6 +109,7 @@ class BlogPost {
       tags: tags ?? this.tags,
       slug: slug ?? this.slug,
       viewCount: viewCount ?? this.viewCount,
+      isRichContent: isRichContent ?? this.isRichContent,
     );
   }
 }

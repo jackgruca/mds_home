@@ -156,4 +156,137 @@ class BlogService {
       return false;
     }
   }
+
+  // Get related posts based on categories and tags
+static Future<List<BlogPost>> getRelatedPosts({
+  required String postId,
+  required List<String> categories,
+  required List<String> tags,
+  int limit = 3,
+}) async {
+  try {
+    // If no categories or tags, return recent posts
+    if (categories.isEmpty && tags.isEmpty) {
+      return getPaginatedPosts(limit: limit);
+    }
+    
+    // Start with categories as they're more relevant
+    if (categories.isNotEmpty) {
+      final query = await _db.collection(_collectionPath)
+          .where('isPublished', isEqualTo: true)
+          .where('categories', arrayContainsAny: categories)
+          .where(FieldPath.documentId, isNotEqualTo: postId)
+          .orderBy(FieldPath.documentId)
+          .orderBy('publishedDate', descending: true)
+          .limit(limit)
+          .get();
+      
+      final posts = query.docs.map((doc) => BlogPost.fromFirestore(doc)).toList();
+      
+      // If we got enough posts, return them
+      if (posts.length >= limit) {
+        return posts;
+      }
+      
+      // Otherwise, try to fetch more using tags
+      if (tags.isNotEmpty) {
+        // Calculate how many more we need
+        final remaining = limit - posts.length;
+        
+        // Get posts with matching tags, excluding those we already have
+        final excludeIds = posts.map((p) => p.id).toList()..add(postId);
+        
+        final tagsQuery = await _db.collection(_collectionPath)
+            .where('isPublished', isEqualTo: true)
+            .where('tags', arrayContainsAny: tags)
+            .where(FieldPath.documentId, whereNotIn: excludeIds)
+            .orderBy(FieldPath.documentId)
+            .orderBy('publishedDate', descending: true)
+            .limit(remaining)
+            .get();
+        
+        posts.addAll(tagsQuery.docs.map((doc) => BlogPost.fromFirestore(doc)));
+        return posts;
+      }
+      
+      return posts;
+    }
+    
+    // No categories but have tags
+    if (tags.isNotEmpty) {
+      final query = await _db.collection(_collectionPath)
+          .where('isPublished', isEqualTo: true)
+          .where('tags', arrayContainsAny: tags)
+          .where(FieldPath.documentId, isNotEqualTo: postId)
+          .orderBy(FieldPath.documentId)
+          .orderBy('publishedDate', descending: true)
+          .limit(limit)
+          .get();
+      
+      return query.docs.map((doc) => BlogPost.fromFirestore(doc)).toList();
+    }
+    
+    // Fallback to recent posts
+    return getPaginatedPosts(limit: limit);
+  } catch (e) {
+    debugPrint('Error getting related posts: $e');
+    return [];
+  }
+}
+
+// Get popular posts based on view count
+static Future<List<BlogPost>> getPopularPosts({int limit = 3}) async {
+  try {
+    final query = await _db.collection(_collectionPath)
+        .where('isPublished', isEqualTo: true)
+        .orderBy('viewCount', descending: true)
+        .limit(limit)
+        .get();
+    
+    return query.docs.map((doc) => BlogPost.fromFirestore(doc)).toList();
+  } catch (e) {
+    debugPrint('Error getting popular posts: $e');
+    return [];
+  }
+}
+static Future<List<String>> getAllTags() async {
+  try {
+    final snapshot = await _db.collection(_collectionPath)
+        .where('isPublished', isEqualTo: true)
+        .get();
+    
+    // Extract all tags from all posts
+    final Set<String> tags = {};
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['tags'] != null) {
+        tags.addAll(List<String>.from(data['tags']));
+      }
+    }
+    
+    // Sort by alphabetical order
+    final result = tags.toList()..sort();
+    return result;
+  } catch (e) {
+    debugPrint('Error getting all tags: $e');
+    return [];
+  }
+}
+
+// Search posts by tag
+static Future<List<BlogPost>> searchPostsByTag(String tag, {int limit = 10}) async {
+  try {
+    final query = await _db.collection(_collectionPath)
+        .where('isPublished', isEqualTo: true)
+        .where('tags', arrayContains: tag)
+        .orderBy('publishedDate', descending: true)
+        .limit(limit)
+        .get();
+    
+    return query.docs.map((doc) => BlogPost.fromFirestore(doc)).toList();
+  } catch (e) {
+    debugPrint('Error searching posts by tag: $e');
+    return [];
+  }
+}
 }

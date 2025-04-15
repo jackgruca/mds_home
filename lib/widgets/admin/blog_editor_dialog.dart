@@ -1,5 +1,6 @@
 // lib/widgets/admin/blog_editor_dialog.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/blog/rich_text_editor.dart';
 import '../../models/blog_post.dart';
 import '../../services/blog_service.dart';
 import '../../utils/theme_config.dart';
@@ -28,6 +29,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
   bool _isPublished = false;
 
   bool _isLoading = true;
+  String _richContent = '';
+  bool _isRichContent = false;
 
   @override
   void initState() {
@@ -38,6 +41,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
     _contentController = TextEditingController(text: widget.post?.content ?? '');
     _authorController = TextEditingController(text: widget.post?.author ?? '');
     _thumbnailController = TextEditingController(text: widget.post?.thumbnailUrl ?? '');
+    _isRichContent = widget.post?.isRichContent ?? false;
+    _richContent = widget.post?.content ?? '';
     
     // Initialize selections
     _selectedCategories = widget.post?.categories ?? [];
@@ -87,7 +92,6 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
       final post = BlogPost(
         id: widget.post?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: title,
-        content: _contentController.text.trim(),
         author: _authorController.text.trim(),
         publishedDate: widget.post?.publishedDate ?? DateTime.now(),
         updatedDate: DateTime.now(),
@@ -97,6 +101,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
         tags: _tags,
         slug: slug,
         viewCount: widget.post?.viewCount ?? 0,
+        content: _isRichContent ? _richContent : _contentController.text.trim(),
+        isRichContent: _isRichContent,
       );
       
       widget.onSave(post);
@@ -112,7 +118,6 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
       final post = BlogPost(
         id: widget.post?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: title,
-        content: _contentController.text.trim(),
         author: _authorController.text.trim(),
         publishedDate: widget.post?.publishedDate ?? DateTime.now(),
         updatedDate: DateTime.now(),
@@ -122,6 +127,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
         tags: _tags,
         slug: slug,
         viewCount: widget.post?.viewCount ?? 0,
+        content: _isRichContent ? _richContent : _contentController.text.trim(),
+        isRichContent: _isRichContent,
       );
       
       widget.onSave(post);
@@ -361,22 +368,61 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
                             ),
                             const SizedBox(height: 16),
                             
-                            TextFormField(
-                              controller: _contentController,
-                              decoration: const InputDecoration(
-                                labelText: 'Content',
-                                border: OutlineInputBorder(),
-                                hintText: 'Enter post content',
-                                alignLabelWithHint: true,
-                              ),
-                              maxLines: 10,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter content';
-                                }
-                                return null;
-                              },
-                            ),
+                            Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
+      children: [
+        const Text(
+          'Content',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const Spacer(),
+        // Toggle between rich and plain text
+        Row(
+          children: [
+            const Text('Rich Text:'),
+            const SizedBox(width: 8),
+            Switch(
+              value: _isRichContent,
+              onChanged: (value) {
+                setState(() {
+                  _isRichContent = value;
+                });
+              },
+            ),
+          ],
+        ),
+      ],
+    ),
+    const SizedBox(height: 8),
+    _isRichContent
+      ? RichTextEditor(
+          initialContent: _richContent,
+          height: 350,
+          onContentChanged: (content) {
+            _richContent = content;
+          },
+        )
+      : TextFormField(
+          controller: _contentController,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'Enter post content',
+            alignLabelWithHint: true,
+          ),
+          maxLines: 10,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter content';
+            }
+            return null;
+          },
+        ),
+  ],
+),
                             const SizedBox(height: 24),
                             
                             _buildCategoriesSection(),
