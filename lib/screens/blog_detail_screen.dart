@@ -9,6 +9,8 @@ import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
 import '../widgets/blog/related_posts_widget.dart';
 import 'tag_results_screen.dart';
+import '../widgets/blog/simple_rich_text_renderer.dart';
+import '../widgets/blog/markdown_renderer.dart';
 
 class BlogDetailScreen extends StatefulWidget {
   final String postId;
@@ -188,10 +190,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                             
                             // Main content
                             _post!.isRichContent
-                              ? RichTextRenderer(
-                                  content: _post!.content,
-                                  isRichContent: true,
-                                )
+  ? MarkdownRenderer(
+      content: _post!.content,
+      isRichContent: true,
+    )
                               : Text(
                                   _post!.content,
                                   style: const TextStyle(

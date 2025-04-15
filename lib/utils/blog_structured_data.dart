@@ -12,7 +12,7 @@ class BlogStructuredData {
       try {
         // Try to extract plain text from Quill Delta
         final delta = jsonDecode(post.content);
-        description = SEOManager.extractPlainTextFromDelta(delta);
+        description = SEOManager.extractPlainTextFromHtml(delta);
       } catch (e) {
         // Fallback to a generic description
         description = 'Read this article about ${post.title} by ${post.author}.';

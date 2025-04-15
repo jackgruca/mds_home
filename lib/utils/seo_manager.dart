@@ -38,15 +38,13 @@ class SEOManager {
     // Generate description from content
     String description;
     if (post.isRichContent) {
-      try {
-        final delta = jsonDecode(post.content);
-        description = extractPlainTextFromDelta(delta); // Use the local method
-        if (description.length > 160) {
-          description = '${description.substring(0, 157)}...';
-        }
-      } catch (e) {
-        description = post.title;
-      }
+      description = extractPlainTextFromHtml(post.content);
+    } else {
+      description = post.content;
+    }
+    
+    if (description.length > 160) {
+      description = '${description.substring(0, 157)}...';
     } else {
       description = post.content.length > 160
           ? '${post.content.substring(0, 157)}...'
@@ -144,15 +142,11 @@ class SEOManager {
     debugPrint('Error injecting structured data: $e');
   }
 }
-static String extractPlainTextFromDelta(List<dynamic> delta) {
-  final buffer = StringBuffer();
-  
-  for (final op in delta) {
-    if (op['insert'] is String) {
-      buffer.write(op['insert']);
-    }
-  }
-  
-  return buffer.toString().trim();
+static String extractPlainTextFromHtml(String html) {
+  // Simple HTML tag removal - for extracting plain text from HTML content
+  return html
+    .replaceAll(RegExp(r'<[^>]*>'), ' ')  // Replace HTML tags with spaces
+    .replaceAll(RegExp(r'\s+'), ' ')      // Replace multiple spaces with single space
+    .trim();                              // Trim whitespace
 }
 }

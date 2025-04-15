@@ -4,6 +4,9 @@ import 'package:mds_home/widgets/blog/rich_text_editor.dart';
 import '../../models/blog_post.dart';
 import '../../services/blog_service.dart';
 import '../../utils/theme_config.dart';
+import '../blog/simple_rich_text_editor.dart';
+import '../blog/markdown_editor.dart';
+
 
 class BlogEditorDialog extends StatefulWidget {
   final BlogPost? post;  // Null for new post, non-null for edit
@@ -31,6 +34,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
   bool _isLoading = true;
   String _richContent = '';
   bool _isRichContent = false;
+  String _htmlContent = '';
 
   @override
   void initState() {
@@ -43,6 +47,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
     _thumbnailController = TextEditingController(text: widget.post?.thumbnailUrl ?? '');
     _isRichContent = widget.post?.isRichContent ?? false;
     _richContent = widget.post?.content ?? '';
+    _htmlContent = widget.post?.content ?? '';
+
     
     // Initialize selections
     _selectedCategories = widget.post?.categories ?? [];
@@ -101,7 +107,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
         tags: _tags,
         slug: slug,
         viewCount: widget.post?.viewCount ?? 0,
-        content: _isRichContent ? _richContent : _contentController.text.trim(),
+        content: _isRichContent ? _htmlContent : _contentController.text.trim(),
         isRichContent: _isRichContent,
       );
       
@@ -127,7 +133,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
         tags: _tags,
         slug: slug,
         viewCount: widget.post?.viewCount ?? 0,
-        content: _isRichContent ? _richContent : _contentController.text.trim(),
+        content: _isRichContent ? _htmlContent : _contentController.text.trim(),
         isRichContent: _isRichContent,
       );
       
@@ -140,79 +146,60 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
       children: [
-        Text(
-          'Categories',
+        const Text(
+          'Content',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _allCategories.map((category) {
-            final isSelected = _selectedCategories.contains(category);
-            return FilterChip(
-              label: Text(category),
-              selected: isSelected,
-              onSelected: (selected) {
+        const Spacer(),
+        // Toggle between rich and plain text
+        Row(
+          children: [
+            const Text('Rich Text:'),
+            const SizedBox(width: 8),
+            Switch(
+              value: _isRichContent,
+              onChanged: (value) {
                 setState(() {
-                  if (selected) {
-                    _selectedCategories.add(category);
-                  } else {
-                    _selectedCategories.remove(category);
-                  }
+                  _isRichContent = value;
                 });
               },
-            );
-          }).toList()..add(
-            InputChip(
-              label: const Text('+ Add Category'),
-              onPressed: () {
-                // Show dialog to add new category
-                final TextEditingController controller = TextEditingController();
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Add New Category'),
-                    content: TextField(
-                      controller: controller,
-                      decoration: const InputDecoration(
-                        labelText: 'Category Name',
-                      ),
-                      autofocus: true,
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          final newCategory = controller.text.trim();
-                          if (newCategory.isNotEmpty && !_allCategories.contains(newCategory)) {
-                            setState(() {
-                              _allCategories.add(newCategory);
-                              _selectedCategories.add(newCategory);
-                              _allCategories.sort();
-                            });
-                          }
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ) as FilterChip,
-          ),
+            ),
+          ],
         ),
       ],
-    );
+    ),
+    const SizedBox(height: 8),
+    _isRichContent
+  ? MarkdownEditor(
+      initialContent: _htmlContent,
+      height: 350,
+      onContentChanged: (content) {
+        _htmlContent = content;
+      },
+    )
+      : TextFormField(
+          controller: _contentController,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: 'Enter post content',
+            alignLabelWithHint: true,
+          ),
+          maxLines: 10,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter content';
+            }
+            return null;
+          },
+        ),
+  ],
+);
   }
 
   Widget _buildTagsSection() {
@@ -399,7 +386,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> {
     ),
     const SizedBox(height: 8),
     _isRichContent
-      ? RichTextEditor(
+      ? SimpleRichTextEditor(
           initialContent: _richContent,
           height: 350,
           onContentChanged: (content) {
