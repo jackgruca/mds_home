@@ -8,7 +8,16 @@ class SEOHelper {
     required String description,
     required String url,
   }) {
-    js.context.callMethod('updateMetaTags', [title, description, url]);
+    try {
+      // Check if the function exists before calling it
+      if (js.context.hasProperty('updateMetaTags')) {
+        js.context.callMethod('updateMetaTags', [title, description, url]);
+      } else {
+        print('Warning: updateMetaTags function not found in JavaScript context');
+      }
+    } catch (e) {
+      print('Error updating meta tags: $e');
+    }
   }
   
   static void updateForBlogPost(BlogPost post) {
