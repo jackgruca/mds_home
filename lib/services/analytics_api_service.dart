@@ -20,53 +20,63 @@ class AnalyticsApiService {
   }
   
   static Future<Map<String, dynamic>> _fetchFromApi(
-    String dataType,
-    Map<String, dynamic>? filters,
-  ) async {
-    try {
-      // Ensure Firebase is initialized
-      await FirebaseService.initialize();
-      
-      debugPrint('Fetching $dataType from analytics API with filters: $filters');
-      
-      // Use Firestore as a fallback since cloud_functions isn't available
-      final db = FirebaseFirestore.instance;
-      
-      // Query precomputed data from Firestore
-      DocumentSnapshot doc;
-      
-      if (dataType.isEmpty) {
-        doc = await db.collection('precomputedAnalytics').doc('metadata').get();
-      } else {
-        doc = await db.collection('precomputedAnalytics').doc(dataType).get();
-      }
-      
-      if (!doc.exists) {
-        return {'error': 'Data not found'};
-      }
-      
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      
-      // Apply filters if specified
-      if (filters != null && filters.isNotEmpty) {
-        // Simple filtering for team, year, etc.
-        if (filters.containsKey('team') && data.containsKey('byTeam')) {
-          String team = filters['team'];
-          if (data['byTeam'].containsKey(team)) {
-            data = {'data': data['byTeam'][team]};
-          }
-        }
-        
-        // Add more filter logic as needed
-      }
-      
-      debugPrint('Successfully fetched data from Firestore: $dataType');
-      return {'data': data};
-    } catch (e) {
-      debugPrint('Error fetching analytics data: $e');
-      return {'error': 'Failed to fetch analytics data: $e'};
+  String dataType,
+  Map<String, dynamic>? filters,
+) async {
+  try {
+    // Ensure Firebase is initialized
+    await FirebaseService.initialize();
+    
+    debugPrint('Fetching $dataType from analytics API with filters: $filters');
+    
+    // Use Firestore as a fallback since cloud_functions isn't available
+    final db = FirebaseFirestore.instance;
+    
+    // Query precomputed data from Firestore
+    DocumentSnapshot doc;
+    
+    if (dataType.isEmpty) {
+      doc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    } else {
+      doc = await db.collection('precomputedAnalytics').doc(dataType).get();
     }
+    
+    if (!doc.exists) {
+      debugPrint('Data not found for $dataType');
+      return {'error': 'Data not found'};
+    }
+    
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    // ADDED: Debug data structure
+    debugPrint('Data structure for $dataType: ${data.keys}');
+    if (data.containsKey('data')) {
+      final dataArray = data['data'];
+      if (dataArray is List) {
+        debugPrint('Data array length: ${dataArray.length}');
+      }
+    }
+    
+    // Apply filters if specified
+    if (filters != null && filters.isNotEmpty) {
+      // Simple filtering for team, year, etc.
+      if (filters.containsKey('team') && data.containsKey('byTeam')) {
+        String team = filters['team'];
+        if (data['byTeam'].containsKey(team)) {
+          data = {'data': data['byTeam'][team]};
+        }
+      }
+      
+      // Add more filter logic as needed
+    }
+    
+    debugPrint('Successfully fetched data from Firestore: $dataType');
+    return {'data': data};
+  } catch (e) {
+    debugPrint('Error fetching analytics data: $e');
+    return {'error': 'Failed to fetch analytics data: $e'};
   }
+}
   
   /// Get metadata about the analytics cache
   static Future<Map<String, dynamic>> getAnalyticsMetadata() async {

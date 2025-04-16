@@ -37,12 +37,21 @@ class AnalyticsProvider extends ChangeNotifier {
   }
   
   // Get team needs, using cache if available
-  Future<Map<String, List<String>>> getTeamNeeds({int? year}) async {
+  // In analytics_provider.dart
+Future<Map<String, List<String>>> getTeamNeeds({int? year}) async {
+  try {
+    debugPrint('Fetching team needs for year: $year');
+    
     if (_teamNeeds.isNotEmpty && _teamNeeds.containsKey('year') && _teamNeeds['year'] == year) {
+      debugPrint('Using cached team needs data');
       return Map<String, List<String>>.from(_teamNeeds['data']);
     }
     
+    debugPrint('Fetching team needs from PrecomputedAnalyticsService');
     final needs = await PrecomputedAnalyticsService.getConsensusTeamNeeds(year: year);
+    
+    // Debug output to check what's being returned
+    debugPrint('Received team needs data: ${needs.length} teams');
     
     // Cache the result
     _teamNeeds = {
@@ -51,7 +60,12 @@ class AnalyticsProvider extends ChangeNotifier {
     };
     
     return needs;
+  } catch (e) {
+    debugPrint('Error fetching team needs: $e');
+    // Return empty data on error instead of throwing
+    return {};
   }
+}
   
   // Get position distribution, using cache if available
   Future<Map<String, dynamic>> getPositionDistribution({

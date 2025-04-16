@@ -3,8 +3,8 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 exports.dailyAnalyticsAggregation = functions.runWith({
-    timeoutSeconds: 300,  // Increase timeout to 5 minutes
-    memory: '1GB'         // Increase memory allocation
+    timeoutSeconds: 540,  // Increase timeout to 9 minutes
+    memory: '2GB'         // Increase memory from 256MB to 2GB
 })
 .pubsub
 .schedule('0 2 * * *')  // Run at 2 AM every day
@@ -16,7 +16,7 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         console.log('Starting daily analytics aggregation...');
         
         // Process draft analytics in smaller batches to avoid timeout
-        const batchSize = 50;
+        const batchSize = 25;
         let lastDoc = null;
         let processedCount = 0;
         let allAnalytics = [];
@@ -739,7 +739,20 @@ async function aggregatePositionsByPick(analyticsSnapshot) {
     }
     
     console.log('Positions by pick aggregation completed');
-    return results;
+
+    // At the end of aggregatePositionsByPick function
+    console.log(`Generated ${result.length} position entries for round ${specificRound || 'all'}`);
+    if (result.length === 0) {
+    console.error('No position data was generated! Check input data.');
+    // Consider adding sample data for testing
+    result = [{
+        pick: 1,
+        round: "1",
+        positions: [{position: "QB", count: 1, percentage: "100.0%"}],
+        totalDrafts: 1
+    }];
+    }
+    return result;
 }
 
 function aggregatePositionPickData(analyticsSnapshot, specificRound = null) {

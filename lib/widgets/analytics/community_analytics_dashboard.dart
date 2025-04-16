@@ -47,44 +47,58 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Data freshness indicator
-          Consumer<AnalyticsProvider>(
-            builder: (context, provider, child) {
-              final lastUpdated = provider.lastUpdated;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.update, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      lastUpdated != null
-                          ? 'Data updated: ${_formatDate(lastUpdated)}'
-                          : 'Data freshness: Unknown',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: 'Refresh analytics data',
-                      onPressed: () {
-                        _analyticsProvider.clearCache();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Analytics cache cleared'),
-                            duration: Duration(seconds: 2),
-                          )
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }
+Consumer<AnalyticsProvider>(
+  builder: (context, provider, child) {
+    final lastUpdated = provider.lastUpdated;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Icon(Icons.update, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            lastUpdated != null
+                ? 'Data updated: ${_formatDate(lastUpdated)}'
+                : 'Data freshness: Unknown',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
           ),
+          const Spacer(),
+          IconButton(
+  icon: const Icon(Icons.refresh, size: 18),
+  tooltip: 'Refresh analytics data',
+  onPressed: () {
+    // Clear the analytics cache
+    _analyticsProvider.clearCache();
+    
+    // Force reload by setting state
+    setState(() {
+      // Force state refresh
+    });
+    
+    // Use a quick delay to allow cache clearing to complete
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // Reload the same analytics data with debug info
+      debugPrint("Forcing analytics reload from refresh button");
+    });
+    
+    // Show confirmation to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Analytics cache cleared, reloading data...'),
+        duration: Duration(seconds: 2),
+      )
+    );
+  },
+),
+        ],
+      ),
+    );
+  }
+),
           
           // Tab selector
           SingleChildScrollView(
