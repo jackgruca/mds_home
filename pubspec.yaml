@@ -28,7 +28,8 @@ dependencies:
   cloud_functions: ^4.3.2  # Add this line
   cached_network_image: ^3.3.0
   flutter_markdown: ^0.6.18
-
+  flutter_web_plugins:
+    sdk: flutter
 
 
 dev_dependencies:

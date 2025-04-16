@@ -17,6 +17,8 @@ import 'package:flutter/foundation.dart';
 
 import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 // Secret tap counter for admin access
 int _secretTapCount = 0;
@@ -25,6 +27,8 @@ DateTime? _lastTapTime;
 void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
+  setUrlStrategy(PathUrlStrategy());
+
 
   // Initialize Firebase with additional logging
   try {
@@ -103,33 +107,34 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-          navigatorObservers: [AnalyticsRouteObserver()],
-          debugShowCheckedModeBanner: false,
-          title: 'NFL Draft App',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeManager.themeMode,
-          home: const TeamSelectionScreen(), // Keep this
-          onGenerateRoute: (settings) {
-          // First check if this is a blog route
-          final blogRoute = BlogRouter.handleBlogRoute(settings);
-          if (blogRoute != null) {
-            return blogRoute;
-          }
-          
-          // Otherwise handle regular routes
-          switch (settings.name) {
-            case '/':
-              return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-            case '/blog':
-              return MaterialPageRoute(builder: (_) => const BlogListScreen());
-            // Other routes
-            default:
-              return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-          }
-        },
-        initialRoute: '/',
-      );
+  navigatorObservers: [AnalyticsRouteObserver()],
+  debugShowCheckedModeBanner: false,
+  title: 'NFL Draft Simulator',
+  theme: AppTheme.lightTheme,
+  darkTheme: AppTheme.darkTheme,
+  themeMode: themeManager.themeMode,
+  home: const TeamSelectionScreen(),
+  // Add these lines:
+  onGenerateRoute: (settings) {
+    final blogRoute = BlogRouter.handleBlogRoute(settings);
+    if (blogRoute != null) {
+      return blogRoute;
+    }
+    
+    // Otherwise handle regular routes
+    switch (settings.name) {
+      case '/':
+        return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+      case '/blog':
+        return MaterialPageRoute(builder: (_) => const BlogListScreen());
+      default:
+        return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+    }
+  },
+  initialRoute: '/',
+  // Add this to use path URL strategy instead of hash
+  useInheritedMediaQuery: true, // This helps with web responsiveness
+);
       },
     );
   }
