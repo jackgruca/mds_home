@@ -36,12 +36,14 @@ class SEOHelper {
     );
   }
 
-  static void updateBlogPostStructuredData(BlogPost post) {
+  // Add this to your SEOHelper class
+static void updateBlogPostStructuredData(BlogPost post) {
   final data = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
     "headline": post.title,
     "datePublished": post.publishedDate.toIso8601String(),
+    "description": post.shortDescription,
     "author": {
       "@type": "Person",
       "name": post.author

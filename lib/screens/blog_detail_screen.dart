@@ -1,6 +1,8 @@
 // lib/screens/blog_detail_screen.dart 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mds_home/utils/seo_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
@@ -148,13 +150,47 @@ void initState() {
                               ],
                             ),
                             const SizedBox(height: 24),
-                            Text(
-                              _post!.content,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                height: 1.6,
-                              ),
-                            ),
+                            MarkdownBody(
+  data: _post!.content,
+  styleSheet: MarkdownStyleSheet(
+    p: const TextStyle(fontSize: 16, height: 1.6),
+    h1: TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      color: isDarkMode ? Colors.white : Colors.black,
+    ),
+    h2: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: isDarkMode ? Colors.white : Colors.black,
+    ),
+    h3: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: isDarkMode ? Colors.white : Colors.black,
+    ),
+    code: TextStyle(
+      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+      fontFamily: 'monospace',
+    ),
+    blockquote: TextStyle(
+      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+      fontStyle: FontStyle.italic,
+    ),
+    listBullet: TextStyle(
+      color: isDarkMode ? Colors.white : Colors.black,
+    ),
+  ),
+  selectable: true, // Makes text selectable
+  onTapLink: (text, href, title) async {
+  if (href != null) {
+    final uri = Uri.parse(href);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+},
+),
                           ],
                         ),
                       ),

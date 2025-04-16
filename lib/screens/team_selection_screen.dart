@@ -1,5 +1,7 @@
 // lib/screens/team_selection_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/models/blog_post.dart';
+import 'package:mds_home/services/blog_service.dart';
 import '../models/team.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
@@ -1165,6 +1167,93 @@ Future<void> _loadUserPreferences() async {
         customPlayerRankings: _customPlayerRankings,
         tradeFrequency: _tradeFrequency,
         needVsValueBalance: _needVsValueBalance,
+      ),
+    ),
+  );
+}
+// Add this to TeamSelectionScreen build method
+Widget _buildBlogPreview() {
+  return Card(
+    margin: const EdgeInsets.all(16.0),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Latest from our Blog',
+                style: TextStyle(
+                  fontSize: 18.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/blog');
+                },
+                child: const Text('View All'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          FutureBuilder<List<BlogPost>>(
+            future: BlogService.getAllPosts(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Text('No blog posts available');
+              }
+              
+              // Display the most recent post
+              final latestPost = snapshot.data!.first;
+              return InkWell(
+                onTap: () {
+                  Navigator.pushNamed(context, '/blog/${latestPost.id}');
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (latestPost.thumbnailUrl != null)
+                      Image.network(
+                        latestPost.thumbnailUrl!,
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    const SizedBox(height: 8.0),
+                    Text(
+                      latestPost.title,
+                      style: const TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4.0),
+                    Text(
+                      latestPost.shortDescription,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8.0),
+                    Text(
+                      'Read More',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     ),
   );
