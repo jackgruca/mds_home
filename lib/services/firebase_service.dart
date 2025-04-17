@@ -220,6 +220,7 @@ static Future<bool> setupAnalyticsCollections() async {
 }
 
 /// Trigger analytics aggregation (for testing/admin purposes)
+/// Trigger analytics aggregation (for testing/admin purposes)
 static Future<bool> triggerAnalyticsAggregation() async {
   try {
     // Ensure Firebase is initialized
@@ -229,27 +230,41 @@ static Future<bool> triggerAnalyticsAggregation() async {
     
     debugPrint('Manually triggering analytics aggregation...');
     
-    // First set the metadata flag (keeping your existing approach)
+    // First set the metadata flag to trigger the function
     final db = FirebaseFirestore.instance;
     await db.collection('precomputedAnalytics').doc('metadata').set({
       'lastUpdated': FieldValue.serverTimestamp(),
       'manualTrigger': true,
       'triggerTimestamp': FieldValue.serverTimestamp(),
+      'inProgress': true,
     }, SetOptions(merge: true));
     
-    // Once you deploy the manuallyTriggerAnalytics function, you can uncomment this:
+    // Try to call the function directly
     try {
-      // Use the correct API to get the Firebase Functions instance
+      // Get the Firebase Functions instance
       final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('manuallyTriggerAnalytics');
+      
+      // Call the daily analytics aggregation function
+      final callable = functions.httpsCallable('dailyAnalyticsAggregation');
+      
+      // Call the function and wait for response
       final result = await callable.call();
       debugPrint('Direct function call result: ${result.data}');
+      
+      return true;
     } catch (functionError) {
       debugPrint('Could not call function directly: $functionError');
+      
+      // Even if direct function call fails, the metadata update should trigger the aggregation
+      // Check if the metadata update was successful
+      final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+      if (metadataDoc.exists && metadataDoc.data()!.containsKey('manualTrigger')) {
+        debugPrint('Aggregation should be triggered via metadata update');
+        return true;
+      }
+      
+      return false;
     }
-    
-    debugPrint('Analytics aggregation triggered. Check Firebase logs.');
-    return true;
   } catch (e) {
     debugPrint('Error triggering analytics aggregation: $e');
     return false;
@@ -266,7 +281,15 @@ static Future<bool> checkAnalyticsCollections() async {
     final db = FirebaseFirestore.instance;
     final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
     
-    return metadataDoc.exists;
+    // Check if the document exists
+    if (!metadataDoc.exists) {
+      return false;
+    }
+    
+    // Also check if we have at least one data document
+    final posDistDoc = await db.collection('precomputedAnalytics').doc('positionDistribution').get();
+    
+    return posDistDoc.exists;
   } catch (e) {
     debugPrint('Error checking analytics collections: $e');
     return false;

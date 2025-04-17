@@ -68,44 +68,43 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
     }
   }
 
-  // Add this method after _setupCollections() in the _AnalyticsSetupWidgetState class
-Future<void> _triggerInitialAggregation() async {
-  setState(() {
-    _isLoading = true;
-    _statusMessage = 'Triggering initial data aggregation...';
-  });
+  Future<void> _triggerInitialAggregation() async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = 'Triggering initial data aggregation...';
+    });
 
-  try {
-    // This is a local call to simulate the aggregation for testing
-    // In production, you'd use Firebase Functions HTTP callable functions
-    
-    // First check if collections exist, if not, set them up
-    if (!_collectionsExist) {
-      await _setupCollections();
-    }
-    
-    // Call the analytics aggregation function via HTTP callable
-    // This would be better using Firebase Functions SDK but this works for testing
-    await FirebaseService.triggerAnalyticsAggregation();
-    
-    setState(() {
-      _isLoading = false;
-      _statusMessage = 'Initial aggregation triggered. Data should be available shortly.';
-    });
-    
-    // Check collections again after a delay to update the status
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _checkCollections();
+    try {
+      // First check if collections exist, if not, set them up
+      if (!_collectionsExist) {
+        await _setupCollections();
       }
-    });
-  } catch (e) {
-    setState(() {
-      _isLoading = false;
-      _statusMessage = 'Error triggering aggregation: $e';
-    });
+      
+      // Call the analytics aggregation function
+      final success = await FirebaseService.triggerAnalyticsAggregation();
+      
+      if (!success) {
+        throw Exception("Failed to trigger analytics aggregation");
+      }
+      
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Initial aggregation triggered. Data should be available shortly (this may take several minutes to complete).';
+      });
+      
+      // Check collections again after a delay to update the status
+      Future.delayed(const Duration(seconds: 10), () {
+        if (mounted) {
+          _checkCollections();
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Error triggering aggregation: $e';
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +156,7 @@ Future<void> _triggerInitialAggregation() async {
               children: [
                 ElevatedButton(
                   onPressed: _isLoading ? null : _setupCollections,
-                  child: _isLoading 
+                  child: _isLoading && _statusMessage.contains('Setting up') 
                     ? const SizedBox(
                         height: 20, 
                         width: 20, 
@@ -174,18 +173,27 @@ Future<void> _triggerInitialAggregation() async {
                   onPressed: _isLoading ? null : _checkCollections,
                   child: const Text('Check Status'),
                 ),
-                // Add this button
-    if (_collectionsExist)
-      Padding(
-        padding: const EdgeInsets.only(left: 16.0),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.secondary,
-          ),
-          onPressed: _isLoading ? null : _triggerInitialAggregation,
-          child: const Text('Run Initial Aggregation'),
-        ),
-      ),
+                
+                if (_collectionsExist)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
+                      ),
+                      onPressed: _isLoading ? null : _triggerInitialAggregation,
+                      child: _isLoading && _statusMessage.contains('Triggering')
+                        ? const SizedBox(
+                            height: 20, 
+                            width: 20, 
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Run Initial Aggregation'),
+                    ),
+                  ),
               ],
             ),
             

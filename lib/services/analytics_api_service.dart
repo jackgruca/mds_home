@@ -32,12 +32,13 @@ class AnalyticsApiService {
     // Use Firestore as a fallback since cloud_functions isn't available
     final db = FirebaseFirestore.instance;
     
-    // Query precomputed data from Firestore
+    // Query precomputed data from Firestore - THIS IS THE CRITICAL CHANGE
     DocumentSnapshot doc;
     
     if (dataType.isEmpty) {
       doc = await db.collection('precomputedAnalytics').doc('metadata').get();
     } else {
+      // Use the actual dataType as document ID
       doc = await db.collection('precomputedAnalytics').doc(dataType).get();
     }
     
@@ -48,14 +49,8 @@ class AnalyticsApiService {
     
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     
-    // ADDED: Debug data structure
+    // Debug data structure
     debugPrint('Data structure for $dataType: ${data.keys}');
-    if (data.containsKey('data')) {
-      final dataArray = data['data'];
-      if (dataArray is List) {
-        debugPrint('Data array length: ${dataArray.length}');
-      }
-    }
     
     // Apply filters if specified
     if (filters != null && filters.isNotEmpty) {
