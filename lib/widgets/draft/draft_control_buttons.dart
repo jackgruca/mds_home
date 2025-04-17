@@ -27,25 +27,25 @@ class DraftControlButtons extends StatelessWidget {
         children: [
           // Restart button with label
           Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 48,
-                height: 48,
-                child: FloatingActionButton(
-                  onPressed: onRestartDraft,
-                  tooltip: 'Undo/Restart',  // Changed from 'Restart Draft'
-                  mini: true,
-                  child: const Icon(Icons.settings_backup_restore),  // Changed from Icons.refresh
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Undo/Restart',  // Changed from 'Restart'
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    SizedBox(
+      width: 48,
+      height: 48,
+      child: FloatingActionButton(
+        onPressed: onRestartDraft,
+        tooltip: 'Undo/Restart',  // Changed from 'Restart Draft'
+        mini: true,
+        child: const Icon(Icons.settings_backup_restore),  // Changed from Icons.refresh
+      ),
+    ),
+    const SizedBox(height: 4),
+    const Text(
+      'Undo/Restart',  // Changed from 'Restart'
+      style: TextStyle(fontSize: 12),
+    ),
+  ],
+),
           
           const SizedBox(width: 24),
           

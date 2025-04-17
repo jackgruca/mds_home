@@ -13,6 +13,7 @@ class DraftPick {
   String? tradeInfo;
   bool isActiveInDraft = true;  // New property
   
+  
   DraftPick({
     required this.pickNumber,
     required this.teamName,

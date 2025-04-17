@@ -180,36 +180,69 @@ bool undoLastUserDecision() {
   final savedState = historyService.getLastUserDecisionState();
   if (savedState == null) return false;
   
-  // Restore state
+  // Restore available players (complete replacement)
   availablePlayers.clear();
   availablePlayers.addAll(savedState.availablePlayers);
   
-  // Carefully restore draft picks to maintain references
+  // More thorough restoration of draft picks - this is critical!
   for (int i = 0; i < draftOrder.length; i++) {
     if (i < savedState.draftPicks.length) {
-      draftOrder[i].teamName = savedState.draftPicks[i].teamName;
-      draftOrder[i].selectedPlayer = savedState.draftPicks[i].selectedPlayer;
-      draftOrder[i].tradeInfo = savedState.draftPicks[i].tradeInfo;
-      draftOrder[i].isActiveInDraft = savedState.draftPicks[i].isActiveInDraft;
+      // We need to copy ALL properties exactly as they were in the saved state
+      DraftPick currentPick = draftOrder[i];
+      DraftPick savedPick = savedState.draftPicks[i];
+      
+      // Important: make sure isSelected state is properly restored
+      // This is what controls whether a pick is shown as completed or not
+      currentPick.teamName = savedPick.teamName;
+      currentPick.selectedPlayer = savedPick.selectedPlayer;
+      currentPick.tradeInfo = savedPick.tradeInfo;
+      currentPick.isActiveInDraft = savedPick.isActiveInDraft;
+      
+      // Add debugging to verify
+      if (savedPick.selectedPlayer != null) {
+        debugPrint("Restoring pick #${currentPick.pickNumber}: ${savedPick.teamName} selected ${savedPick.selectedPlayer!.name}");
+      } else {
+        debugPrint("Restoring pick #${currentPick.pickNumber}: ${savedPick.teamName} - no selection");
+      }
     }
   }
+
+  historyService.ensurePickStatus(draftOrder, savedState.draftPicks);
   
-  // Restore team needs
-  teamNeeds.clear();
-  teamNeeds.addAll(savedState.teamNeeds);
+  // Restore team needs - more thorough approach
+  for (TeamNeed teamNeed in teamNeeds) {
+    // Find matching team need in saved state
+    TeamNeed? savedTeamNeed = savedState.teamNeeds.firstWhere(
+      (need) => need.teamName == teamNeed.teamName,
+      orElse: () => null as TeamNeed
+    );
+    
+    // Update needs
+    teamNeed.needs.clear();
+    teamNeed.needs.addAll(savedTeamNeed.needs);
+    
+    // Update selected positions
+    teamNeed.selectedPositions.clear();
+    teamNeed.selectedPositions.addAll(savedTeamNeed.selectedPositions);
+    }
   
   // Restore trades
   _executedTrades.clear();
   _executedTrades.addAll(savedState.executedTrades);
   
+  // Also restore position market volatility
+  _positionMarketVolatility.clear();
+  
+  // Set status message
   _statusMessage = "Undid last action. ${savedState.statusMessage}";
   
   // Clear history after using it
   historyService.clear();
   
-  // Update trade offers
+  // Clean up trade offers since they're now stale
   cleanupTradeOffers();
-  
+  _resetPickSelectionStatus();
+
   return true;
 }
 
@@ -1382,4 +1415,26 @@ void printFuturePicksStatus(String teamName) {
   }
   debugPrint("==========================================\n");
 }
+
+void _resetPickSelectionStatus() {
+  // First find the index of the first unselected pick
+  int firstUnselectedIndex = -1;
+  for (int i = 0; i < draftOrder.length; i++) {
+    if (draftOrder[i].selectedPlayer == null) {
+      firstUnselectedIndex = i;
+      break;
+    }
+  }
+  
+  if (firstUnselectedIndex == -1) return; // All picks are selected
+  
+  // Now ensure all picks after this one are also unselected
+  for (int i = firstUnselectedIndex + 1; i < draftOrder.length; i++) {
+    if (draftOrder[i].selectedPlayer != null) {
+      debugPrint("Inconsistency found: pick #${draftOrder[i].pickNumber} has selection but earlier pick doesn't");
+      draftOrder[i].selectedPlayer = null; // Clear any selection
+    }
+  }
+}
+
 }

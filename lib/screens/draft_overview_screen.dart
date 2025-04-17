@@ -1323,8 +1323,6 @@ bool _shouldShowTeamInfo() {
          _activeUserTeam != null;
 }
 
-  // In draft_overview_screen.dart, replace _restartDraft:
-
 void _restartDraft() {
   // First add debug output to verify state
   debugPrint("Checking if undo is available...");
@@ -1361,8 +1359,6 @@ void _restartDraft() {
                 _performFullReset();
               },
             ),
-            // IMPORTANT: For testing, temporarily show the undo option regardless of canUndo
-            // Later you can restore the conditional once the core functionality works
             const Divider(),
             ListTile(
               leading: const Icon(Icons.undo),
@@ -1388,6 +1384,7 @@ void _restartDraft() {
   );
 }
 
+
 // Add these methods to handle the specific actions:
 void _performFullReset() {
   setState(() {
@@ -1404,27 +1401,47 @@ void _performFullReset() {
 void _performUndo() {
   if (_draftService == null) return;
   
+  debugPrint("Attempting to perform undo operation...");
   bool success = _draftService!.undoLastUserDecision();
+  debugPrint("Undo operation result: $success");
   
   if (success) {
     setState(() {
-      // Update UI state based on restored draft state
-      _isDraftRunning = false;
-      _isUserPickMode = true;
+      // Update the local copies of all data
+      _players = _draftService!.availablePlayers;
+      _draftPicks = _draftService!.draftOrder;
+      _teamNeeds = _draftService!.teamNeeds;
+      _executedTrades = _draftService!.executedTrades;
       
-      // Find the new next pick
-      _userNextPick = _draftService!.getNextPick();
+      // Reset user interaction state - CRITICAL!
+      _isDraftRunning = false;
+      
+      // Find the next pick and check if it belongs to user's team
+      DraftPick? nextPick = _draftService!.getNextPick();
+      
+      if (nextPick != null && widget.selectedTeams != null && 
+          widget.selectedTeams!.contains(nextPick.teamName)) {
+        // This is a user's pick - put them on the clock!
+        _isUserPickMode = true;
+        _userNextPick = nextPick;
+        debugPrint("User is on the clock with pick #${nextPick.pickNumber} for team: ${nextPick.teamName}");
+      } else {
+        // Not a user's pick
+        _isUserPickMode = false;
+        _userNextPick = null;
+        debugPrint("Next pick belongs to ${nextPick?.teamName ?? 'unknown'} - not user's turn");
+      }
       
       // Refresh all the list representations for UI
-      _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+      _draftOrderLists = DataService.draftPicksToLists(_draftPicks.where((pick) => pick.isActiveInDraft).toList());
       _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
       _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
       
       _statusMessage = _draftService!.statusMessage;
     });
     
-    // Scroll to the current pick
-    _tabController.animateTo(0); // Switch to draft order tab
+    // Switch to draft order tab and scroll to current pick
+    _tabController.animateTo(0);
     Future.delayed(const Duration(milliseconds: 150), () {
       _scrollToCurrentPick();
     });
@@ -1742,6 +1759,7 @@ Widget build(BuildContext context) {
               controller: _tabController,
               children: [
                 DraftOrderTab(
+                  key: ValueKey('draft_order_${_draftPicks.where((p) => p.isSelected).length}'),  // Add this key
                   draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
                   userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
                   scrollController: _draftOrderScrollController,
