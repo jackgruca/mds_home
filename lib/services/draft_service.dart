@@ -10,6 +10,7 @@ import '../models/team_need.dart';
 import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../models/future_pick.dart';
+import 'draft_history_service.dart';
 import 'trade_service.dart';
 import 'draft_value_service.dart';
 
@@ -31,6 +32,8 @@ class DraftService {
   
   // Trade service
   late TradeService _tradeService;
+  final DraftHistoryService historyService = DraftHistoryService();
+
   
   // Draft state tracking
   bool _tradeUp = false;
@@ -147,6 +150,69 @@ List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
     }
   }
   
+  // In DraftService class
+void saveUserDecisionState() {
+  debugPrint("Attempting to save user decision state...");
+  
+  // Determine the current pick index
+  int currentPickIndex = 0;
+  for (int i = 0; i < draftOrder.length; i++) {
+    if (!draftOrder[i].isSelected && draftOrder[i].isActiveInDraft) {
+      currentPickIndex = i;
+      break;
+    }
+  }
+  
+  historyService.saveCurrentState(
+    availablePlayers: List<Player>.from(availablePlayers),
+    draftPicks: List<DraftPick>.from(draftOrder),
+    teamNeeds: List<TeamNeed>.from(teamNeeds),
+    executedTrades: List<TradePackage>.from(_executedTrades),
+    currentPickIndex: currentPickIndex,
+    statusMessage: _statusMessage,
+  );
+  
+  debugPrint("User decision state saved successfully at pick index: $currentPickIndex");
+}
+
+// Add this method to handle state restoration
+bool undoLastUserDecision() {
+  final savedState = historyService.getLastUserDecisionState();
+  if (savedState == null) return false;
+  
+  // Restore state
+  availablePlayers.clear();
+  availablePlayers.addAll(savedState.availablePlayers);
+  
+  // Carefully restore draft picks to maintain references
+  for (int i = 0; i < draftOrder.length; i++) {
+    if (i < savedState.draftPicks.length) {
+      draftOrder[i].teamName = savedState.draftPicks[i].teamName;
+      draftOrder[i].selectedPlayer = savedState.draftPicks[i].selectedPlayer;
+      draftOrder[i].tradeInfo = savedState.draftPicks[i].tradeInfo;
+      draftOrder[i].isActiveInDraft = savedState.draftPicks[i].isActiveInDraft;
+    }
+  }
+  
+  // Restore team needs
+  teamNeeds.clear();
+  teamNeeds.addAll(savedState.teamNeeds);
+  
+  // Restore trades
+  _executedTrades.clear();
+  _executedTrades.addAll(savedState.executedTrades);
+  
+  _statusMessage = "Undid last action. ${savedState.statusMessage}";
+  
+  // Clear history after using it
+  historyService.clear();
+  
+  // Update trade offers
+  cleanupTradeOffers();
+  
+  return true;
+}
+
   /// Update simulation state after player selection
   void _updateAfterSelection(DraftPick pick, Player player) {
     // Update team needs by removing the position that was just filled

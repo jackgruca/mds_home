@@ -1213,6 +1213,9 @@ Color _getGradientColor(int score, double opacity) {
 
   void _selectPlayer(DraftPick pick, Player player) {
   if (_draftService == null) return;
+
+  debugPrint("Saving state before player selection");
+  _draftService!.saveUserDecisionState();
   
   // Update the pick with the selected player
   pick.selectedPlayer = player;
@@ -1272,6 +1275,9 @@ void _autoSelectPlayer(DraftPick pick) {
 
 void executeUserSelectedTrade(TradePackage package) {
   if (_draftService == null) return;
+
+  // Save state before executing trade
+  _draftService!.saveUserDecisionState();
   
   _draftService!.executeUserSelectedTrade(package);
   
@@ -1317,8 +1323,15 @@ bool _shouldShowTeamInfo() {
          _activeUserTeam != null;
 }
 
-  void _restartDraft() {
-  // Show confirmation dialog before restarting
+  // In draft_overview_screen.dart, replace _restartDraft:
+
+void _restartDraft() {
+  // First add debug output to verify state
+  debugPrint("Checking if undo is available...");
+  bool canUndo = _draftService?.historyService.canUndo() ?? false;
+  debugPrint("Can undo: $canUndo");
+  
+  // Show confirmation dialog with options
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -1327,44 +1340,112 @@ bool _shouldShowTeamInfo() {
       return AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.refresh, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700),
+            Icon(
+              Icons.settings_backup_restore, 
+              color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700
+            ),
             const SizedBox(width: 8),
-            const Text('Restart Draft?'),
+            const Text('Draft Options'),
           ],
         ),
-        content: const Text(
-          'Are you sure you want to restart the draft? All progress will be lost.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('Reset Draft'),
+              subtitle: const Text('Start the draft from the beginning'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _performFullReset();
+              },
+            ),
+            // IMPORTANT: For testing, temporarily show the undo option regardless of canUndo
+            // Later you can restore the conditional once the core functionality works
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.undo),
+              title: const Text('Undo Last Pick'),
+              subtitle: const Text('Go back to your previous decision'),
+              // Show as disabled if canUndo is false
+              enabled: canUndo,
+              onTap: canUndo ? () {
+                Navigator.of(context).pop();
+                _performUndo();
+              } : null,
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Close dialog
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              
-              // Reset the draft state instead of navigating
-              setState(() {
-                _isDraftRunning = false;
-                _isUserPickMode = false;
-                _userNextPick = null;
-                _summaryShown = false;
-                
-                // Reload data to reset the draft
-                _loadData();
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.red.shade600,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Restart'),
           ),
         ],
       );
     },
   );
+}
+
+// Add these methods to handle the specific actions:
+void _performFullReset() {
+  setState(() {
+    _isDraftRunning = false;
+    _isUserPickMode = false;
+    _userNextPick = null;
+    _summaryShown = false;
+    
+    // Reload data to reset the draft
+    _loadData();
+  });
+}
+
+void _performUndo() {
+  if (_draftService == null) return;
+  
+  bool success = _draftService!.undoLastUserDecision();
+  
+  if (success) {
+    setState(() {
+      // Update UI state based on restored draft state
+      _isDraftRunning = false;
+      _isUserPickMode = true;
+      
+      // Find the new next pick
+      _userNextPick = _draftService!.getNextPick();
+      
+      // Refresh all the list representations for UI
+      _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+      _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+      _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+      
+      _statusMessage = _draftService!.statusMessage;
+    });
+    
+    // Scroll to the current pick
+    _tabController.animateTo(0); // Switch to draft order tab
+    Future.delayed(const Duration(milliseconds: 150), () {
+      _scrollToCurrentPick();
+    });
+    
+    // Update active user team
+    _updateActiveUserTeam();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Successfully undid last action'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not undo - no previous state found'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 }
 
   // Find this method in draft_overview_screen.dart and replace it
