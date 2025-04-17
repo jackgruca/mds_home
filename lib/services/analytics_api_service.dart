@@ -6,20 +6,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AnalyticsApiService {
   /// Get data from the cached analytics API
-  static Future<Map<String, dynamic>> getAnalyticsData({
-    required String dataType,
-    Map<String, dynamic>? filters,
-  }) async {
-    final cacheKey = 'api_${dataType}_${filters?.toString() ?? 'no_filters'}';
-    
-    return AnalyticsCacheManager.getCachedData(
-      cacheKey,
-      () => _fetchFromApi(dataType, filters),
-      expiry: const Duration(hours: 12), // Cache for 12 hours
-    );
-  }
+ static Future<Map<String, dynamic>> getAnalyticsData({
+  required String dataType,
+  Map<String, dynamic>? filters,
+}) async {
+  final cacheKey = 'api_${dataType}_${filters?.toString() ?? 'no_filters'}';
   
-  static Future<Map<String, dynamic>> _fetchFromApi(
+  debugPrint('Attempting to fetch analytics data: $dataType with filters: $filters');
+  
+  return AnalyticsCacheManager.getCachedData(
+    cacheKey,
+    () => _fetchFromApi(dataType, filters),
+    expiry: const Duration(hours: 12),
+  );
+}
+
+static Future<Map<String, dynamic>> _fetchFromApi(
   String dataType,
   Map<String, dynamic>? filters,
 ) async {
@@ -32,14 +34,29 @@ class AnalyticsApiService {
     // Use Firestore as a fallback since cloud_functions isn't available
     final db = FirebaseFirestore.instance;
     
-    // Query precomputed data from Firestore - THIS IS THE CRITICAL CHANGE
+    // DETAILED ERROR LOGGING
+    debugPrint('Accessing Firestore collection: precomputedAnalytics');
+    debugPrint('Accessing document: $dataType');
+    
+    // Query precomputed data from Firestore
     DocumentSnapshot doc;
     
-    if (dataType.isEmpty) {
-      doc = await db.collection('precomputedAnalytics').doc('metadata').get();
-    } else {
-      // Use the actual dataType as document ID
-      doc = await db.collection('precomputedAnalytics').doc(dataType).get();
+    try {
+      if (dataType.isEmpty) {
+        doc = await db.collection('precomputedAnalytics').doc('metadata').get();
+      } else {
+        doc = await db.collection('precomputedAnalytics').doc(dataType).get();
+      }
+      
+      debugPrint('Document fetch successful: ${doc.exists}');
+      
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        debugPrint('Document contains keys: ${data.keys.join(", ")}');
+      }
+    } catch (docError) {
+      debugPrint('ERROR fetching document: $docError');
+      rethrow;
     }
     
     if (!doc.exists) {
@@ -48,9 +65,6 @@ class AnalyticsApiService {
     }
     
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    
-    // Debug data structure
-    debugPrint('Data structure for $dataType: ${data.keys}');
     
     // Apply filters if specified
     if (filters != null && filters.isNotEmpty) {

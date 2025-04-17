@@ -1,4 +1,6 @@
 // lib/widgets/admin/analytics_setup_widget.dart
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 
@@ -166,6 +168,77 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
                         ? 'Recreate Collections'
                         : 'Setup Collections'),
                 ),
+                ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.indigo,
+    foregroundColor: Colors.white,
+  ),
+  onPressed: _isLoading ? null : () async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = 'Validating analytics data...';
+    });
+    
+    try {
+      final results = await FirebaseService.validateAnalyticsData();
+      
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Validation complete. See console for details.';
+      });
+      
+      // Log detailed results for debugging
+      debugPrint('ANALYTICS VALIDATION RESULTS:');
+      debugPrint(const JsonEncoder.withIndent('  ').convert(results));
+      
+      // Show detailed dialog
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Analytics Data Validation'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Collection Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  for (final entry in (results['collections'] as Map<String, bool>).entries)
+                    Text('${entry.key}: ${entry.value ? '✅' : '❌'}'),
+                  
+                  const SizedBox(height: 16),
+                  const Text('Document Counts:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  for (final entry in (results['documentCounts'] as Map<String, int>).entries)
+                    Text('${entry.key}: ${entry.value}'),
+                  
+                  if (results.containsKey('draftSampleData')) ...[
+                    const SizedBox(height: 16),
+                    const Text('Draft Sample Data:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Fields: ${(results['draftSampleData']['fields'] as List).join(', ')}'),
+                    Text('Has Picks: ${results['draftSampleData']['hasPicks']}'),
+                    Text('Pick Count: ${results['draftSampleData']['pickCount']}'),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Error validating data: $e';
+      });
+    }
+  },
+  child: const Text('Validate Analytics Data'),
+),
                 
                 const SizedBox(width: 16),
                 

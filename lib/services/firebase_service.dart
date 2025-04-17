@@ -218,8 +218,68 @@ static Future<bool> setupAnalyticsCollections() async {
     return false;
   }
 }
-
-/// Trigger analytics aggregation (for testing/admin purposes)
+static Future<Map<String, dynamic>> validateAnalyticsData() async {
+  try {
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    final db = FirebaseFirestore.instance;
+    final results = {
+      'collections': <String, bool>{},
+      'documentCounts': <String, int>{},
+      'metadata': <String, dynamic>{},
+      'draftSampleData': <String, dynamic>{},
+    };
+    
+    // Check collections
+    final collections = ['draftAnalytics', 'precomputedAnalytics', 'cachedQueries'];
+    
+    for (final collection in collections) {
+      try {
+        final snapshot = await db.collection(collection).limit(1).get();
+        results['collections']![collection] = snapshot.docs.isNotEmpty;
+      } catch (e) {
+        results['collections']![collection] = false;
+      }
+    }
+    
+    // Count documents in draftAnalytics
+    try {
+      final snapshot = await db.collection('draftAnalytics').get();
+      results['documentCounts']!['draftAnalytics'] = snapshot.docs.length;
+      
+      // Get a sample document if available
+      if (snapshot.docs.isNotEmpty) {
+        final sampleDoc = snapshot.docs.first.data();
+        results['draftSampleData'] = {
+          'id': snapshot.docs.first.id,
+          'fields': sampleDoc.keys.toList(),
+          'hasPicks': sampleDoc.containsKey('picks'),
+          'pickCount': sampleDoc['picks']?.length ?? 0,
+        };
+      }
+    } catch (e) {
+      results['documentCounts']!['draftAnalytics'] = -1; // Error
+    }
+    
+    // Check for metadata
+    try {
+      final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+      results['metadata']!['exists'] = metadataDoc.exists;
+      
+      if (metadataDoc.exists) {
+        results['metadata']!['data'] = metadataDoc.data();
+      }
+    } catch (e) {
+      results['metadata']!['error'] = e.toString();
+    }
+    
+    return results;
+  } catch (e) {
+    return {'error': e.toString()};
+  }
+}
 /// Trigger analytics aggregation (for testing/admin purposes)
 static Future<bool> triggerAnalyticsAggregation() async {
   try {
