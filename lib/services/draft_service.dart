@@ -18,6 +18,7 @@ class DraftService {
   final List<Player> availablePlayers;
   final List<DraftPick> draftOrder;
   final List<TeamNeed> teamNeeds;
+  final List<DraftAction> _draftHistory = [];
   
   // Draft settings
   final double randomnessFactor;
@@ -1316,4 +1317,54 @@ void printFuturePicksStatus(String teamName) {
   }
   debugPrint("==========================================\n");
 }
+void recordDraftAction(DraftPick pick, Player? player, List<String> previousNeeds) {
+    _draftHistory.add(DraftAction(
+      pick: pick,
+      player: player,
+      previousNeeds: previousNeeds,
+      tradesMade: List.from(executedTrades), // Create a copy of current trades
+    ));
+    
+    // Optional: Limit history size
+    if (_draftHistory.length > 10) {
+      _draftHistory.removeAt(0);
+    }
+  }
+
+  DraftAction? undoLastAction() {
+    if (_draftHistory.isEmpty) return null;
+    return _draftHistory.removeLast();
+  }
+    // In draft_service.dart, add this method to the DraftService class
+void revertTrade(TradePackage trade) {
+  // Swap picks back to their original teams
+  for (var pick in trade.picksOffered) {
+    pick.teamName = trade.teamOffering;
+  }
+
+  // Swap target picks back
+  trade.targetPick.teamName = trade.teamReceiving;
+  for (var additionalPick in trade.additionalTargetPicks) {
+    additionalPick.teamName = trade.teamReceiving;
+  }
+
+  debugPrint('Trade reverted: ${trade.tradeDescription}');
+}
+}
+
+
+class DraftAction {
+  final DraftPick pick;
+  final Player? player;
+  final List<String> previousNeeds;
+  final List<TradePackage> tradesMade;
+  final List<DraftPick> originalTeamPicks; 
+
+  DraftAction({
+    required this.pick,
+    this.player,
+    required this.previousNeeds,
+    this.tradesMade = const [],
+    this.originalTeamPicks = const [],
+  });
 }

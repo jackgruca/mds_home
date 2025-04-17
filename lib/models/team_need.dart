@@ -117,6 +117,12 @@ factory TeamNeed.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> colum
     needs.remove(position);
     selectedPositions.add(position); // Add to the list instead of replacing
   }
+
+  void addNeedPosition(String position) {
+  if (!needs.contains(position)) {
+    needs.add(position);
+  }
+}
   
   // Check if this position is a need
   bool isPositionANeed(String position) {

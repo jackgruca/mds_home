@@ -1209,25 +1209,120 @@ Color _getGradientColor(int score, double opacity) {
   return Colors.red.shade700.withOpacity(opacity);                     // F
 }
 
+  void _showUndoRestartDialog() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Draft Options'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.undo),
+            title: const Text('Undo Last Pick'),
+            onTap: () {
+              Navigator.pop(context);
+              _undoLastPick();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.refresh),
+            title: const Text('Restart Draft'),
+            onTap: () {
+              Navigator.pop(context);
+              _restartDraft();
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _undoLastPick() {
+  if (_draftService == null) return;
+
+  // Get the last draft action
+  final lastAction = _draftService!.undoLastAction();
   
+  if (lastAction == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No actions to undo')),
+    );
+    return;
+  }
+
+  // Restore previous state
+  setState(() {
+    // Remove the last selected player
+    if (lastAction.player != null) {
+      _draftService!.availablePlayers.add(lastAction.player!);
+    }
+
+    // Restore team needs
+    final teamNeed = _teamNeeds.firstWhere(
+      (need) => need.teamName == lastAction.pick.teamName,
+      orElse: () => TeamNeed(teamName: lastAction.pick.teamName, needs: []),
+    );
+    teamNeed.needs.addAll(lastAction.previousNeeds);
+
+    // Remove the pick
+    lastAction.pick.selectedPlayer = null;
+
+    // Undo any trades
+    for (var trade in lastAction.tradesMade) {
+      _draftService!.revertTrade(trade);
+    }
+
+    // Update lists
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+    
+    // Optional: Reset draft running state
+    _isDraftRunning = false;
+    _isUserPickMode = false;
+    _userNextPick = null;
+  });
+
+  // Scroll to previous pick
+  _scrollToCurrentPick();
+}
 
   void _selectPlayer(DraftPick pick, Player player) {
   if (_draftService == null) return;
   
-  // Update the pick with the selected player
-  pick.selectedPlayer = player;
-  
-  // Update team needs
+  // Get team needs before selection
   final teamNeed = _teamNeeds.firstWhere(
     (need) => need.teamName == pick.teamName,
     orElse: () => TeamNeed(teamName: pick.teamName, needs: []),
   );
+  
+  // Store the current needs before modification
+  List<String> previousNeeds = List.from(teamNeed.needs);
+  
+  // Record the draft action BEFORE updating state
+  _draftService!.recordDraftAction(
+    pick, 
+    player, 
+    previousNeeds
+  );
+  
+  // Rest of the existing method remains the same...
+  pick.selectedPlayer = player;
+  
+  // Remove need for the player's position
   teamNeed.removeNeed(player.position);
   
   // Remove player from available players
   _draftService!.availablePlayers.remove(player);
   
-  // Update UI
   setState(() {
     _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
@@ -1724,8 +1819,9 @@ Widget build(BuildContext context) {
       hasTradeOffers: hasTradeOffers,
       tradeOffersCount: tradeOffersCount,  // Add the count
       onToggleDraft: _toggleDraft,
-      onRestartDraft: _restartDraft,
+      onRestartDraft: _showUndoRestartDialog,
       onRequestTrade: _requestTrade,
+    
     ),
     ),
   );
