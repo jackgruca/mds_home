@@ -1,10 +1,11 @@
-// lib/services/analytics_query_service.dart
+// lib/services/analytics_query_service.dart (Updated)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/draft_analytics.dart';
 import '../services/firebase_service.dart';
 import 'analytics_api_service.dart';
 import 'analytics_cache_manager.dart';
+import 'direct_analytics_service.dart'; // Import the new direct service
 import 'precomputed_analytics_service.dart';
 
 class AnalyticsQueryService {
@@ -22,18 +23,43 @@ class AnalyticsQueryService {
     }
   }
 
+  /// Check if precomputed analytics are available
+  static Future<bool> _arePrecomputedAnalyticsAvailable() async {
+    try {
+      await ensureInitialized();
+      final metadataDoc = await _firestore.collection(precomputedAnalyticsCollection).doc('metadata').get();
+      return metadataDoc.exists;
+    } catch (e) {
+      debugPrint('Error checking precomputed analytics: $e');
+      return false;
+    }
+  }
+
   /// Get position frequency breakdown for a team - OPTIMIZED
   static Future<Map<String, dynamic>> getPositionBreakdownByTeam({
     required String team,
     List<int>? rounds,
     int? year,
   }) async {
-    // First try to get data from precomputed stats
-    return PrecomputedAnalyticsService.getPositionBreakdownByTeam(
-      team: team,
-      rounds: rounds,
-      year: year,
-    );
+    // Check if precomputed analytics are available
+    final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
+    
+    if (usePrecomputed) {
+      // Use precomputed analytics
+      return PrecomputedAnalyticsService.getPositionBreakdownByTeam(
+        team: team,
+        rounds: rounds,
+        year: year,
+      );
+    } else {
+      // Fall back to direct analytics
+      debugPrint('Using direct analytics for position breakdown');
+      return DirectAnalyticsService.getPositionDistribution(
+        team: team,
+        rounds: rounds,
+        year: year,
+      );
+    }
   }
 
   /// Get average player rank deviation by round or position - OPTIMIZED
@@ -56,59 +82,67 @@ class AnalyticsQueryService {
     int? limit,
   ) async {
     try {
-      // Try API first
-      final filters = {
-        if (year != null) 'year': year,
-        if (position != null) 'position': position,
-        if (limit != null) 'limit': limit,
-      };
+      // Check if precomputed analytics are available
+      final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
       
-      final apiData = await AnalyticsApiService.getAnalyticsData(
-        dataType: 'playerDeviations',
-        filters: filters,
-      );
-      
-      if (!apiData.containsKey('error') && apiData.containsKey('data')) {
-        debugPrint('Using API data for player deviations');
-        return apiData['data'];
-      }
-      
-      // Fall back to Firestore
-      await ensureInitialized();
-      
-      final precomputedDoc = await _firestore
-          .collection(precomputedAnalyticsCollection)
-          .doc('playerDeviations')
-          .get();
-          
-      if (precomputedDoc.exists && precomputedDoc.data() != null) {
-        final data = precomputedDoc.data()!;
-        
-        // Apply filters manually
-        var players = List<dynamic>.from(data['players'] ?? []);
-        
-        if (position != null) {
-          // Filter by position if specified
-          if (data.containsKey('byPosition') && data['byPosition'].containsKey(position)) {
-            players = List<dynamic>.from(data['byPosition'][position]);
-          } else {
-            players = players.where((p) => p['position'] == position).toList();
-          }
-        }
-        
-        // Apply limit
-        if (limit != null && players.length > limit) {
-          players = players.sublist(0, limit);
-        }
-        
-        debugPrint('Using precomputed player deviations');
-        return {
-          'players': players,
-          'sampleSize': data['sampleSize'],
+      if (usePrecomputed) {
+        // Try API first
+        final filters = {
+          if (year != null) 'year': year,
+          if (position != null) 'position': position,
+          if (limit != null) 'limit': limit,
         };
+        
+        final apiData = await AnalyticsApiService.getAnalyticsData(
+          dataType: 'playerDeviations',
+          filters: filters,
+        );
+        
+        if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+          debugPrint('Using API data for player deviations');
+          return apiData['data'];
+        }
+        
+        // Fall back to Firestore
+        await ensureInitialized();
+        
+        final precomputedDoc = await _firestore
+            .collection(precomputedAnalyticsCollection)
+            .doc('playerDeviations')
+            .get();
+            
+        if (precomputedDoc.exists && precomputedDoc.data() != null) {
+          final data = precomputedDoc.data()!;
+          
+          // Apply filters manually
+          var players = List<dynamic>.from(data['players'] ?? []);
+          
+          if (position != null) {
+            // Filter by position if specified
+            if (data.containsKey('byPosition') && data['byPosition'].containsKey(position)) {
+              players = List<dynamic>.from(data['byPosition'][position]);
+            } else {
+              players = players.where((p) => p['position'] == position).toList();
+            }
+          }
+          
+          // Apply limit
+          if (limit != null && players.length > limit) {
+            players = players.sublist(0, limit);
+          }
+          
+          debugPrint('Using precomputed player deviations');
+          return {
+            'players': players,
+            'sampleSize': data['sampleSize'],
+          };
+        }
       }
       
       // Fall back to direct calculation
+      debugPrint('Falling back to direct calculation for player deviations');
+      
+      // For simplicity, we'll return a smaller dataset for direct calculation
       return {'players': [], 'sampleSize': 0};
     } catch (e) {
       debugPrint('Error getting player rank deviations: $e');
@@ -120,10 +154,21 @@ class AnalyticsQueryService {
   static Future<Map<String, List<String>>> getConsensusTeamNeeds({
     int? year,
   }) async {
-    // First try to get data from precomputed stats
-    return PrecomputedAnalyticsService.getConsensusTeamNeeds(
-      year: year,
-    );
+    // Check if precomputed analytics are available
+    final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
+    
+    if (usePrecomputed) {
+      // Use precomputed analytics
+      return PrecomputedAnalyticsService.getConsensusTeamNeeds(
+        year: year,
+      );
+    } else {
+      // Fall back to direct analytics
+      debugPrint('Using direct analytics for team needs');
+      return DirectAnalyticsService.getTeamNeeds(
+        year: year,
+      );
+    }
   }
 
   /// Get consolidated position trends by pick - OPTIMIZED
@@ -132,12 +177,30 @@ class AnalyticsQueryService {
     int? round,
     int? year,
   }) async {
-    // First try to get data from precomputed stats
-    return PrecomputedAnalyticsService.getConsolidatedPositionsByPick(
-      team: team,
-      round: round,
-      year: year,
-    );
+    // Check if precomputed analytics are available
+    final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
+    
+    if (usePrecomputed) {
+      // Use precomputed analytics
+      return PrecomputedAnalyticsService.getConsolidatedPositionsByPick(
+        team: team,
+        round: round,
+        year: year,
+      );
+    } else {
+      // Fall back to direct analytics
+      debugPrint('Using direct analytics for positions by pick');
+      final result = await DirectAnalyticsService.getPositionTrendsByRound(
+        round: round ?? 1,
+        team: team,
+      );
+      
+      if (result.containsKey('error')) {
+        return [];
+      }
+      
+      return List<Map<String, dynamic>>.from(result['data'] ?? []);
+    }
   }
 
   /// Get consolidated player selections by pick - OPTIMIZED
@@ -160,62 +223,163 @@ class AnalyticsQueryService {
     int? year,
   ) async {
     try {
-      // Try API first
-      final filters = {
-        if (team != null) 'team': team,
-        if (round != null) 'round': round,
-        if (year != null) 'year': year,
-      };
+      // Check if precomputed analytics are available
+      final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
       
-      String dataType = 'playersByPick';
-      if (round != null) {
-        dataType = 'playersByPickRound$round';
-      }
-      
-      final apiData = await AnalyticsApiService.getAnalyticsData(
-        dataType: dataType,
-        filters: filters,
-      );
-      
-      if (!apiData.containsKey('error') && apiData.containsKey('data')) {
-        debugPrint('Using API data for players by pick');
+      if (usePrecomputed) {
+        // Try API first
+        final filters = {
+          if (team != null) 'team': team,
+          if (round != null) 'round': round,
+          if (year != null) 'year': year,
+        };
         
-        if (apiData['data'].containsKey('data')) {
-          return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
+        String dataType = 'playersByPick';
+        if (round != null) {
+          dataType = 'playersByPickRound$round';
         }
-      }
-      
-      // Fall back to Firestore
-      await ensureInitialized();
-      
-      String docId = 'playersByPick';
-      if (round != null) {
-        docId = 'playersByPickRound$round';
-      }
-      
-      final precomputedDoc = await _firestore
-          .collection(precomputedAnalyticsCollection)
-          .doc(docId)
-          .get();
+        
+        final apiData = await AnalyticsApiService.getAnalyticsData(
+          dataType: dataType,
+          filters: filters,
+        );
+        
+        if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+          debugPrint('Using API data for players by pick');
           
-      if (precomputedDoc.exists && precomputedDoc.data() != null) {
-        final data = precomputedDoc.data()!;
-        
-        // For all teams data
-        if (team == null || team == 'All Teams') {
-          debugPrint('Using precomputed players by pick for round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['data'] ?? []);
+          if (apiData['data'].containsKey('data')) {
+            return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
+          }
         }
         
-        // For team-specific data
-        if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
-          debugPrint('Using precomputed players by pick for team: $team, round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
+        // Fall back to Firestore
+        await ensureInitialized();
+        
+        String docId = 'playersByPick';
+        if (round != null) {
+          docId = 'playersByPickRound$round';
+        }
+        
+        final precomputedDoc = await _firestore
+            .collection(precomputedAnalyticsCollection)
+            .doc(docId)
+            .get();
+            
+        if (precomputedDoc.exists && precomputedDoc.data() != null) {
+          final data = precomputedDoc.data()!;
+          
+          // For all teams data
+          if (team == null || team == 'All Teams') {
+            debugPrint('Using precomputed players by pick for round: ${round ?? 'all'}');
+            return List<Map<String, dynamic>>.from(data['data'] ?? []);
+          }
+          
+          // For team-specific data
+          if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
+            debugPrint('Using precomputed players by pick for team: $team, round: ${round ?? 'all'}');
+            return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
+          }
         }
       }
       
       // Fall back to direct calculation
-      return [];
+      debugPrint('Falling back to direct calculation for players by pick');
+      
+      // This would require significant computation, so we'll return a minimal result
+      await ensureInitialized();
+      Query query = _firestore.collection(draftAnalyticsCollection).limit(20);
+      
+      if (year != null) {
+        query = query.where('year', isEqualTo: year);
+      }
+      
+      final snapshot = await query.get();
+      Map<int, Map<String, Map<String, dynamic>>> pickPlayerCounts = {};
+      Map<int, int> pickTotals = {};
+      
+      for (var doc in snapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        List<dynamic> picks = data['picks'] ?? [];
+        
+        for (var pick in picks) {
+          // Filter by round if specified
+          int pickRound = int.tryParse(pick['round'] ?? '0') ?? 0;
+          if (round != null && pickRound != round) continue;
+          
+          // Filter by team if specified
+          if (team != null && team != 'All Teams') {
+            String pickTeam = pick['actualTeam'] ?? '';
+            if (pickTeam != team) continue;
+          }
+          
+          int pickNumber = pick['pickNumber'] ?? 0;
+          String playerName = pick['playerName'] ?? '';
+          String position = pick['position'] ?? '';
+          String school = pick['school'] ?? '';
+          
+          if (pickNumber == 0 || playerName.isEmpty) continue;
+          
+          // Initialize data structures
+          pickPlayerCounts[pickNumber] ??= {};
+          pickTotals[pickNumber] ??= 0;
+          
+          // Create player key
+          String playerKey = '$playerName|$position';
+          
+          // Add player data
+          pickPlayerCounts[pickNumber]![playerKey] ??= {
+            'player': playerName,
+            'position': position,
+            'school': school,
+            'count': 0,
+          };
+          
+          // Increment count
+          pickPlayerCounts[pickNumber]![playerKey]!['count'] = 
+              (pickPlayerCounts[pickNumber]![playerKey]!['count'] as int) + 1;
+          
+          // Increment total
+          pickTotals[pickNumber] = (pickTotals[pickNumber] ?? 0) + 1;
+        }
+      }
+      
+      // Format result
+      List<Map<String, dynamic>> result = [];
+      
+      for (var entry in pickPlayerCounts.entries) {
+        int pickNumber = entry.key;
+        Map<String, Map<String, dynamic>> playerCounts = entry.value;
+        int totalForPick = pickTotals[pickNumber] ?? 0;
+        
+        if (totalForPick == 0) continue;
+        
+        // Sort players by count
+        List<Map<String, dynamic>> sortedPlayers = playerCounts.values.toList()
+          ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+        
+        // Process top 3 players
+        List<Map<String, dynamic>> topPlayers = [];
+        for (var player in sortedPlayers.take(3)) {
+          topPlayers.add({
+            'player': player['player'],
+            'position': player['position'],
+            'school': player['school'],
+            'count': player['count'],
+            'percentage': '${((player['count'] as int) / totalForPick * 100).toStringAsFixed(1)}%',
+          });
+        }
+        
+        result.add({
+          'pick': pickNumber,
+          'players': topPlayers,
+          'totalDrafts': totalForPick,
+        });
+      }
+      
+      // Sort by pick number
+      result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+      
+      return result;
     } catch (e) {
       debugPrint('Error getting consolidated players by pick: $e');
       return [];
@@ -223,6 +387,7 @@ class AnalyticsQueryService {
   }
 
   /// Get top positions by pick number
+/// This method is optimized to work with either precomputed or direct analytics
 static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
   String? team,
   int? round,
@@ -232,6 +397,19 @@ static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
     await ensureInitialized();
     debugPrint('Fetching position trends by pick for ${team ?? 'All Teams'}, round $round');
 
+    // Check if precomputed analytics are available
+    final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
+    
+    if (usePrecomputed) {
+      // Use the already optimized implementation for precomputed data
+      return getConsolidatedPositionsByPick(
+        team: team,
+        round: round,
+        year: year,
+      );
+    }
+    
+    // Fall back to direct calculation from draftAnalytics
     // Build the query
     Query query = _firestore.collection(draftAnalyticsCollection);
     
@@ -242,6 +420,9 @@ static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
     if (year != null) {
       query = query.where('year', isEqualTo: year);
     }
+
+    // Limit to a reasonable number for performance
+    query = query.limit(50);
 
     // Execute the query
     final snapshot = await query.get();
@@ -331,7 +512,7 @@ static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
   }
 }
 
-/// Get top players by pick number
+/// Get top players by pick number - OPTIMIZED
 static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
   String? team,
   int? round,
@@ -341,6 +522,19 @@ static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
     await ensureInitialized();
     debugPrint('Fetching player trends for ${team ?? 'All Teams'}, round $round');
 
+    // Check if precomputed analytics are available
+    final usePrecomputed = await _arePrecomputedAnalyticsAvailable();
+    
+    if (usePrecomputed) {
+      // Use the already optimized implementation for precomputed data
+      return getConsolidatedPlayersByPick(
+        team: team,
+        round: round,
+        year: year,
+      );
+    }
+
+    // Fall back to direct calculation from draftAnalytics
     // Build the query
     Query query = _firestore.collection(draftAnalyticsCollection);
     
@@ -351,6 +545,9 @@ static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
     if (year != null) {
       query = query.where('year', isEqualTo: year);
     }
+
+    // Limit to a reasonable number for performance
+    query = query.limit(50);
 
     // Execute the query
     final snapshot = await query.get();
@@ -453,8 +650,6 @@ static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
   }
 }
 
-// Add this method to lib/services/analytics_query_service.dart
-
 /// Get actual draft history for a specific team
 static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
   required String team,
@@ -472,6 +667,9 @@ static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
     if (year != null) {
       query = query.where('year', isEqualTo: year);
     }
+
+    // Limit to a reasonable number for performance
+    query = query.limit(50);
 
     // Execute the query
     final snapshot = await query.get();
@@ -519,5 +717,4 @@ static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
     return [];
   }
 }
-
 }

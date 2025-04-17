@@ -1,4 +1,4 @@
-// lib/widgets/analytics/team_draft_patterns_tab.dart
+// lib/widgets/analytics/team_draft_patterns_tab.dart (Updated)
 
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
@@ -26,6 +26,8 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   bool _isLoading = true;
   String _selectedTeam = '';
   int? _selectedRound;
+  bool _hasError = false;
+  String _errorMessage = '';
   
   // Data states
   List<Map<String, dynamic>> _topPicksByPosition = [];
@@ -42,109 +44,96 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
 
   // Optimized data loading - only fetches what's needed based on selection
   Future<void> _loadData() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    // Create a list of futures to execute in parallel
-    final futures = <Future>[];
-    
-    // ADDED: Debug info
-    debugPrint('Loading data for team: $_selectedTeam, round: $_selectedRound, year: ${widget.draftYear}');
-    
-    // Future for position data
-    final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
-      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-      round: _selectedRound,
-      year: widget.draftYear,
-    ).then((data) {
-      // ADDED: Debug info
-      debugPrint('Position data loaded: ${data.length} entries');
-      _topPicksByPosition = data;
-    });
-    futures.add(positionFuture);
-    
-    // Future for player data
-    final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
-      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-      round: _selectedRound,
-      year: widget.draftYear,
-    ).then((data) {
-      // ADDED: Debug info
-      debugPrint('Player data loaded: ${data.length} entries');
-      _topPlayersByPick = data;
-    });
-    futures.add(playerFuture);
-    
-    // Wait for all futures to complete
-    await Future.wait(futures);
-
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
+      _hasError = false;
+      _errorMessage = '';
     });
-  } catch (e) {
-    debugPrint('Error loading team draft pattern data: $e');
-    setState(() {
-      _isLoading = false;
-    });
+
+    try {
+      // Create a list of futures to execute in parallel
+      final futures = <Future>[];
+      
+      // ADDED: Debug info
+      debugPrint('Loading data for team: $_selectedTeam, round: $_selectedRound, year: ${widget.draftYear}');
+      
+      // Future for position data
+      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
+        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+        round: _selectedRound,
+        year: widget.draftYear,
+      ).then((data) {
+        // ADDED: Debug info
+        debugPrint('Position data loaded: ${data.length} entries');
+        _topPicksByPosition = data;
+      }).catchError((e) {
+        debugPrint('Error loading position data: $e');
+        // Don't set error state here - we'll still try to load player data
+      });
+      futures.add(positionFuture);
+      
+      // Future for player data
+      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
+        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+        round: _selectedRound,
+        year: widget.draftYear,
+      ).then((data) {
+        // ADDED: Debug info
+        debugPrint('Player data loaded: ${data.length} entries');
+        _topPlayersByPick = data;
+      }).catchError((e) {
+        debugPrint('Error loading player data: $e');
+        // Don't set error state here either
+      });
+      futures.add(playerFuture);
+
+      // Also load team needs if we're looking at a specific team
+      if (_selectedTeam != 'All Teams') {
+        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
+          year: widget.draftYear,
+        ).then((needs) {
+          if (needs.containsKey(_selectedTeam)) {
+            _consensusNeeds[_selectedTeam] = needs[_selectedTeam] ?? [];
+          }
+        }).catchError((e) {
+          debugPrint('Error loading team needs: $e');
+          // Non-critical, continue
+        });
+        futures.add(needsFuture);
+      }
+      
+      // Wait for all futures to complete
+      await Future.wait(futures);
+
+      // Check if we got any data
+      if (_topPicksByPosition.isEmpty && _topPlayersByPick.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _errorMessage = 'No data available for the selected team and round.';
+        });
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading team draft pattern data: $e');
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+        _errorMessage = 'Error loading data: $e';
+      });
+    }
   }
-}
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
 
-
-// Add these helper methods to convert team-specific data formats
-List<Map<String, dynamic>> _convertToPickPositionFormat(List<Map<String, dynamic>> teamData) {
-  // This converts the team's pick history to the position trend table format
-  List<Map<String, dynamic>> result = [];
-  
-  for (var pick in teamData) {
-    // Each pick has the team's actual selection details
-    final pickNumber = pick['pickNumber'] as int;
-    final round = pick['round'] as String;
-    final position = pick['position'] as String;
-    
-    // For team view, there's only one position per pick (what they actually selected)
-    result.add({
-      'pick': pickNumber,
-      'round': round,
-      'positions': [
-        {'position': position, 'count': 1, 'percentage': '100.0%'}
-      ],
-      'totalDrafts': 1
-    });
-  }
-  
-  // Sort by pick number
-  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-  return result;
-}
-
-List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>> teamData) {
-  // This converts the team's pick history to the player trend table format
-  List<Map<String, dynamic>> result = [];
-  
-  for (var pick in teamData) {
-    // Each pick has the team's actual selection details
-    result.add({
-      'pick': pick['pickNumber'] as int,
-      'player': pick['playerName'] as String,
-      'position': pick['position'] as String,
-      'count': 1,
-      'percentage': '100.0%',
-      'totalDrafts': 1
-    });
-  }
-  
-  // Sort by pick number
-  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-  return result;
-}
-
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -206,7 +195,7 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
                   ...List.generate(7, (index) => DropdownMenuItem<int?>(
                     value: index + 1,
                     child: Text('Round ${index + 1}'),
-                )),
+                  )),
                 ],
               ),
             ],
@@ -214,233 +203,306 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
         ),
 
         // Main content
-        _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top Positions by Pick
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _selectedRound == null 
-                                  ? 'Position Trends by Pick (All Rounds)'
-                                  : 'Position Trends by Pick (Round $_selectedRound)',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildPositionTrendsTable(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Top Players by Pick
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _selectedRound == null 
-                                    ? 'Most Common Players Selected (All Rounds)'
-                                    : 'Most Common Players Selected (Round $_selectedRound)',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildPlayerTrendsTable(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Consensus Needs (only show for specific team)
-                      if (_selectedTeam != 'All Teams')
-                        Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Community Consensus Needs for $_selectedTeam',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildConsensusNeedsWidget(),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
+        if (_isLoading)
+          const Expanded(
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_hasError)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Positions by Pick
+                    Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedRound == null 
+                                ? 'Position Trends by Pick (All Rounds)'
+                                : 'Position Trends by Pick (Round $_selectedRound)',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildPositionTrendsTable(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Top Players by Pick
+                    Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedRound == null 
+                                  ? 'Most Common Players Selected (All Rounds)'
+                                  : 'Most Common Players Selected (Round $_selectedRound)',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildPlayerTrendsTable(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Consensus Needs (only show for specific team)
+                    if (_selectedTeam != 'All Teams')
+                      Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Community Consensus Needs for $_selectedTeam',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildConsensusNeedsWidget(),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
+            ),
+          ),
       ],
     );
   }
 
-  // Update _buildPositionTrendsTable in team_draft_patterns_tab.dart
-
-Widget _buildPositionTrendsTable() {
-  if (_topPicksByPosition.isEmpty) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('No position trend data available'),
-      ),
-    );
-  }
-
-  return Table(
-    columnWidths: const {
-      0: FlexColumnWidth(1),
-      1: FlexColumnWidth(1),
-      2: FlexColumnWidth(2),
-      3: FlexColumnWidth(2),
-      4: FlexColumnWidth(2),
-    },
-    border: TableBorder.all(
-      color: Colors.grey.shade300,
-      width: 1,
-    ),
-    children: [
-      // Header
-      TableRow(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade800 
-              : Colors.grey.shade200,
+  Widget _buildPositionTrendsTable() {
+    if (_topPicksByPosition.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text('No position trend data available'),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
         ),
-        children: [
-          _buildTableHeader('Pick'),
-          _buildTableHeader('Round'),
-          _buildTableHeader('1st Position (%)'),
-          _buildTableHeader('2nd Position (%)'),
-          _buildTableHeader('3rd Position (%)'),
-        ],
+      );
+    }
+
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(1),
+        1: FlexColumnWidth(1),
+        2: FlexColumnWidth(2),
+        3: FlexColumnWidth(2),
+        4: FlexColumnWidth(2),
+      },
+      border: TableBorder.all(
+        color: Colors.grey.shade300,
+        width: 1,
       ),
-      // Data rows
-      ..._topPicksByPosition.map((data) {
-        final positionsList = data['positions'] as List<dynamic>;
-        return TableRow(
+      children: [
+        // Header
+        TableRow(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.grey.shade800 
+                : Colors.grey.shade200,
+          ),
           children: [
-            _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${data['round'] ?? 'N/A'}'),
-            _buildPositionCell(
-              positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
-              positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
-              positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
-              positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
-            ),
+            _buildTableHeader('Pick'),
+            _buildTableHeader('Round'),
+            _buildTableHeader('1st Position (%)'),
+            _buildTableHeader('2nd Position (%)'),
+            _buildTableHeader('3rd Position (%)'),
           ],
-        );
-      }),
-    ],
-  );
-}
-
-// Also update the player trends table
-Widget _buildPlayerTrendsTable() {
-  if (_topPlayersByPick.isEmpty) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('No player trend data available'),
-      ),
-    );
-  }
-
-  return Table(
-    columnWidths: const {
-      0: FlexColumnWidth(1),
-      1: FlexColumnWidth(4),
-      2: FlexColumnWidth(1),
-      3: FlexColumnWidth(1),
-    },
-    border: TableBorder.all(
-      color: Colors.grey.shade300,
-      width: 1,
-    ),
-    children: [
-      // Header
-      TableRow(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade800 
-              : Colors.grey.shade200,
         ),
-        children: [
-          _buildTableHeader('Pick'),
-          _buildTableHeader('Most Common Player'),
-          _buildTableHeader('Position'),
-          _buildTableHeader('Frequency'),
-        ],
-      ),
-      // Data rows
-      ..._topPlayersByPick.map((data) {
-        final playersList = data['players'] as List<dynamic>;
-        if (playersList.isEmpty) {
+        // Data rows
+        ..._topPicksByPosition.map((data) {
+          final positionsList = data['positions'] as List<dynamic>;
           return TableRow(
             children: [
               _buildTableCell('${data['pick'] ?? 'N/A'}'),
-              _buildTableCell('No data'),
-              _buildTableCell('N/A'),
-              _buildTableCell('0%'),
+              _buildTableCell('${data['round'] ?? 'N/A'}'),
+              _buildPositionCell(
+                positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
+                positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
+              ),
+              _buildPositionCell(
+                positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
+                positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
+              ),
+              _buildPositionCell(
+                positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
+                positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
+              ),
             ],
           );
-        }
-        
-        final topPlayer = playersList[0];
-        return TableRow(
+        }),
+      ],
+    );
+  }
+
+  Widget _buildPlayerTrendsTable() {
+    if (_topPlayersByPick.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text('No player trend data available'),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(1),
+        1: FlexColumnWidth(4),
+        2: FlexColumnWidth(1),
+        3: FlexColumnWidth(1),
+      },
+      border: TableBorder.all(
+        color: Colors.grey.shade300,
+        width: 1,
+      ),
+      children: [
+        // Header
+        TableRow(
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.grey.shade800 
+                : Colors.grey.shade200,
+          ),
           children: [
-            _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${topPlayer['player'] ?? 'N/A'}'),
-            _buildPositionCell(topPlayer['position'] ?? 'N/A', ''),
-            _buildTableCell('${topPlayer['percentage'] ?? '0%'}'),
+            _buildTableHeader('Pick'),
+            _buildTableHeader('Most Common Player'),
+            _buildTableHeader('Position'),
+            _buildTableHeader('Frequency'),
           ],
-        );
-      }),
-    ],
-  );
-}
+        ),
+        // Data rows
+        ..._topPlayersByPick.map((data) {
+          // Handle different data formats
+          final String playerName = data['player'] ?? 
+                                   ((data['players'] != null && (data['players'] as List).isNotEmpty) ? 
+                                   data['players'][0]['player'] : 'N/A');
+          
+          final String position = data['position'] ?? 
+                                 ((data['players'] != null && (data['players'] as List).isNotEmpty) ? 
+                                 data['players'][0]['position'] : 'N/A');
+          
+          final String percentage = data['percentage'] ?? 
+                                   ((data['players'] != null && (data['players'] as List).isNotEmpty) ? 
+                                   data['players'][0]['percentage'] : '0%');
+          
+          return TableRow(
+            children: [
+              _buildTableCell('${data['pick'] ?? 'N/A'}'),
+              _buildTableCell(playerName),
+              _buildPositionCell(position, ''),
+              _buildTableCell(percentage),
+            ],
+          );
+        }),
+      ],
+    );
+  }
 
   Widget _buildConsensusNeedsWidget() {
     final teamNeeds = _consensusNeeds[_selectedTeam] ?? [];
     
     if (teamNeeds.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('No consensus need data available'),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text('No consensus need data available'),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  AnalyticsQueryService.getConsensusTeamNeeds(
+                    year: widget.draftYear,
+                  ).then((needs) {
+                    setState(() {
+                      if (needs.containsKey(_selectedTeam)) {
+                        _consensusNeeds[_selectedTeam] = needs[_selectedTeam] ?? [];
+                      }
+                    });
+                  });
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -503,6 +565,19 @@ Widget _buildPlayerTrendsTable() {
   }
 
   Widget _buildPositionCell(String position, String percentage) {
+    if (position == 'N/A') {
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text(
+          position,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.grey.shade500,
+          ),
+        ),
+      );
+    }
+    
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
@@ -524,7 +599,7 @@ Widget _buildPlayerTrendsTable() {
               ),
             ),
           ),
-          if (percentage.isNotEmpty) ...[
+          if (percentage.isNotEmpty && percentage != '0%') ...[
             const SizedBox(width: 4),
             Text(
               percentage,
@@ -537,20 +612,23 @@ Widget _buildPlayerTrendsTable() {
   }
 
   Color _getPositionColor(String position) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    // Different colors for different position groups with dark mode adjustments
     if (['QB', 'RB', 'FB'].contains(position)) {
-      return Colors.blue.shade700; // Backfield
+      return isDarkMode ? Colors.blue.shade400 : Colors.blue.shade700; // Backfield
     } else if (['WR', 'TE'].contains(position)) {
-      return Colors.green.shade700; // Receivers
+      return isDarkMode ? Colors.green.shade400 : Colors.green.shade700; // Receivers
     } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
-      return Colors.purple.shade700; // O-Line
+      return isDarkMode ? Colors.purple.shade400 : Colors.purple.shade700; // O-Line
     } else if (['EDGE', 'DL', 'IDL', 'DT', 'DE'].contains(position)) {
-      return Colors.red.shade700; // D-Line
+      return isDarkMode ? Colors.red.shade400 : Colors.red.shade700; // D-Line
     } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-      return Colors.orange.shade700; // Linebackers
+      return isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700; // Linebackers
     } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-      return Colors.teal.shade700; // Secondary
+      return isDarkMode ? Colors.teal.shade400 : Colors.teal.shade700; // Secondary
     } else {
-      return Colors.grey.shade700; // Special teams, etc.
+      return isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700; // Special teams, etc.
     }
   }
 }
