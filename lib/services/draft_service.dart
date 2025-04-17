@@ -28,7 +28,9 @@ class DraftService {
   final double tradeFrequency;
   final double needVsValueBalance;
 
-  
+  final List<PlayerSelectionRecord> _userSelectionHistory = [];
+  bool _canUndo = false;
+
   // Trade service
   late TradeService _tradeService;
   
@@ -1316,4 +1318,131 @@ void printFuturePicksStatus(String teamName) {
   }
   debugPrint("==========================================\n");
 }
+
+/// Record a user selection for undo functionality
+void recordUserSelection(DraftPick pick, Player player, List<Player> currentAvailablePlayers) {
+  // Create deep copies of all needed state
+  List<Player> availablePlayersSnapshot = List.from(currentAvailablePlayers);
+  
+  // Create deep copies of draft picks with their current state
+  List<DraftPick> draftPicksSnapshot = draftOrder.map((dp) {
+    return DraftPick(
+      pickNumber: dp.pickNumber,
+      teamName: dp.teamName,
+      selectedPlayer: dp.selectedPlayer,
+      round: dp.round,
+      originalPickNumber: dp.originalPickNumber,
+      tradeInfo: dp.tradeInfo,
+      isActiveInDraft: dp.isActiveInDraft,
+    );
+  }).toList();
+  
+  // Create deep copies of team needs
+  List<TeamNeed> teamNeedsSnapshot = teamNeeds.map((tn) {
+    TeamNeed newNeed = TeamNeed(
+      teamName: tn.teamName,
+      needs: List.from(tn.needs),
+    );
+    
+    // Copy selected positions
+    for (var pos in tn.selectedPositions) {
+      newNeed.selectedPositions.add(pos);
+    }
+    
+    return newNeed;
+  }).toList();
+  
+  // Record the complete state
+  _userSelectionHistory.add(PlayerSelectionRecord(
+    pick: pick,
+    player: player,
+    availablePlayersSnapshot: availablePlayersSnapshot,
+    draftPicksSnapshot: draftPicksSnapshot,
+    teamNeedsSnapshot: teamNeedsSnapshot,
+    pickNumber: pick.pickNumber,
+  ));
+  
+  _canUndo = true;
+}
+
+/// Check if there's an action that can be undone
+bool canUndo() {
+  return _canUndo && _userSelectionHistory.isNotEmpty;
+}
+
+/// Undo the last user selection
+/// Undo the last user selection and all subsequent picks
+bool undoLastUserSelection() {
+  if (!canUndo() || _userSelectionHistory.isEmpty) {
+    return false;
+  }
+  
+  // Get the last selection record
+  final lastSelection = _userSelectionHistory.removeLast();
+  
+  // The pick number where we want to revert to
+  final revertToPick = lastSelection.pickNumber;
+  
+  // 1. Restore all draft picks to their previous state
+  // First identify all picks after the user's pick that need to be completely cleared
+  for (var pick in draftOrder) {
+    // If this pick comes after the user's pick, clear its selected player
+    if (pick.pickNumber >= revertToPick) {
+      pick.selectedPlayer = null;
+    } else {
+      // For picks before or at the user's pick, restore from snapshot
+      final snapshotPick = lastSelection.draftPicksSnapshot.firstWhere(
+        (sp) => sp.pickNumber == pick.pickNumber,
+        orElse: () => pick
+      );
+      pick.selectedPlayer = snapshotPick.selectedPlayer;
+      pick.teamName = snapshotPick.teamName;
+      pick.tradeInfo = snapshotPick.tradeInfo;
+    }
+  }
+  
+  // 2. Completely restore available players from snapshot
+  availablePlayers.clear();
+  availablePlayers.addAll(lastSelection.availablePlayersSnapshot);
+  
+  // 3. Completely restore team needs from snapshot
+  for (var teamNeed in teamNeeds) {
+    // Find matching team need in snapshot
+    final snapshotNeed = lastSelection.teamNeedsSnapshot.firstWhere(
+      (tn) => tn.teamName == teamNeed.teamName,
+      orElse: () => teamNeed
+    );
+    
+    // Restore needs and selected positions
+    teamNeed.needs.clear();
+    teamNeed.needs.addAll(snapshotNeed.needs);
+    
+    teamNeed.selectedPositions.clear();
+    teamNeed.selectedPositions.addAll(snapshotNeed.selectedPositions);
+  }
+  
+  // Update the canUndo flag
+  _canUndo = _userSelectionHistory.isNotEmpty;
+  
+  // Return success
+  return true;
+}
+
+}
+class PlayerSelectionRecord {
+  final DraftPick pick;
+  final Player player;
+  final List<Player> availablePlayersSnapshot;
+  final List<DraftPick> draftPicksSnapshot;
+  final List<TeamNeed> teamNeedsSnapshot;
+  final int pickNumber;  // The pick number where we want to revert to
+  
+  PlayerSelectionRecord({
+    required this.pick,
+    required this.player,
+    required this.availablePlayersSnapshot,
+    required this.draftPicksSnapshot,
+    required this.teamNeedsSnapshot,
+    required this.pickNumber,
+  });
 }

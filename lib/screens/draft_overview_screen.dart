@@ -32,6 +32,8 @@ import 'team_selection_screen.dart';
 import '../widgets/draft/draft_control_buttons.dart';
 import '../widgets/trade/trade_dialog_wrapper.dart';
 import '../services/firebase_service.dart';
+import '../widgets/draft/draft_action_dialog.dart';
+
 
 class DraftApp extends StatefulWidget {
   final double randomnessFactor;
@@ -1210,9 +1212,20 @@ Color _getGradientColor(int score, double opacity) {
 }
 
   
-
-  void _selectPlayer(DraftPick pick, Player player) {
+void _selectPlayer(DraftPick pick, Player player) {
   if (_draftService == null) return;
+  
+  // Check if this is a user team selection to track for undo
+  bool isUserSelection = widget.selectedTeams != null && widget.selectedTeams!.contains(pick.teamName);
+  
+  // If user selection, take a snapshot of state before changing anything
+  if (isUserSelection) {
+    // Create deep copy of available players
+    List<Player> availablePlayersSnapshot = List.from(_draftService!.availablePlayers);
+    
+    // Record this selection in history using the public method
+    _draftService!.recordUserSelection(pick, player, availablePlayersSnapshot);
+  }
   
   // Update the pick with the selected player
   pick.selectedPlayer = player;
@@ -1317,51 +1330,68 @@ bool _shouldShowTeamInfo() {
          _activeUserTeam != null;
 }
 
-  void _restartDraft() {
-  // Show confirmation dialog before restarting
+  // In lib/screens/draft_overview_screen.dart, update the _restartDraft method
+
+void _restartDraft() {
+  // Show the actions dialog with both options
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-      
-      return AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.refresh, color: isDarkMode ? Colors.orange.shade300 : Colors.orange.shade700),
-            const SizedBox(width: 8),
-            const Text('Restart Draft?'),
-          ],
+      return DraftActionDialog(
+        canUndo: _draftService?.canUndo() ?? false,
+        onRestart: () {
+          // Reset the draft state
+          setState(() {
+            _isDraftRunning = false;
+            _isUserPickMode = false;
+            _userNextPick = null;
+            _summaryShown = false;
+            
+            // Reload data to reset the draft
+            _loadData();
+          });
+        },
+        // In the onUndo callback within the _restartDraft method
+
+onUndo: () {
+  if (_draftService != null && _draftService!.canUndo()) {
+    // Execute the undo operation
+    final success = _draftService!.undoLastUserSelection();
+    
+    if (success) {
+      setState(() {
+        // Update UI state
+        _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+        _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+        _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+        _statusMessage = "Undid your last pick. You're back to pick #${_draftService!.getNextPick()?.pickNumber ?? 'N/A'}";
+        
+        // Set draft state back to user pick mode
+        _isDraftRunning = false;
+        _isUserPickMode = true;
+        
+        // Find the pick that was just undone
+        _userNextPick = _draftService!.getNextPick();
+        
+        // Update active user team
+        _updateActiveUserTeam();
+        
+        // Scroll to the current pick
+        Future.delayed(const Duration(milliseconds: 150), () {
+          _tabController.animateTo(0); // First switch to the draft order tab
+          _scrollToCurrentPick(); // Then scroll to the correct position
+        });
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not undo the last action'),
+          duration: Duration(seconds: 2),
         ),
-        content: const Text(
-          'Are you sure you want to restart the draft? All progress will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Close dialog
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              
-              // Reset the draft state instead of navigating
-              setState(() {
-                _isDraftRunning = false;
-                _isUserPickMode = false;
-                _userNextPick = null;
-                _summaryShown = false;
-                
-                // Reload data to reset the draft
-                _loadData();
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? Colors.orange.shade700 : Colors.red.shade600,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Restart'),
-          ),
-        ],
+      );
+    }
+  }
+},
       );
     },
   );
