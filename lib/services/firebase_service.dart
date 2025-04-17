@@ -7,6 +7,7 @@ import 'dart:js' as js;
 import '../models/draft_analytics.dart';
 import '../models/draft_pick.dart';
 import '../models/trade_package.dart';
+import 'package:cloud_functions/cloud_functions.dart'; 
 
 class FirebaseService {
   static FirebaseFirestore? _firestoreInstance;
@@ -228,8 +229,7 @@ static Future<bool> triggerAnalyticsAggregation() async {
     
     debugPrint('Manually triggering analytics aggregation...');
     
-    // For a simple test implementation, we'll directly write to the
-    // precomputedAnalytics/metadata document to indicate an aggregation was requested
+    // First set the metadata flag (keeping your existing approach)
     final db = FirebaseFirestore.instance;
     await db.collection('precomputedAnalytics').doc('metadata').set({
       'lastUpdated': FieldValue.serverTimestamp(),
@@ -237,10 +237,16 @@ static Future<bool> triggerAnalyticsAggregation() async {
       'triggerTimestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
     
-    // In a real implementation, you would call a Firebase HTTP function
-    // const functions = FirebaseFunctions.instance;
-    // final callable = functions.httpsCallable('triggerAnalyticsAggregation');
-    // final result = await callable.call();
+    // Once you deploy the manuallyTriggerAnalytics function, you can uncomment this:
+    try {
+      // Use the correct API to get the Firebase Functions instance
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('manuallyTriggerAnalytics');
+      final result = await callable.call();
+      debugPrint('Direct function call result: ${result.data}');
+    } catch (functionError) {
+      debugPrint('Could not call function directly: $functionError');
+    }
     
     debugPrint('Analytics aggregation triggered. Check Firebase logs.');
     return true;
