@@ -61,24 +61,26 @@ class DraftHistoryService {
     _lastUserDecisionState = null;
   }
 
-  void ensurePickStatus(List<DraftPick> currentPicks, List<DraftPick> savedPicks) {
-    // Create a map of pick numbers to selected status for quick lookup
-    Map<int, bool> savedPickStatus = {};
+  // In DraftHistoryService class
+void ensurePickStatus(List<DraftPick> currentPicks, List<DraftPick> savedPicks) {
+  // Create a map of pick numbers to selected status for quick lookup
+  Map<int, bool> savedPickStatus = {};
+  
+  // Populate the map from saved picks
+  for (var pick in savedPicks) {
+    savedPickStatus[pick.pickNumber] = pick.selectedPlayer != null;
+  }
+  
+  // Now update all current picks based on saved status
+  for (var pick in currentPicks) {
+    bool wasSelected = savedPickStatus[pick.pickNumber] ?? false;
     
-    // Populate the map from saved picks
-    for (var pick in savedPicks) {
-      savedPickStatus[pick.pickNumber] = pick.selectedPlayer != null;
-    }
-    
-    // Now update all current picks based on saved status
-    for (var pick in currentPicks) {
-      bool wasSelected = savedPickStatus[pick.pickNumber] ?? false;
-      
-      // If a pick should NOT be selected but is, clear its player
-      if (!wasSelected && pick.selectedPlayer != null) {
-        pick.selectedPlayer = null;
-        debugPrint("Resetting selection for pick #${pick.pickNumber}");
-      }
+    // If a pick should NOT be selected but is, clear its player
+    if (!wasSelected && pick.selectedPlayer != null) {
+      pick.selectedPlayer = null;
+      debugPrint("Resetting selection for pick #${pick.pickNumber}");
     }
   }
+}
+
 }

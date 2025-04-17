@@ -180,6 +180,8 @@ bool undoLastUserDecision() {
   final savedState = historyService.getLastUserDecisionState();
   if (savedState == null) return false;
   
+  debugPrint("Restoring draft state from history...");
+  
   // Restore available players (complete replacement)
   availablePlayers.clear();
   availablePlayers.addAll(savedState.availablePlayers);
@@ -210,7 +212,7 @@ bool undoLastUserDecision() {
   historyService.ensurePickStatus(draftOrder, savedState.draftPicks);
   
   // Restore team needs - more thorough approach
-  for (TeamNeed teamNeed in teamNeeds) {
+  for (var teamNeed in teamNeeds) {
     // Find matching team need in saved state
     TeamNeed? savedTeamNeed = savedState.teamNeeds.firstWhere(
       (need) => need.teamName == teamNeed.teamName,

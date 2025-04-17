@@ -1759,7 +1759,7 @@ Widget build(BuildContext context) {
               controller: _tabController,
               children: [
                 DraftOrderTab(
-                  key: ValueKey('draft_order_${_draftPicks.where((p) => p.isSelected).length}'),  // Add this key
+                  key: ValueKey('draft_order_${_draftPicks.where((p) => p.isSelected).length}'),
                   draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
                   userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
                   scrollController: _draftOrderScrollController,
@@ -1835,13 +1835,13 @@ Widget build(BuildContext context) {
 extension DraftServiceExtensions on DraftService {
   /// Get the next pick in the draft
   DraftPick? getNextPick() {
-    for (var pick in draftOrder) {
-      if (!pick.isSelected && pick.isActiveInDraft) {
-        return pick;
-      }
+  for (var pick in draftOrder) {
+    if (!pick.isSelected && pick.isActiveInDraft) {
+      return pick;
     }
-    return null;
   }
+  return null;
+}
   
   /// Select the best player for a specific team
   Player selectBestPlayerForTeam(String teamName) {
