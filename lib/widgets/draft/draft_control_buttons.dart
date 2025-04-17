@@ -34,14 +34,14 @@ class DraftControlButtons extends StatelessWidget {
                 height: 48,
                 child: FloatingActionButton(
                   onPressed: onRestartDraft,
-                  tooltip: 'Restart Draft',
+                  tooltip: 'Restart/Undo',
                   mini: true,
                   child: const Icon(Icons.refresh),
                 ),
               ),
               const SizedBox(height: 4),
               const Text(
-                'Restart',
+                'Restart/Undo',
                 style: TextStyle(fontSize: 12),
               ),
             ],
