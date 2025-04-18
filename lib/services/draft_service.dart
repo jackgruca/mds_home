@@ -92,7 +92,7 @@ class DraftService {
   this.enableUserTradeProposals = true,
   this.enableQBPremium = true,
   this.tradeFrequency = 0.5,
-  this.needVsValueBalance = 0.3,
+  this.needVsValueBalance = 0.4,
 }) {
   // Sort players by rank initially
   availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
@@ -786,12 +786,12 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
         // Need factor - higher for top needs (ADJUSTED BY needVsValueBalance)
         // Adjust the need weight based on the needVsValueBalance setting (0-1)
         // 0 = BPA focused, 1 = Need focused
-        double needWeight = 0.3 + (needVsValueBalance * 0.4); // Range from 0.3 to 0.7
+        double needWeight = 0.2 + (needVsValueBalance * 0.3); // Range from 0.3 to 0.7
         double needFactor = 1.0 - (i * 0.15); // 1.0 for top need, decreasing
         
         // Value calculation - how good is player relative to pick?
         // (ADJUSTED BY inverse of needVsValueBalance)
-        double valueWeight = 0.7 - (needVsValueBalance * 0.4); // Range from 0.7 to 0.3
+        double valueWeight = 0.8 - (needVsValueBalance * 0.3); // Range from 0.7 to 0.3
         int valueGap = nextPick.pickNumber - player.rank;
         double valueScore = valueGap >= 0 
             ? min(1.0, valueGap / 10) // Good value (up to +1.0)
@@ -862,6 +862,10 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
     
     // Get position weight
     double posWeight = _positionValueWeights[player.position] ?? 1.0;
+
+    if (player.position == 'QB') {
+      posWeight = .5;
+    }
     
     // Get scarcity factor
     double scarcityFactor = _positionScarcity[player.position] ?? 1.0;
@@ -873,7 +877,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
         : max(-0.5, valueGap / 20);
     
     // BPA gets a boost but need factor is low
-    double needFactor = 0.5; // Low since not in needs list
+    double needFactor = 0.4; // Low since not in needs list
     
     // Store all scoring components for debugging
     Map<String, double> scoreComponents = {

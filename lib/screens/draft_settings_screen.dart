@@ -45,7 +45,7 @@ class DraftSettingsScreen extends StatefulWidget {
     required this.selectedYear,
     required this.availableYears,
     this.tradeFrequency = 0.5,
-    this.needVsValueBalance = 0.3,
+    this.needVsValueBalance = 0.4,
   });
 
   @override
@@ -628,7 +628,7 @@ void _showQuickLoadDialog() {
         _enableQBPremium = true;
         _showAnalytics = true;
         _tradeFrequency = 0.5;
-        _needVsValueBalance = 0.3;
+        _needVsValueBalance = 0.4;
       });
     },
     icon: const Icon(Icons.restore),

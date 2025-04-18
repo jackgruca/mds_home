@@ -29,7 +29,7 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _selectedYear = 2025;
   final List<int> _availableYears = [2023, 2024, 2025];
   double _tradeFrequency = 0.5;
-  double _needVsValueBalance = 0.3;
+  double _needVsValueBalance = 0.4;
 
   bool _enableTrading = true;
   bool _enableUserTradeProposals = true;
