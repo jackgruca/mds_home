@@ -877,10 +877,10 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
     
     // Store all scoring components for debugging
     Map<String, double> scoreComponents = {
-      'needFactor': needFactor * 0.3,
-      'valueScore': valueScore * 0.5 * bpaWeight, // Apply BPA weight here
-      'positionWeight': posWeight * 0.15,
-      'scarcityFactor': scarcityFactor * 0.05
+      'needFactor': needFactor * (0.3 + (needVsValueBalance * 0.4)), // Same formula as for needs
+      'valueScore': valueScore * (0.7 - (needVsValueBalance * 0.4)) * bpaWeight, // Same formula multiplied by bpaWeight
+      'positionWeight': posWeight * 0.2, // Same as need evaluation (currently 0.15)
+      'scarcityFactor': scarcityFactor * 0.1 // Same as need evaluation (currently 0.05)
     };
     
     // Calculate score with higher value emphasis
