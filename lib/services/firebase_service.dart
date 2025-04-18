@@ -228,25 +228,111 @@ static Future<bool> triggerAnalyticsAggregation() async {
     
     debugPrint('Manually triggering analytics aggregation...');
     
+    // First check if we're already aggregating data
+    final metadata = await _firestore.collection('precomputedAnalytics').doc('metadata').get();
+    if (metadata.exists) {
+      final data = metadata.data();
+      if (data != null && data['inProgress'] == true) {
+        final processingTime = DateTime.now().difference(
+          (data['timeStarted'] as Timestamp).toDate()
+        ).inMinutes;
+        
+        // If processing for more than 15 minutes, assume it's stuck
+        if (processingTime < 15) {
+          debugPrint('Analytics aggregation already in progress (started $processingTime minutes ago)');
+          return false;
+        }
+        
+        debugPrint('Previous aggregation appears stuck, resetting status...');
+      }
+    }
+    
     // For a simple test implementation, we'll directly write to the
     // precomputedAnalytics/metadata document to indicate an aggregation was requested
-    final db = FirebaseFirestore.instance;
-    await db.collection('precomputedAnalytics').doc('metadata').set({
+    await _firestore.collection('precomputedAnalytics').doc('metadata').set({
       'lastUpdated': FieldValue.serverTimestamp(),
       'manualTrigger': true,
       'triggerTimestamp': FieldValue.serverTimestamp(),
+      'inProgress': true,
+      'documentsProcessed': 0,
+      'timeStarted': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-    
-    // In a real implementation, you would call a Firebase HTTP function
-    // const functions = FirebaseFunctions.instance;
-    // final callable = functions.httpsCallable('triggerAnalyticsAggregation');
-    // final result = await callable.call();
     
     debugPrint('Analytics aggregation triggered. Check Firebase logs.');
     return true;
   } catch (e) {
     debugPrint('Error triggering analytics aggregation: $e');
     return false;
+  }
+}
+
+/// Check analytics processing status 
+static Future<Map<String, dynamic>> getAnalyticsProcessingStatus() async {
+  try {
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    final metadata = await _firestore.collection('precomputedAnalytics').doc('metadata').get();
+    
+    if (!metadata.exists) {
+      return {
+        'status': 'unknown',
+        'message': 'No metadata document found'
+      };
+    }
+    
+    final data = metadata.data();
+    if (data == null) {
+      return {
+        'status': 'unknown',
+        'message': 'Metadata document is empty'
+      };
+    }
+    
+    // Check if processing is in progress
+    if (data['inProgress'] == true) {
+      final documentsProcessed = data['documentsProcessed'] ?? 0;
+      return {
+        'status': 'processing',
+        'message': 'Processing in progress: $documentsProcessed documents processed',
+        'documentsProcessed': documentsProcessed,
+        'lastUpdated': data['lastUpdated'] as Timestamp?,
+      };
+    }
+    
+    // Check if there was an error
+    if (data.containsKey('error')) {
+      return {
+        'status': 'error',
+        'message': 'Error: ${data['error']}',
+        'lastUpdated': data['lastUpdated'] as Timestamp?,
+      };
+    }
+    
+    // Check if core documents exist
+    final positionDistDoc = await _firestore.collection('precomputedAnalytics').doc('positionDistribution').get();
+    
+    if (!positionDistDoc.exists) {
+      return {
+        'status': 'incomplete',
+        'message': 'Core data documents are missing'
+      };
+    }
+    
+    // All looks good
+    return {
+      'status': 'ready',
+      'message': 'Analytics data is ready',
+      'lastUpdated': data['lastUpdated'] as Timestamp?,
+      'documentsProcessed': data['documentsProcessed'] ?? 0,
+    };
+  } catch (e) {
+    debugPrint('Error checking analytics status: $e');
+    return {
+      'status': 'error',
+      'message': 'Error retrieving status: $e',
+    };
   }
 }
 
@@ -269,4 +355,55 @@ static Future<bool> checkAnalyticsCollections() async {
   
   /// Check if Firebase is properly initialized
   static bool get isInitialized => _initialized;
+
+  // lib/services/firebase_service.dart
+
+// Add this method to call the cloud function
+static Future<Map<String, dynamic>> callCloudFunction(
+  String functionName, 
+  Map<String, dynamic> data
+) async {
+  try {
+    if (!isInitialized) {
+      await initialize();
+    }
+    
+    // For web, we'll use a direct Firestore call since cloud_functions isn't available
+    final callDocRef = _firestore.collection('functionCalls').doc();
+    
+    // Save the call details
+    await callDocRef.set({
+      'function': functionName,
+      'data': data,
+      'status': 'pending',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    // lib/services/firebase_service.dart (continued)
+
+    // Wait for the function to process (with timeout)
+    int attempts = 0;
+    const maxAttempts = 30; // Wait up to 30 seconds
+    
+    while (attempts < maxAttempts) {
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Check if the function has completed
+      final resultDoc = await callDocRef.get();
+      final resultData = resultDoc.data();
+      
+      if (resultData != null && resultData['status'] == 'completed') {
+        // Return the result
+        return resultData['result'] ?? {'success': false, 'error': 'No result data'};
+      }
+      
+      attempts++;
+    }
+    
+    // Timeout
+    return {'success': false, 'error': 'Function call timed out'};
+  } catch (e) {
+    debugPrint('Error calling cloud function: $e');
+    return {'success': false, 'error': e.toString()};
+  }
+}
 }

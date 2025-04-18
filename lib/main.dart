@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/screens/blog_list_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
+import 'package:mds_home/widgets/admin/analytics_trigger_widget.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
@@ -212,6 +213,7 @@ class _AdminAccessScreenState extends State<AdminAccessScreen> {
 }
 
 // Simple admin panel to access various admin features
+// In your AdminPanel class (likely in lib/main.dart)
 class AdminPanel extends StatelessWidget {
   const AdminPanel({super.key});
 
@@ -248,8 +250,13 @@ class AdminPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            // New Analytics Setup Widget
-            const AnalyticsSetupWidget(), // Add this line
+            // Analytics Setup Widget (already there)
+            const AnalyticsSetupWidget(),
+            
+            // Add this new section for the Analytics Trigger
+            const SizedBox(height: 16),
+            // New Analytics Trigger Widget
+            const AnalyticsTriggerWidget(), // Add this line
           ],
         ),
       ),

@@ -2,12 +2,16 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
+// In firebase/functions/analyticsAggregation.js
+
+// Modify the dailyAnalyticsAggregation function
 exports.dailyAnalyticsAggregation = functions.runWith({
-    timeoutSeconds: 300,  // Increase timeout to 5 minutes
-    memory: '1GB'         // Increase memory allocation
+    timeoutSeconds: 540,  // Increase timeout to 9 minutes (max for standard tier)
+    memory: '2GB',       // Increase memory allocation
+    minInstances: 0      // Add this for better cold start performance
 })
 .pubsub
-.schedule('0 2 * * *')  // Run at 2 AM every day
+.schedule('0 2 * * *')  // Keep the daily schedule
 .timeZone('America/New_York')
 .onRun(async (context) => {
     const db = admin.firestore();
@@ -16,20 +20,43 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         console.log('Starting daily analytics aggregation...');
         
         // Process draft analytics in smaller batches to avoid timeout
-        const batchSize = 50;
+        const batchSize = 100;  // Increase batch size
         let lastDoc = null;
         let processedCount = 0;
-        let allAnalytics = [];
+        let processingStartTime = Date.now();
+        
+        // Set a reasonable time limit to avoid timeouts (8 minutes)
+        const timeLimit = 8 * 60 * 1000;
         
         // Update status to show we're starting
         await db.collection('precomputedAnalytics').doc('metadata').set({
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             inProgress: true,
             documentsProcessed: 0,
+            timeStarted: processingStartTime
         }, {merge: true});
         
-        // Process documents in batches to avoid connection timeout
-        while (true) {
+        // Track aggregate data across batches
+        const aggregateData = {
+            positionCounts: {},
+            teamPositionCounts: {},
+            pickPositionCounts: {},
+            pickPlayerCounts: {},
+            playerDeviations: {},
+            // Add other aggregate data structures as needed
+        };
+        
+        // Process documents in batches
+        let continueProcessing = true;
+        
+        while (continueProcessing) {
+            // Check if we're approaching the time limit
+            if (Date.now() - processingStartTime > timeLimit) {
+                console.log('Approaching function timeout, saving partial results...');
+                continueProcessing = false;
+                break;
+            }
+            
             let query = db.collection('draftAnalytics').limit(batchSize);
             if (lastDoc) {
                 query = query.startAfter(lastDoc);
@@ -43,9 +70,11 @@ exports.dailyAnalyticsAggregation = functions.runWith({
                 break;
             }
             
-            // Collect documents from this batch
+            // Process this batch and aggregate data
             analyticsSnapshot.forEach(doc => {
-                allAnalytics.push(doc);
+                const data = doc.data();
+                // Process and aggregate data for each document
+                processDocumentData(data, aggregateData);
             });
             
             processedCount += analyticsSnapshot.size;
@@ -58,49 +87,26 @@ exports.dailyAnalyticsAggregation = functions.runWith({
             await db.collection('precomputedAnalytics').doc('metadata').set({
                 documentsProcessed: processedCount,
                 inProgress: true,
+                lastProcessedId: lastDoc.id,
             }, {merge: true});
         }
         
-        console.log(`Processing ${allAnalytics.length} total draft analytics documents`);
-        
-        // Skip further processing if no documents found
-        if (allAnalytics.length === 0) {
-            console.log('No analytics data to process');
-            await db.collection('precomputedAnalytics').doc('metadata').set({
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                documentsProcessed: 0,
-                inProgress: false,
-            }, {merge: true});
-            return null;
-        }
-        
-        // Run all aggregations in parallel but with smaller batches
-        const aggregationPromises = [
-            aggregatePositionDistribution(allAnalytics),
-            aggregateTeamNeeds(allAnalytics),
-            aggregatePositionsByPick(allAnalytics),
-            aggregatePlayersByPick(allAnalytics),
-            aggregatePlayerDeviations(allAnalytics),
-            // Add any other aggregation functions
-            aggregateTeamPerformanceMetrics(allAnalytics),
-            aggregatePickCorrelations(allAnalytics),
-            aggregateHistoricalTrends(allAnalytics)
-        ];
-        
-        // Wait for all aggregations to complete
-        await Promise.all(aggregationPromises);
+        // Now save the aggregated data to the precomputed collections
+        await saveAggregatedData(db, aggregateData, processedCount);
         
         // Update metadata with final stats
         await db.collection('precomputedAnalytics').doc('metadata').set({
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             documentsProcessed: processedCount,
             inProgress: false,
+            processingTime: Date.now() - processingStartTime,
+            complete: continueProcessing ? true : false, // Indicates if we processed all docs
         }, {merge: true});
         
-        console.log('Daily analytics aggregation completed successfully');
+        console.log('Analytics aggregation completed successfully');
         return null;
     } catch (error) {
-        console.error('Error in daily analytics aggregation:', error);
+        console.error('Error in analytics aggregation:', error);
         
         // Update metadata to show the error
         await db.collection('precomputedAnalytics').doc('metadata').set({
@@ -112,7 +118,296 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         return null;
     }
 });
-    // Add this to analyticsAggregation.js
+
+// Add a new helper function to process document data efficiently
+function processDocumentData(data, aggregateData) {
+    const picks = data.picks || [];
+    const trades = data.trades || [];
+    
+    // Process positions
+    picks.forEach(pick => {
+        const position = pick.position;
+        const team = pick.actualTeam;
+        const pickNumber = pick.pickNumber;
+        const round = pick.round;
+        const playerName = pick.playerName;
+        const playerRank = pick.playerRank;
+        
+        // Position counts
+        aggregateData.positionCounts[position] = (aggregateData.positionCounts[position] || 0) + 1;
+        
+        // Team position counts
+        if (!aggregateData.teamPositionCounts[team]) {
+            aggregateData.teamPositionCounts[team] = {};
+        }
+        aggregateData.teamPositionCounts[team][position] = 
+            (aggregateData.teamPositionCounts[team][position] || 0) + 1;
+        
+        // Pick position counts for positions by pick analysis
+        if (!aggregateData.pickPositionCounts[pickNumber]) {
+            aggregateData.pickPositionCounts[pickNumber] = {
+                positions: {},
+                round: round,
+                totalDrafts: 0
+            };
+        }
+        aggregateData.pickPositionCounts[pickNumber].positions[position] = 
+            (aggregateData.pickPositionCounts[pickNumber].positions[position] || 0) + 1;
+        aggregateData.pickPositionCounts[pickNumber].totalDrafts += 1;
+        
+        // Player counts for most common players by pick
+        if (!aggregateData.pickPlayerCounts[pickNumber]) {
+            aggregateData.pickPlayerCounts[pickNumber] = {
+                players: {},
+                totalDrafts: 0
+            };
+        }
+        
+        const playerKey = `${playerName}|${position}`;
+        if (!aggregateData.pickPlayerCounts[pickNumber].players[playerKey]) {
+            aggregateData.pickPlayerCounts[pickNumber].players[playerKey] = {
+                player: playerName,
+                position: position,
+                count: 0
+            };
+        }
+        aggregateData.pickPlayerCounts[pickNumber].players[playerKey].count += 1;
+        aggregateData.pickPlayerCounts[pickNumber].totalDrafts += 1;
+        
+        // Player deviations (difference between pick number and player rank)
+        const deviation = pickNumber - playerRank;
+        
+        if (!aggregateData.playerDeviations[playerKey]) {
+            aggregateData.playerDeviations[playerKey] = {
+                name: playerName,
+                position: position,
+                deviations: [],
+                school: pick.school || ''
+            };
+        }
+        
+        aggregateData.playerDeviations[playerKey].deviations.push(deviation);
+    });
+    
+    // Process trades if needed
+    // ... trade processing logic
+}
+
+// Add a new helper function to save aggregated data
+async function saveAggregatedData(db, aggregateData, processedCount) {
+    const batch = db.batch();
+    
+    // Convert position counts to proper format
+    const totalPicks = Object.values(aggregateData.positionCounts).reduce((sum, count) => sum + count, 0);
+    const positionDistribution = {
+        overall: {
+            total: totalPicks,
+            positions: {}
+        },
+        byTeam: {}
+    };
+    
+    // Format overall position distribution
+    for (const [position, count] of Object.entries(aggregateData.positionCounts)) {
+        positionDistribution.overall.positions[position] = {
+            count: count,
+            percentage: `${((count / totalPicks) * 100).toFixed(1)}%`
+        };
+    }
+    
+    // Format team-specific position distributions
+    for (const [team, positions] of Object.entries(aggregateData.teamPositionCounts)) {
+        const teamTotal = Object.values(positions).reduce((sum, count) => sum + count, 0);
+        
+        positionDistribution.byTeam[team] = {
+            total: teamTotal,
+            positions: {}
+        };
+        
+        for (const [position, count] of Object.entries(positions)) {
+            positionDistribution.byTeam[team].positions[position] = {
+                count: count,
+                percentage: `${((count / teamTotal) * 100).toFixed(1)}%`
+            };
+        }
+    }
+    
+    // Save position distribution data
+    batch.set(db.collection('precomputedAnalytics').doc('positionDistribution'), {
+        overall: positionDistribution.overall,
+        byTeam: positionDistribution.byTeam,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Convert positions by pick data
+    const positionsByPick = [];
+    
+    for (const [pickNumber, data] of Object.entries(aggregateData.pickPositionCounts)) {
+        const positions = [];
+        
+        for (const [position, count] of Object.entries(data.positions)) {
+            positions.push({
+                position: position,
+                count: count,
+                percentage: `${((count / data.totalDrafts) * 100).toFixed(1)}%`
+            });
+        }
+        
+        // Sort positions by count
+        positions.sort((a, b) => b.count - a.count);
+        
+        positionsByPick.push({
+            pick: parseInt(pickNumber),
+            round: data.round,
+            positions: positions,
+            totalDrafts: data.totalDrafts
+        });
+    }
+    
+    // Sort by pick number
+    positionsByPick.sort((a, b) => a.pick - b.pick);
+    
+    // Save positions by pick data
+    batch.set(db.collection('precomputedAnalytics').doc('positionsByPick'), {
+        data: positionsByPick,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Process other aggregate data similarly
+    // ... process player data, deviations, etc.
+    
+    // Process player deviations
+    const averageDeviations = [];
+    const byPosition = {};
+    
+    for (const [key, data] of Object.entries(aggregateData.playerDeviations)) {
+        // Skip players with less than 3 data points
+        if (data.deviations.length < 3) continue;
+        
+        const sum = data.deviations.reduce((a, b) => a + b, 0);
+        const average = sum / data.deviations.length;
+        
+        const playerData = {
+            name: data.name,
+            position: data.position,
+            avgDeviation: average.toFixed(1),
+            sampleSize: data.deviations.length,
+            school: data.school
+        };
+        
+        averageDeviations.push(playerData);
+        
+        // Group by position
+        if (!byPosition[data.position]) {
+            byPosition[data.position] = [];
+        }
+        byPosition[data.position].push(playerData);
+    }
+    
+    // Sort by absolute deviation value (largest first)
+    averageDeviations.sort((a, b) => 
+        Math.abs(parseFloat(b.avgDeviation)) - Math.abs(parseFloat(a.avgDeviation))
+    );
+    
+    // Sort position-specific lists
+    for (const position in byPosition) {
+        byPosition[position].sort((a, b) => 
+            Math.abs(parseFloat(b.avgDeviation)) - Math.abs(parseFloat(a.avgDeviation))
+        );
+    }
+    
+    // Save player deviations
+    batch.set(db.collection('precomputedAnalytics').doc('playerDeviations'), {
+        players: averageDeviations,
+        byPosition,
+        sampleSize: processedCount,
+        positionSampleSizes: Object.fromEntries(
+            Object.entries(byPosition).map(([pos, data]) => [pos, data.length])
+        ),
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Save all data
+    await batch.commit();
+}
+
+// Create a new endpoint to trigger analytics regeneration manually with pagination
+exports.manualAnalyticsRegeneration = functions.https.onCall(async (data, context) => {
+    // Add admin role check if needed
+    const db = admin.firestore();
+    
+    try {
+        // Start a manual analytics regeneration process
+        const startAfter = data?.startAfter || null;
+        const limit = data?.limit || 100;
+        const fullRegeneration = data?.fullRegeneration || false;
+        
+        console.log(`Starting manual analytics regeneration: startAfter=${startAfter}, limit=${limit}, fullRegeneration=${fullRegeneration}`);
+        
+        let query = db.collection('draftAnalytics').limit(limit);
+        if (startAfter) {
+            const startDoc = await db.collection('draftAnalytics').doc(startAfter).get();
+            if (startDoc.exists) {
+                query = query.startAfter(startDoc);
+            }
+        }
+        
+        const analyticsSnapshot = await query.get();
+        
+        // Check if we need to delete existing data first
+        if (fullRegeneration && !startAfter) {
+            // Delete all existing precomputed analytics
+            const docsToDelete = [
+                'positionDistribution',
+                'teamNeeds',
+                'positionsByPick',
+                'playerDeviations',
+                // Add other documents as needed
+            ];
+            
+            const deleteBatch = db.batch();
+            for (const docId of docsToDelete) {
+                deleteBatch.delete(db.collection('precomputedAnalytics').doc(docId));
+            }
+            await deleteBatch.commit();
+            
+            console.log('Deleted existing precomputed analytics for full regeneration');
+        }
+        
+        // Process the batch
+        const aggregateData = {
+            positionCounts: {},
+            teamPositionCounts: {},
+            pickPositionCounts: {},
+            pickPlayerCounts: {},
+            playerDeviations: {},
+            // Add other aggregate data structures as needed
+        };
+        
+        analyticsSnapshot.forEach(doc => {
+            const data = doc.data();
+            processDocumentData(data, aggregateData);
+        });
+        
+        // Save the aggregated data
+        await saveAggregatedData(db, aggregateData, analyticsSnapshot.size);
+        
+        // Return information about the batch
+        return {
+            success: true,
+            processedCount: analyticsSnapshot.size,
+            hasMore: analyticsSnapshot.size >= limit,
+            lastDocId: analyticsSnapshot.size > 0 ? 
+                analyticsSnapshot.docs[analyticsSnapshot.docs.length - 1].id : null,
+        };
+    } catch (error) {
+        console.error('Error in manual analytics regeneration:', error);
+        return {
+            success: false,
+            error: error.toString()
+        };
+    }
+});
 
 // Cached version that will be updated when the aggregation runs
 let cachedAnalytics = null;

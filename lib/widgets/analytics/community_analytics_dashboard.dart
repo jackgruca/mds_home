@@ -1,3 +1,6 @@
+// lib/widgets/analytics/community_analytics_dashboard.dart
+// Update your existing implementation with these changes
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/analytics_provider.dart';
@@ -6,7 +9,8 @@ import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
 import 'player_draft_analysis_tab.dart';
 import 'draft_trend_insights_tab.dart';
-import 'advanced_insights_tab.dart'; // Add this import
+import 'advanced_insights_tab.dart';
+import 'analytics_status_widget.dart'; // Add this import
 
 class CommunityAnalyticsDashboard extends StatefulWidget {
   final String userTeam;
@@ -28,12 +32,47 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
     with AutomaticKeepAliveClientMixin {
   String _selectedTab = 'Team Draft Patterns';
   late AnalyticsProvider _analyticsProvider;
+  bool _isLoading = true;
+  bool _hasData = false;
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
     super.initState();
     // Initialize analytics provider
     _analyticsProvider = AnalyticsProvider();
+    _checkAnalyticsData();
+  }
+  
+  Future<void> _checkAnalyticsData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Check if we have team needs data (which should always be available)
+      final teamNeeds = await _analyticsProvider.getTeamNeeds(year: widget.draftYear);
+      
+      // Check if positions distribution data is available
+      final positionData = await _analyticsProvider.getPositionDistribution(
+        team: 'All Teams',
+      );
+      
+      setState(() {
+        _isLoading = false;
+        _hasData = teamNeeds.isNotEmpty && 
+                   positionData.isNotEmpty && 
+                   positionData.containsKey('total') && 
+                   positionData['total'] > 0;
+        _isInitialLoad = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _hasData = false;
+        _isInitialLoad = false;
+      });
+    }
   }
 
   @override
@@ -72,6 +111,7 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
                       tooltip: 'Refresh analytics data',
                       onPressed: () {
                         _analyticsProvider.clearCache();
+                        _checkAnalyticsData();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Analytics cache cleared'),
@@ -86,33 +126,53 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
             }
           ),
           
-          // Tab selector
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              children: [
-                _buildTabButton('Team Draft Patterns', isDarkMode),
-                const SizedBox(width: 12),
-                _buildTabButton('Player Draft Analysis', isDarkMode),
-                const SizedBox(width: 12),
-                _buildTabButton('Draft Trend Insights', isDarkMode),
-                const SizedBox(width: 12),
-                _buildTabButton('Advanced Insights', isDarkMode), // Add this new tab
-              ],
-            ),
-          ),
+          // Show loading or no data message
+          if (_isLoading)
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (!_hasData)
+            Expanded(
+              child: AnalyticsStatusWidget(
+                onRetry: _checkAnalyticsData,
+              ),
+            )
+          else
+            // Normal content when data is available
+            Expanded(
+              child: Column(
+                children: [
+                  // Tab selector
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Row(
+                      children: [
+                        _buildTabButton('Team Draft Patterns', isDarkMode),
+                        const SizedBox(width: 12),
+                        _buildTabButton('Player Draft Analysis', isDarkMode),
+                        const SizedBox(width: 12),
+                        _buildTabButton('Draft Trend Insights', isDarkMode),
+                        const SizedBox(width: 12),
+                        _buildTabButton('Advanced Insights', isDarkMode),
+                      ],
+                    ),
+                  ),
 
-          // Tab content with shared provider
-          Expanded(
-            child: _buildTabContent(),
-          ),
+                  // Tab content with shared provider
+                  Expanded(
+                    child: _buildTabContent(),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // Update the tab content to include our new tab
   Widget _buildTabContent() {
     switch (_selectedTab) {
       case 'Team Draft Patterns':
@@ -126,10 +186,17 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
       case 'Draft Trend Insights':
         return DraftTrendInsightsTab(draftYear: widget.draftYear);
       case 'Advanced Insights':
-        return AdvancedInsightsTab(draftYear: widget.draftYear); // Add this case
+        return AdvancedInsightsTab(draftYear: widget.draftYear);
       default:
-        return const Center(
-          child: Text('Select a tab to view analytics'),
+        return Center(
+          child: Text(
+            'Select a tab to view analytics',
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white70
+                  : Colors.black87,
+            ),
+          ),
         );
     }
   }
@@ -143,30 +210,29 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
   }
 
   Widget _buildTabButton(String tabName, bool isDarkMode) {
-  bool isSelected = _selectedTab == tabName;
-  
-  return ElevatedButton(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: isSelected 
-          ? Theme.of(context).primaryColor 
-          : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200),
-      foregroundColor: isSelected 
-          ? Colors.white 
-          : (isDarkMode ? Colors.white70 : Colors.black87),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+    bool isSelected = _selectedTab == tabName;
+    
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected 
+            ? Theme.of(context).primaryColor 
+            : (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200),
+        foregroundColor: isSelected 
+            ? Colors.white 
+            : (isDarkMode ? Colors.white70 : Colors.black87),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
-    ),
-    onPressed: () {
-      setState(() {
-        _selectedTab = tabName;
-      });
-    },
-    child: Text(tabName),
-  );
-}
-
+      onPressed: () {
+        setState(() {
+          _selectedTab = tabName;
+        });
+      },
+      child: Text(tabName),
+    );
+  }
 
   @override
   bool get wantKeepAlive => true;

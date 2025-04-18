@@ -211,91 +211,128 @@ class PrecomputedAnalyticsService {
       return {};
     }
   }
-  
-  /// Get consolidated position trends by pick - MODIFIED to use API
-  static Future<List<Map<String, dynamic>>> getConsolidatedPositionsByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    final cacheKey = 'positions_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
+
+// Add this method to check if a document exists
+static Future<bool> checkIfDocumentExists(String docId) async {
+  try {
+    await ensureInitialized();
     
-    return AnalyticsCacheManager.getCachedData(
-      cacheKey,
-      () => _fetchConsolidatedPositionsByPick(team, round, year),
-    );
+    final doc = await _firestore
+        .collection(precomputedAnalyticsCollection)
+        .doc(docId)
+        .get();
+    
+    return doc.exists;
+  } catch (e) {
+    debugPrint('Error checking if document exists: $e');
+    return false;
   }
+}
+
+// Update the getConsolidatedPositionsByPick method
+static Future<List<Map<String, dynamic>>> getConsolidatedPositionsByPick({
+  String? team,
+  int? round,
+  int? year,
+}) async {
+  final cacheKey = 'positions_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
   
-  static Future<List<Map<String, dynamic>>> _fetchConsolidatedPositionsByPick(
-    String? team,
-    int? round,
-    int? year,
-  ) async {
-    try {
-      // Try API first
-      final filters = {
-        if (team != null) 'team': team,
-        if (round != null) 'round': round,
-        if (year != null) 'year': year,
-      };
-      
-      String dataType = 'positionsByPick';
-      if (round != null) {
-        dataType = 'positionsByPickRound$round';
-      }
-      
-      final apiData = await AnalyticsApiService.getAnalyticsData(
-        dataType: dataType,
-        filters: filters,
-      );
-      
-      if (!apiData.containsKey('error') && apiData.containsKey('data')) {
-        debugPrint('Using API data for positions by pick');
-        
-        if (apiData['data'].containsKey('data')) {
-          return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
-        }
-      }
-      
-      // Fall back to Firestore if API fails
-      await ensureInitialized();
-      
-      String docId = 'positionsByPick';
-      if (round != null) {
-        docId = 'positionsByPickRound$round';
-      }
-      
-      final precomputedDoc = await _firestore
-          .collection(precomputedAnalyticsCollection)
-          .doc(docId)
-          .get();
-          
-      if (precomputedDoc.exists && precomputedDoc.data() != null) {
-        final data = precomputedDoc.data()!;
-        
-        // For all teams data
-        if (team == null || team == 'All Teams') {
-          debugPrint('Using precomputed positions by pick for round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['data'] ?? []);
-        }
-        
-        // For team-specific data
-        if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
-          debugPrint('Using precomputed positions by pick for team: $team, round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
-        }
-      }
-      
-      // Fall back to direct calculation
-      debugPrint('Falling back to direct calculation for positions by pick');
-      // Call original method here
-      
-      return [];
-    } catch (e) {
-      debugPrint('Error getting consolidated positions by pick: $e');
+  return AnalyticsCacheManager.getCachedData(
+    cacheKey,
+    () => _fetchConsolidatedPositionsByPick(team, round, year),
+    expiry: const Duration(hours: 12), // Increase cache duration
+  );
+}
+
+static Future<List<Map<String, dynamic>>> _fetchConsolidatedPositionsByPick(
+  String? team,
+  int? round,
+  int? year,
+) async {
+  try {
+    // Check if document exists first to avoid unnecessary API calls
+    String docId = 'positionsByPick';
+    if (round != null) {
+      docId = 'positionsByPickRound$round';
+    }
+    
+    // First check if the document exists
+    bool docExists = await checkIfDocumentExists(docId);
+    
+    if (!docExists) {
+      debugPrint('Document $docId does not exist, returning empty result');
       return [];
     }
+    
+    // Try API first
+    final filters = {
+      if (team != null) 'team': team,
+      if (round != null) 'round': round,
+      if (year != null) 'year': year,
+    };
+    
+    final apiData = await AnalyticsApiService.getAnalyticsData(
+      dataType: docId,
+      filters: filters,
+    );
+    
+    if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+      debugPrint('Using API data for positions by pick');
+      
+      if (apiData['data'].containsKey('data')) {
+        final result = List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
+        
+        // Add debug info
+        if (result.isEmpty) {
+          debugPrint('API returned empty data array for $docId');
+        } else {
+          debugPrint('API returned ${result.length} items for $docId');
+        }
+        
+        return result;
+      }
+    }
+    
+    // Fall back to Firestore if API fails
+    await ensureInitialized();
+    
+    final precomputedDoc = await _firestore
+        .collection(precomputedAnalyticsCollection)
+        .doc(docId)
+        .get();
+        
+    if (precomputedDoc.exists && precomputedDoc.data() != null) {
+      final data = precomputedDoc.data()!;
+      
+      // For all teams data
+      if (team == null || team == 'All Teams') {
+        debugPrint('Using precomputed positions by pick for round: ${round ?? 'all'}');
+        final result = List<Map<String, dynamic>>.from(data['data'] ?? []);
+        
+        // Add debug info
+        if (result.isEmpty) {
+          debugPrint('Firestore returned empty data array for $docId');
+        } else {
+          debugPrint('Firestore returned ${result.length} items for $docId');
+        }
+        
+        return result;
+      }
+      
+      // For team-specific data
+      if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
+        debugPrint('Using precomputed positions by pick for team: $team, round: ${round ?? 'all'}');
+        return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
+      }
+    } else {
+      debugPrint('Document $docId exists but data is null or empty');
+    }
+    
+    // Return empty list if no data found
+    return [];
+  } catch (e) {
+    debugPrint('Error getting consolidated positions by pick: $e');
+    return [];
   }
-  
-  // Similarly update other methods to use the API first...
+}
 }

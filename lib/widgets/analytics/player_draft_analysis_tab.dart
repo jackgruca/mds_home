@@ -1,8 +1,9 @@
 // lib/widgets/analytics/player_draft_analysis_tab.dart
 import 'package:flutter/material.dart';
-import '../../services/analytics_query_service.dart';
+import '../../providers/analytics_provider.dart'; // Add provider import
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import 'package:provider/provider.dart'; // Add provider import
 
 class PlayerDraftAnalysisTab extends StatefulWidget {
   final int draftYear;
@@ -18,6 +19,7 @@ class PlayerDraftAnalysisTab extends StatefulWidget {
 
 class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
+  bool _hasError = false;
   String _selectedPosition = 'All Positions';
   
   // Data states
@@ -39,11 +41,15 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
+      _hasError = false;
     });
 
     try {
+      // Get the analytics provider
+      final analyticsProvider = Provider.of<AnalyticsProvider>(context, listen: false);
+      
       // Load player rank deviations (risers and fallers)
-      final deviations = await AnalyticsQueryService.getPlayerRankDeviations(
+      final deviations = await analyticsProvider.getPlayerRankDeviations(
         year: widget.draftYear,
         position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
         limit: 20,  // Get enough data to split into risers and fallers
@@ -63,7 +69,7 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
           'name': player['name'],
           'position': player['position'],
           'avgDeviation': avgDeviation,
-          'deviationText': avgDeviation.toStringAsFixed(1),
+          'deviationText': player['avgDeviation'],
           'sampleSize': player['sampleSize'],
         };
         
@@ -90,6 +96,7 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
       debugPrint('Error loading player analysis data: $e');
       setState(() {
         _isLoading = false;
+        _hasError = true;
       });
     }
   }
@@ -99,6 +106,7 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -134,86 +142,108 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
         ),
 
         // Main content
-        _isLoading
-            ? const Expanded(child: Center(child: CircularProgressIndicator()))
-            : Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
+        _hasError 
+            ? Expanded(
+                child: Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Value Picks / Risers Section
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Value Picks (Drafted Later Than Rank)',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Players consistently selected later than their rankings',
-                                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildPlayerDeviationTable(_riserPlayers, true),
-                            ],
-                          ),
-                        ),
-                      ),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.orange),
                       const SizedBox(height: 16),
-
-                      // Reach Picks / Fallers Section
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Reach Picks (Drafted Earlier Than Rank)',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Players consistently selected earlier than their rankings',
-                                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-                              ),
-                              const SizedBox(height: 16),
-                              _buildPlayerDeviationTable(_fallerPlayers, false),
-                            ],
-                          ),
-                        ),
+                      const Text(
+                        'Could not load player analytics data',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'We\'ll display data as it becomes available',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Try Again'),
+                        onPressed: _loadData,
                       ),
                     ],
                   ),
                 ),
-              ),
+              )
+            : _isLoading
+                ? const Expanded(child: Center(child: CircularProgressIndicator()))
+                : Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Value Picks / Risers Section
+                          Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Value Picks (Drafted Later Than Rank)',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Players consistently selected later than their rankings',
+                                    style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildPlayerDeviationTable(_riserPlayers, true),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Reach Picks / Fallers Section
+                          Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Reach Picks (Drafted Earlier Than Rank)',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Players consistently selected earlier than their rankings',
+                                    style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildPlayerDeviationTable(_fallerPlayers, false),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
       ],
     );
   }
 
   Widget _buildPlayerDeviationTable(List<Map<String, dynamic>> players, bool isRiser) {
     if (players.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'No ${isRiser ? 'value pick' : 'reach pick'} data available${_selectedPosition != 'All Positions' ? ' for $_selectedPosition' : ''}',
-            style: const TextStyle(fontStyle: FontStyle.italic),
-          ),
-        ),
+      return _buildEmptyDataMessage(
+        'No ${isRiser ? 'value pick' : 'reach pick'} data available${_selectedPosition != 'All Positions' ? ' for $_selectedPosition' : ''}',
+        'This data will populate as community members complete more drafts.'
       );
     }
 
@@ -258,6 +288,49 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildEmptyDataMessage(String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey.shade800.withOpacity(0.3) 
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade700 
+              : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.analytics_outlined, size: 36, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey.shade400 
+                  : Colors.grey.shade700,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
