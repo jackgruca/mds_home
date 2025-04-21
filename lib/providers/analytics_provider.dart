@@ -78,10 +78,46 @@ class AnalyticsProvider extends ChangeNotifier {
   }
   
   // Clear all cached data
-  void clearCache() {
+  // Clear all cached data
+void clearCache() {
+  _teamNeeds.clear();
+  _positionDistribution.clear();
+  AnalyticsCacheManager.clearCache();
+  notifyListeners();
+}
+
+// Refresh all data
+Future<void> refreshData() async {
+  _isLoading = true;
+  _error = null;
+  notifyListeners();
+  
+  try {
+    // Clear all cached data
     _teamNeeds.clear();
     _positionDistribution.clear();
-    AnalyticsCacheManager.clearCache();
+    await AnalyticsCacheManager.refreshAllAnalytics();
+    
+    // Fetch latest metadata timestamp
+    _lastUpdated = await PrecomputedAnalyticsService.getLatestStatsTimestamp();
+    
+    // Pre-load critical data
+    await getTeamNeeds(year: DateTime.now().year);
+    await getPositionDistribution(team: 'All Teams');
+    
+    _isLoading = false;
+    notifyListeners();
+  } catch (e) {
+    debugPrint('Error refreshing analytics data: $e');
+    _error = 'Failed to refresh data: $e';
+    _isLoading = false;
     notifyListeners();
   }
+}
+
+// Add this property after _lastUpdated
+String? _error;
+
+// Getter for error
+String? get error => _error;
 }

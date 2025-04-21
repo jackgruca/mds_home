@@ -1,4 +1,5 @@
 // lib/widgets/admin/analytics_setup_widget.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 
@@ -76,29 +77,64 @@ Future<void> _triggerInitialAggregation() async {
   });
 
   try {
-    // This is a local call to simulate the aggregation for testing
-    // In production, you'd use Firebase Functions HTTP callable functions
-    
     // First check if collections exist, if not, set them up
     if (!_collectionsExist) {
       await _setupCollections();
     }
     
+    // Show detailed status
+    setState(() {
+      _statusMessage = 'Starting analytics aggregation (this may take several minutes)...';
+    });
+    
     // Call the analytics aggregation function via HTTP callable
-    // This would be better using Firebase Functions SDK but this works for testing
     await FirebaseService.triggerAnalyticsAggregation();
     
     setState(() {
-      _isLoading = false;
-      _statusMessage = 'Initial aggregation triggered. Data should be available shortly.';
+      _statusMessage = 'Aggregation triggered. Checking status...';
     });
     
-    // Check collections again after a delay to update the status
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _checkCollections();
+    // Check status periodically for up to 5 minutes
+    bool completed = false;
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(const Duration(seconds: 30));
+      
+      if (!mounted) break;
+      
+      // Check if aggregation completed
+      final metadataDoc = await FirebaseFirestore.instance
+          .collection('precomputedAnalytics')
+          .doc('metadata')
+          .get();
+      
+      if (metadataDoc.exists) {
+        final metadata = metadataDoc.data();
+        final bool inProgress = metadata?['inProgress'] ?? false;
+        final int processed = metadata?['documentsProcessed'] ?? 0;
+        
+        if (!inProgress) {
+          setState(() {
+            _isLoading = false;
+            _statusMessage = 'Aggregation completed! Processed $processed documents.';
+            _collectionsExist = true;
+          });
+          completed = true;
+          break;
+        } else {
+          setState(() {
+            _statusMessage = 'Aggregation in progress: processed $processed documents...';
+          });
+        }
       }
-    });
+    }
+    
+    if (_isLoading && !completed) {
+      setState(() {
+        _isLoading = false;
+        _statusMessage = 'Aggregation triggered but taking longer than expected. Check Firebase logs for progress.';
+      });
+    }
+    
   } catch (e) {
     setState(() {
       _isLoading = false;

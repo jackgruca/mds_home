@@ -3,8 +3,8 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 exports.dailyAnalyticsAggregation = functions.runWith({
-    timeoutSeconds: 300,  // Increase timeout to 5 minutes
-    memory: '1GB'         // Increase memory allocation
+    timeoutSeconds: 540,  // Increase timeout to 9 minutes
+    memory: '2GB'         // Increase memory allocation to 2GB
 })
 .pubsub
 .schedule('0 2 * * *')  // Run at 2 AM every day
@@ -16,7 +16,7 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         console.log('Starting daily analytics aggregation...');
         
         // Process draft analytics in smaller batches to avoid timeout
-        const batchSize = 50;
+        const batchSize = 20;
         let lastDoc = null;
         let processedCount = 0;
         let allAnalytics = [];
@@ -29,37 +29,61 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         }, {merge: true});
         
         // Process documents in batches to avoid connection timeout
-        while (true) {
-            let query = db.collection('draftAnalytics').limit(batchSize);
-            if (lastDoc) {
-                query = query.startAfter(lastDoc);
-            }
-            
-            console.log(`Fetching batch of draft analytics (limit: ${batchSize})...`);
-            const analyticsSnapshot = await query.get();
-            
-            if (analyticsSnapshot.empty) {
-                console.log('No more documents to process');
-                break;
-            }
-            
-            // Collect documents from this batch
-            analyticsSnapshot.forEach(doc => {
-                allAnalytics.push(doc);
-            });
-            
-            processedCount += analyticsSnapshot.size;
-            console.log(`Processed ${processedCount} documents so far`);
-            
-            // Update the last document for pagination
-            lastDoc = analyticsSnapshot.docs[analyticsSnapshot.docs.length - 1];
-            
-            // Update progress
-            await db.collection('precomputedAnalytics').doc('metadata').set({
-                documentsProcessed: processedCount,
-                inProgress: true,
-            }, {merge: true});
-        }
+while (true) {
+    let query = db.collection('draftAnalytics').limit(batchSize);
+    if (lastDoc) {
+        query = query.startAfter(lastDoc);
+    }
+    
+    console.log(`Fetching batch of draft analytics (limit: ${batchSize})...`);
+    const analyticsSnapshot = await query.get();
+    
+    if (analyticsSnapshot.empty) {
+        console.log('No more documents to process');
+        break;
+    }
+    
+    // Process this batch right away instead of collecting all documents
+    console.log(`Processing batch of ${analyticsSnapshot.size} documents...`);
+    
+    // Extract only the data we need from each document
+    const batchDocs = [];
+    analyticsSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Only keep essential fields to reduce memory usage
+        batchDocs.push({
+            userTeam: data.userTeam,
+            picks: data.picks || [],
+            trades: data.trades || [],
+            year: data.year,
+            timestamp: data.timestamp
+        });
+    });
+    
+    // Process this batch individually for each aggregation
+    await Promise.all([
+        aggregatePositionDistributionBatch(batchDocs),
+        aggregateTeamNeedsBatch(batchDocs),
+        aggregatePositionsByPickBatch(batchDocs),
+        aggregatePlayersByPickBatch(batchDocs),
+        aggregatePlayerDeviationsBatch(batchDocs),
+    ]);
+    
+    processedCount += analyticsSnapshot.size;
+    console.log(`Processed ${processedCount} documents so far`);
+    
+    // Update the last document for pagination
+    lastDoc = analyticsSnapshot.docs[analyticsSnapshot.docs.length - 1];
+    
+    // Update progress
+    await db.collection('precomputedAnalytics').doc('metadata').set({
+        documentsProcessed: processedCount,
+        inProgress: true,
+    }, {merge: true});
+    
+    // Add a small delay to avoid memory pressure
+    await new Promise(resolve => setTimeout(resolve, 1000));
+}       
         
         console.log(`Processing ${allAnalytics.length} total draft analytics documents`);
         
@@ -97,6 +121,9 @@ exports.dailyAnalyticsAggregation = functions.runWith({
             inProgress: false,
         }, {merge: true});
         
+        // Reset global state after completion
+        resetGlobalState();
+
         console.log('Daily analytics aggregation completed successfully');
         return null;
     } catch (error) {
@@ -110,7 +137,7 @@ exports.dailyAnalyticsAggregation = functions.runWith({
         }, {merge: true});
         
         return null;
-    }
+    }       
 });
     // Add this to analyticsAggregation.js
 
@@ -575,34 +602,10 @@ async function aggregateHistoricalTrends(analyticsSnapshot) {
 async function aggregatePositionDistribution(analyticsSnapshot) {
     const db = admin.firestore();
     
-    // Overall position counts
-    const positionCounts = {};
-    let totalPicks = 0;
-    
-    // Team-specific position counts
-    const teamPositionCounts = {};
-    
-    analyticsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const picks = data.picks || [];
-        
-        picks.forEach((pick) => {
-            const position = pick.position;
-            const team = pick.actualTeam;
-            
-            // Overall counts
-            positionCounts[position] = (positionCounts[position] || 0) + 1;
-            // firebase/functions/aggregateAnalytics.js (continued)
-
-            totalPicks++;
-            
-            // Team-specific counts
-            if (!teamPositionCounts[team]) {
-                teamPositionCounts[team] = {};
-            }
-            teamPositionCounts[team][position] = (teamPositionCounts[team][position] || 0) + 1;
-        });
-    });
+    // Use the data collected in the global state
+    const positionCounts = positionCountsGlobal;
+    const totalPicks = totalPicksGlobal;
+    const teamPositionCounts = teamPositionCountsGlobal;
     
     // Format overall position distribution
     const overallDistribution = {
@@ -650,64 +653,31 @@ async function aggregatePositionDistribution(analyticsSnapshot) {
 async function aggregateTeamNeeds(analyticsSnapshot) {
     const db = admin.firestore();
     
-    // Track teams and their early round position selections
-    const teamPositionCounts = {};
-    const teamDraftCounts = {};
-    
-    analyticsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const picks = data.picks || [];
-        
-        picks.forEach((pick) => {
-            const round = parseInt(pick.round) || 0;
-            
-            // Only consider early rounds (1-3)
-            if (round > 3) return;
-            
-            const position = pick.position;
-            const team = pick.actualTeam;
-            
-            // Initialize data structures if needed
-            if (!teamPositionCounts[team]) {
-                teamPositionCounts[team] = {};
-            }
-            if (!teamDraftCounts[team]) {
-                teamDraftCounts[team] = 0;
-            }
-            
-            // Apply round weighting: Round 1 = 3x, Round 2 = 2x, Round 3 = 1x
-            const roundWeight = 4 - round; // 3, 2, 1 for rounds 1, 2, 3
-            
-            // Count position for this team with round weighting
-            teamPositionCounts[team][position] = (teamPositionCounts[team][position] || 0) + roundWeight;
-            
-            // Increment total count for this team
-            teamDraftCounts[team] = (teamDraftCounts[team] || 0) + 1;
-        });
-    });
+    // Use the data collected in the global state
+    const teamNeeds = teamNeedsGlobal;
     
     // Convert to consensus needs (top positions for each team)
-    const teamNeeds = {};
+    const consensusNeeds = {};
     
-    for (const [team, positionCounts] of Object.entries(teamPositionCounts)) {
+    for (const [team, positionCounts] of Object.entries(teamNeeds)) {
         // Convert position counts to sorted list
         const positions = Object.entries(positionCounts)
             .sort((a, b) => b[1] - a[1])
             .map(entry => entry[0]);
         
         // Take top 5 positions as team needs
-        teamNeeds[team] = positions.slice(0, 5);
+        consensusNeeds[team] = positions.slice(0, 5);
     }
     
     // Store in Firestore
     await db.collection('precomputedAnalytics').doc('teamNeeds').set({
-        needs: teamNeeds,
+        needs: consensusNeeds,
         year: new Date().getFullYear(),
         lastUpdated: admin.firestore.FieldValue.serverTimestamp()
     });
     
     console.log('Team needs aggregation completed');
-    return { needs: teamNeeds };
+    return { needs: consensusNeeds };
 }
 
 async function aggregatePositionsByPick(analyticsSnapshot) {
@@ -715,13 +685,13 @@ async function aggregatePositionsByPick(analyticsSnapshot) {
     
     // Store positions by pick for all rounds together and for each round
     const results = {
-        all: aggregatePositionPickData(analyticsSnapshot),
+        all: aggregatePositionPickData(),
         byRound: {}
     };
     
     // Separate rounds 1-7
     for (let round = 1; round <= 7; round++) {
-        results.byRound[round] = aggregatePositionPickData(analyticsSnapshot, round);
+        results.byRound[round] = aggregatePositionPickData(round);
     }
     
     // Store overall positions by pick
@@ -740,6 +710,51 @@ async function aggregatePositionsByPick(analyticsSnapshot) {
     
     console.log('Positions by pick aggregation completed');
     return results;
+}
+
+function aggregatePositionPickData(specificRound = null) {
+    // Use global data
+    const pickPositionCounts = pickPositionCountsGlobal;
+    const pickTotals = pickTotalsGlobal;
+    const pickRounds = pickRoundsGlobal;
+    
+    // Convert to final format with percentage calculations
+    const result = [];
+    
+    for (const [pickNumber, positionCounts] of Object.entries(pickPositionCounts)) {
+        const totalForPick = pickTotals[pickNumber] || 0;
+        
+        if (totalForPick === 0) continue;
+        
+        // Get the round for this pick
+        const round = pickRounds[pickNumber] || '1';
+        
+        // Filter by round if specified
+        if (specificRound !== null && parseInt(round) !== specificRound) {
+            continue;
+        }
+        
+        // Convert position counts to sorted list with percentages
+        const positions = Object.entries(positionCounts)
+            .map(([position, count]) => ({
+                position,
+                count,
+                percentage: `${((count / totalForPick) * 100).toFixed(1)}%`
+            }))
+            .sort((a, b) => b.count - a.count);
+        
+        result.push({
+            pick: parseInt(pickNumber),
+            round: round,
+            positions,
+            totalDrafts: totalForPick
+        });
+    }
+    
+    // Sort by pick number
+    result.sort((a, b) => a.pick - b.pick);
+    
+    return result;
 }
 
 function aggregatePositionPickData(analyticsSnapshot, specificRound = null) {
@@ -818,13 +833,13 @@ async function aggregatePlayersByPick(analyticsSnapshot) {
     
     // Store players by pick for all rounds together and for each round
     const results = {
-        all: aggregatePlayerPickData(analyticsSnapshot),
+        all: aggregatePlayerPickData(),
         byRound: {}
     };
     
     // Separate rounds 1-7
     for (let round = 1; round <= 7; round++) {
-        results.byRound[round] = aggregatePlayerPickData(analyticsSnapshot, round);
+        results.byRound[round] = aggregatePlayerPickData(round);
     }
     
     // Store overall players by pick
@@ -845,6 +860,55 @@ async function aggregatePlayersByPick(analyticsSnapshot) {
     return results;
 }
 
+function aggregatePlayerPickData(specificRound = null) {
+    // Use global data
+    const pickPlayerCounts = pickPlayerCountsGlobal;
+    const pickTotals = pickTotalsGlobal;
+    const pickRounds = pickRoundsGlobal;
+    
+    // Convert to final format with top 3 players per pick
+    const result = [];
+    
+    for (const [pickNumber, playerCounts] of Object.entries(pickPlayerCounts)) {
+        const totalForPick = pickTotals[pickNumber] || 0;
+        
+        if (totalForPick === 0) continue;
+        
+        // Get the round for this pick
+        const round = pickRounds[pickNumber] || '1';
+        
+        // Filter by round if specified
+        if (specificRound !== null && parseInt(round) !== specificRound) {
+            continue;
+        }
+        
+        // Convert player counts to list with percentages
+        const players = Object.values(playerCounts)
+            .map(data => ({
+                player: data.player,
+                position: data.position,
+                school: data.school,
+                rank: data.rank,
+                count: data.count,
+                percentage: `${((data.count / totalForPick) * 100).toFixed(1)}%`
+            }))
+            .sort((a, b) => b.count - a.count);
+        
+        // Take top 3 players (or all if less than 3)
+        const topPlayers = players.slice(0, 3);
+        
+        result.push({
+            pick: parseInt(pickNumber),
+            players: topPlayers,
+            totalDrafts: totalForPick
+        });
+    }
+    
+    // Sort by pick number
+    result.sort((a, b) => a.pick - b.pick);
+    
+    return result;
+}
 function aggregatePlayerPickData(analyticsSnapshot, specificRound = null) {
     // Map of pick number to player counts
     const pickPlayerCounts = {};
@@ -937,32 +1001,8 @@ function aggregatePlayerPickData(analyticsSnapshot, specificRound = null) {
 async function aggregatePlayerDeviations(analyticsSnapshot) {
     const db = admin.firestore();
     
-    // Calculate rank deviations
-    const playerDeviations = {};
-    
-    analyticsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const picks = data.picks || [];
-        
-        picks.forEach((pick) => {
-            // Calculate the deviation (positive means picked later than rank)
-            const deviation = pick.pickNumber - pick.playerRank;
-            
-            // Use player name and position as key
-            const key = `${pick.playerName}|${pick.position}`;
-            
-            if (!playerDeviations[key]) {
-                playerDeviations[key] = {
-                    name: pick.playerName,
-                    position: pick.position,
-                    deviations: [],
-                    school: pick.school
-                };
-            }
-            
-            playerDeviations[key].deviations.push(deviation);
-        });
-    });
+    // Use the data collected in the global state
+    const playerDeviations = playerDeviationsGlobal;
     
     // Calculate average deviations
     const averageDeviations = [];
@@ -1008,7 +1048,7 @@ async function aggregatePlayerDeviations(analyticsSnapshot) {
     await db.collection('precomputedAnalytics').doc('playerDeviations').set({
         players: averageDeviations,
         byPosition,
-        sampleSize: analyticsSnapshot.size,
+        sampleSize: analyticsSnapshot.length,
         positionSampleSizes: Object.fromEntries(
             Object.entries(byPosition).map(([pos, data]) => [pos, data.length])
         ),

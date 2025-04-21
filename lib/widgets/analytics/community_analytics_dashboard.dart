@@ -53,35 +53,57 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.update, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      lastUpdated != null
-                          ? 'Data updated: ${_formatDate(lastUpdated)}'
-                          : 'Data freshness: Unknown',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: 'Refresh analytics data',
-                      onPressed: () {
-                        _analyticsProvider.clearCache();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Analytics cache cleared'),
-                            duration: Duration(seconds: 2),
-                          )
-                        );
-                      },
-                    ),
-                  ],
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    const Icon(Icons.update, size: 14),
+    const SizedBox(width: 4),
+    Text(
+      lastUpdated != null
+          ? 'Data updated: ${_formatDate(lastUpdated)}'
+          : 'Data freshness: Unknown',
+      style: TextStyle(
+        fontSize: 12,
+        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+      ),
+    ),
+    const Spacer(),
+    Consumer<AnalyticsProvider>(
+      builder: (context, provider, _) => provider.isLoading
+        ? SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDarkMode ? Colors.white70 : Colors.blue,
+              ),
+            ),
+          )
+        : Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 18),
+                tooltip: 'Refresh analytics data',
+                onPressed: () {
+                  _analyticsProvider.refreshData();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Refreshing analytics data...'),
+                      duration: Duration(seconds: 2),
+                    )
+                  );
+                },
+              ),
+              if (provider.error != null)
+                Tooltip(
+                  message: 'Error: ${provider.error}',
+                  child: const Icon(Icons.error_outline, color: Colors.orange, size: 14),
                 ),
+            ],
+          ),
+    ),
+  ],
+),
               );
             }
           ),

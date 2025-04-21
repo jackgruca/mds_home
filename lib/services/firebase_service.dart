@@ -1,4 +1,5 @@
 // lib/services/firebase_service.dart
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -219,6 +220,7 @@ static Future<bool> setupAnalyticsCollections() async {
 }
 
 /// Trigger analytics aggregation (for testing/admin purposes)
+/// Trigger analytics aggregation (for testing/admin purposes)
 static Future<bool> triggerAnalyticsAggregation() async {
   try {
     // Ensure Firebase is initialized
@@ -228,22 +230,52 @@ static Future<bool> triggerAnalyticsAggregation() async {
     
     debugPrint('Manually triggering analytics aggregation...');
     
-    // For a simple test implementation, we'll directly write to the
-    // precomputedAnalytics/metadata document to indicate an aggregation was requested
-    final db = FirebaseFirestore.instance;
-    await db.collection('precomputedAnalytics').doc('metadata').set({
-      'lastUpdated': FieldValue.serverTimestamp(),
-      'manualTrigger': true,
-      'triggerTimestamp': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    
-    // In a real implementation, you would call a Firebase HTTP function
-    // const functions = FirebaseFunctions.instance;
-    // final callable = functions.httpsCallable('triggerAnalyticsAggregation');
-    // final result = await callable.call();
-    
-    debugPrint('Analytics aggregation triggered. Check Firebase logs.');
-    return true;
+    try {
+      // Use cloud functions directly if available
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('manualTriggerAnalytics');
+      final result = await callable.call({
+        'force': true,
+        'source': 'admin_panel'
+      });
+      
+      debugPrint('Analytics aggregation triggered via cloud function: ${result.data}');
+      return true;
+    } catch (cloudFunctionError) {
+      debugPrint('Cloud function error, falling back to metadata trigger: $cloudFunctionError');
+      
+      // Fallback: directly write to the metadata document
+      final db = FirebaseFirestore.instance;
+      await db.collection('precomputedAnalytics').doc('metadata').set({
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'manualTrigger': true,
+        'triggerTimestamp': FieldValue.serverTimestamp(),
+        'inProgress': true,
+        'documentsProcessed': 0,
+      }, SetOptions(merge: true));
+      
+      debugPrint('Analytics aggregation triggered via metadata update. Check Firebase logs.');
+      
+      // Also create an empty batch document to trigger any potential onWrite events
+      final batch = db.batch();
+      
+      // Create or update essential documents with placeholders
+      batch.set(db.collection('precomputedAnalytics').doc('positionDistribution'), {
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      batch.set(db.collection('precomputedAnalytics').doc('teamNeeds'), {
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      batch.set(db.collection('precomputedAnalytics').doc('positionsByPick'), {
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      await batch.commit();
+      
+      return true;
+    }
   } catch (e) {
     debugPrint('Error triggering analytics aggregation: $e');
     return false;

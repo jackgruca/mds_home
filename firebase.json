@@ -1,23 +1,26 @@
 {
-    "firestore": {
-      "rules": "firestore.rules",
-      "indexes": "firestore.indexes.json"
-    },
-    "functions": {
-      "source": "firebase/functions"
-    },
-    "hosting": {
-      "public": "build/web",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
-      "rewrites": [
-        {
-          "source": "**",
-          "destination": "/index.html"
-        }
-      ]
-    }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": {
+    "source": "firebase/functions",
+    "runtime": "nodejs20",
+    "memory": "2GB",
+    "timeoutSeconds": 540
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
+}
