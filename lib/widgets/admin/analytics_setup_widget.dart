@@ -1,6 +1,7 @@
 // lib/widgets/admin/analytics_setup_widget.dart
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
+import 'emergency_analytics_processor.dart';
 
 class AnalyticsSetupWidget extends StatefulWidget {
   const AnalyticsSetupWidget({super.key});
@@ -167,7 +168,21 @@ Future<void> _triggerInitialAggregation() async {
                         ? 'Recreate Collections'
                         : 'Setup Collections'),
                 ),
-                
+
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const EmergencyAnalyticsProcessorScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  child: const Text('Run Emergency Analytics'),
+                ),
+                  
                 const SizedBox(width: 16),
                 
                 TextButton(
