@@ -5,6 +5,8 @@ import '../../services/analytics_query_service.dart';
 import '../../services/analytics_cache_manager.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import 'package:flutter/services.dart';
+import 'package:csv/csv.dart';
 
 class TeamDraftPatternsTab extends StatefulWidget {
   final String initialTeam;
@@ -31,68 +33,110 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   List<Map<String, dynamic>> _topPicksByPosition = [];
   List<Map<String, dynamic>> _topPlayersByPick = [];
   Map<String, List<String>> _consensusNeeds = {};
+  final Map<String, List<int>> _teamOriginalPicks = {};
+
 
   @override
-  void initState() {
-    super.initState();
-    _selectedTeam = widget.initialTeam;
-    _selectedRound = 1; // Default to round 1
-    _loadData();
+void initState() {
+  super.initState();
+  _selectedTeam = widget.initialTeam;
+  _selectedRound = 1; // Default to round 1
+  _loadTeamOriginalPicks(); // Add this line
+  _loadData();
+}
+
+Future<void> _loadTeamOriginalPicks() async {
+  try {
+    final data = await rootBundle.loadString('assets/${widget.draftYear}/draft_order.csv');
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    
+    // Skip header row
+    for (int i = 1; i < csvTable.length; i++) {
+      final row = csvTable[i];
+      if (row.length < 3) continue;
+      
+      final pickNumber = int.tryParse(row[1].toString()) ?? 0;
+      final team = row[2].toString();
+      
+      if (pickNumber > 0 && team.isNotEmpty) {
+        _teamOriginalPicks.putIfAbsent(team, () => []);
+        _teamOriginalPicks[team]!.add(pickNumber);
+      }
+    }
+    
+    debugPrint('Loaded original picks for ${_teamOriginalPicks.length} teams');
+  } catch (e) {
+    debugPrint('Error loading team original picks: $e');
   }
+}
 
   // Optimized data loading - only fetches what's needed based on selection
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
-    try {
-      // Create a list of futures to execute in parallel
-      final futures = <Future>[];
-      
-      // Future for position data
-      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
-        year: widget.draftYear,
-      ).then((data) {
+  try {
+    // Create a list of futures to execute in parallel
+    final futures = <Future>[];
+    
+    // Future for position data
+    final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+    ).then((data) {
+      // Filter data to show only original picks for the selected team
+      if (_selectedTeam != 'All Teams') {
+        final teamPicks = _teamOriginalPicks[_selectedTeam] ?? [];
+        _topPicksByPosition = data.where((pick) => 
+          teamPicks.contains(pick['pick'])).toList();
+      } else {
         _topPicksByPosition = data;
-      });
-      futures.add(positionFuture);
-      
-      // Future for player data
-      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
+      }
+    });
+    futures.add(positionFuture);
+    
+    // Future for player data
+    final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+    ).then((data) {
+      // Filter data to show only original picks for the selected team
+      if (_selectedTeam != 'All Teams') {
+        final teamPicks = _teamOriginalPicks[_selectedTeam] ?? [];
+        _topPlayersByPick = data.where((pick) => 
+          teamPicks.contains(pick['pick'])).toList();
+      } else {
+        _topPlayersByPick = data;
+      }
+    });
+    futures.add(playerFuture);
+    
+    // Only load consensus needs once, or when team changes
+    if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
+      final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
         year: widget.draftYear,
       ).then((data) {
-        _topPlayersByPick = data;
+        _consensusNeeds = data;
       });
-      futures.add(playerFuture);
-      
-      // Only load consensus needs once, or when team changes
-      if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
-        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
-          year: widget.draftYear,
-        ).then((data) {
-          _consensusNeeds = data;
-        });
-        futures.add(needsFuture);
-      }
-      
-      // Wait for all futures to complete
-      await Future.wait(futures);
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      futures.add(needsFuture);
     }
+    
+    // Wait for all futures to complete
+    await Future.wait(futures);
+
+    setState(() {
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint('Error loading team draft pattern data: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
@@ -348,21 +392,28 @@ Widget _buildPositionTrendsTable() {
       // Data rows
       ..._topPicksByPosition.map((data) {
         final positionsList = data['positions'] as List<dynamic>;
+        // Limit to top 3 positions
+        final limitedPositions = positionsList.take(3).toList();
+        // Pad with empty positions if needed
+        while (limitedPositions.length < 3) {
+          limitedPositions.add({'position': 'N/A', 'percentage': '0%'});
+        }
+        
         return TableRow(
           children: [
             _buildTableCell('${data['pick'] ?? 'N/A'}'),
             _buildTableCell('${data['round'] ?? 'N/A'}'),
             _buildPositionCell(
-              positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
-              positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
+              limitedPositions[0]['position'],
+              limitedPositions[0]['percentage'],
             ),
             _buildPositionCell(
-              positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
-              positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
+              limitedPositions[1]['position'],
+              limitedPositions[1]['percentage'],
             ),
             _buildPositionCell(
-              positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
-              positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
+              limitedPositions[2]['position'],
+              limitedPositions[2]['percentage'],
             ),
           ],
         );
@@ -408,7 +459,7 @@ Widget _buildPlayerTrendsTable() {
           _buildTableHeader('Frequency'),
         ],
       ),
-      // Data rows
+      // Data rows - limit to top 3 players per pick
       ..._topPlayersByPick.map((data) {
         final playersList = data['players'] as List<dynamic>;
         if (playersList.isEmpty) {
@@ -422,6 +473,7 @@ Widget _buildPlayerTrendsTable() {
           );
         }
         
+        // Taking only top player for each pick
         final topPlayer = playersList[0];
         return TableRow(
           children: [
@@ -437,52 +489,52 @@ Widget _buildPlayerTrendsTable() {
 }
 
   Widget _buildConsensusNeedsWidget() {
-    final teamNeeds = _consensusNeeds[_selectedTeam] ?? [];
-    
-    if (teamNeeds.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('No consensus need data available'),
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      children: List.generate(
-        teamNeeds.length,
-        (index) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: _getPositionColor(teamNeeds[index]).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _getPositionColor(teamNeeds[index])),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${index + 1}. ',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _getPositionColor(teamNeeds[index]),
-                ),
-              ),
-              Text(
-                teamNeeds[index],
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _getPositionColor(teamNeeds[index]),
-                ),
-              ),
-            ],
-          ),
-        ),
+  final teamNeeds = _consensusNeeds[_selectedTeam] ?? [];
+  
+  if (teamNeeds.isEmpty) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('No consensus need data available'),
       ),
     );
   }
+
+  return Wrap(
+    spacing: 8.0,
+    runSpacing: 8.0,
+    children: List.generate(
+      teamNeeds.length,
+      (index) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _getPositionColor(teamNeeds[index]).withOpacity(0.2),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _getPositionColor(teamNeeds[index])),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${index + 1}. ',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _getPositionColor(teamNeeds[index]),
+              ),
+            ),
+            Text(
+              teamNeeds[index],
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _getPositionColor(teamNeeds[index]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
   Widget _buildTableHeader(String text) {
     return Padding(
