@@ -359,6 +359,8 @@ class CollegeTeamESPNIds {
     "Eastern Kentucky": "2198",
     "Eastern Washington": "331",
     "Florida A&M": "50",
+    "Western Michigan": "2711",
+    "Central Arkansas": "2110",
   };
 
   
