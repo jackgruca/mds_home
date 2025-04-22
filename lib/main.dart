@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/screens/blog_list_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
+import 'screens/betting_analytics_screen.dart';
 import 'screens/draft_overview_screen.dart';
+import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
@@ -128,13 +130,17 @@ class _MyAppState extends State<MyApp> {
     
     // Otherwise handle regular routes
     switch (settings.name) {
-      case '/':
-        return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-      case '/blog':
-        return MaterialPageRoute(builder: (_) => const BlogListScreen());
-      default:
-        return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-    }
+  case '/':
+    return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+  case '/blog':
+    return MaterialPageRoute(builder: (_) => const BlogListScreen());
+  case '/player-projections':
+    return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+  case '/betting-analytics':
+    return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+  default:
+    return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+}
   },
   initialRoute: '/',
   // Add this to use path URL strategy instead of hash
