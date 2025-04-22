@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../services/firebase_service.dart';
 import 'emergency_analytics_processor.dart';
+import 'incremental_analytics_processor.dart';
 
 class AnalyticsSetupWidget extends StatefulWidget {
   const AnalyticsSetupWidget({super.key});
@@ -168,7 +169,30 @@ Future<void> _triggerInitialAggregation() async {
                         ? 'Recreate Collections'
                         : 'Setup Collections'),
                 ),
+                const SizedBox(height: 16),
 
+ElevatedButton(
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const IncrementalAnalyticsProcessor(),
+      ),
+    );
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.green, // Make it distinct from the emergency button
+    foregroundColor: Colors.white,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  ),
+  child: const Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.sync),
+      SizedBox(width: 8),
+      Text('Run Incremental Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
+    ],
+  ),
+),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
