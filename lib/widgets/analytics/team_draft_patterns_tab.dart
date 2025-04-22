@@ -31,6 +31,11 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   List<Map<String, dynamic>> _topPicksByPosition = [];
   List<Map<String, dynamic>> _topPlayersByPick = [];
   Map<String, List<String>> _consensusNeeds = {};
+  
+  // New data states
+  List<String> teamNeeds = [];
+  List<Map<String, dynamic>> teamOriginalPicks = [];
+  List<Map<String, dynamic>> tradePatterns = [];
 
   @override
   void initState() {
@@ -78,6 +83,33 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
           _consensusNeeds = data;
         });
         futures.add(needsFuture);
+      }
+      
+      // Load team-specific data
+      if (_selectedTeam != 'All Teams') {
+        // Load team needs
+        final needsFuture = AnalyticsQueryService.getTeamConsensusNeeds(team: _selectedTeam).then((data) {
+          teamNeeds = data;
+        });
+        futures.add(needsFuture);
+        
+        // Load original picks for this team
+        final picksFuture = AnalyticsQueryService.getTeamDraftHistory(
+          team: _selectedTeam,
+          round: _selectedRound,
+        ).then((data) {
+          teamOriginalPicks = data;
+        });
+        futures.add(picksFuture);
+        
+        // Load trade patterns
+        final tradesFuture = AnalyticsQueryService.getTeamTradePatterns(
+          team: _selectedTeam,
+          round: _selectedRound,
+        ).then((data) {
+          tradePatterns = data;
+        });
+        futures.add(tradesFuture);
       }
       
       // Wait for all futures to complete
@@ -148,6 +180,7 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -225,6 +258,18 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Team needs section (only for specific team)
+                      if (_selectedTeam != 'All Teams' && teamNeeds.isNotEmpty)
+                        _buildTeamNeedsCard(),
+                        
+                      const SizedBox(height: 16),
+                      
+                      // Original picks section (only for specific team)
+                      if (_selectedTeam != 'All Teams' && teamOriginalPicks.isNotEmpty)
+                        _buildOriginalPicksCard(),
+                        
+                      const SizedBox(height: 16),
+                      
                       // Top Positions by Pick
                       Card(
                         elevation: 2,
@@ -273,6 +318,12 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+
+                      // Trade patterns section (only for specific team)
+                      if (_selectedTeam != 'All Teams' && tradePatterns.isNotEmpty)
+                        _buildTradePatternCard(),
+                        
                       const SizedBox(height: 16),
 
                       // Consensus Needs (only show for specific team)
@@ -433,6 +484,151 @@ Widget _buildPlayerTrendsTable() {
         );
       }),
     ],
+  );
+}
+
+Widget _buildTeamNeedsCard() {
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Community Consensus Needs for $_selectedTeam',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: teamNeeds.map((need) => Chip(
+              label: Text(need),
+              backgroundColor: _getPositionColor(need).withOpacity(0.2),
+              side: BorderSide(color: _getPositionColor(need)),
+            )).toList(),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildOriginalPicksCard() {
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Original Draft Picks',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Pick')),
+                DataColumn(label: Text('Round')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Common Outcome')),
+              ],
+              rows: teamOriginalPicks.map((pick) {
+                final isTradedPick = pick['actualTeam'] != _selectedTeam;
+                return DataRow(
+                  cells: [
+                    DataCell(Text('#${pick['pickNumber']}')),
+                    DataCell(Text(pick['round'].toString())),
+                    DataCell(
+                      Text(
+                        isTradedPick ? 'Traded' : 'Kept',
+                        style: TextStyle(
+                          color: isTradedPick ? Colors.orange : Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      isTradedPick
+                          ? Text('Traded to ${pick['actualTeam']}')
+                          : Text('${pick['position']} - ${pick['playerName']}'),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildTradePatternCard() {
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Trade Patterns',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Pick')),
+                DataColumn(label: Text('Top Trade Partner')),
+                DataColumn(label: Text('Frequency')),
+                DataColumn(label: Text('Positions')),
+              ],
+              rows: tradePatterns.map((trade) {
+                final trades = List<Map<String, dynamic>>.from(trade['trades'] ?? []);
+                if (trades.isEmpty) {
+                  return const DataRow(cells: [
+                    DataCell(Text('-')),
+                    DataCell(Text('-')),
+                    DataCell(Text('-')),
+                    DataCell(Text('-')),
+                  ]);
+                }
+                
+                // Just show the top trade for each pick
+                final topTrade = trades[0];
+                return DataRow(
+                  cells: [
+                    DataCell(Text('#${trade['pick']}')),
+                    DataCell(Text('${topTrade['tradedTo']}')),
+                    DataCell(Text('${topTrade['count']} times')),
+                    DataCell(Text(
+                      (topTrade['positions'] as List).join(', '),
+                      overflow: TextOverflow.ellipsis,
+                    )),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 

@@ -19,10 +19,16 @@ class PlayerDraftAnalysisTab extends StatefulWidget {
 class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   String _selectedPosition = 'All Positions';
+  int? _selectedRound;
   
   // Data states
   List<Map<String, dynamic>> _riserPlayers = [];
   List<Map<String, dynamic>> _fallerPlayers = [];
+  
+  // New data states
+  List<Map<String, dynamic>> valuePlayersByRound = [];
+  List<Map<String, dynamic>> reachPlayersByRound = [];
+  List<Map<String, dynamic>> tradeTeamsByRound = [];
   
   // List of all positions for filtering
   final List<String> _allPositions = [
@@ -33,6 +39,7 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
   @override
   void initState() {
     super.initState();
+    _selectedRound = 1; // Default to round 1
     _loadData();
   }
 
@@ -42,48 +49,80 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
     });
 
     try {
+      // Create a list of futures to execute in parallel
+      final futures = <Future>[];
+      
       // Load player rank deviations (risers and fallers)
-      final deviations = await AnalyticsQueryService.getPlayerRankDeviations(
+      final deviationsFuture = AnalyticsQueryService.getPlayerRankDeviations(
         year: widget.draftYear,
         position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
         limit: 20,  // Get enough data to split into risers and fallers
-      );
-      
-      // Process the deviations data
-      final players = deviations['players'] as List<dynamic>;
-      final List<Map<String, dynamic>> risers = [];
-      final List<Map<String, dynamic>> fallers = [];
-      
-      for (var player in players) {
-        // Parse average deviation value
-        double avgDeviation = double.tryParse(player['avgDeviation'].toString()) ?? 0.0;
+      ).then((deviations) {
+        // Process the deviations data
+        final players = deviations['players'] as List<dynamic>;
+        final List<Map<String, dynamic>> risers = [];
+        final List<Map<String, dynamic>> fallers = [];
         
-        // Add player details
-        Map<String, dynamic> playerData = {
-          'name': player['name'],
-          'position': player['position'],
-          'avgDeviation': avgDeviation,
-          'deviationText': avgDeviation.toStringAsFixed(1),
-          'sampleSize': player['sampleSize'],
-        };
-        
-        // Categorize as riser or faller
-        if (avgDeviation > 0) {
-          risers.add(playerData);
-        } else if (avgDeviation < 0) {
-          fallers.add(playerData);
+        for (var player in players) {
+          // Parse average deviation value
+          double avgDeviation = double.tryParse(player['avgDeviation'].toString()) ?? 0.0;
+          
+          // Add player details
+          Map<String, dynamic> playerData = {
+            'name': player['name'],
+            'position': player['position'],
+            'avgDeviation': avgDeviation,
+            'deviationText': avgDeviation.toStringAsFixed(1),
+            'sampleSize': player['sampleSize'],
+          };
+          
+          // Categorize as riser or faller
+          if (avgDeviation > 0) {
+            risers.add(playerData);
+          } else if (avgDeviation < 0) {
+            fallers.add(playerData);
+          }
         }
-      }
-      
-      // Sort risers (picked later than rank = positive deviation = value picks)
-      risers.sort((a, b) => (b['avgDeviation'] as double).compareTo(a['avgDeviation'] as double));
-      
-      // Sort fallers (picked earlier than rank = negative deviation = reaches)
-      fallers.sort((a, b) => (a['avgDeviation'] as double).compareTo(b['avgDeviation'] as double));
-      
-      setState(() {
+        
+        // Sort risers (picked later than rank = positive deviation = value picks)
+        risers.sort((a, b) => (b['avgDeviation'] as double).compareTo(a['avgDeviation'] as double));
+        
+        // Sort fallers (picked earlier than rank = negative deviation = reaches)
+        fallers.sort((a, b) => (a['avgDeviation'] as double).compareTo(b['avgDeviation'] as double));
+        
         _riserPlayers = risers;
         _fallerPlayers = fallers;
+      });
+      futures.add(deviationsFuture);
+      
+      // Load value players data
+      final valuePlayersFuture = AnalyticsQueryService.getValuePlayersByRound(
+        round: _selectedRound,
+      ).then((data) {
+        valuePlayersByRound = data;
+      });
+      futures.add(valuePlayersFuture);
+      
+      // Load reach players data
+      final reachPlayersFuture = AnalyticsQueryService.getReachPicksByRound(
+        round: _selectedRound,
+      ).then((data) {
+        reachPlayersByRound = data;
+      });
+      futures.add(reachPlayersFuture);
+      
+      // Load trade teams data
+      final tradeTeamsFuture = AnalyticsQueryService.getMostActiveTradeTeamsByRound(
+        round: _selectedRound,
+      ).then((data) {
+        tradeTeamsByRound = data;
+      });
+      futures.add(tradeTeamsFuture);
+      
+      // Wait for all futures to complete
+      await Future.wait(futures);
+      
+      setState(() {
         _isLoading = false;
       });
     } catch (e) {
@@ -93,22 +132,31 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
       });
     }
   }
+  
+  void _updateRoundFilter(int? round) {
+    setState(() {
+      _selectedRound = round;
+    });
+    _loadData();
+  }
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Position filter
+        // Position and round filters
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
+              // Position filter
               const Text('Position:', style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -129,6 +177,31 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
                   child: Text(position),
                 )).toList(),
               ),
+              
+              const Spacer(),
+              
+              // Round filter
+              const Text('Round:', style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              )),
+              const SizedBox(width: 8),
+              DropdownButton<int?>(
+                value: _selectedRound,
+                onChanged: (newValue) {
+                  _updateRoundFilter(newValue);
+                },
+                items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('All Rounds'),
+                  ),
+                  ...List.generate(7, (index) => DropdownMenuItem<int?>(
+                    value: index + 1,
+                    child: Text('Round ${index + 1}'),
+                  )),
+                ],
+              ),
             ],
           ),
         ),
@@ -142,6 +215,21 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Value Players Section
+                      _buildValuePlayersCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Reach Players Section
+                      _buildReachPlayersCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Trade Teams Section
+                      _buildTradeTeamsCard(),
+                      
+                      const SizedBox(height: 24),
+                      
                       // Value Picks / Risers Section
                       Card(
                         elevation: 2,
@@ -258,6 +346,292 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildValuePlayersCard() {
+    if (valuePlayersByRound.isEmpty) {
+      return const Card(
+        elevation: 2,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Best Value Players',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Players drafted later than their rank (positive value)',
+                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+              SizedBox(height: 16),
+              Center(
+                child: Text('No value player data available for the selected round'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Best Value Players',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Players drafted later than their rank (positive value)',
+              style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Player')),
+                  DataColumn(label: Text('Position')),
+                  DataColumn(label: Text('School')),
+                  DataColumn(label: Text('Value')),
+                  DataColumn(label: Text('Sample Size')),
+                ],
+                rows: valuePlayersByRound.map((player) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(player['name']?.toString() ?? '')),
+                      DataCell(_buildPositionCell(player['position']?.toString() ?? 'N/A')),
+                      DataCell(Text(player['school']?.toString() ?? '')),
+                      DataCell(Text(
+                        '+${player['avgDeviation']}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )),
+                      DataCell(Text(player['sampleSize']?.toString() ?? '0')),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReachPlayersCard() {
+    if (reachPlayersByRound.isEmpty) {
+      return const Card(
+        elevation: 2,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Biggest Reaches',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Players drafted earlier than their rank (negative value)',
+                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+              SizedBox(height: 16),
+              Center(
+                child: Text('No reach pick data available for the selected round'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Biggest Reaches',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Players drafted earlier than their rank (negative value)',
+              style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Player')),
+                  DataColumn(label: Text('Position')),
+                  DataColumn(label: Text('School')),
+                  DataColumn(label: Text('Reach')),
+                  DataColumn(label: Text('Sample Size')),
+                ],
+                rows: reachPlayersByRound.map((player) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(player['name']?.toString() ?? '')),
+                      DataCell(_buildPositionCell(player['position']?.toString() ?? 'N/A')),
+                      DataCell(Text(player['school']?.toString() ?? '')),
+                      DataCell(Text(
+                        '${player['avgDeviation']}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )),
+                      DataCell(Text(player['sampleSize']?.toString() ?? '0')),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTradeTeamsCard() {
+    if (tradeTeamsByRound.isEmpty) {
+      return const Card(
+        elevation: 2,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Most Active Trading Teams',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 16),
+              Center(
+                child: Text('No trade data available for the selected round'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      children: tradeTeamsByRound.map((roundData) {
+        final round = roundData['round'];
+        final tradeUps = List<Map<String, dynamic>>.from(roundData['tradeUps'] ?? []);
+        final tradeDowns = List<Map<String, dynamic>>.from(roundData['tradeDowns'] ?? []);
+        
+        if (tradeUps.isEmpty && tradeDowns.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        
+        return Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Round $round Trading Teams', 
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Trade ups
+                if (tradeUps.isNotEmpty) ...[
+                  const Text(
+                    'Most Active Teams Trading Up',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      columnSpacing: 24,
+                      columns: const [
+                        DataColumn(label: Text('Team')),
+                        DataColumn(label: Text('Trades')),
+                      ],
+                      rows: tradeUps.map((team) {
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(team['team']?.toString() ?? '')),
+                            DataCell(Text('${team['count'] ?? 0} times')),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                
+                // Trade downs
+                if (tradeDowns.isNotEmpty) ...[
+                  const Text(
+                    'Most Active Teams Trading Down',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      columnSpacing: 24,
+                      columns: const [
+                        DataColumn(label: Text('Team')),
+                        DataColumn(label: Text('Trades')),
+                      ],
+                      rows: tradeDowns.map((team) {
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(team['team']?.toString() ?? '')),
+                            DataCell(Text('${team['count'] ?? 0} times')),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

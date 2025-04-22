@@ -8,6 +8,12 @@ import 'analytics_cache_manager.dart';
 import 'precomputed_analytics_service.dart';
 
 class AnalyticsQueryService {
+  List<String> teamNeeds = [];
+  List<Map<String, dynamic>> teamOriginalPicks = [];
+  List<Map<String, dynamic>> topPositionsByPick = [];
+  List<Map<String, dynamic>> topPlayersByPick = [];
+  List<Map<String, dynamic>> tradePatterns = [];
+
   static FirebaseFirestore get _firestore {
     return FirebaseFirestore.instance;
   }
@@ -453,9 +459,80 @@ static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
   }
 }
 
-// Add this method to lib/services/analytics_query_service.dart
+/// Get top positions by pick for a specific team
+static Future<List<Map<String, dynamic>>> getTopPositionsByTeamAndPick({
+  required String team,
+  int? round,
+}) async {
+  try {
+    await ensureInitialized();
+    
+    // First try to get precomputed data
+    final data = await getConsolidatedPositionsByPick(team: team, round: round);
+    
+    // Add the 'pick' property for each entry if not present
+    for (final entry in data) {
+      if (!entry.containsKey('pick') && entry.containsKey('pickNumber')) {
+        entry['pick'] = entry['pickNumber'];
+      }
+    }
+    
+    return data;
+  } catch (e) {
+    debugPrint('Error getting top positions by team and pick: $e');
+    return [];
+  }
+}
+/// Get most common players by pick for a specific team
+static Future<List<Map<String, dynamic>>> getTopPlayersByTeamAndPick({
+  required String team,
+  int? round,
+}) async {
+  try {
+    await ensureInitialized();
+    
+    // First try to get precomputed data
+    final data = await getConsolidatedPlayersByPick(team: team, round: round);
+    
+    // Add the 'pick' property for each entry if not present
+    for (final entry in data) {
+      if (!entry.containsKey('pick') && entry.containsKey('pickNumber')) {
+        entry['pick'] = entry['pickNumber'];
+      }
+    }
+    
+    return data;
+  } catch (e) {
+    debugPrint('Error getting top players by team and pick: $e');
+    return [];
+  }
+}
 
-/// Get actual draft history for a specific team
+/// Get consensus team needs for a specific team
+static Future<List<String>> getTeamConsensusNeeds({required String team}) async {
+  try {
+    await ensureInitialized();
+    
+    final db = _firestore;
+    final teamNeedsDoc = await db.collection('precomputedAnalytics')
+        .doc('teamNeeds')
+        .get();
+    
+    if (teamNeedsDoc.exists) {
+      final data = teamNeedsDoc.data() as Map<String, dynamic>;
+      if (data.containsKey('needs') && data['needs'].containsKey(team)) {
+        return List<String>.from(data['needs'][team]);
+      }
+    }
+    
+    return [];
+  } catch (e) {
+    debugPrint('Error getting team consensus needs: $e');
+    return [];
+  }
+}
+
+/// Get team draft history (original picks)
 static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
   required String team,
   int? round,
@@ -488,8 +565,8 @@ static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
         for (var pickData in picks) {
           final pick = DraftPickRecord.fromFirestore(pickData);
           
-          // Only include picks where this team is the actual team (not original team)
-          if (pick.actualTeam == team) {
+          // Only include picks where this team is the original team (not traded for)
+          if (pick.originalTeam == team) {
             // Filter by round if specified
             if (round != null && int.tryParse(pick.round) != round) {
               continue;
@@ -502,6 +579,7 @@ static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
               'position': pick.position,
               'playerRank': pick.playerRank,
               'school': pick.school,
+              'actualTeam': pick.actualTeam, // Add this to see if it was traded
             });
           }
         }
@@ -520,4 +598,409 @@ static Future<List<Map<String, dynamic>>> getTeamDraftHistory({
   }
 }
 
+/// Get most common trade destinations for a team's picks
+static Future<List<Map<String, dynamic>>> getTeamTradePatterns({
+  required String team,
+  int? round,
+}) async {
+  try {
+    await ensureInitialized();
+    
+    final db = _firestore;
+    final snapshot = await db.collection(draftAnalyticsCollection)
+        .limit(500) // Limit to avoid processing too many
+        .get();
+    
+    // Map to track trade patterns by pick
+    Map<int, List<Map<String, dynamic>>> tradesByPick = {};
+    
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data();
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (var pickData in picks) {
+          // Check if this was originally team's pick
+          if (pickData['originalTeam'] == team && pickData['actualTeam'] != team) {
+            final pickNumber = pickData['pickNumber'] as int;
+            final currentRound = int.tryParse(pickData['round']?.toString() ?? '') ?? 0;
+            
+            // Filter by round if specified
+            if (round != null && currentRound != round) {
+              continue;
+            }
+            
+            final tradedTo = pickData['actualTeam'];
+            final position = pickData['position'];
+            final playerName = pickData['playerName'];
+            
+            tradesByPick.putIfAbsent(pickNumber, () => []);
+            
+            // Find if we already have this trade destination
+            bool found = false;
+            for (var trade in tradesByPick[pickNumber]!) {
+              if (trade['tradedTo'] == tradedTo) {
+                trade['count'] = (trade['count'] as int) + 1;
+                found = true;
+                
+                // Update players
+                if (!trade['players'].contains(playerName)) {
+                  trade['players'].add(playerName);
+                }
+                
+                // Update positions
+                if (!trade['positions'].contains(position)) {
+                  trade['positions'].add(position);
+                }
+                
+                break;
+              }
+            }
+            
+            if (!found) {
+              tradesByPick[pickNumber]!.add({
+                'tradedTo': tradedTo,
+                'count': 1,
+                'positions': [position],
+                'players': [playerName],
+              });
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing document for trade patterns: $e');
+      }
+    }
+    
+    // Format results
+    List<Map<String, dynamic>> result = [];
+    
+    tradesByPick.forEach((pickNumber, trades) {
+      // Sort by count
+      trades.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      
+      // Only take top 3 for each pick
+      final topTrades = trades.take(3).toList();
+      
+      result.add({
+        'pick': pickNumber,
+        'trades': topTrades,
+      });
+    });
+    
+    // Sort by pick number
+    result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting team trade patterns: $e');
+    return [];
+  }
+}
+
+/// Get best value players by round
+static Future<List<Map<String, dynamic>>> getValuePlayersByRound({int? round}) async {
+  try {
+    await ensureInitialized();
+    
+    // For this we need player deviations
+    final db = _firestore;
+    final deviationsDoc = await db.collection('precomputedAnalytics')
+        .doc('playerDeviations')
+        .get();
+    
+    if (!deviationsDoc.exists) {
+      return [];
+    }
+    
+    final data = deviationsDoc.data() as Map<String, dynamic>;
+    final players = List<Map<String, dynamic>>.from(data['players'] ?? []);
+    
+    // Filter players with positive deviation (positive value, picked later than rank)
+    final valuePlayersByRound = <int, List<Map<String, dynamic>>>{};
+    
+    for (final player in players) {
+      // Parse deviation
+      final dev = double.tryParse(player['avgDeviation']?.toString() ?? '0') ?? 0;
+      
+      // Skip if not a value pick (negative deviation means picked earlier than rank)
+      if (dev <= 0) continue;
+      
+      // Try to determine round
+      int playerRound = 0;
+      try {
+        // We'll approximate round from the average draft position and deviation
+        final aproxRank = player['rank'] ?? ((player['avgDeviation'] as double).abs().toInt());
+        
+        if (aproxRank <= 32) playerRound = 1;
+        else if (aproxRank <= 64) playerRound = 2;
+        else if (aproxRank <= 105) playerRound = 3;
+        else if (aproxRank <= 143) playerRound = 4;
+        else if (aproxRank <= 179) playerRound = 5;
+        else if (aproxRank <= 217) playerRound = 6;
+        else playerRound = 7;
+      } catch (e) {
+        playerRound = 0;
+      }
+      
+      // Skip if round doesn't match filter
+      if (round != null && playerRound != round) continue;
+      
+      // Add to round list
+      valuePlayersByRound.putIfAbsent(playerRound, () => []);
+      valuePlayersByRound[playerRound]!.add({
+        ...player,
+        'round': playerRound,
+      });
+    }
+    
+    // Sort each round by deviation (highest value first)
+    valuePlayersByRound.forEach((round, players) {
+      players.sort((a, b) {
+        final aDevStr = a['avgDeviation']?.toString() ?? '0';
+        final bDevStr = b['avgDeviation']?.toString() ?? '0';
+        
+        final aDev = double.tryParse(aDevStr) ?? 0;
+        final bDev = double.tryParse(bDevStr) ?? 0;
+        
+        return bDev.compareTo(aDev);
+      });
+    });
+    
+    // Format response
+    List<Map<String, dynamic>> result = [];
+    
+    // If round is specified, return just that round
+    if (round != null && valuePlayersByRound.containsKey(round)) {
+      result = List<Map<String, dynamic>>.from(valuePlayersByRound[round]!.take(10));
+    } else {
+      // Otherwise, get top 5 from each round
+      for (int r = 1; r <= 7; r++) {
+        if (valuePlayersByRound.containsKey(r)) {
+          final topFive = valuePlayersByRound[r]!.take(5).toList();
+          result.addAll(topFive);
+        }
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting value players by round: $e');
+    return [];
+  }
+}
+
+/// Get biggest reach picks by round
+static Future<List<Map<String, dynamic>>> getReachPicksByRound({int? round}) async {
+  try {
+    await ensureInitialized();
+    
+    // For this we need player deviations
+    final db = _firestore;
+    final deviationsDoc = await db.collection('precomputedAnalytics')
+        .doc('playerDeviations')
+        .get();
+    
+    if (!deviationsDoc.exists) {
+      return [];
+    }
+    
+    final data = deviationsDoc.data() as Map<String, dynamic>;
+    final players = List<Map<String, dynamic>>.from(data['players'] ?? []);
+    
+    // Filter players with negative deviation (picked earlier than rank)
+    final reachPlayersByRound = <int, List<Map<String, dynamic>>>{};
+    
+    for (final player in players) {
+      // Parse deviation
+      final dev = double.tryParse(player['avgDeviation']?.toString() ?? '0') ?? 0;
+      
+      // Skip if not a reach pick (positive deviation means picked later than rank)
+      if (dev >= 0) continue;
+      
+      // Try to determine round (similar logic as valuePlayersByRound)
+      int playerRound = 0;
+      try {
+        // We'll approximate round from the average draft position and deviation
+        final aproxRank = player['rank'] ?? ((player['avgDeviation'] as double).abs().toInt());
+        
+        if (aproxRank <= 32) playerRound = 1;
+        else if (aproxRank <= 64) playerRound = 2;
+        else if (aproxRank <= 105) playerRound = 3;
+        else if (aproxRank <= 143) playerRound = 4;
+        else if (aproxRank <= 179) playerRound = 5;
+        else if (aproxRank <= 217) playerRound = 6;
+        else playerRound = 7;
+      } catch (e) {
+        playerRound = 0;
+      }
+      
+      // Skip if round doesn't match filter
+      if (round != null && playerRound != round) continue;
+      
+      // Add to round list
+      reachPlayersByRound.putIfAbsent(playerRound, () => []);
+      reachPlayersByRound[playerRound]!.add({
+        ...player,
+        'round': playerRound,
+      });
+    }
+    
+    // Sort each round by deviation (biggest reach first)
+    reachPlayersByRound.forEach((round, players) {
+      players.sort((a, b) {
+        final aDevStr = a['avgDeviation']?.toString() ?? '0';
+        final bDevStr = b['avgDeviation']?.toString() ?? '0';
+        
+        final aDev = double.tryParse(aDevStr) ?? 0;
+        final bDev = double.tryParse(bDevStr) ?? 0;
+        
+        return aDev.compareTo(bDev); // Negative values, smallest first
+      });
+    });
+    
+    // Format response
+    List<Map<String, dynamic>> result = [];
+    
+    // If round is specified, return just that round
+    if (round != null && reachPlayersByRound.containsKey(round)) {
+      result = List<Map<String, dynamic>>.from(reachPlayersByRound[round]!.take(10));
+    } else {
+      // Otherwise, get top 5 from each round
+      for (int r = 1; r <= 7; r++) {
+        if (reachPlayersByRound.containsKey(r)) {
+          final topFive = reachPlayersByRound[r]!.take(5).toList();
+          result.addAll(topFive);
+        }
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting reach picks by round: $e');
+    return [];
+  }
+}
+
+/// Get most common trading teams by round
+static Future<List<Map<String, dynamic>>> getMostActiveTradeTeamsByRound({int? round}) async {
+  try {
+    await ensureInitialized();
+    
+    final db = _firestore;
+    final snapshot = await db.collection(draftAnalyticsCollection)
+        .limit(500) // Limit to avoid processing too many
+        .get();
+    
+    // Maps to track trade frequency
+    Map<String, Map<int, int>> teamTradeUpsByRound = {};
+    Map<String, Map<int, int>> teamTradeDownsByRound = {};
+    
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data();
+        final trades = List<Map<String, dynamic>>.from(data['trades'] ?? []);
+        
+        for (var trade in trades) {
+          final offering = trade['teamOffering'] as String?;
+          final receiving = trade['teamReceiving'] as String?;
+          
+          if (offering == null || receiving == null) continue;
+          
+          // Try to determine round of target pick
+          final targetPick = trade['targetPick'] as int?;
+          int tradeRound = 0;
+          
+          if (targetPick != null) {
+            if (targetPick <= 32) tradeRound = 1;
+            else if (targetPick <= 64) tradeRound = 2;
+            else if (targetPick <= 105) tradeRound = 3;
+            else if (targetPick <= 143) tradeRound = 4;
+            else if (targetPick <= 179) tradeRound = 5;
+            else if (targetPick <= 217) tradeRound = 6;
+            else tradeRound = 7;
+          }
+          
+          // Skip if round doesn't match filter
+          if (round != null && tradeRound != round) continue;
+          
+          // Track team trading up (receiving team)
+          teamTradeUpsByRound.putIfAbsent(receiving, () => {});
+          teamTradeUpsByRound[receiving]!.putIfAbsent(tradeRound, () => 0);
+          teamTradeUpsByRound[receiving]![tradeRound] = (teamTradeUpsByRound[receiving]![tradeRound] ?? 0) + 1;
+          
+          // Track team trading down (offering team)
+          teamTradeDownsByRound.putIfAbsent(offering, () => {});
+          teamTradeDownsByRound[offering]!.putIfAbsent(tradeRound, () => 0);
+          teamTradeDownsByRound[offering]![tradeRound] = (teamTradeDownsByRound[offering]![tradeRound] ?? 0) + 1;
+        }
+      } catch (e) {
+        debugPrint('Error processing document for trade teams: $e');
+      }
+    }
+    
+    // Format results
+    Map<int, List<Map<String, dynamic>>> tradeUpsByRound = {};
+    Map<int, List<Map<String, dynamic>>> tradeDownsByRound = {};
+    
+    // Process trade ups
+    teamTradeUpsByRound.forEach((team, rounds) {
+      rounds.forEach((r, count) {
+        tradeUpsByRound.putIfAbsent(r, () => []);
+        tradeUpsByRound[r]!.add({
+          'team': team,
+          'count': count,
+          'direction': 'up',
+        });
+      });
+    });
+    
+    // Process trade downs
+    teamTradeDownsByRound.forEach((team, rounds) {
+      rounds.forEach((r, count) {
+        tradeDownsByRound.putIfAbsent(r, () => []);
+        tradeDownsByRound[r]!.add({
+          'team': team,
+          'count': count,
+          'direction': 'down',
+        });
+      });
+    });
+    
+    // Sort each round by count
+    tradeUpsByRound.forEach((r, teams) {
+      teams.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    });
+    
+    tradeDownsByRound.forEach((r, teams) {
+      teams.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    });
+    
+    // Combine results
+    List<Map<String, dynamic>> result = [];
+    
+    if (round != null) {
+      // Return specific round
+      result.add({
+        'round': round,
+        'tradeUps': tradeUpsByRound[round]?.take(5).toList() ?? [],
+        'tradeDowns': tradeDownsByRound[round]?.take(5).toList() ?? [],
+      });
+    } else {
+      // Return all rounds
+      for (int r = 1; r <= 7; r++) {
+        result.add({
+          'round': r,
+          'tradeUps': tradeUpsByRound[r]?.take(5).toList() ?? [],
+          'tradeDowns': tradeDownsByRound[r]?.take(5).toList() ?? [],
+        });
+      }
+    }
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error getting most active trade teams by round: $e');
+    return [];
+  }
+}
 }
