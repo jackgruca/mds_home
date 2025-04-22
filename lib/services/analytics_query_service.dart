@@ -116,6 +116,22 @@ class AnalyticsQueryService {
     }
   }
 
+static Future<int?> getDraftCount() async {
+  try {
+    await ensureInitialized();
+
+    AggregateQuery countQuery = _firestore
+        .collection(draftAnalyticsCollection)
+        .count();
+
+    AggregateQuerySnapshot snapshot = await countQuery.get();
+
+    return snapshot.count;
+  } catch (e) {
+    debugPrint('Error getting draft count: $e');
+    return -1; // or 0, depending on your preference
+  }
+}
   /// Get consensus team needs based on position frequency - OPTIMIZED
   static Future<Map<String, List<String>>> getConsensusTeamNeeds({
     int? year,
