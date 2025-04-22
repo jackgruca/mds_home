@@ -5,6 +5,7 @@ import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/team_selection_screen.dart';
+import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
 import 'services/precomputed_analytics_service.dart'; // Add this
@@ -28,7 +29,6 @@ void main() async {
   // Initialize services
   WidgetsFlutterBinding.ensureInitialized();
   setUrlStrategy(PathUrlStrategy());
-
 
   // Initialize Firebase with additional logging
   try {
@@ -100,7 +100,12 @@ class _MyAppState extends State<MyApp> {
     Future.delayed(Duration.zero, () {
       Provider.of<AuthProvider>(context, listen: false).initialize();
     });
+    testDraftCount();
   }
+  void testDraftCount() async {
+  int? count = await AnalyticsQueryService.getDraftCount();
+  print('🔥 Total drafts in Firestore: $count');
+}
 
   @override
   Widget build(BuildContext context) {
