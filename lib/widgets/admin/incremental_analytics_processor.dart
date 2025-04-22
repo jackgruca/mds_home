@@ -347,197 +347,557 @@ Future<void> processAnalytics() async {
       }
     }
     
-    // Final processing and formatting results before saving to Firestore collections
-    if (processedCount > 0) {
-      setState(() => message = 'Formatting results and saving to Firestore...');
+setState(() => message = 'Loading existing precomputed analytics for merging...');
+
+// Load existing precomputed data
+final existingPositionDistDoc = await db.collection('precomputedAnalytics').doc('positionDistribution').get();
+final existingTeamNeedsDoc = await db.collection('precomputedAnalytics').doc('teamNeeds').get();
+final existingPositionsByPickDoc = await db.collection('precomputedAnalytics').doc('positionsByPick').get();
+final existingPlayersByPickDoc = await db.collection('precomputedAnalytics').doc('playersByPick').get();
+final existingPlayerDeviationsDoc = await db.collection('precomputedAnalytics').doc('playerDeviations').get();
+
+// Load existing data if available - fixing type handling
+Map<String, dynamic> existingPositionDist = existingPositionDistDoc.exists ? 
+    Map<String, dynamic>.from(existingPositionDistDoc.data() ?? {}) : {'overall': {'total': 0, 'positions': {}}, 'byTeam': {}};
+
+Map<String, List<String>> existingTeamNeeds = {};
+if (existingTeamNeedsDoc.exists && existingTeamNeedsDoc.data()?['needs'] != null) {
+  final needsData = Map<String, dynamic>.from(existingTeamNeedsDoc.data()!['needs'] as Map);
+  needsData.forEach((team, needs) {
+    existingTeamNeeds[team] = List<String>.from(needs as List);
+  });
+}
+
+List<Map<String, dynamic>> existingPositionsByPick = [];
+if (existingPositionsByPickDoc.exists && existingPositionsByPickDoc.data()?['data'] != null) {
+  final dataList = existingPositionsByPickDoc.data()!['data'] as List;
+  for (final item in dataList) {
+    existingPositionsByPick.add(Map<String, dynamic>.from(item as Map));
+  }
+}
+
+List<Map<String, dynamic>> existingPlayersByPick = [];
+if (existingPlayersByPickDoc.exists && existingPlayersByPickDoc.data()?['data'] != null) {
+  final dataList = existingPlayersByPickDoc.data()!['data'] as List;
+  for (final item in dataList) {
+    existingPlayersByPick.add(Map<String, dynamic>.from(item as Map));
+  }
+}
+
+Map<String, dynamic> existingPlayerDeviations = existingPlayerDeviationsDoc.exists ? 
+    Map<String, dynamic>.from(existingPlayerDeviationsDoc.data() ?? {}) : {'players': [], 'byPosition': {}, 'sampleSize': 0};
+
+// Now continue with the code that formats and saves the results, but modify it to merge with existing data
+
+// Then replace the existing formatting code with this merged version:
+
+setState(() => message = 'Merging and formatting results...');
+
+// Final processing and formatting results before saving to Firestore collections
+if (processedCount > 0) {
+  // Format position distribution percentages - MERGE with existing
+  // Merge overall position distribution
+  int overallTotal = (positionDistribution['overall']?['total'] as int?) ?? 0;
+  int existingOverallTotal = 0;
+  
+  if (existingPositionDist.containsKey('overall') && existingPositionDist['overall'] is Map) {
+    final overallMap = Map<String, dynamic>.from(existingPositionDist['overall'] as Map);
+    existingOverallTotal = overallMap['total'] as int? ?? 0;
+  }
+  
+  final newOverallTotal = overallTotal + existingOverallTotal;
+  
+  // Merge positions
+  Map<String, int> mergedPositions = {};
+  
+  // Add existing positions
+  if (existingPositionDist.containsKey('overall') && 
+      existingPositionDist['overall'] is Map) {
+    final overallMap = Map<String, dynamic>.from(existingPositionDist['overall'] as Map);
+    if (overallMap.containsKey('positions') && overallMap['positions'] is Map) {
+      final existingPositions = Map<String, dynamic>.from(overallMap['positions'] as Map);
       
-      // Format position distribution percentages
-      final overallTotal = positionDistribution['overall']!['total'] as int? ?? 0;
-      Map<String, dynamic> formattedPositions = {};
-      
-      (positionDistribution['overall']!['positions'] as Map<String, dynamic>).forEach((position, count) {
-        formattedPositions[position] = {
-          'count': count,
-          'percentage': '${((count as int) / overallTotal * 100).toStringAsFixed(1)}%',
-        };
+      existingPositions.forEach((position, data) {
+        if (data is Map) {
+          final dataMap = Map<String, dynamic>.from(data);
+          if (dataMap.containsKey('count')) {
+            mergedPositions[position] = (mergedPositions[position] ?? 0) + (dataMap['count'] as int? ?? 0);
+          }
+        }
       });
-      
-      positionDistribution['overall']!['positions'] = formattedPositions;
-      
-      Map<String, dynamic> formattedTeamPositions = {};
-      (positionDistribution['byTeam'] as Map<String, dynamic>).forEach((team, data) {
-        final teamTotal = data['total'] as int? ?? 0;
-        Map<String, dynamic> teamFormattedPositions = {};
+    }
+  }
+  
+  // Add new positions
+  if (positionDistribution['overall'] != null && 
+      positionDistribution['overall']?['positions'] != null) {
+    final newPositions = Map<String, dynamic>.from(positionDistribution['overall']!['positions'] as Map);
+    newPositions.forEach((position, count) {
+      mergedPositions[position] = (mergedPositions[position] ?? 0) + (count as int? ?? 0);
+    });
+  }
+  
+  // Format the merged positions
+  Map<String, dynamic> formattedPositions = {};
+  mergedPositions.forEach((position, count) {
+    formattedPositions[position] = {
+      'count': count,
+      'percentage': '${((count / newOverallTotal) * 100).toStringAsFixed(1)}%',
+    };
+  });
+  
+  // Update the overall position distribution
+  if (positionDistribution['overall'] == null) {
+    positionDistribution['overall'] = {};
+  }
+  positionDistribution['overall']!['total'] = newOverallTotal;
+  positionDistribution['overall']!['positions'] = formattedPositions;
+  
+  // Merge team-specific position distributions
+  Map<String, dynamic> formattedTeamPositions = {};
+  
+  // First add existing team data
+  if (existingPositionDist.containsKey('byTeam') && existingPositionDist['byTeam'] is Map) {
+    final existingTeams = Map<String, dynamic>.from(existingPositionDist['byTeam'] as Map);
+    
+    existingTeams.forEach((team, data) {
+      if (data is Map) {
+        final teamData = Map<String, dynamic>.from(data);
+        final existingTeamTotal = teamData['total'] as int? ?? 0;
         
-        (data['positions'] as Map<String, dynamic>).forEach((position, count) {
-          teamFormattedPositions[position] = {
+        Map<String, int> teamPositionCounts = {};
+        if (teamData.containsKey('positions') && teamData['positions'] is Map) {
+          final posData = Map<String, dynamic>.from(teamData['positions'] as Map);
+          
+          posData.forEach((position, posInfo) {
+            if (posInfo is Map) {
+              final posInfoMap = Map<String, dynamic>.from(posInfo);
+              if (posInfoMap.containsKey('count')) {
+                teamPositionCounts[position] = posInfoMap['count'] as int? ?? 0;
+              }
+            }
+          });
+        }
+        
+        // Store for later merging
+        if (!formattedTeamPositions.containsKey(team)) {
+          formattedTeamPositions[team] = {
+            'total': existingTeamTotal,
+            'positions': teamPositionCounts,
+          };
+        }
+      }
+    });
+  }
+  
+  // Now add new team data and merge
+  if (positionDistribution.containsKey('byTeam')) {
+    final newTeams = Map<String, dynamic>.from(positionDistribution['byTeam'] as Map);
+    
+    newTeams.forEach((team, data) {
+      if (data is Map) {
+        final teamData = Map<String, dynamic>.from(data);
+        final newTeamTotal = teamData['total'] as int? ?? 0;
+        
+        // Initialize team if not present
+        if (!formattedTeamPositions.containsKey(team)) {
+          formattedTeamPositions[team] = {
+            'total': 0,
+            'positions': <String, int>{},
+          };
+        }
+        
+        // Add to team total
+        formattedTeamPositions[team]['total'] = 
+            (formattedTeamPositions[team]['total'] as int? ?? 0) + newTeamTotal;
+        
+        // Add position counts
+        if (teamData.containsKey('positions') && teamData['positions'] is Map) {
+          final newTeamPositions = Map<String, dynamic>.from(teamData['positions'] as Map);
+          
+          newTeamPositions.forEach((position, count) {
+            if (!formattedTeamPositions[team].containsKey('positions')) {
+              formattedTeamPositions[team]['positions'] = <String, int>{};
+            }
+            
+            final positions = formattedTeamPositions[team]['positions'];
+            if (positions is Map) {
+              final posMap = Map<String, int>.from(positions);
+              posMap[position] = (posMap[position] ?? 0) + (count as int? ?? 0);
+              formattedTeamPositions[team]['positions'] = posMap;
+            }
+          });
+        }
+      }
+    });
+  }
+  
+  // Calculate percentages for team positions
+  Map<String, dynamic> finalTeamPositions = {};
+  formattedTeamPositions.forEach((team, data) {
+    if (data is Map) {
+      final teamData = Map<String, dynamic>.from(data);
+      final teamTotal = teamData['total'] as int? ?? 0;
+      
+      Map<String, dynamic> formattedTeamPositionData = {};
+      if (teamData['positions'] is Map) {
+        final positionCounts = Map<String, dynamic>.from(teamData['positions'] as Map);
+        
+        positionCounts.forEach((position, count) {
+          formattedTeamPositionData[position] = {
             'count': count,
             'percentage': '${((count as int) / teamTotal * 100).toStringAsFixed(1)}%',
           };
         });
+      }
+      
+      finalTeamPositions[team] = {
+        'total': teamTotal,
+        'positions': formattedTeamPositionData,
+      };
+    }
+  });
+  
+  positionDistribution['byTeam'] = finalTeamPositions;
+  
+  // Format team needs as sorted arrays - MERGED with existing
+  final formattedTeamNeeds = <String, List<String>>{};
+  
+  // First build combined team needs counts
+  final combinedTeamNeeds = <String, Map<String, int>>{};
+  
+  // Add existing team needs counts (convert from list to counts)
+  existingTeamNeeds.forEach((team, positions) {
+    combinedTeamNeeds[team] = {};
+    // Give higher weight to existing positions (arbitrary weights)
+    for (int i = 0; i < positions.length; i++) {
+      final position = positions[i];
+      // Weight by position (first position gets 5, second gets 4, etc.)
+      combinedTeamNeeds[team]![position] = 5 - i;
+    }
+  });
+  
+  // Add new team needs
+  teamNeeds.forEach((team, needs) {
+    if (!combinedTeamNeeds.containsKey(team)) {
+      combinedTeamNeeds[team] = {};
+    }
+    
+    needs.forEach((position, weight) {
+      combinedTeamNeeds[team]![position] = 
+          (combinedTeamNeeds[team]![position] ?? 0) + weight;
+    });
+  });
+  
+  // Now convert back to sorted arrays
+  combinedTeamNeeds.forEach((team, needs) {
+    final sorted = needs.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    formattedTeamNeeds[team] = sorted.take(5).map((e) => e.key).toList();
+  });
+
+  // Format positions by pick - MERGED with existing
+  // Build map for existing positions by pick
+  final Map<int, Map<String, dynamic>> existingPickMap = {};
+  for (final pick in existingPositionsByPick) {
+    existingPickMap[pick['pick'] as int] = pick;
+  }
+  
+  final formattedPositionsByPick = positionsByPick.entries.map((entry) {
+    final pickNumber = int.tryParse(entry.key) ?? 0;
+    final data = entry.value;
+    final total = data['total'] as int? ?? 0;
+    
+    // Get existing pick data if available
+    final existingPick = existingPickMap[pickNumber];
+    final existingTotal = existingPick?['totalDrafts'] as int? ?? 0;
+    final newTotal = total + existingTotal;
+    
+    // Combine position counts
+    final Map<String, int> mergedPositionCounts = {};
+    
+    // Add existing position counts
+    if (existingPick != null && existingPick['positions'] is List) {
+      for (final pos in existingPick['positions'] as List) {
+        if (pos is Map) {
+          final posMap = Map<String, dynamic>.from(pos);
+          final position = posMap['position'] as String;
+          final count = posMap['count'] as int;
+          mergedPositionCounts[position] = (mergedPositionCounts[position] ?? 0) + count;
+        }
+      }
+    }
+    
+    // Add new position counts
+    if (data.containsKey('positions') && data['positions'] is Map) {
+      final positions = Map<String, dynamic>.from(data['positions'] as Map);
+      positions.forEach((position, count) {
+        mergedPositionCounts[position] = (mergedPositionCounts[position] ?? 0) + (count as int);
+      });
+    }
+    
+    // Format the positions
+    final positions = mergedPositionCounts.entries
+        .map((e) => {
+              'position': e.key,
+              'count': e.value,
+              'percentage': '${((e.value / newTotal) * 100).toStringAsFixed(1)}%',
+            })
+        .toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    
+    return {
+      'pick': pickNumber,
+      'round': data['round'],
+      'positions': positions,
+      'totalDrafts': newTotal,
+    };
+  }).toList()
+    ..sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+
+  // Format players by pick - MERGED with existing
+  // Build map for existing players by pick
+  final Map<int, Map<String, dynamic>> existingPlayerPickMap = {};
+  for (final pick in existingPlayersByPick) {
+    existingPlayerPickMap[pick['pick'] as int] = pick;
+  }
+  
+  final formattedPlayersByPick = playersByPick.entries.map((entry) {
+    final pickNumber = int.tryParse(entry.key) ?? 0;
+    final data = entry.value;
+    final total = data['total'] as int? ?? 0;
+    
+    // Get existing pick data if available
+    final existingPick = existingPlayerPickMap[pickNumber];
+    final existingTotal = existingPick?['totalDrafts'] as int? ?? 0;
+    final newTotal = total + existingTotal;
+    
+    // Combine player counts - this is more complex because players are stored differently
+    final Map<String, Map<String, dynamic>> mergedPlayerCounts = {};
+    
+    // Add existing player counts
+    if (existingPick != null && existingPick['players'] is List) {
+      for (final player in existingPick['players'] as List) {
+        if (player is Map) {
+          final playerMap = Map<String, dynamic>.from(player);
+          final playerName = playerMap['player'] as String;
+          final position = playerMap['position'] as String;
+          final count = playerMap['count'] as int;
+          final key = '$playerName|$position';
+          
+          mergedPlayerCounts[key] = {
+            'player': playerName,
+            'position': position,
+            'count': count,
+            'rank': playerMap['rank'],
+            'school': playerMap['school'],
+          };
+        }
+      }
+    }
+    
+    // Add new player counts
+    if (data.containsKey('players') && data['players'] is Map) {
+      final players = Map<String, dynamic>.from(data['players'] as Map);
+      players.forEach((key, playerData) {
+        if (playerData is Map) {
+          final playerInfo = Map<String, dynamic>.from(playerData);
+          
+          if (!mergedPlayerCounts.containsKey(key)) {
+            mergedPlayerCounts[key] = {
+              'player': playerInfo['player'],
+              'position': playerInfo['position'],
+              'count': 0,
+              'rank': playerInfo['rank'],
+              'school': playerInfo['school'],
+            };
+          }
+          
+          mergedPlayerCounts[key]!['count'] = 
+              (mergedPlayerCounts[key]!['count'] as int? ?? 0) + (playerInfo['count'] as int? ?? 0);
+        }
+      });
+    }
+    
+    // Format the players
+    final players = mergedPlayerCounts.values
+        .map((player) => {
+              ...player,
+              'percentage': '${((player['count'] as int? ?? 0) / newTotal * 100).toStringAsFixed(1)}%',
+            })
+        .toList()
+      ..sort((a, b) => (b['count'] as int? ?? 0).compareTo(a['count'] as int? ?? 0));
+    
+    return {
+      'pick': pickNumber,
+      'players': players.take(3).toList(), // Take only top 3
+      'totalDrafts': newTotal,
+    };
+  }).toList()
+    ..sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+
+  // Format player deviations - MERGED with existing
+  // Combine existing and new player deviations
+  final Map<String, Map<String, dynamic>> combinedPlayerDeviations = {};
+  
+  // Add existing player deviations
+  if (existingPlayerDeviations.containsKey('players') && existingPlayerDeviations['players'] is List) {
+    for (final playerItem in existingPlayerDeviations['players'] as List) {
+      if (playerItem is Map) {
+        final player = Map<String, dynamic>.from(playerItem);
+        final name = player['name'] as String? ?? '';
+        final position = player['position'] as String? ?? '';
+        final key = '$name|$position';
         
-        formattedTeamPositions[team] = {
-          'total': teamTotal,
-          'positions': teamFormattedPositions,
-        };
-      });
-      
-      positionDistribution['byTeam'] = formattedTeamPositions;
-      
-      // Format team needs as sorted arrays
-      final formattedTeamNeeds = <String, List<String>>{};
-      teamNeeds.forEach((team, needs) {
-        final sorted = needs.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        formattedTeamNeeds[team] = sorted.take(5).map((e) => e.key).toList();
-      });
-      
-      // Format positions by pick
-      final formattedPositionsByPick = positionsByPick.entries.map((entry) {
-        final pickNumber = int.tryParse(entry.key) ?? 0;
-        final data = entry.value;
-        final total = data['total'] as int? ?? 0;
-        final positions = (data['positions'] as Map<String, dynamic>)
-            .entries
-            .map((e) => {
-                  'position': e.key,
-                  'count': e.value,
-                  'percentage': '${((e.value as int) / total * 100).toStringAsFixed(1)}%',
-                })
-            .toList()
-          ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-        return {
-          'pick': pickNumber,
-          'round': data['round'],
-          'positions': positions,
-          'totalDrafts': total,
-        };
-      }).toList()
-        ..sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-      
-      // Format players by pick
-      final formattedPlayersByPick = playersByPick.entries.map((entry) {
-        final pickNumber = int.tryParse(entry.key) ?? 0;
-        final data = entry.value;
-        final total = data['total'] as int? ?? 0;
-        final players = (data['players'] as Map<String, dynamic>)
-            .values
-            .map((player) => {
-                  ...player,
-                  'percentage': '${((player['count'] as int) / total * 100).toStringAsFixed(1)}%',
-                })
-            .toList()
-          ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-        return {
-          'pick': pickNumber,
-          'players': players.take(3).toList(),
-          'totalDrafts': total,
-        };
-      }).toList()
-        ..sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-      
-      // Format player deviations
-      final formattedPlayerDeviations = <Map<String, dynamic>>[];
-      final playerDeviationsByPosition = <String, List<Map<String, dynamic>>>{};
-      playerDeviations.forEach((playerKey, player) {
-        final deviations = player['deviations'] as List;
-        if (deviations.length < 3) return;
-        final sum = deviations.fold<num>(0, (a, b) => a + (b as num));
-        final avg = sum / deviations.length;
-        final playerData = {
-          'name': player['name'],
-          'position': player['position'],
-          'avgDeviation': avg.toStringAsFixed(1),
-          'sampleSize': deviations.length,
+        // Convert avgDeviation back to a list of deviations for merging
+        final avgDeviation = double.tryParse(player['avgDeviation'] as String? ?? '0') ?? 0;
+        final sampleSize = player['sampleSize'] as int? ?? 0;
+        
+        // Create a list of the same deviation to represent the average
+        final deviations = List.filled(sampleSize, avgDeviation);
+        
+        combinedPlayerDeviations[key] = {
+          'name': name,
+          'position': position,
           'school': player['school'],
+          'deviations': deviations,
         };
-        formattedPlayerDeviations.add(playerData);
-        
-        final position = player['position'] as String? ?? 'Unknown';
-        playerDeviationsByPosition.putIfAbsent(position, () => []);
-        playerDeviationsByPosition[position]!.add(playerData);
-      });
-      
-      // Sort by absolute deviation value
-      formattedPlayerDeviations.sort((a, b) {
-        final aDev = double.tryParse(a['avgDeviation'] as String) ?? 0;
-        final bDev = double.tryParse(b['avgDeviation'] as String) ?? 0;
-        return bDev.abs().compareTo(aDev.abs());
-      });
-      
-      // Sort position-specific lists
-      playerDeviationsByPosition.forEach((position, list) {
-        list.sort((a, b) {
-          final aDev = double.tryParse(a['avgDeviation'] as String) ?? 0;
-          final bDev = double.tryParse(b['avgDeviation'] as String) ?? 0;
-          return bDev.abs().compareTo(aDev.abs());
-        });
-      });
-      
-      // Process round-specific data
-      final positionsByPickByRound = <int, List<Map<String, dynamic>>>{};
-      for (int round = 1; round <= 7; round++) {
-        positionsByPickByRound[round] = formattedPositionsByPick
-            .where((item) => int.tryParse(item['round'].toString()) == round)
-            .toList();
       }
-      
-      // IMPORTANT: Print diagnostic information before saving
-      debugPrint('ANALYTICS SUMMARY:');
-      debugPrint('- Total documents processed: $processedCount');
-      debugPrint('- Total positions by pick entries: ${formattedPositionsByPick.length}');
-      debugPrint('- Position #1 total: ${formattedPositionsByPick.firstWhere((p) => p['pick'] == 1, orElse: () => {'totalDrafts': 0})['totalDrafts']}');
-      debugPrint('- Team needs count: ${formattedTeamNeeds.length}');
-      debugPrint('- Player deviations count: ${formattedPlayerDeviations.length}');
-      
-      // Save analytics to Firestore
-      setState(() => message = 'Saving analytics to Firestore...');
-      final db = FirebaseFirestore.instance;
-      
-      await db.collection('precomputedAnalytics').doc('positionDistribution').set({
-        'overall': positionDistribution['overall'],
-        'byTeam': positionDistribution['byTeam'],
-        'lastUpdated': DateTime.now(),
-      });
-      
-      await db.collection('precomputedAnalytics').doc('teamNeeds').set({
-        'needs': formattedTeamNeeds,
-        'year': DateTime.now().year,
-        'lastUpdated': DateTime.now(),
-      });
-      
-      await db.collection('precomputedAnalytics').doc('positionsByPick').set({
-        'data': formattedPositionsByPick,
-        'lastUpdated': DateTime.now(),
-      });
-      
-      for (int round = 1; round <= 7; round++) {
-        await db.collection('precomputedAnalytics').doc('positionsByPickRound$round').set({
-          'data': positionsByPickByRound[round],
-          'lastUpdated': DateTime.now(),
-        });
-      }
-      
-      await db.collection('precomputedAnalytics').doc('playersByPick').set({
-        'data': formattedPlayersByPick,
-        'lastUpdated': DateTime.now(),
-      });
-      
-      await db.collection('precomputedAnalytics').doc('playerDeviations').set({
-        'players': formattedPlayerDeviations,
-        'byPosition': playerDeviationsByPosition,
-        'sampleSize': processedCount,
-        'positionSampleSizes': playerDeviationsByPosition.map((k, v) => MapEntry(k, v.length)),
-        'lastUpdated': DateTime.now(),
-      });
-      
-      // Update metadata
-      await db.collection('precomputedAnalytics').doc('metadata').set({
-        'lastUpdated': DateTime.now(),
-        'documentsProcessed': processedCount,
-        'inProgress': false,
-      });
-      
+    }
+  }
+  
+  // Add new player deviations
+  playerDeviations.forEach((key, player) {
+    final playerMap = Map<String, dynamic>.from(player);
+    
+    if (!combinedPlayerDeviations.containsKey(key)) {
+      combinedPlayerDeviations[key] = {
+        'name': playerMap['name'],
+        'position': playerMap['position'],
+        'school': playerMap['school'],
+        'deviations': [],
+      };
+    }
+    
+    // Merge deviation lists
+    final existingDeviations = combinedPlayerDeviations[key]!['deviations'] as List;
+    final newDeviations = playerMap['deviations'] as List? ?? [];
+    
+    combinedPlayerDeviations[key]!['deviations'] = [...existingDeviations, ...newDeviations];
+    });
+  
+  // Calculate averages for merged deviations
+  final formattedPlayerDeviations = <Map<String, dynamic>>[];
+  final playerDeviationsByPosition = <String, List<Map<String, dynamic>>>{};
+  
+  combinedPlayerDeviations.forEach((key, player) {
+    final playerMap = Map<String, dynamic>.from(player);
+    final deviations = playerMap['deviations'] as List? ?? [];
+    if (deviations.length < 3) return; // Skip if not enough data
+    
+    num sum = 0;
+    for (final dev in deviations) {
+      sum += (dev as num? ?? 0);
+    }
+    final avg = sum / deviations.length;
+    
+    final playerData = {
+      'name': playerMap['name'],
+      'position': playerMap['position'],
+      'avgDeviation': avg.toStringAsFixed(1),
+      'sampleSize': deviations.length,
+      'school': playerMap['school'],
+    };
+    
+    formattedPlayerDeviations.add(playerData);
+    
+    final position = playerMap['position'] as String? ?? '';
+    if (!playerDeviationsByPosition.containsKey(position)) {
+      playerDeviationsByPosition[position] = [];
+    }
+    playerDeviationsByPosition[position]!.add(playerData);
+    });
+  
+  // Sort by absolute deviation value
+  formattedPlayerDeviations.sort((a, b) {
+    final aDev = double.tryParse(a['avgDeviation'] as String) ?? 0;
+    final bDev = double.tryParse(b['avgDeviation'] as String) ?? 0;
+    return bDev.abs().compareTo(aDev.abs());
+  });
+  
+  // Sort position-specific lists
+  playerDeviationsByPosition.forEach((position, list) {
+    list.sort((a, b) {
+      final aDev = double.tryParse(a['avgDeviation'] as String) ?? 0;
+      final bDev = double.tryParse(b['avgDeviation'] as String) ?? 0;
+      return bDev.abs().compareTo(aDev.abs());
+    });
+  });
+  
+  // Process round-specific data
+  final positionsByPickByRound = <int, List<Map<String, dynamic>>>{};
+  for (int round = 1; round <= 7; round++) {
+    positionsByPickByRound[round] = formattedPositionsByPick
+        .where((item) => int.tryParse(item['round'].toString()) == round)
+        .toList();
+  }
+  
+  // IMPORTANT: Print diagnostic information before saving
+  debugPrint('ANALYTICS SUMMARY (MERGED):');
+  debugPrint('- Total precomputed documents processed: $processedCount');
+  debugPrint('- Total positions by pick entries: ${formattedPositionsByPick.length}');
+  final pick1 = formattedPositionsByPick.firstWhere((p) => p['pick'] == 1, orElse: () => {'totalDrafts': 0});
+  debugPrint('- Position #1 total: ${pick1['totalDrafts']}');
+  debugPrint('- Team needs count: ${formattedTeamNeeds.length}');
+  debugPrint('- Player deviations count: ${formattedPlayerDeviations.length}');
+  
+  // Save analytics to Firestore - Now with merged data
+  setState(() => message = 'Saving merged analytics to Firestore...');
+  
+  await db.collection('precomputedAnalytics').doc('positionDistribution').set({
+    'overall': positionDistribution['overall'],
+    'byTeam': positionDistribution['byTeam'],
+    'lastUpdated': DateTime.now(),
+  });
+  
+  await db.collection('precomputedAnalytics').doc('teamNeeds').set({
+    'needs': formattedTeamNeeds,
+    'year': DateTime.now().year,
+    'lastUpdated': DateTime.now(),
+  });
+  
+  await db.collection('precomputedAnalytics').doc('positionsByPick').set({
+    'data': formattedPositionsByPick,
+    'lastUpdated': DateTime.now(),
+  });
+  
+  for (int round = 1; round <= 7; round++) {
+    await db.collection('precomputedAnalytics').doc('positionsByPickRound$round').set({
+      'data': positionsByPickByRound[round],
+      'lastUpdated': DateTime.now(),
+    });
+  }
+  
+  await db.collection('precomputedAnalytics').doc('playersByPick').set({
+    'data': formattedPlayersByPick,
+    'lastUpdated': DateTime.now(),
+  });
+  
+  await db.collection('precomputedAnalytics').doc('playerDeviations').set({
+    'players': formattedPlayerDeviations,
+    'byPosition': playerDeviationsByPosition,
+    'sampleSize': processedCount,
+    'positionSampleSizes': playerDeviationsByPosition.map((k, v) => MapEntry(k, v.length)),
+    'lastUpdated': DateTime.now(),
+  });
+  
+  // Update metadata
+  await db.collection('precomputedAnalytics').doc('metadata').set({
+    'lastUpdated': DateTime.now(),
+    'documentsProcessed': processedCount,
+    'inProgress': false,
+  });
+
       // Final state update
       setState(() {
         status = (totalProcessed < recordsToProcess) ? 'partial' : 'success';
