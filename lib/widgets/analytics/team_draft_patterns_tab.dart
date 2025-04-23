@@ -420,6 +420,7 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
 
 // Also update the player trends table
 Widget _buildPlayerTrendsTable() {
+  // First check if data is available
   if (_topPlayersByPick.isEmpty) {
     return const Center(
       child: Padding(
@@ -428,6 +429,27 @@ Widget _buildPlayerTrendsTable() {
       ),
     );
   }
+
+  // Filter data if a team is selected, similar to position trends
+  List<Map<String, dynamic>> filteredPicks = _topPlayersByPick;
+  if (_selectedTeam != 'All Teams' && _teamOriginalPicks.isNotEmpty) {
+    filteredPicks = _topPlayersByPick.where((pick) => 
+      _teamOriginalPicks.contains(pick['pick'])
+    ).toList();
+  }
+
+  // If filtered list is empty but we've selected a team, show a message
+  if (filteredPicks.isEmpty && _selectedTeam != 'All Teams') {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text('No original picks found for $_selectedTeam'),
+      ),
+    );
+  }
+
+  // Debug information to verify data structure
+  debugPrint('Player data structure: ${filteredPicks.isNotEmpty ? filteredPicks.first.keys.join(', ') : 'No data'}');
 
   return Table(
     columnWidths: const {
@@ -456,8 +478,10 @@ Widget _buildPlayerTrendsTable() {
         ],
       ),
       // Data rows
-      ..._topPlayersByPick.map((data) {
-        final playersList = data['players'] as List<dynamic>;
+      ...filteredPicks.map((data) {
+        // Get the players list if it exists
+        final playersList = data['players'] as List<dynamic>? ?? [];
+        
         if (playersList.isEmpty) {
           return TableRow(
             children: [
@@ -469,11 +493,12 @@ Widget _buildPlayerTrendsTable() {
           );
         }
         
+        // Get the top player (most common)
         final topPlayer = playersList[0];
         return TableRow(
           children: [
             _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${topPlayer['player'] ?? 'N/A'}'),
+            _buildTableCell('${topPlayer['player'] ?? topPlayer['name'] ?? 'N/A'}'),
             _buildPositionCell(topPlayer['position'] ?? 'N/A', ''),
             _buildTableCell('${topPlayer['percentage'] ?? '0%'}'),
           ],
