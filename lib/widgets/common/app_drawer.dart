@@ -168,22 +168,6 @@ class AppDrawer extends StatelessWidget {
                 ),
                 
                 ListTile(
-                  leading: const Icon(Icons.article),
-                  title: const Text('Blog'),
-                  selected: currentRoute == '/blog',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/blog') {
-                      Navigator.pushNamed(context, '/blog');
-                    }
-                  },
-                ),
-                
-                ListTile(
                   leading: const Icon(Icons.person),
                   title: const Text('Player Projections'),
                   selected: currentRoute == '/player-projections',
@@ -211,6 +195,22 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pop(context);
                     if (currentRoute != '/betting-analytics') {
                       Navigator.pushNamed(context, '/betting-analytics');
+                    }
+                  },
+                ),
+                
+                ListTile(
+                  leading: const Icon(Icons.article),
+                  title: const Text('Blog'),
+                  selected: currentRoute == '/blog',
+                  selectedTileColor: isDarkMode ? 
+                      AppTheme.darkNavy.withOpacity(0.1) : 
+                      AppTheme.deepRed.withOpacity(0.1),
+                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (currentRoute != '/blog') {
+                      Navigator.pushNamed(context, '/blog');
                     }
                   },
                 ),

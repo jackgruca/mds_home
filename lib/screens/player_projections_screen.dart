@@ -1,5 +1,6 @@
 // lib/screens/player_projections_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/common/app_drawer.dart';
 import '../utils/theme_config.dart';
 
 class PlayerProjectionsScreen extends StatelessWidget {
@@ -13,6 +14,7 @@ class PlayerProjectionsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Player Projections'),
       ),
+        drawer: const AppDrawer(currentRoute: '/player-projections'),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

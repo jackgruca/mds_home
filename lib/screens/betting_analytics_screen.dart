@@ -1,5 +1,6 @@
 // lib/screens/betting_analytics_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/common/app_drawer.dart';
 import '../utils/theme_config.dart';
 
 class BettingAnalyticsScreen extends StatelessWidget {
@@ -13,6 +14,7 @@ class BettingAnalyticsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Betting Analytics'),
       ),
+      drawer: const AppDrawer(currentRoute: '/betting-analytics'),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

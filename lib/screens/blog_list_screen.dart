@@ -5,6 +5,7 @@ import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 import '../utils/theme_config.dart';
 import 'blog_detail_screen.dart';
+import '../widgets/common/app_drawer.dart';
 
 class BlogListScreen extends StatefulWidget {
   const BlogListScreen({super.key});
@@ -62,6 +63,7 @@ void initState() {
           ),
         ],
       ),
+        drawer: const AppDrawer(currentRoute: '/blog'),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _posts.isEmpty
