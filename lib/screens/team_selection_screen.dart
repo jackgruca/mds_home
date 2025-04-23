@@ -7,6 +7,7 @@ import '../models/team.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
 import '../utils/constants.dart';
+import '../widgets/auth/auth_dialog.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
 import 'betting_analytics_screen.dart';
@@ -15,6 +16,7 @@ import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
+import '../widgets/common/app_drawer.dart'; // Add this import
 import 'player_projections_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
@@ -190,23 +192,7 @@ Future<void> _loadUserPreferences() async {
       titleSpacing: 8,
       elevation: 0,
       actions: [
-        TextButton.icon(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BlogListScreen(),
-              ),
-            );
-          },
-          icon: const Icon(Icons.article, size: 16),
-          label: const Text('Blog'),
-          style: TextButton.styleFrom(
-            foregroundColor: isDarkMode ? Colors.white : Colors.white,
-          ),
-        ),
-        // Auth button
-        const HeaderAuthButton(),
+
         // Theme toggle button
         Consumer<ThemeManager>(
           builder: (context, themeManager, _) => IconButton(
@@ -226,100 +212,225 @@ Future<void> _loadUserPreferences() async {
         ),
       ],
     ),
-    // Add a drawer to the Scaffold
-    drawer: Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed,
+    // Update the drawer in team_selection_screen.dart
+drawer: Drawer(
+  child: Column(
+    children: [
+      // Current DrawerHeader
+      DrawerHeader(
+        decoration: BoxDecoration(
+          color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed,
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'NFL Draft Tools',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'NFL Draft Tools',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Plan, Analyze, Win',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+            SizedBox(height: 8),
+            Text(
+              'Plan, Analyze, Win',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sports_football),
-            title: const Text('Mock Draft Simulator'),
-            selected: true,
-            selectedTileColor: isDarkMode ? 
-                AppTheme.darkNavy.withOpacity(0.1) : 
-                AppTheme.deepRed.withOpacity(0.1),
-            selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-            onTap: () {
-              // Already on this screen, just close drawer
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Player Projections'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Then navigate to player projections
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PlayerProjectionsScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.trending_up),
-            title: const Text('Betting Analytics'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Then navigate to betting analytics
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BettingAnalyticsScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & FAQ'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Implement help/FAQ in future
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Help & FAQ coming soon'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
+      
+      // Add Auth Widget in drawer
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            if (authProvider.isLoading) {
+              return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+            }
+            
+            if (authProvider.isLoggedIn) {
+              // Show user info
+              final user = authProvider.user;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                        child: Text(
+                          user?.name.isNotEmpty == true ? user!.name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.name ?? 'User',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              user?.email ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      authProvider.signOut();
+                      Navigator.pop(context); // Close drawer after sign out
+                    },
+                    icon: const Icon(Icons.logout, size: 16),
+                    label: const Text('Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              // Show sign in button
+              return ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context); // Close drawer first
+                  showDialog(
+                    context: context,
+                    builder: (context) => const AuthDialog(initialMode: AuthMode.signIn),
+                  );
+                },
+                icon: const Icon(Icons.login, size: 16),
+                label: const Text('Sign In / Register'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              );
+            }
+          },
+        ),
+      ),
+      
+      const Divider(),
+      
+      // Menu Items
+      Expanded(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.sports_football),
+              title: const Text('Mock Draft Simulator'),
+              selected: true,
+              selectedTileColor: isDarkMode ? 
+                  AppTheme.darkNavy.withOpacity(0.1) : 
+                  AppTheme.deepRed.withOpacity(0.1),
+              selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+              },
+            ),
+            
+            // Add Blog section
+            ListTile(
+              leading: const Icon(Icons.article),
+              title: const Text('Blog'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer first
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BlogListScreen(),
+                  ),
+                );
+              },
+            ),
+            
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Player Projections'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PlayerProjectionsScreen(),
+                  ),
+                );
+              },
+            ),
+            
+            ListTile(
+              leading: const Icon(Icons.trending_up),
+              title: const Text('Betting Analytics'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BettingAnalyticsScreen(),
+                  ),
+                );
+              },
+            ),
+            
+            const Divider(),
+            
+            ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: const Text('Help & FAQ'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Help & FAQ coming soon'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      
+      // Footer with version
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          'v1.0.0',
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
     // The rest of your existing TeamSelectionScreen code
     body: SafeArea(
 
