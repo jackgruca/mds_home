@@ -130,17 +130,17 @@ class _MyAppState extends State<MyApp> {
     
     // Otherwise handle regular routes
     switch (settings.name) {
-  case '/':
-    return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-  case '/blog':
-    return MaterialPageRoute(builder: (_) => const BlogListScreen());
-  case '/player-projections':
-    return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
-  case '/betting-analytics':
-    return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
-  default:
-    return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-}
+    case '/':
+      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+    case '/blog':
+      return MaterialPageRoute(builder: (_) => const BlogListScreen());
+    case '/player-projections':
+      return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+    case '/betting-analytics':
+      return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+    default:
+      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+  }
   },
   initialRoute: '/',
   // Add this to use path URL strategy instead of hash

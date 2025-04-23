@@ -7,6 +7,7 @@ import '../models/team.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
 import '../utils/constants.dart';
+import '../widgets/auth/auth_dialog.dart';
 import '../widgets/auth/header_auth_button.dart';
 import '../widgets/common/user_feedback_banner.dart';
 import 'betting_analytics_screen.dart';
@@ -15,6 +16,7 @@ import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
+import '../widgets/common/app_drawer.dart'; // Add this import
 import 'player_projections_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
@@ -190,23 +192,7 @@ Future<void> _loadUserPreferences() async {
       titleSpacing: 8,
       elevation: 0,
       actions: [
-        TextButton.icon(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BlogListScreen(),
-              ),
-            );
-          },
-          icon: const Icon(Icons.article, size: 16),
-          label: const Text('Blog'),
-          style: TextButton.styleFrom(
-            foregroundColor: isDarkMode ? Colors.white : Colors.white,
-          ),
-        ),
-        // Auth button
-        const HeaderAuthButton(),
+
         // Theme toggle button
         Consumer<ThemeManager>(
           builder: (context, themeManager, _) => IconButton(
@@ -226,100 +212,8 @@ Future<void> _loadUserPreferences() async {
         ),
       ],
     ),
-    // Add a drawer to the Scaffold
-    drawer: Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed,
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'NFL Draft Tools',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Plan, Analyze, Win',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sports_football),
-            title: const Text('Mock Draft Simulator'),
-            selected: true,
-            selectedTileColor: isDarkMode ? 
-                AppTheme.darkNavy.withOpacity(0.1) : 
-                AppTheme.deepRed.withOpacity(0.1),
-            selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-            onTap: () {
-              // Already on this screen, just close drawer
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Player Projections'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Then navigate to player projections
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PlayerProjectionsScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.trending_up),
-            title: const Text('Betting Analytics'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Then navigate to betting analytics
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BettingAnalyticsScreen(),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & FAQ'),
-            onTap: () {
-              // Close drawer first
-              Navigator.pop(context);
-              // Implement help/FAQ in future
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Help & FAQ coming soon'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    ),
+        drawer: const AppDrawer(currentRoute: '/'),
+
     // The rest of your existing TeamSelectionScreen code
     body: SafeArea(
 
