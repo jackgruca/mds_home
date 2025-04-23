@@ -8,6 +8,7 @@ class DraftAnalyticsRecord {
   final int year;
   final List<DraftPickRecord> picks;
   final List<TradeRecord> trades;
+  
 
   DraftAnalyticsRecord({
     required this.id,

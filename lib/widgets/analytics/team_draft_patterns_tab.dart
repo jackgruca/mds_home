@@ -26,6 +26,7 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   bool _isLoading = true;
   String _selectedTeam = '';
   int? _selectedRound;
+  bool _showOriginalPicksOnly = true; 
   
   // Data states
   List<Map<String, dynamic>> _topPicksByPosition = [];
@@ -42,57 +43,62 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
 
   // Optimized data loading - only fetches what's needed based on selection
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    // Create a list of futures to execute in parallel
+    final futures = <Future>[];
+    
+    // Only filter for original picks if a team is selected (not 'All Teams')
+    final shouldFilterOriginal = _showOriginalPicksOnly && _selectedTeam != 'All Teams';
+    
+    // Future for position data
+    final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+      originalPicksOnly: shouldFilterOriginal,
+    ).then((data) {
+      _topPicksByPosition = data;
     });
-
-    try {
-      // Create a list of futures to execute in parallel
-      final futures = <Future>[];
-      
-      // Future for position data
-      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
+    futures.add(positionFuture);
+    
+    // Future for player data
+    final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+      originalPicksOnly: shouldFilterOriginal,
+    ).then((data) {
+      _topPlayersByPick = data;
+    });
+    futures.add(playerFuture);
+    
+    // Only load consensus needs once, or when team changes
+    if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
+      final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
         year: widget.draftYear,
       ).then((data) {
-        _topPicksByPosition = data;
+        _consensusNeeds = data;
       });
-      futures.add(positionFuture);
-      
-      // Future for player data
-      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
-        year: widget.draftYear,
-      ).then((data) {
-        _topPlayersByPick = data;
-      });
-      futures.add(playerFuture);
-      
-      // Only load consensus needs once, or when team changes
-      if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
-        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
-          year: widget.draftYear,
-        ).then((data) {
-          _consensusNeeds = data;
-        });
-        futures.add(needsFuture);
-      }
-      
-      // Wait for all futures to complete
-      await Future.wait(futures);
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      futures.add(needsFuture);
     }
+    
+    // Wait for all futures to complete
+    await Future.wait(futures);
+
+    setState(() {
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint('Error loading team draft pattern data: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
@@ -185,6 +191,27 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
                   )),
                 ],
               ),
+
+              // Original picks toggle (only show when a team is selected)
+          if (_selectedTeam != 'All Teams')
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: Row(
+                children: [
+                  const Text('Show original picks only:'),
+                  Switch(
+                    value: _showOriginalPicksOnly,
+                    onChanged: (value) {
+                      setState(() {
+                        _showOriginalPicksOnly = value;
+                      });
+                      _loadData(); // Reload data with new filter
+                    },
+                  ),
+                ],
+              ),
+            ),
+
               const Spacer(),
               
               // Round selector with "All Rounds" option
@@ -371,7 +398,6 @@ Widget _buildPositionTrendsTable() {
   );
 }
 
-// Also update the player trends table
 Widget _buildPlayerTrendsTable() {
   if (_topPlayersByPick.isEmpty) {
     return const Center(
@@ -410,7 +436,7 @@ Widget _buildPlayerTrendsTable() {
       ),
       // Data rows
       ..._topPlayersByPick.map((data) {
-        final playersList = data['players'] as List<dynamic>;
+        final playersList = data['players'] as List<dynamic>? ?? [];
         if (playersList.isEmpty) {
           return TableRow(
             children: [
@@ -423,6 +449,7 @@ Widget _buildPlayerTrendsTable() {
         }
         
         final topPlayer = playersList[0];
+        
         return TableRow(
           children: [
             _buildTableCell('${data['pick'] ?? 'N/A'}'),

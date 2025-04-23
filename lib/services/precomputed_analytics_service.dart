@@ -182,6 +182,8 @@ class PrecomputedAnalyticsService {
       // Fall back to Firestore if API fails
       await ensureInitialized();
       
+      if (originalPicksOnly && team != null) {
+
       final precomputedDoc = await _firestore
           .collection(precomputedAnalyticsCollection)
           .doc('teamNeeds')
@@ -206,7 +208,7 @@ class PrecomputedAnalyticsService {
       // Call original method here
       
       return {};
-    } catch (e) {
+    }} catch (e) {
       debugPrint('Error getting consensus team needs: $e');
       return {};
     }
@@ -214,23 +216,25 @@ class PrecomputedAnalyticsService {
   
   /// Get consolidated position trends by pick - MODIFIED to use API
   static Future<List<Map<String, dynamic>>> getConsolidatedPositionsByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    final cacheKey = 'positions_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
-    
-    return AnalyticsCacheManager.getCachedData(
-      cacheKey,
-      () => _fetchConsolidatedPositionsByPick(team, round, year),
-    );
-  }
+  String? team,
+  int? round,
+  int? year,
+  bool originalPicksOnly = false,
+}) async {
+  final cacheKey = 'positions_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}_${originalPicksOnly ? 'original' : 'all'}';
   
-  static Future<List<Map<String, dynamic>>> _fetchConsolidatedPositionsByPick(
-    String? team,
-    int? round,
-    int? year,
-  ) async {
+  return AnalyticsCacheManager.getCachedData(
+    cacheKey,
+    () => _fetchConsolidatedPositionsByPick(team, round, year, originalPicksOnly),
+  );
+}
+
+static Future<List<Map<String, dynamic>>> _fetchConsolidatedPositionsByPick(
+  String? team,
+  int? round,
+  int? year,
+  bool originalPicksOnly,
+) async {
     try {
       // Try API first
       final filters = {

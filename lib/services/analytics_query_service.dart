@@ -142,101 +142,214 @@ static Future<int?> getDraftCount() async {
     );
   }
 
-  /// Get consolidated position trends by pick - OPTIMIZED
-  static Future<List<Map<String, dynamic>>> getConsolidatedPositionsByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    // First try to get data from precomputed stats
-    return PrecomputedAnalyticsService.getConsolidatedPositionsByPick(
-      team: team,
-      round: round,
-      year: year,
-    );
-  }
-
   /// Get consolidated player selections by pick - OPTIMIZED
-  static Future<List<Map<String, dynamic>>> getConsolidatedPlayersByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    final cacheKey = 'players_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
-    
-    return AnalyticsCacheManager.getCachedData(
-      cacheKey,
-      () => _fetchConsolidatedPlayersByPick(team, round, year),
-    );
-  }
+static Future<List<Map<String, dynamic>>> getConsolidatedPlayersByPick({
+  String? team,
+  int? round,
+  int? year,
+  bool originalPicksOnly = false,
+}) async {
+  final cacheKey = 'players_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}_${originalPicksOnly ? 'original' : 'all'}';
   
-  static Future<List<Map<String, dynamic>>> _fetchConsolidatedPlayersByPick(
-    String? team,
-    int? round,
-    int? year,
-  ) async {
-    try {
-      // Try API first
-      final filters = {
-        if (team != null) 'team': team,
-        if (round != null) 'round': round,
-        if (year != null) 'year': year,
-      };
-      
-      String dataType = 'playersByPick';
-      if (round != null) {
-        dataType = 'playersByPickRound$round';
-      }
-      
-      final apiData = await AnalyticsApiService.getAnalyticsData(
-        dataType: dataType,
-        filters: filters,
-      );
-      
-      if (!apiData.containsKey('error') && apiData.containsKey('data')) {
-        debugPrint('Using API data for players by pick');
-        
-        if (apiData['data'].containsKey('data')) {
-          return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
-        }
-      }
-      
-      // Fall back to Firestore
-      await ensureInitialized();
-      
-      String docId = 'playersByPick';
-      if (round != null) {
-        docId = 'playersByPickRound$round';
-      }
-      
-      final precomputedDoc = await _firestore
-          .collection(precomputedAnalyticsCollection)
-          .doc(docId)
-          .get();
-          
-      if (precomputedDoc.exists && precomputedDoc.data() != null) {
-        final data = precomputedDoc.data()!;
-        
-        // For all teams data
-        if (team == null || team == 'All Teams') {
-          debugPrint('Using precomputed players by pick for round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['data'] ?? []);
-        }
-        
-        // For team-specific data
-        if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
-          debugPrint('Using precomputed players by pick for team: $team, round: ${round ?? 'all'}');
-          return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
-        }
-      }
-      
-      // Fall back to direct calculation
-      return [];
-    } catch (e) {
-      debugPrint('Error getting consolidated players by pick: $e');
-      return [];
+  return AnalyticsCacheManager.getCachedData(
+    cacheKey,
+    () => _fetchConsolidatedPlayersByPick(team, round, year, originalPicksOnly),
+  );
+}
+
+static Future<List<Map<String, dynamic>>> _fetchConsolidatedPlayersByPick(
+  String? team,
+  int? round,
+  int? year,
+  bool originalPicksOnly,
+) async {
+  try {
+    // Try API first
+    final filters = {
+      if (team != null) 'team': team,
+      if (round != null) 'round': round,
+      if (year != null) 'year': year,
+      if (originalPicksOnly) 'originalPicksOnly': true,
+    };
+    
+    String dataType = 'playersByPick';
+    if (round != null) {
+      dataType = 'playersByPickRound$round';
     }
+    
+    final apiData = await AnalyticsApiService.getAnalyticsData(
+      dataType: dataType,
+      filters: filters,
+    );
+    
+    if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+      debugPrint('Using API data for players by pick');
+      
+      if (apiData['data'].containsKey('data')) {
+        return List<Map<String, dynamic>>.from(apiData['data']['data'] ?? []);
+      }
+    }
+    
+    // Fall back to Firestore
+    await ensureInitialized();
+    
+    // If we need to filter for original picks and we're requesting team-specific data,
+    // we'll need to query the draftAnalytics collection directly
+    if (originalPicksOnly && team != null && team != 'All Teams') {
+      // Special handling for original picks only
+      return await _queryOriginalPicksOnly(team, round, year);
+    }
+    
+    // Otherwise, use the precomputed data as before
+    String docId = 'playersByPick';
+    if (round != null) {
+      docId = 'playersByPickRound$round';
+    }
+    
+    final precomputedDoc = await _firestore
+        .collection(precomputedAnalyticsCollection)
+        .doc(docId)
+        .get();
+        
+    if (precomputedDoc.exists && precomputedDoc.data() != null) {
+      final data = precomputedDoc.data()!;
+      
+      // For all teams data
+      if (team == null || team == 'All Teams') {
+        debugPrint('Using precomputed players by pick for round: ${round ?? 'all'}');
+        return List<Map<String, dynamic>>.from(data['data'] ?? []);
+      }
+      
+      // For team-specific data
+      if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
+        debugPrint('Using precomputed players by pick for team: $team, round: ${round ?? 'all'}');
+        return List<Map<String, dynamic>>.from(data['byTeam'][team] ?? []);
+      }
+    }
+    
+    // Fall back to direct calculation
+    return [];
+  } catch (e) {
+    debugPrint('Error getting consolidated players by pick: $e');
+    return [];
   }
+}
+
+// New method to query for original picks only
+static Future<List<Map<String, dynamic>>> _queryOriginalPicksOnly(
+  String team,
+  int? round,
+  int? year,
+) async {
+  try {
+    debugPrint('Querying original picks for team: $team, round: $round');
+    
+    // Build the query
+    Query query = _firestore.collection(draftAnalyticsCollection);
+    
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+    
+    // Execute the query
+    final snapshot = await query.limit(500).get(); // Limit to prevent timeout
+    debugPrint('Found ${snapshot.docs.length} documents for original picks query');
+    
+    // Extract picks where originalTeam matches the requested team
+    Map<int, Map<String, int>> pickPlayerCounts = {};
+    Map<int, int> pickTotals = {};
+    
+    for (var doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        
+        for (var pickData in picks) {
+          // Check if this is an original pick for the requested team
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          
+          // Filter by round if specified
+          if (round != null && int.tryParse(pick.round) != round) {
+            continue;
+          }
+          
+          // Only include picks where the team was the original owner
+          if (pick.originalTeam == team) {
+            final pickNumber = pick.pickNumber;
+            final playerName = pick.playerName;
+            final position = pick.position;
+            
+            // Initialize data structures if needed
+            if (!pickPlayerCounts.containsKey(pickNumber)) {
+              pickPlayerCounts[pickNumber] = {};
+            }
+            if (!pickTotals.containsKey(pickNumber)) {
+              pickTotals[pickNumber] = 0;
+            }
+            
+            // Create a unique key for this player+position
+            final playerKey = '$playerName|$position';
+            
+            // Count this player for this pick
+            pickPlayerCounts[pickNumber]![playerKey] = 
+                (pickPlayerCounts[pickNumber]![playerKey] ?? 0) + 1;
+            
+            // Increment total count for this pick
+            pickTotals[pickNumber] = (pickTotals[pickNumber] ?? 0) + 1;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing document for original picks: $e');
+      }
+    }
+    
+    // Convert to final format
+    List<Map<String, dynamic>> result = [];
+    
+    for (var entry in pickPlayerCounts.entries) {
+      final pickNumber = entry.key;
+      final playerCounts = entry.value;
+      final totalForPick = pickTotals[pickNumber] ?? 0;
+      
+      if (totalForPick == 0) continue;
+      
+      // Convert to players list with percentages
+      List<Map<String, dynamic>> players = [];
+      
+      for (var playerEntry in playerCounts.entries) {
+        final parts = playerEntry.key.split('|');
+        final playerName = parts[0];
+        final position = parts.length > 1 ? parts[1] : '';
+        final count = playerEntry.value;
+        
+        players.add({
+          'player': playerName,
+          'position': position,
+          'count': count,
+          'percentage': '${((count / totalForPick) * 100).toStringAsFixed(1)}%',
+        });
+      }
+      
+      // Sort by count
+      players.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      
+      // Add to result
+      result.add({
+        'pick': pickNumber,
+        'players': players,
+        'totalDrafts': totalForPick,
+      });
+    }
+    
+    // Sort by pick number
+    result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
+    
+    return result;
+  } catch (e) {
+    debugPrint('Error querying original picks: $e');
+    return [];
+  }
+}
 
   /// Get top positions by pick number
 static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
