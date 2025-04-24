@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/betting_analytics_screen.dart';
 import '../../screens/blog_list_screen.dart';
+import '../../screens/consensus_mock_draft_screen.dart';
 import '../../screens/player_projections_screen.dart';
 import '../../utils/theme_config.dart';
 import '../auth/auth_dialog.dart';
@@ -164,6 +165,21 @@ class AppDrawer extends StatelessWidget {
                     } else {
                       Navigator.pop(context);
                     }
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(Icons.people_alt), // Community icon
+                  title: const Text('Community Consensus Mock'),
+                  subtitle: const Text('Based on user data'),
+                  onTap: () {
+                    Navigator.pop(context); // Close the drawer first
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ConsensusMockDraftScreen(rounds: 3),
+                      ),
+                    );
                   },
                 ),
                 

@@ -1,6 +1,9 @@
 // lib/services/analytics_query_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mds_home/utils/constants.dart';
 import '../models/draft_analytics.dart';
 import '../services/firebase_service.dart';
 import 'analytics_api_service.dart';
@@ -344,6 +347,206 @@ static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
   } catch (e) {
     debugPrint('Error getting position trends: $e');
     return [];
+  }
+}
+
+// Add to lib/services/analytics_query_service.dart
+
+/// Generate a consensus mock draft based on user data
+static Future<List<Map<String, dynamic>>> generateConsensusMockDraft({
+  int? year,
+  int rounds = 1,
+}) async {
+  try {
+    await ensureInitialized();
+    debugPrint('Generating consensus mock draft for ${year ?? 'all years'}, rounds: $rounds');
+    
+    // Initialize the result structure
+    final int totalPicks = rounds * 32; // 32 picks per round
+    List<Map<String, dynamic>> consensusMock = List.generate(
+      totalPicks,
+      (index) => {
+        'pickNumber': index + 1,
+        'round': ((index ~/ 32) + 1).toString(),
+        'originalTeam': '',
+        'consensusPlayer': null,
+        'position': '',
+        'school': '',
+        'confidence': 0.0,
+        'alternateSelections': [],
+      }
+    );
+    
+    // Get all the team names for the original teams
+    // This is just for display purposes
+    final Map<int, String> pickToTeam = await _getPickToTeamMapping(year);
+    
+    // Update pick teams
+    for (int i = 0; i < consensusMock.length; i++) {
+      final pickNumber = i + 1;
+      consensusMock[i]['originalTeam'] = pickToTeam[pickNumber] ?? 'Unknown Team';
+    }
+    
+    // Query all drafts
+    Query query = _firestore.collection(draftAnalyticsCollection);
+    
+    if (year != null) {
+      query = query.where('year', isEqualTo: year);
+    }
+    
+    // Get all drafts - may need pagination for large datasets
+    final QuerySnapshot snapshot = await query.get();
+    debugPrint('Found ${snapshot.docs.length} drafts for analysis');
+    
+    if (snapshot.docs.isEmpty) {
+      return consensusMock; // Return the empty structure if no drafts found
+    }
+    
+    // Track player selections for each pick
+    Map<int, Map<String, int>> pickSelections = {};
+    
+    // Process each draft
+    for (final doc in snapshot.docs) {
+      try {
+        final data = doc.data() as Map<String, dynamic>;
+        final List<dynamic> picks = data['picks'] ?? [];
+        
+        // Process each pick in this draft
+        for (final pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData as Map<String, dynamic>);
+          
+          // Skip incomplete picks
+          if (pick.playerName.isEmpty) continue;
+          
+          final pickNumber = pick.pickNumber;
+          
+          // Only include picks within our desired number of rounds
+          if (pickNumber > totalPicks) continue;
+          
+          // Initialize tracking for this pick if needed
+          if (!pickSelections.containsKey(pickNumber)) {
+            pickSelections[pickNumber] = {};
+          }
+          
+          // Create a unique key for this player (name + position to avoid ambiguity)
+          final playerKey = '${pick.playerName}|${pick.position}';
+          
+          // Count this selection
+          pickSelections[pickNumber]![playerKey] = 
+              (pickSelections[pickNumber]![playerKey] ?? 0) + 1;
+        }
+      } catch (e) {
+        debugPrint('Error processing draft document: $e');
+      }
+    }
+    
+    // Now determine the consensus picks
+    for (final pickEntry in pickSelections.entries) {
+      final pickNumber = pickEntry.key;
+      final selections = pickEntry.value;
+      
+      if (selections.isEmpty) continue;
+      
+      // Find the most selected player for this pick
+      String? topPlayerKey;
+      int maxCount = 0;
+      
+      for (final selectionEntry in selections.entries) {
+        final playerKey = selectionEntry.key;
+        final count = selectionEntry.value;
+        
+        if (count > maxCount) {
+          maxCount = count;
+          topPlayerKey = playerKey;
+        }
+      }
+      
+      if (topPlayerKey != null) {
+        // Split the key to get player name and position
+        final parts = topPlayerKey.split('|');
+        final playerName = parts[0];
+        final position = parts.length > 1 ? parts[1] : '';
+        
+        // Calculate confidence percentage
+        final totalSelections = selections.values.fold<int>(0, (sum, count) => sum + count);
+        final confidence = maxCount / totalSelections;
+        
+        // Get index in our consensus mock (pickNumber is 1-based, index is 0-based)
+        final index = pickNumber - 1;
+        
+        if (index >= 0 && index < consensusMock.length) {
+          // Update the consensus pick
+          consensusMock[index]['consensusPlayer'] = playerName;
+          consensusMock[index]['position'] = position;
+          consensusMock[index]['confidence'] = confidence;
+          
+          // Add alternate selections (next 2 most common)
+          final alternates = selections.entries
+              .where((e) => e.key != topPlayerKey)
+              .toList()
+              ..sort((a, b) => b.value.compareTo(a.value));
+          
+          consensusMock[index]['alternateSelections'] = alternates
+              .take(2)
+              .map((e) {
+                final altParts = e.key.split('|');
+                return {
+                  'player': altParts[0],
+                  'position': altParts.length > 1 ? altParts[1] : '',
+                  'count': e.value,
+                  'percentage': '${((e.value / totalSelections) * 100).toStringAsFixed(1)}%',
+                };
+              })
+              .toList();
+        }
+      }
+    }
+    
+    return consensusMock;
+  } catch (e) {
+    debugPrint('Error generating consensus mock draft: $e');
+    return [];
+  }
+}
+
+// Helper function to get team names for each pick
+static Future<Map<int, String>> _getPickToTeamMapping(int? year) async {
+  try {
+    // First try to load from draft_order.csv
+    final Map<int, String> pickToTeam = {};
+    
+    try {
+      final String yearStr = year?.toString() ?? '2025'; // Default to 2025 if not specified
+      final data = await rootBundle.loadString('assets/$yearStr/draft_order.csv');
+      List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        if (csvTable[i].length >= 3) {
+          int pick = int.tryParse(csvTable[i][1].toString()) ?? 0;
+          String team = csvTable[i][2].toString();
+          if (pick > 0) {
+            pickToTeam[pick] = team;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading draft order from CSV: $e');
+    }
+    
+    // If we couldn't load from CSV or data is incomplete, use a default order
+    if (pickToTeam.isEmpty) {
+      // Use a hardcoded draft order if needed
+      const List<String> defaultOrder = NFLTeams.allTeams;
+      
+      for (int i = 0; i < 32; i++) {
+        pickToTeam[i+1] = i < defaultOrder.length ? defaultOrder[i] : 'Team ${i+1}';
+      }
+    }
+    
+    return pickToTeam;
+  } catch (e) {
+    debugPrint('Error getting pick-to-team mapping: $e');
+    return {};
   }
 }
 

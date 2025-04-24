@@ -4,6 +4,7 @@ import 'package:mds_home/screens/blog_list_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
 import 'screens/betting_analytics_screen.dart';
+import 'screens/consensus_mock_draft_screen.dart';
 import 'screens/draft_overview_screen.dart';
 import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
@@ -138,6 +139,8 @@ class _MyAppState extends State<MyApp> {
       return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
     case '/betting-analytics':
       return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+    case '/consensus-mock':
+      return MaterialPageRoute(builder: (_) => const ConsensusMockDraftScreen(rounds: 3));
     default:
       return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
   }
