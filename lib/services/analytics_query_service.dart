@@ -158,17 +158,17 @@ static Future<int?> getDraftCount() async {
 
   /// Get consolidated player selections by pick - OPTIMIZED
   static Future<List<Map<String, dynamic>>> getConsolidatedPlayersByPick({
-    String? team,
-    int? round,
-    int? year,
-  }) async {
-    final cacheKey = 'players_by_pick_${team ?? 'all'}_${round ?? 'all'}_${year ?? 'all'}';
-    
-    return AnalyticsCacheManager.getCachedData(
-      cacheKey,
-      () => _fetchConsolidatedPlayersByPick(team, round, year),
-    );
-  }
+  String? team,
+  int? round,
+  int? year,
+}) async {
+  // Use the new function in precomputed analytics service
+  return PrecomputedAnalyticsService.getConsolidatedPlayersByPick(
+    team: team,
+    round: round,
+    year: year,
+  );
+}
   
   static Future<List<Map<String, dynamic>>> _fetchConsolidatedPlayersByPick(
     String? team,

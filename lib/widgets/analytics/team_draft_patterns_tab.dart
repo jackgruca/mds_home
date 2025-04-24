@@ -5,6 +5,8 @@ import '../../services/analytics_query_service.dart';
 import '../../services/analytics_cache_manager.dart';
 import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
+import 'package:csv/csv.dart';
+import 'package:flutter/services.dart';
 
 class TeamDraftPatternsTab extends StatefulWidget {
   final String initialTeam;
@@ -26,6 +28,7 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   bool _isLoading = true;
   String _selectedTeam = '';
   int? _selectedRound;
+  List<int> _teamOriginalPicks = []; // Add this line
   
   // Data states
   List<Map<String, dynamic>> _topPicksByPosition = [];
@@ -41,58 +44,168 @@ class _TeamDraftPatternsTabState extends State<TeamDraftPatternsTab> with Automa
   }
 
   // Optimized data loading - only fetches what's needed based on selection
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+Future<void> _loadData() async {
+  setState(() {
+    _isLoading = true;
+  });
 
-    try {
-      // Create a list of futures to execute in parallel
-      final futures = <Future>[];
-      
-      // Future for position data
-      final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
-        year: widget.draftYear,
-      ).then((data) {
-        _topPicksByPosition = data;
-      });
-      futures.add(positionFuture);
-      
-      // Future for player data
-      final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
-        team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        round: _selectedRound,
-        year: widget.draftYear,
-      ).then((data) {
-        _topPlayersByPick = data;
-      });
-      futures.add(playerFuture);
-      
-      // Only load consensus needs once, or when team changes
-      if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
-        final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
-          year: widget.draftYear,
-        ).then((data) {
-          _consensusNeeds = data;
-        });
-        futures.add(needsFuture);
+  try {
+    // Load original picks if a specific team is selected
+    if (_selectedTeam != 'All Teams') {
+      try {
+        final data = await rootBundle.loadString('assets/${widget.draftYear}/draft_order.csv');
+        List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+        
+        // Extract picks for this team
+        List<int> originalPicks = [];
+        for (int i = 1; i < csvTable.length; i++) {
+          if (csvTable[i].length >= 3) {
+            String csvTeam = csvTable[i][2].toString();
+            if (csvTeam == _selectedTeam) {
+              int pick = int.tryParse(csvTable[i][1].toString()) ?? 0;
+              if (pick > 0) {
+                originalPicks.add(pick);
+              }
+            }
+          }
+        }
+        _teamOriginalPicks = originalPicks;
+      } catch (e) {
+        debugPrint('Error loading original picks: $e');
+        _teamOriginalPicks = [];
       }
-      
-      // Wait for all futures to complete
-      await Future.wait(futures);
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading team draft pattern data: $e');
-      setState(() {
-        _isLoading = false;
-      });
+    } else {
+      _teamOriginalPicks = [];
     }
+
+    // Create a list of futures to execute in parallel
+    final futures = <Future>[];
+    
+    // Future for position data
+    final positionFuture = AnalyticsQueryService.getConsolidatedPositionsByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+    ).then((data) {
+      _topPicksByPosition = data;
+    });
+    futures.add(positionFuture);
+    
+    // Future for player data
+    final playerFuture = AnalyticsQueryService.getConsolidatedPlayersByPick(
+      team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
+      round: _selectedRound,
+      year: widget.draftYear,
+    ).then((data) {
+      _topPlayersByPick = data;
+    });
+    futures.add(playerFuture);
+    
+    // Only load consensus needs once, or when team changes
+    if (_selectedTeam != 'All Teams' && (_consensusNeeds.isEmpty || !_consensusNeeds.containsKey(_selectedTeam))) {
+      final needsFuture = AnalyticsQueryService.getConsensusTeamNeeds(
+        year: widget.draftYear,
+      ).then((data) {
+        _consensusNeeds = data;
+      });
+      futures.add(needsFuture);
+    }
+    
+    // Wait for all futures to complete
+    await Future.wait(futures);
+
+    setState(() {
+      _isLoading = false;
+    });
+  } catch (e) {
+    debugPrint('Error loading team draft pattern data: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
+Widget _buildPositionTrendsTable() {
+  if (_topPicksByPosition.isEmpty) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('No position trend data available'),
+      ),
+    );
+  }
+
+  // Filter data if a team is selected
+  List<Map<String, dynamic>> filteredPicks = _topPicksByPosition;
+  if (_selectedTeam != 'All Teams' && _teamOriginalPicks.isNotEmpty) {
+    filteredPicks = _topPicksByPosition.where((pick) => 
+      _teamOriginalPicks.contains(pick['pick'])
+    ).toList();
+  }
+
+  // If filtered list is empty but we've selected a team, show a message
+  if (filteredPicks.isEmpty && _selectedTeam != 'All Teams') {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text('No original picks found for $_selectedTeam'),
+      ),
+    );
+  }
+
+  return Table(
+    columnWidths: const {
+      0: FlexColumnWidth(1),
+      1: FlexColumnWidth(1),
+      2: FlexColumnWidth(2),
+      3: FlexColumnWidth(2),
+      4: FlexColumnWidth(2),
+    },
+    border: TableBorder.all(
+      color: Colors.grey.shade300,
+      width: 1,
+    ),
+    children: [
+      // Header
+      TableRow(
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey.shade800 
+              : Colors.grey.shade200,
+        ),
+        children: [
+          _buildTableHeader('Pick'),
+          _buildTableHeader('Round'),
+          _buildTableHeader('1st Position (%)'),
+          _buildTableHeader('2nd Position (%)'),
+          _buildTableHeader('3rd Position (%)'),
+        ],
+      ),
+      // Data rows - use filteredPicks instead of _topPicksByPosition
+      ...filteredPicks.map((data) {
+        final positionsList = data['positions'] as List<dynamic>;
+        return TableRow(
+          children: [
+            _buildTableCell('${data['pick'] ?? 'N/A'}'),
+            _buildTableCell('${data['round'] ?? 'N/A'}'),
+            _buildPositionCell(
+              positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
+              positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
+            ),
+            _buildPositionCell(
+              positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
+              positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
+            ),
+            _buildPositionCell(
+              positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
+              positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
+            ),
+          ],
+        );
+      }),
+    ],
+  );
+}
 
   @override
   bool get wantKeepAlive => true;  // Keep state when switching tabs
@@ -305,74 +418,9 @@ List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>>
     );
   }
 
-  // Update _buildPositionTrendsTable in team_draft_patterns_tab.dart
-
-Widget _buildPositionTrendsTable() {
-  if (_topPicksByPosition.isEmpty) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('No position trend data available'),
-      ),
-    );
-  }
-
-  return Table(
-    columnWidths: const {
-      0: FlexColumnWidth(1),
-      1: FlexColumnWidth(1),
-      2: FlexColumnWidth(2),
-      3: FlexColumnWidth(2),
-      4: FlexColumnWidth(2),
-    },
-    border: TableBorder.all(
-      color: Colors.grey.shade300,
-      width: 1,
-    ),
-    children: [
-      // Header
-      TableRow(
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey.shade800 
-              : Colors.grey.shade200,
-        ),
-        children: [
-          _buildTableHeader('Pick'),
-          _buildTableHeader('Round'),
-          _buildTableHeader('1st Position (%)'),
-          _buildTableHeader('2nd Position (%)'),
-          _buildTableHeader('3rd Position (%)'),
-        ],
-      ),
-      // Data rows
-      ..._topPicksByPosition.map((data) {
-        final positionsList = data['positions'] as List<dynamic>;
-        return TableRow(
-          children: [
-            _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${data['round'] ?? 'N/A'}'),
-            _buildPositionCell(
-              positionsList.isNotEmpty ? positionsList[0]['position'] : 'N/A',
-              positionsList.isNotEmpty ? positionsList[0]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 1 ? positionsList[1]['position'] : 'N/A',
-              positionsList.length > 1 ? positionsList[1]['percentage'] : '0%',
-            ),
-            _buildPositionCell(
-              positionsList.length > 2 ? positionsList[2]['position'] : 'N/A',
-              positionsList.length > 2 ? positionsList[2]['percentage'] : '0%',
-            ),
-          ],
-        );
-      }),
-    ],
-  );
-}
-
 // Also update the player trends table
 Widget _buildPlayerTrendsTable() {
+  // First check if data is available
   if (_topPlayersByPick.isEmpty) {
     return const Center(
       child: Padding(
@@ -381,6 +429,27 @@ Widget _buildPlayerTrendsTable() {
       ),
     );
   }
+
+  // Filter data if a team is selected, similar to position trends
+  List<Map<String, dynamic>> filteredPicks = _topPlayersByPick;
+  if (_selectedTeam != 'All Teams' && _teamOriginalPicks.isNotEmpty) {
+    filteredPicks = _topPlayersByPick.where((pick) => 
+      _teamOriginalPicks.contains(pick['pick'])
+    ).toList();
+  }
+
+  // If filtered list is empty but we've selected a team, show a message
+  if (filteredPicks.isEmpty && _selectedTeam != 'All Teams') {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text('No original picks found for $_selectedTeam'),
+      ),
+    );
+  }
+
+  // Debug information to verify data structure
+  debugPrint('Player data structure: ${filteredPicks.isNotEmpty ? filteredPicks.first.keys.join(', ') : 'No data'}');
 
   return Table(
     columnWidths: const {
@@ -409,8 +478,10 @@ Widget _buildPlayerTrendsTable() {
         ],
       ),
       // Data rows
-      ..._topPlayersByPick.map((data) {
-        final playersList = data['players'] as List<dynamic>;
+      ...filteredPicks.map((data) {
+        // Get the players list if it exists
+        final playersList = data['players'] as List<dynamic>? ?? [];
+        
         if (playersList.isEmpty) {
           return TableRow(
             children: [
@@ -422,11 +493,12 @@ Widget _buildPlayerTrendsTable() {
           );
         }
         
+        // Get the top player (most common)
         final topPlayer = playersList[0];
         return TableRow(
           children: [
             _buildTableCell('${data['pick'] ?? 'N/A'}'),
-            _buildTableCell('${topPlayer['player'] ?? 'N/A'}'),
+            _buildTableCell('${topPlayer['player'] ?? topPlayer['name'] ?? 'N/A'}'),
             _buildPositionCell(topPlayer['position'] ?? 'N/A', ''),
             _buildTableCell('${topPlayer['percentage'] ?? '0%'}'),
           ],
