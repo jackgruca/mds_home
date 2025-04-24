@@ -259,12 +259,19 @@ bool anyUserTeamHasOffers() {
   _tradeUp = false;
   _qbTrade = false;
     
-  // Check if this pick is locked - if so, skip all trade logic
-  if (nextPick.isLocked) {
-    // Skip trade evaluation for locked picks
-    _statusMessage = "Pick #${nextPick.pickNumber} is locked with ${nextPick.selectedPlayer?.name} (${nextPick.selectedPlayer?.position})";
+  // Check if this pick is locked and already has a player
+  if (nextPick.isLocked && nextPick.selectedPlayer != null) {
+    // Skip all logic for locked picks - including player selection
+    Player player = nextPick.selectedPlayer!;
+    
+    // Use the existing method to update after selection
+    _updateAfterSelection(nextPick, player);
+    
+    _statusMessage = "Pick #${nextPick.pickNumber}: ${nextPick.teamName} selects ${player.name} (${player.position})";
+    
     return nextPick;
   }
+
     
     // If trading is disabled, skip trade evaluation
     if (!enableTrading) {

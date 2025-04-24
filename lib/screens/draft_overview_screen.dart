@@ -1182,15 +1182,32 @@ void _lockRealLifePick(int pickNumber, String playerName, String position, Strin
   
   // Lock the pick with the selected player
   pickToLock.selectedPlayer = selectedPlayer;
-  pickToLock.isLocked = true; // This assumes you've added the isLocked field
+  pickToLock.isLocked = true;
   
   // Remove player from available players if they were in the list
   _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+  
+  // Update team needs for the picking team - THIS IS THE NEW SECTION
+  TeamNeed? teamNeed = _teamNeeds.firstWhere(
+    (need) => need.teamName == pickToLock.teamName,
+    orElse: () => TeamNeed(teamName: pickToLock.teamName, needs: [])
+  );
+  
+  // Only update needs if position is valid and we found the team need
+  if (position.isNotEmpty && teamNeed.teamName != 'Unknown Team') {
+    // This will remove the position from needs and add it to selectedPositions
+    teamNeed.removeNeed(position);
+    
+    debugPrint("Updated team needs for ${pickToLock.teamName}: removed $position");
+    debugPrint("Remaining needs: ${teamNeed.needs.join(', ')}");
+    debugPrint("Selected positions: ${teamNeed.selectedPositions.join(', ')}");
+  }
   
   // Update UI
   setState(() {
     _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // This updates the team needs display
     _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
   });
   
@@ -1232,8 +1249,14 @@ Future<void> _applyLivePicks() async {
   setState(() {
     _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // Update team needs display
     _statusMessage = "Applied ${livePicks.length} live picks from CSV";
   });
+  
+  // Also make sure we update the DraftService's internal state
+  if (_draftService != null) {
+    _draftService!.cleanupTradeOffers();
+  }
 }
 
 void _showDraftSummary({bool draftComplete = false}) {
