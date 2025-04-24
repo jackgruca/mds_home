@@ -181,6 +181,67 @@ void initState() {
     debugPrint("ScrollToCurrentPick: Controller not ready or draft service null");
     return;
   }
+
+void lockRealLifePick(int pickNumber, String playerName, String position, String school) {
+  if (_draftService == null || _players.isEmpty) return;
+  
+  // Find the pick by number
+  DraftPick? pickToLock = _draftPicks.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => DraftPick(
+      pickNumber: -1,  // Use invalid pick number to indicate not found
+      teamName: "",
+      round: ""
+    )
+);
+
+// Then check if pick was found
+if (pickToLock.pickNumber == -1) {
+  debugPrint("Could not find pick #$pickNumber to lock");
+  return;
+}
+  
+  // Find or create the player
+  Player? selectedPlayer;
+  
+  // First try to find an existing player with matching name
+  try {
+    selectedPlayer = _players.firstWhere(
+      (p) => p.name.toLowerCase() == playerName.toLowerCase()
+    );
+  } catch (_) {
+    // If not found, create a new player
+    selectedPlayer = Player(
+      id: 10000 + pickNumber, // Use a high number unlikely to conflict
+      name: playerName,
+      position: position,
+      rank: pickNumber, // Use pick number as approximate rank
+      school: school,
+    );
+    
+    // Add to available players
+    _players.add(selectedPlayer);
+  }
+  
+  // Lock the pick with the selected player
+  pickToLock.selectedPlayer = selectedPlayer;
+  pickToLock.isLocked = true;
+  
+  // Remove player from available players if they were in the list
+  _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+  
+  // Update UI
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
+  });
+  
+  // Scroll to the current pick
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+  });
+}
   
   // Get the current pick
   DraftPick? currentPick = _draftService!.getNextPick();
@@ -617,6 +678,9 @@ List<Color> _getTeamGradientColors(String teamName) {
       _statusMessage = "Draft data loaded successfully";
     });
 
+    // Apply any live picks from CSV
+    await _applyLivePicks();
+
     // Update active user team after loading data
     _updateActiveUserTeam();
 
@@ -1003,6 +1067,229 @@ void _initiateUserTradeProposal() {
       Duration(milliseconds: (AppConstants.defaultDraftSpeed / widget.speedFactor).round()), 
       _processDraftPick
     );
+  }
+}
+
+// Add this method to the DraftAppState class
+void _showLockPickDialog() {
+  // Controllers for the form
+  final pickController = TextEditingController();
+  final nameController = TextEditingController();
+  final positionController = TextEditingController();
+  final schoolController = TextEditingController();
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Lock Real-Life Pick'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pickController,
+              decoration: const InputDecoration(labelText: 'Pick Number'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Player Name'),
+            ),
+            TextField(
+              controller: positionController,
+              decoration: const InputDecoration(labelText: 'Position'),
+            ),
+            TextField(
+              controller: schoolController,
+              decoration: const InputDecoration(labelText: 'School'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            // Parse the pick number
+            int? pickNumber = int.tryParse(pickController.text);
+            if (pickNumber == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Invalid pick number')),
+              );
+              return;
+            }
+            
+            // Lock the pick
+            _lockRealLifePick(
+              pickNumber,
+              nameController.text,
+              positionController.text,
+              schoolController.text,
+            );
+            
+            Navigator.of(context).pop();
+          },
+          child: const Text('Lock Pick'),
+        ),
+      ],
+    ),
+  );
+}
+
+// Define the lockRealLifePick method (note the underscore to make it private)
+void _lockRealLifePick(int pickNumber, String playerName, String position, String school) {
+  if (_draftService == null || _players.isEmpty) return;
+  
+  // Find the pick by number
+  DraftPick pickToLock = _draftPicks.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => DraftPick(
+      pickNumber: -1,
+      teamName: "",
+      round: ""
+    )
+  );
+  
+  if (pickToLock.pickNumber == -1) {
+    debugPrint("Could not find pick #$pickNumber to lock");
+    return;
+  }
+  
+  // Find or create the player
+  Player? selectedPlayer;
+  
+  // First try to find an existing player with matching name
+  try {
+    selectedPlayer = _players.firstWhere(
+      (p) => p.name.toLowerCase() == playerName.toLowerCase()
+    );
+  } catch (_) {
+    // If not found, create a new player
+    selectedPlayer = Player(
+      id: 10000 + pickNumber, // Use a high number unlikely to conflict
+      name: playerName,
+      position: position,
+      rank: pickNumber, // Use pick number as approximate rank
+      school: school,
+    );
+    
+    // Add to available players (this helps ensure the player exists in the model)
+    _players.add(selectedPlayer);
+  }
+  
+  // Lock the pick with the selected player
+  pickToLock.selectedPlayer = selectedPlayer;
+  pickToLock.isLocked = true;
+  
+  // Remove player from available players if they were in the list
+  _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+  
+  // Update team needs for the picking team - IMPROVED VERSION
+  TeamNeed? teamNeed = _teamNeeds.firstWhere(
+    (need) => need.teamName == pickToLock.teamName,
+    orElse: () => TeamNeed(teamName: pickToLock.teamName, needs: [])
+  );
+  
+  // Only update needs if position is valid and we found the team need
+  if (position.isNotEmpty && teamNeed.teamName != 'Unknown Team') {
+    // Check if this exact position exists in the needs list
+    bool exactPositionMatch = teamNeed.needs.contains(position);
+    
+    if (exactPositionMatch) {
+      // Perfect match - just remove it
+      teamNeed.removeNeed(position);
+      debugPrint("Removed exact position need: $position");
+    } else {
+      // Try to find a partial match (e.g., "CB" should match "CB | WR")
+      String matchedNeed = "";
+      
+      // Split the player position in case it has multiple positions (e.g., "CB | WR")
+      List<String> playerPositions = position.split('|').map((p) => p.trim()).toList();
+      
+      // Check each player position against each team need
+      for (String playerPos in playerPositions) {
+        for (String need in List.from(teamNeed.needs)) {
+          // Check if need contains this position or vice versa
+          if (need.contains(playerPos) || playerPos.contains(need)) {
+            matchedNeed = need;
+            break;
+          }
+        }
+        if (matchedNeed.isNotEmpty) break;
+      }
+      
+      if (matchedNeed.isNotEmpty) {
+        // Found a matching need - remove it
+        teamNeed.removeNeed(matchedNeed);
+        debugPrint("Removed matching need: $matchedNeed for position: $position");
+      } else {
+        // No match found - add the position to selectedPositions without removing anything
+        teamNeed.selectedPositions.add(position);
+        debugPrint("No matching need found. Added $position to selected positions.");
+      }
+    }
+    
+    debugPrint("Updated team needs for ${pickToLock.teamName}: Player: $playerName, Position: $position");
+    debugPrint("Remaining needs: ${teamNeed.needs.join(', ')}");
+    debugPrint("Selected positions: ${teamNeed.selectedPositions.join(', ')}");
+  }
+  
+  // Update UI
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // This updates the team needs display
+    _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
+  });
+  
+  // Scroll to the current pick
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+  });
+}
+
+/// Apply live picks from CSV to the current draft
+Future<void> _applyLivePicks() async {
+  if (_draftService == null) return;
+  
+  // Load the live picks from CSV
+  final livePicks = await DataService.loadLivePicks(year: widget.draftYear);
+  
+  // If no live picks, nothing to do
+  if (livePicks.isEmpty) {
+    debugPrint("No live picks to apply");
+    return;
+  }
+  
+  debugPrint("Applying ${livePicks.length} live picks...");
+  
+  // Apply each pick in order
+  for (var pickData in livePicks) {
+    int? pickNumber = int.tryParse(pickData['PICK'] ?? '');
+    String playerName = pickData['PLAYER'] ?? '';
+    String position = pickData['POSITION'] ?? '';
+    String school = pickData['SCHOOL'] ?? '';
+    
+    if (pickNumber != null && playerName.isNotEmpty) {
+      _lockRealLifePick(pickNumber, playerName, position, school);
+      debugPrint("Applied live pick #$pickNumber: $playerName");
+    }
+  }
+  
+  // Update the UI to reflect the changes
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // Update team needs display
+    _statusMessage = "Applied ${livePicks.length} live picks";
+  });
+  
+  // Also make sure we update the DraftService's internal state
+  if (_draftService != null) {
+    _draftService!.cleanupTradeOffers();
   }
 }
 
@@ -1585,6 +1872,25 @@ Widget build(BuildContext context) {
               Provider.of<ThemeManager>(context, listen: false).toggleTheme();
             },
           ),
+
+           // Refresh live picks button
+  IconButton(
+    icon: const Icon(Icons.refresh, size: 20),
+    tooltip: "Reload Live Picks",
+    onPressed: () async {
+      await _applyLivePicks();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reloaded live picks'))
+      );
+    },
+  ),
+          // New lock pick button
+  IconButton(
+    icon: const Icon(Icons.lock_outline, size: 20),
+    onPressed: () {
+      _showLockPickDialog();
+    },
+  ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),

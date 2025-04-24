@@ -57,6 +57,55 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
   }
 }
 
+// Add to lib/services/data_service.dart
+
+/// Load real-life picks from a CSV file
+static Future<List<Map<String, String>>> loadLivePicks({required int year}) async {
+  try {
+    // Try to load the file, but return empty list if file doesn't exist yet
+    final data = await rootBundle.loadString('assets/$year/live_picks.csv');
+    
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    
+    if (csvTable.isEmpty) {
+      debugPrint("Info: Empty or missing live_picks.csv");
+      return [];
+    }
+    
+    // Extract the header row and use it for mapping
+    List<String> headers = csvTable[0].map<String>((dynamic col) => col.toString().toUpperCase()).toList();
+    
+    // Create a list of maps, where each map is a row with header-keyed values
+    List<Map<String, String>> livePicks = [];
+    
+    // Skip the header row
+    for (int i = 1; i < csvTable.length; i++) {
+      var row = csvTable[i];
+      
+      // Skip rows that don't have at least a pick number and player name
+      if (row.length < 2 || row[0].toString().isEmpty || row[1].toString().isEmpty) {
+        continue;
+      }
+      
+      Map<String, String> pickData = {};
+      
+      // Map each header to its value
+      for (int j = 0; j < headers.length && j < row.length; j++) {
+        pickData[headers[j]] = row[j].toString();
+      }
+      
+      livePicks.add(pickData);
+    }
+    
+    debugPrint("Successfully loaded ${livePicks.length} live picks");
+    return livePicks;
+  } catch (e) {
+    // If file doesn't exist or there's an error, return an empty list
+    debugPrint("Info: No live picks data found for year $year");
+    return [];
+  }
+}
+
 // Updated part of the loadAvailablePlayers method in DataService
 static Future<List<Player>> loadAvailablePlayers({required int year}) async {
   try {
