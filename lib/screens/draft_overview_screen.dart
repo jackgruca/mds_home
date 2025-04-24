@@ -678,6 +678,9 @@ List<Color> _getTeamGradientColors(String teamName) {
       _statusMessage = "Draft data loaded successfully";
     });
 
+    // Apply any live picks from CSV
+    await _applyLivePicks();
+
     // Update active user team after loading data
     _updateActiveUserTeam();
 
@@ -1194,6 +1197,42 @@ void _lockRealLifePick(int pickNumber, String playerName, String position, Strin
   // Scroll to the current pick
   Future.delayed(const Duration(milliseconds: 150), () {
     _scrollToCurrentPick();
+  });
+}
+
+/// Apply live picks from CSV to the current draft
+Future<void> _applyLivePicks() async {
+  if (_draftService == null) return;
+  
+  // Load the live picks from CSV
+  final livePicks = await DataService.loadLivePicks(year: widget.draftYear);
+  
+  // If no live picks, nothing to do
+  if (livePicks.isEmpty) {
+    debugPrint("No live picks to apply");
+    return;
+  }
+  
+  debugPrint("Applying ${livePicks.length} live picks...");
+  
+  // Apply each pick in order
+  for (var pickData in livePicks) {
+    int? pickNumber = int.tryParse(pickData['PICK'] ?? '');
+    String playerName = pickData['PLAYER'] ?? '';
+    String position = pickData['POSITION'] ?? '';
+    String school = pickData['SCHOOL'] ?? '';
+    
+    if (pickNumber != null && playerName.isNotEmpty) {
+      _lockRealLifePick(pickNumber, playerName, position, school);
+      debugPrint("Applied live pick #$pickNumber: $playerName");
+    }
+  }
+  
+  // Update the UI to reflect the changes
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _statusMessage = "Applied ${livePicks.length} live picks from CSV";
   });
 }
 
@@ -1776,6 +1815,18 @@ Widget build(BuildContext context) {
               Provider.of<ThemeManager>(context, listen: false).toggleTheme();
             },
           ),
+
+           // Refresh live picks button
+  IconButton(
+    icon: const Icon(Icons.refresh, size: 20),
+    tooltip: "Reload Live Picks",
+    onPressed: () async {
+      await _applyLivePicks();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reloaded live picks from CSV'))
+      );
+    },
+  ),
           // New lock pick button
   IconButton(
     icon: const Icon(Icons.lock_outline, size: 20),
