@@ -582,46 +582,46 @@ List<Color> _getTeamGradientColors(String teamName) {
     final displayDraftPicks = allDraftPicks.where((pick) => pick.isActiveInDraft).toList();
     
     // Create draft service 
-    final draftService = DraftService(
-      availablePlayers: List.from(players),
-      draftOrder: allDraftPicks,
-      teamNeeds: teamNeeds,
-      randomnessFactor: widget.randomnessFactor,
-      userTeams: widget.selectedTeams,
-      numberRounds: widget.numberOfRounds,
-      enableTrading: widget.enableTrading,
-      enableUserTradeProposals: widget.enableUserTradeProposals,
-      enableQBPremium: widget.enableQBPremium,
-      tradeFrequency: widget.tradeFrequency,
-      needVsValueBalance: widget.needVsValueBalance,
-    );
+   // In lib/screens/draft_overview_screen.dart
+// In the _loadData method
 
-    // Convert models to lists for the existing UI components
-    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
-    final availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
-    final teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
-     List<int> actualPickNumbers = await draftService.applyActualPicks() ?? [];
+// Create draft service 
+final draftService = DraftService(
+  availablePlayers: List.from(players),
+  draftOrder: allDraftPicks,
+  teamNeeds: teamNeeds,
+  randomnessFactor: widget.randomnessFactor,
+  userTeams: widget.selectedTeams,
+  numberRounds: widget.numberOfRounds,
+  enableTrading: widget.enableTrading,
+  enableUserTradeProposals: widget.enableUserTradeProposals,
+  enableQBPremium: widget.enableQBPremium,
+  tradeFrequency: widget.tradeFrequency,
+  needVsValueBalance: widget.needVsValueBalance,
+);
 
+// Get actual pick numbers using the public method
+List<int> actualPickNumbers = await draftService.applyActualPicks() ?? [];
 
-    setState(() {
-      _players = players;
-      _draftPicks = allDraftPicks;
-      _teamNeeds = teamNeeds;
-      _draftService = draftService;
-      
-      // Reset trade tracking
-      _executedTrades = [];
-      
-      // Set list versions for UI compatibility
-      _draftOrderLists = draftOrderLists;
-      _availablePlayersLists = availablePlayersLists;
-      _teamNeedsLists = teamNeedsLists;
-      
-      _actualPickNumbers = actualPickNumbers;
-      
-      _isDataLoaded = true;
-      _statusMessage = "Draft data loaded successfully";
-    });
+setState(() {
+  _players = players;
+  _draftPicks = allDraftPicks;
+  _teamNeeds = teamNeeds;
+  _draftService = draftService;
+  
+  // Reset trade tracking
+  _executedTrades = [];
+  
+  // Fix these variable names to match yours
+  _draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
+  _availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
+  _teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
+  
+  _actualPickNumbers = actualPickNumbers;
+  
+  _isDataLoaded = true;
+  _statusMessage = "Draft data loaded successfully";
+});
 
 
     // Update active user team after loading data

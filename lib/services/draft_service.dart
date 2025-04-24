@@ -96,7 +96,8 @@ class DraftService {
   this.needVsValueBalance = 0.4,
 }) {
   // Store available players in the static DataService cache for lookup
-  DataService._availablePlayers = List.from(availablePlayers);
+DataService._availablePlayers.clear();
+DataService._availablePlayers.addAll(availablePlayers);
   
   // Sort players by rank initially
   availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
@@ -113,18 +114,18 @@ class DraftService {
   );
   
   // Apply actual picks if available
-  _applyActualPicks();
+  applyActualPicks();
   
   _initializeFuturePicks();
 }
 
-// Add this new method to the DraftService class
-Future<List> _applyActualPicks() async {
+// Change from _applyActualPicks() to applyActualPicks()
+Future<List<int>> applyActualPicks() async {
   try {
     // Load actual picks
     final actualPicks = await DataService.loadActualPicks(year: 2025);
     
-    if (actualPicks.isEmpty) return;
+    if (actualPicks.isEmpty) return [];
     
     // Log the actual picks we're incorporating
     debugPrint("Incorporating ${actualPicks.length} actual picks into simulation");
@@ -145,20 +146,52 @@ Future<List> _applyActualPicks() async {
           continue;
         }
         
+        var draftPick = draftOrder[draftPickIndex];
+        
         // Add to actual pick numbers list if it has a player selected
         if (actualPick.selectedPlayer != null) {
           actualPickNumbers.add(actualPick.pickNumber);
         }
         
-        // Rest of the existing code...
+        // Apply the team change if this was a traded pick
+        if (draftPick.teamName != actualPick.teamName) {
+          debugPrint("Applying trade: Pick #${actualPick.pickNumber} now belongs to ${actualPick.teamName} (was ${draftPick.teamName})");
+          draftPick.teamName = actualPick.teamName;
+          draftPick.tradeInfo = actualPick.tradeInfo;
+        }
+        
+        // Apply the player selection if present
+        if (actualPick.selectedPlayer != null) {
+          debugPrint("Applying actual pick: #${actualPick.pickNumber} ${actualPick.teamName} selects ${actualPick.selectedPlayer!.name}");
+          
+          // Set the selected player
+          draftPick.selectedPlayer = actualPick.selectedPlayer;
+          
+          // Remove this player from available players if needed
+          availablePlayers.removeWhere(
+            (player) => player.name == actualPick.selectedPlayer!.name
+          );
+          
+          // Update team needs
+          final teamNeed = teamNeeds.firstWhere(
+            (need) => need.teamName == actualPick.teamName,
+            orElse: () => TeamNeed(teamName: actualPick.teamName, needs: []),
+          );
+          
+          // Remove need for this position
+          if (actualPick.selectedPlayer!.position.isNotEmpty) {
+            teamNeed.removeNeed(actualPick.selectedPlayer!.position);
+          }
+          
+          // Record this selection for market volatility tracking
+          _tradeService.recordPlayerSelection(actualPick.selectedPlayer!);
+        }
       } catch (e) {
         debugPrint("Error applying actual pick #${actualPick.pickNumber}: $e");
       }
     }
     
-    // Return the actual pick numbers
     return actualPickNumbers;
-    
   } catch (e) {
     debugPrint("Error applying actual picks: $e");
     return [];
