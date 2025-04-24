@@ -1187,7 +1187,7 @@ void _lockRealLifePick(int pickNumber, String playerName, String position, Strin
   // Remove player from available players if they were in the list
   _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
   
-  // Update team needs for the picking team - THIS IS THE NEW SECTION
+  // Update team needs for the picking team - IMPROVED VERSION
   TeamNeed? teamNeed = _teamNeeds.firstWhere(
     (need) => need.teamName == pickToLock.teamName,
     orElse: () => TeamNeed(teamName: pickToLock.teamName, needs: [])
@@ -1195,10 +1195,44 @@ void _lockRealLifePick(int pickNumber, String playerName, String position, Strin
   
   // Only update needs if position is valid and we found the team need
   if (position.isNotEmpty && teamNeed.teamName != 'Unknown Team') {
-    // This will remove the position from needs and add it to selectedPositions
-    teamNeed.removeNeed(position);
+    // Check if this exact position exists in the needs list
+    bool exactPositionMatch = teamNeed.needs.contains(position);
     
-    debugPrint("Updated team needs for ${pickToLock.teamName}: removed $position");
+    if (exactPositionMatch) {
+      // Perfect match - just remove it
+      teamNeed.removeNeed(position);
+      debugPrint("Removed exact position need: $position");
+    } else {
+      // Try to find a partial match (e.g., "CB" should match "CB | WR")
+      String matchedNeed = "";
+      
+      // Split the player position in case it has multiple positions (e.g., "CB | WR")
+      List<String> playerPositions = position.split('|').map((p) => p.trim()).toList();
+      
+      // Check each player position against each team need
+      for (String playerPos in playerPositions) {
+        for (String need in List.from(teamNeed.needs)) {
+          // Check if need contains this position or vice versa
+          if (need.contains(playerPos) || playerPos.contains(need)) {
+            matchedNeed = need;
+            break;
+          }
+        }
+        if (matchedNeed.isNotEmpty) break;
+      }
+      
+      if (matchedNeed.isNotEmpty) {
+        // Found a matching need - remove it
+        teamNeed.removeNeed(matchedNeed);
+        debugPrint("Removed matching need: $matchedNeed for position: $position");
+      } else {
+        // No match found - add the position to selectedPositions without removing anything
+        teamNeed.selectedPositions.add(position);
+        debugPrint("No matching need found. Added $position to selected positions.");
+      }
+    }
+    
+    debugPrint("Updated team needs for ${pickToLock.teamName}: Player: $playerName, Position: $position");
     debugPrint("Remaining needs: ${teamNeed.needs.join(', ')}");
     debugPrint("Selected positions: ${teamNeed.selectedPositions.join(', ')}");
   }
