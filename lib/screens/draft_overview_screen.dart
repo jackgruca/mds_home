@@ -1284,7 +1284,7 @@ Future<void> _applyLivePicks() async {
     _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
     _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // Update team needs display
-    _statusMessage = "Applied ${livePicks.length} live picks from CSV";
+    _statusMessage = "Applied ${livePicks.length} live picks";
   });
   
   // Also make sure we update the DraftService's internal state
@@ -1880,7 +1880,7 @@ Widget build(BuildContext context) {
     onPressed: () async {
       await _applyLivePicks();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reloaded live picks from CSV'))
+        const SnackBar(content: Text('Reloaded live picks'))
       );
     },
   ),

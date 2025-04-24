@@ -97,7 +97,7 @@ static Future<List<Map<String, String>>> loadLivePicks({required int year}) asyn
       livePicks.add(pickData);
     }
     
-    debugPrint("Successfully loaded ${livePicks.length} live picks from CSV");
+    debugPrint("Successfully loaded ${livePicks.length} live picks");
     return livePicks;
   } catch (e) {
     // If file doesn't exist or there's an error, return an empty list
