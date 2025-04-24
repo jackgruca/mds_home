@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
 import '../widgets/common/app_drawer.dart'; // Add this import
 import 'player_projections_screen.dart';
+import 'tutorial_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
@@ -56,6 +57,14 @@ class TeamSelectionScreenState extends State<TeamSelectionScreen> {
       }
     });
   }
+
+  void _showTutorial() {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => const TutorialScreen(),
+    ),
+  );
+}
 
   // NFL divisions and conferences
   final Map<String, List<String>> _afcDivisions = {
@@ -192,7 +201,20 @@ Future<void> _loadUserPreferences() async {
       titleSpacing: 8,
       elevation: 0,
       actions: [
-
+        // Tutorial
+        Consumer<ThemeManager>(
+  builder: (context, themeManager, _) => IconButton(
+    icon: const Icon(
+      Icons.help_outline,  // Try different icon variants
+      size: 20,
+      // Add semantic label for accessibility
+      semanticLabel: 'Tutorial',
+    ),
+    onPressed: _showTutorial,
+    tooltip: 'How to Use',
+  ),
+),
+        
         // Theme toggle button
         Consumer<ThemeManager>(
           builder: (context, themeManager, _) => IconButton(
