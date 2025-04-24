@@ -12,7 +12,8 @@ class DraftPick {
   final int? originalPickNumber;
   String? tradeInfo;
   bool isActiveInDraft = true;  // New property
-  
+  bool isLocked = false;
+
   DraftPick({
     required this.pickNumber,
     required this.teamName,
@@ -21,6 +22,7 @@ class DraftPick {
     this.originalPickNumber,
     this.tradeInfo,
     this.isActiveInDraft = true,
+    this.isLocked = false, // Add this line
   });
   
   // Create a DraftPick from CSV row data

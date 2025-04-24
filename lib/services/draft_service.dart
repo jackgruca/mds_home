@@ -248,26 +248,23 @@ bool anyUserTeamHasOffers() {
 
   // Modify the processDraftPick method to clean up offers after a pick
   DraftPick processDraftPick() {
-    // Find the next pick in the draft order
-    DraftPick? nextPick = _getNextPick();
+  // Find the next pick in the draft order
+  DraftPick? nextPick = _getNextPick();
+  
+  if (nextPick == null) {
+    throw Exception('No more picks available in the draft');
+  }
+  
+  _currentPick = nextPick.pickNumber;
+  _tradeUp = false;
+  _qbTrade = false;
     
-    if (nextPick == null) {
-      throw Exception('No more picks available in the draft');
-    }
-    
-    _currentPick = nextPick.pickNumber;
-    _tradeUp = false;
-    _qbTrade = false;
-      
-    // Check if this is a user team pick
-    if (userTeams != null && userTeams!.contains(nextPick.teamName)) {
-      // Generate trade offers for the user to consider
-      _generateUserTradeOffers(nextPick);
-      
-      // Return without making a selection - user will choose
-      _statusMessage = "Your turn to pick or trade for pick #${nextPick.pickNumber}";
-      return nextPick;
-    }
+  // Check if this pick is locked - if so, skip all trade logic
+  if (nextPick.isLocked) {
+    // Skip trade evaluation for locked picks
+    _statusMessage = "Pick #${nextPick.pickNumber} is locked with ${nextPick.selectedPlayer?.name} (${nextPick.selectedPlayer?.position})";
+    return nextPick;
+  }
     
     // If trading is disabled, skip trade evaluation
     if (!enableTrading) {

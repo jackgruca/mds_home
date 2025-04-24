@@ -181,6 +181,67 @@ void initState() {
     debugPrint("ScrollToCurrentPick: Controller not ready or draft service null");
     return;
   }
+
+void lockRealLifePick(int pickNumber, String playerName, String position, String school) {
+  if (_draftService == null || _players.isEmpty) return;
+  
+  // Find the pick by number
+  DraftPick? pickToLock = _draftPicks.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => DraftPick(
+      pickNumber: -1,  // Use invalid pick number to indicate not found
+      teamName: "",
+      round: ""
+    )
+);
+
+// Then check if pick was found
+if (pickToLock.pickNumber == -1) {
+  debugPrint("Could not find pick #$pickNumber to lock");
+  return;
+}
+  
+  // Find or create the player
+  Player? selectedPlayer;
+  
+  // First try to find an existing player with matching name
+  try {
+    selectedPlayer = _players.firstWhere(
+      (p) => p.name.toLowerCase() == playerName.toLowerCase()
+    );
+  } catch (_) {
+    // If not found, create a new player
+    selectedPlayer = Player(
+      id: 10000 + pickNumber, // Use a high number unlikely to conflict
+      name: playerName,
+      position: position,
+      rank: pickNumber, // Use pick number as approximate rank
+      school: school,
+    );
+    
+    // Add to available players
+    _players.add(selectedPlayer);
+  }
+  
+  // Lock the pick with the selected player
+  pickToLock.selectedPlayer = selectedPlayer;
+  pickToLock.isLocked = true;
+  
+  // Remove player from available players if they were in the list
+  _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+  
+  // Update UI
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
+  });
+  
+  // Scroll to the current pick
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+  });
+}
   
   // Get the current pick
   DraftPick? currentPick = _draftService!.getNextPick();
@@ -1006,6 +1067,136 @@ void _initiateUserTradeProposal() {
   }
 }
 
+// Add this method to the DraftAppState class
+void _showLockPickDialog() {
+  // Controllers for the form
+  final pickController = TextEditingController();
+  final nameController = TextEditingController();
+  final positionController = TextEditingController();
+  final schoolController = TextEditingController();
+  
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Lock Real-Life Pick'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pickController,
+              decoration: const InputDecoration(labelText: 'Pick Number'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Player Name'),
+            ),
+            TextField(
+              controller: positionController,
+              decoration: const InputDecoration(labelText: 'Position'),
+            ),
+            TextField(
+              controller: schoolController,
+              decoration: const InputDecoration(labelText: 'School'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            // Parse the pick number
+            int? pickNumber = int.tryParse(pickController.text);
+            if (pickNumber == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Invalid pick number')),
+              );
+              return;
+            }
+            
+            // Lock the pick
+            _lockRealLifePick(
+              pickNumber,
+              nameController.text,
+              positionController.text,
+              schoolController.text,
+            );
+            
+            Navigator.of(context).pop();
+          },
+          child: const Text('Lock Pick'),
+        ),
+      ],
+    ),
+  );
+}
+
+// Define the lockRealLifePick method (note the underscore to make it private)
+void _lockRealLifePick(int pickNumber, String playerName, String position, String school) {
+  if (_draftService == null || _players.isEmpty) return;
+  
+  // Find the pick by number
+  DraftPick pickToLock = _draftPicks.firstWhere(
+    (pick) => pick.pickNumber == pickNumber,
+    orElse: () => DraftPick(
+      pickNumber: -1,
+      teamName: "",
+      round: ""
+    )
+  );
+  
+  if (pickToLock.pickNumber == -1) {
+    debugPrint("Could not find pick #$pickNumber to lock");
+    return;
+  }
+  
+  // Find or create the player
+  Player? selectedPlayer;
+  
+  // First try to find an existing player with matching name
+  try {
+    selectedPlayer = _players.firstWhere(
+      (p) => p.name.toLowerCase() == playerName.toLowerCase()
+    );
+  } catch (_) {
+    // If not found, create a new player
+    selectedPlayer = Player(
+      id: 10000 + pickNumber, // Use a high number unlikely to conflict
+      name: playerName,
+      position: position,
+      rank: pickNumber, // Use pick number as approximate rank
+      school: school,
+    );
+    
+    // Add to available players (this helps ensure the player exists in the model)
+    _players.add(selectedPlayer);
+  }
+  
+  // Lock the pick with the selected player
+  pickToLock.selectedPlayer = selectedPlayer;
+  pickToLock.isLocked = true; // This assumes you've added the isLocked field
+  
+  // Remove player from available players if they were in the list
+  _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+  
+  // Update UI
+  setState(() {
+    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+    _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
+  });
+  
+  // Scroll to the current pick
+  Future.delayed(const Duration(milliseconds: 150), () {
+    _scrollToCurrentPick();
+  });
+}
+
 void _showDraftSummary({bool draftComplete = false}) {
   if (_draftService == null) return;
   
@@ -1585,6 +1776,13 @@ Widget build(BuildContext context) {
               Provider.of<ThemeManager>(context, listen: false).toggleTheme();
             },
           ),
+          // New lock pick button
+  IconButton(
+    icon: const Icon(Icons.lock_outline, size: 20),
+    onPressed: () {
+      _showLockPickDialog();
+    },
+  ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
