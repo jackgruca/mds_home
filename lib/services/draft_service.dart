@@ -10,6 +10,7 @@ import '../models/team_need.dart';
 import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../models/future_pick.dart';
+import 'data_service.dart';
 import 'trade_service.dart';
 import 'draft_value_service.dart';
 
@@ -94,6 +95,9 @@ class DraftService {
   this.tradeFrequency = 0.5,
   this.needVsValueBalance = 0.4,
 }) {
+  // Store available players in the static DataService cache for lookup
+  DataService._availablePlayers = List.from(availablePlayers);
+  
   // Sort players by rank initially
   availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
   
@@ -102,12 +106,63 @@ class DraftService {
     draftOrder: draftOrder,
     teamNeeds: teamNeeds,
     availablePlayers: availablePlayers,
-    userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,  // Extract first team or null
+    userTeam: userTeams?.isNotEmpty == true ? userTeams!.first : null,
     tradeRandomnessFactor: randomnessFactor,
     enableQBPremium: enableQBPremium,
-    tradeFrequency: tradeFrequency, // Pass new parameter
+    tradeFrequency: tradeFrequency,
   );
-   _initializeFuturePicks();
+  
+  // Apply actual picks if available
+  _applyActualPicks();
+  
+  _initializeFuturePicks();
+}
+
+// Add this new method to the DraftService class
+Future<List> _applyActualPicks() async {
+  try {
+    // Load actual picks
+    final actualPicks = await DataService.loadActualPicks(year: 2025);
+    
+    if (actualPicks.isEmpty) return;
+    
+    // Log the actual picks we're incorporating
+    debugPrint("Incorporating ${actualPicks.length} actual picks into simulation");
+    
+    // Track actual pick numbers
+    List<int> actualPickNumbers = [];
+    
+    // Process each actual pick
+    for (var actualPick in actualPicks) {
+      try {
+        // Find corresponding pick in draft order
+        var draftPickIndex = draftOrder.indexWhere(
+          (pick) => pick.pickNumber == actualPick.pickNumber
+        );
+        
+        if (draftPickIndex == -1) {
+          debugPrint("Warning: Pick #${actualPick.pickNumber} not found in draft order. Skipping.");
+          continue;
+        }
+        
+        // Add to actual pick numbers list if it has a player selected
+        if (actualPick.selectedPlayer != null) {
+          actualPickNumbers.add(actualPick.pickNumber);
+        }
+        
+        // Rest of the existing code...
+      } catch (e) {
+        debugPrint("Error applying actual pick #${actualPick.pickNumber}: $e");
+      }
+    }
+    
+    // Return the actual pick numbers
+    return actualPickNumbers;
+    
+  } catch (e) {
+    debugPrint("Error applying actual picks: $e");
+    return [];
+  }
 }
 
 // Also update the getOtherTeamPicks method to handle list of teams

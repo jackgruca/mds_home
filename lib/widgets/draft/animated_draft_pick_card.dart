@@ -20,18 +20,21 @@ class AnimatedDraftPickCard extends StatefulWidget {
   final bool isCurrentPick; // New property to highlight current pick
   final List<DraftPick> allDraftPicks; // Add this line
   final Function(Player)? onSelect; // Add this line
+  final bool isActualPick;
+
 
   
   const AnimatedDraftPickCard({
-    super.key,
-    required this.draftPick,
-    this.isUserTeam = false,
-    this.isRecentPick = false,
-    this.teamNeeds,
-    this.isCurrentPick = false, // Default to false
-    required this.allDraftPicks, 
-    this.onSelect, 
-  });
+  super.key,
+  required this.draftPick,
+  required this.isUserTeam,
+  required this.isRecentPick,
+  required this.teamNeeds,
+  required this.isCurrentPick,
+  required this.allDraftPicks,
+  this.onSelect,
+  this.isActualPick = false, // Default to false
+});
 
   @override
   State<AnimatedDraftPickCard> createState() => _AnimatedDraftPickCardState();
@@ -490,23 +493,23 @@ Color _getValueColor(double ratio) {
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Card(
-          elevation: widget.isCurrentPick ? 4.0 : 
-                     widget.isRecentPick ? 1.5 : 1.0,
-          margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            side: BorderSide(
-              color: widget.isCurrentPick ? 
-                  (isDarkMode ? Colors.green.shade700 : Colors.green.shade400) :
-                  widget.isUserTeam ? 
-                    (isDarkMode ? Colors.blue.shade700 : Colors.blue.shade300) : 
-                    (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-              width: widget.isCurrentPick ? 2.0 :
-                     widget.isUserTeam ? 1.5 : 1.0,
-            ),
-          ),
-          color: cardColor,
-          child: InkWell(
+  elevation: isCurrentPick ? 3.0 : 1.0,
+  margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(8.0),
+    side: BorderSide(
+      color: isCurrentPick
+          ? Theme.of(context).colorScheme.primary
+          : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
+      width: isCurrentPick ? 2.0 : 1.0,
+    ),
+  ),
+  color: isActualPick
+      ? (isDarkMode ? Colors.blue.shade900.withOpacity(0.4) : Colors.blue.shade50)
+      : (isSelected
+          ? (isDarkMode ? Colors.grey.shade800 : selectedColor)
+          : (isDarkMode ? Colors.grey.shade900 : Colors.white)),
+  child: InkWell(
             onTap: widget.draftPick.selectedPlayer != null 
                 ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
                 : null,
@@ -703,6 +706,20 @@ Color _getValueColor(double ratio) {
                     //     ),
                     //     onPressed: () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!),
                     //   ),
+
+                    // Add an actual pick indicator before the trailing widget
+                    if (isActualPick && draftPick.selectedPlayer != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4.0, right: 4.0),
+                        child: Tooltip(
+                          message: 'Actual 2025 NFL Draft Pick',
+                          child: Icon(
+                            Icons.verified,
+                            color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade700,
+                            size: 16,
+                          ),
+                        ),
+                      ),
                     
                     // Show rank info for selected players
                     if (widget.draftPick.selectedPlayer != null)

@@ -12,16 +12,19 @@ class DraftOrderTab extends StatefulWidget {
   final List<List<dynamic>> teamNeeds; // Still need this for team needs
   final int? currentPickNumber; // Add this to track the current pick 
   final Function(int)? onPlayerSelected;
+  final List<int> actualPickNumbers; 
+  
 
   const DraftOrderTab({
-    required this.draftOrder,
-    this.userTeam,
-    this.scrollController,
-    required this.teamNeeds,
-    this.currentPickNumber, // New parameter
-    this.onPlayerSelected,
-    super.key,
-  });
+  required this.draftOrder,
+  this.userTeam,
+  this.scrollController,
+  required this.teamNeeds,
+  this.currentPickNumber,
+  this.onPlayerSelected,
+  this.actualPickNumbers = const [], // Default to empty list
+  super.key,
+});
 
   @override
   _DraftOrderTabState createState() => _DraftOrderTabState();
@@ -98,10 +101,9 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
   teamNeeds: _getTeamNeeds(draftPick.teamName),
   isCurrentPick: isCurrentPick,
   allDraftPicks: widget.draftOrder,
-  // Add this line to pass a selection callback when appropriate
+  isActualPick: widget.actualPickNumbers.contains(draftPick.pickNumber), // Add this line
   onSelect: widget.currentPickNumber == draftPick.pickNumber && isUserTeam ? 
     (Player player) {
-      // Find the widget's selection callback and call it with the player's ID
       if (widget.onPlayerSelected != null) {
         widget.onPlayerSelected!(player.id);
       }

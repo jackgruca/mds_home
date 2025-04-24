@@ -97,6 +97,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   List<List<dynamic>> _draftOrderLists = [];
   List<List<dynamic>> _availablePlayersLists = [];
   List<List<dynamic>> _teamNeedsLists = [];
+  List<int> _actualPickNumbers = [];
+
 
   String? _activeUserTeam;
 
@@ -598,6 +600,8 @@ List<Color> _getTeamGradientColors(String teamName) {
     final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
     final availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
     final teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
+     List<int> actualPickNumbers = await draftService.applyActualPicks() ?? [];
+
 
     setState(() {
       _players = players;
@@ -613,9 +617,12 @@ List<Color> _getTeamGradientColors(String teamName) {
       _availablePlayersLists = availablePlayersLists;
       _teamNeedsLists = teamNeedsLists;
       
+      _actualPickNumbers = actualPickNumbers;
+      
       _isDataLoaded = true;
       _statusMessage = "Draft data loaded successfully";
     });
+
 
     // Update active user team after loading data
     _updateActiveUserTeam();
@@ -1573,19 +1580,28 @@ Widget build(BuildContext context) {
         titleSpacing: 8,
         elevation: 0,
         actions: [
-          // Theme toggle button
-          IconButton(
-            icon: Icon(
-              Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode,
-              size: 20,
-            ),
-            onPressed: () {
-              Provider.of<ThemeManager>(context, listen: false).toggleTheme();
-            },
-          ),
-        ],
+    // Add refresh button
+    IconButton(
+      icon: const Icon(Icons.refresh, size: 20),
+      tooltip: 'Refresh Actual Picks',
+      onPressed: () {
+        _loadData(); // This will reload everything including actual picks
+      },
+    ),
+    
+    // Theme toggle button
+    IconButton(
+      icon: Icon(
+        Provider.of<ThemeManager>(context).themeMode == ThemeMode.light
+            ? Icons.dark_mode
+            : Icons.light_mode,
+        size: 20,
+      ),
+      onPressed: () {
+        Provider.of<ThemeManager>(context, listen: false).toggleTheme();
+      },
+    ),
+  ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: TabBar(
@@ -1696,6 +1712,8 @@ Widget build(BuildContext context) {
                   scrollController: _draftOrderScrollController,
                   teamNeeds: _teamNeedsLists,
                   currentPickNumber: _draftService?.getNextPick()?.pickNumber, // Pass current pick number
+                  actualPickNumbers: _actualPickNumbers, // Add this line
+
                 ),
                AvailablePlayersTab(
   availablePlayers: _availablePlayersLists,

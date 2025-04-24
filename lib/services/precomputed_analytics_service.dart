@@ -74,35 +74,52 @@ class PrecomputedAnalyticsService {
   }
   
   static Future<Map<String, dynamic>> _fetchPositionBreakdown(
-    String? team,
-    List<int>? rounds,
-    int? year,
-  ) async {
-    try {
-      // Try API first
-      final filters = {
-  if (team != null && team != 'All Teams') 'userTeam': team,
-  if (rounds != null) 'round': rounds,
-  if (year != null) 'year': year,
-};
+  String? team,
+  List<int>? rounds,
+  int? year,
+) async {
+  try {
+    // Log API request parameters
+    debugPrint('Fetching position breakdown with: team=${team ?? "all"}, rounds=${rounds?.join(",") ?? "all"}, year=${year ?? "all"}');
+    
+    // Try API first
+    final filters = {
+      if (team != null && team != 'All Teams') 'userTeam': team,
+      if (rounds != null) 'round': rounds,
+      if (year != null) 'year': year,
+    };
+    
+    debugPrint('API filters: $filters');
+    
+    final apiData = await AnalyticsApiService.getAnalyticsData(
+      dataType: 'positionDistribution',
+      filters: filters,
+    );
+    
+    if (!apiData.containsKey('error') && apiData.containsKey('data')) {
+      debugPrint('Using API data for position distribution (success)');
       
-      final apiData = await AnalyticsApiService.getAnalyticsData(
-        dataType: 'positionDistribution',
-        filters: filters,
-      );
+      final data = apiData['data'];
       
-      if (!apiData.containsKey('error') && apiData.containsKey('data')) {
-        debugPrint('Using API data for position distribution');
-        
-        final data = apiData['data'];
-        
-        // If requesting all teams or specific team, handle accordingly
-        if (team == null) {
-          return data['overall'] ?? {'total': 0, 'positions': {}};
-        } else if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
-          return data['byTeam'][team] ?? {'total': 0, 'positions': {}};
+      // Count the total positions for debugging
+      int totalPositions = 0;
+      if (data['overall'] != null && data['overall']['positions'] != null) {
+        for (var entry in (data['overall']['positions'] as Map).entries) {
+          totalPositions += (entry.value['count'] as int? ?? 0);
         }
       }
+      
+      debugPrint('API returned data with $totalPositions total positions');
+      
+      // If requesting all teams or specific team, handle accordingly
+      if (team == null) {
+        return data['overall'] ?? {'total': 0, 'positions': {}};
+      } else if (data.containsKey('byTeam') && data['byTeam'].containsKey(team)) {
+        return data['byTeam'][team] ?? {'total': 0, 'positions': {}};
+      }
+    } else {
+      debugPrint('API request failed or returned error: ${apiData['error'] ?? "Unknown error"}');
+    }
       
       // Fall back to Firestore if API fails
       await ensureInitialized();

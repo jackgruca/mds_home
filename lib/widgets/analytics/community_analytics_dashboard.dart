@@ -36,6 +36,38 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
     _analyticsProvider = AnalyticsProvider();
   }
 
+  // Add this method to the CommunityAnalyticsDashboard class
+Widget _buildDataSourceInfo() {
+  return Consumer<AnalyticsProvider>(
+    builder: (context, provider, child) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline, size: 16, color: Colors.blue),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Analytics shown represent community data from real user drafts where a user '
+                'was controlling ${widget.userTeam}.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade800,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -85,7 +117,11 @@ class _CommunityAnalyticsDashboardState extends State<CommunityAnalyticsDashboar
               );
             }
           ),
-          
+          // Checking real world usage
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: _buildDataSourceInfo(),
+          ),
           // Tab selector
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,

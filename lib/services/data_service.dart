@@ -9,6 +9,7 @@ import 'package:csv/csv.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
+import 'draft_value_service.dart';
 
 /// Service responsible for loading and parsing data from CSV files
 class DataService {
@@ -56,6 +57,138 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
     return [];
   }
 }
+
+/// Load actual draft picks from CSV
+static Future<List<DraftPick>> loadActualPicks({required int year}) async {
+  try {
+    // Try to load the actual picks CSV
+    final data = await rootBundle.loadString('assets/$year/actual_picks_2025.csv');
+    
+    // Parse the CSV
+    List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
+    
+    if (csvTable.isEmpty || csvTable.length <= 1) {
+      debugPrint("No actual picks data found or only header row present");
+      return [];
+    }
+    
+    // Extract the header row to map column names to indices
+    List<String> headers = csvTable[0].map<String>((dynamic col) => col.toString().toLowerCase()).toList();
+    
+    // Create index mappings for column names
+    Map<String, int> columnIndices = {};
+    for (int i = 0; i < headers.length; i++) {
+      columnIndices[headers[i]] = i;
+    }
+    
+    // Skip the header row (index 0)
+    List<DraftPick> actualPicks = [];
+    for (int i = 1; i < csvTable.length; i++) {
+      try {
+        var row = csvTable[i];
+        
+        // Get pick number
+        int pickNumber = 0;
+        if (columnIndices.containsKey('pick') && columnIndices['pick']! < row.length) {
+          pickNumber = int.tryParse(row[columnIndices['pick']!].toString()) ?? 0;
+        }
+        
+        // Get team name
+        String teamName = "";
+        if (columnIndices.containsKey('team') && columnIndices['team']! < row.length) {
+          teamName = row[columnIndices['team']!].toString();
+        }
+        
+        // Skip if we don't have valid pick data
+        if (pickNumber <= 0 || teamName.isEmpty) continue;
+        
+        // Get player data
+        String playerName = "";
+        String position = "";
+        String school = "";
+        
+        if (columnIndices.containsKey('player') && columnIndices['player']! < row.length) {
+          playerName = row[columnIndices['player']!].toString();
+        }
+        
+        if (columnIndices.containsKey('position') && columnIndices['position']! < row.length) {
+          position = row[columnIndices['position']!].toString();
+        }
+        
+        if (columnIndices.containsKey('school') && columnIndices['school']! < row.length) {
+          school = row[columnIndices['school']!].toString();
+        }
+        
+        // Get original team for trade detection
+        String originalTeam = "";
+        if (columnIndices.containsKey('original_team') && columnIndices['original_team']! < row.length) {
+          originalTeam = row[columnIndices['original_team']!].toString();
+        } else {
+          originalTeam = teamName; // Default to current team if not specified
+        }
+        
+        // Create draft pick
+        DraftPick pick = DraftPick(
+          pickNumber: pickNumber,
+          teamName: teamName,
+          round: DraftValueService.getRoundForPick(pickNumber).toString(),
+        );
+        
+        // If we have player data, create and assign the player
+        if (playerName.isNotEmpty) {
+          // Find player in available players by name and position (approximate match)
+          Player? selectedPlayer;
+          
+          // First look for exact match
+          try {
+            selectedPlayer = _availablePlayers.firstWhere(
+              (player) => player.name.toLowerCase() == playerName.toLowerCase() && 
+                          player.position.toLowerCase() == position.toLowerCase()
+            );
+          } catch (e) {
+            // If no exact match, try to find closest match
+            try {
+              selectedPlayer = _availablePlayers.firstWhere(
+                (player) => player.name.toLowerCase().contains(playerName.toLowerCase().split(' ').last) &&
+                            player.position.toLowerCase() == position.toLowerCase()
+              );
+            } catch (e) {
+              // If still no match, create a new player
+              selectedPlayer = Player(
+                id: 10000 + pickNumber, // Use high ID to avoid conflicts
+                name: playerName,
+                position: position,
+                rank: pickNumber, // Use pick number as rank
+                school: school,
+              );
+            }
+          }
+          
+          pick.selectedPlayer = selectedPlayer;
+        }
+        
+        // If this is a traded pick, add trade info
+        if (teamName != originalTeam) {
+          pick.tradeInfo = "From $originalTeam";
+        }
+        
+        actualPicks.add(pick);
+      } catch (e) {
+        debugPrint("Error parsing actual pick at row $i: $e");
+      }
+    }
+    
+    debugPrint("Successfully loaded ${actualPicks.length} actual picks");
+    return actualPicks;
+  } catch (e) {
+    // If the file doesn't exist or there's an error, return empty list
+    debugPrint("No actual picks data found: $e");
+    return [];
+  }
+}
+
+// Add a static _availablePlayers field to store cached player data
+static final List<Player> _availablePlayers = [];
 
 // Updated part of the loadAvailablePlayers method in DataService
 static Future<List<Player>> loadAvailablePlayers({required int year}) async {

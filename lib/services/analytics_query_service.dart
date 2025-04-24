@@ -239,7 +239,6 @@ static Future<int?> getDraftCount() async {
   }
 
   /// Get top positions by pick number
-// AFTER
 static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
   String? team,
   int? round,
@@ -269,28 +268,40 @@ static Future<List<Map<String, dynamic>>> getTopPositionsByTeam({
     Map<int, Map<String, int>> pickPositionCounts = {};
     Map<int, int> pickTotals = {};
     Map<int, String> pickRounds = {};
+    
+    // Add debug counters
+    int totalProcessedPicks = 0;
+    int filteredByRound = 0;
+    int filteredByUserTeam = 0;
+    int includeInResults = 0;
 
     for (var doc in snapshot.docs) {
       try {
         final data = doc.data() as Map<String, dynamic>;
         final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
+        final userTeam = data['userTeam'] as String?;
         
-        // AFTER
-for (var pickData in picks) {
-  final pick = DraftPickRecord.fromFirestore(pickData);
-  
-  // Filter by round if specified
-  if (round != null && int.tryParse(pick.round) != round) {
-    continue;
-  }
-  
-  // Only include data where the pick's team matches the user-controlled team
-  if (team != null && team != 'All Teams' && pick.actualTeam != team) {
-    continue;
-  }
-  
-  final pickNumber = pick.pickNumber;
-  final position = pick.position;
+        totalProcessedPicks += picks.length;
+        
+        for (var pickData in picks) {
+          final pick = DraftPickRecord.fromFirestore(pickData);
+          
+          // Filter by round if specified
+          if (round != null && int.tryParse(pick.round) != round) {
+            filteredByRound++;
+            continue;
+          }
+          
+          // Only include data where the pick's team matches the user-controlled team
+          if (team != null && team != 'All Teams' && pick.actualTeam != userTeam) {
+            filteredByUserTeam++;
+            continue;
+          }
+          
+          includeInResults++;
+          
+          final pickNumber = pick.pickNumber;
+          final position = pick.position;
           
           // Initialize data structures if needed
           if (!pickPositionCounts.containsKey(pickNumber)) {
@@ -314,6 +325,14 @@ for (var pickData in picks) {
         debugPrint('Error processing document for position trends: $e');
       }
     }
+
+    // Log detailed stats
+    debugPrint('Position Trends Stats for ${team ?? 'All Teams'}:');
+    debugPrint('- Total picks processed: $totalProcessedPicks');
+    debugPrint('- Filtered by round: $filteredByRound');
+    debugPrint('- Filtered by userTeam: $filteredByUserTeam');
+    debugPrint('- Included in results: $includeInResults');
+    debugPrint('- Filter rate: ${(includeInResults / totalProcessedPicks * 100).toStringAsFixed(2)}%');
 
     // Convert to desired output format
     List<Map<String, dynamic>> result = [];

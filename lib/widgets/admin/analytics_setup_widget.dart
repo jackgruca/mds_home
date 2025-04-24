@@ -1,6 +1,7 @@
 // lib/widgets/admin/analytics_setup_widget.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:mds_home/services/analytics_query_service.dart';
 import '../../services/firebase_service.dart';
 import 'emergency_analytics_processor.dart';
 import 'incremental_analytics_processor.dart';
@@ -161,6 +162,73 @@ class _AnalyticsSetupWidgetState extends State<AnalyticsSetupWidget> {
     setState(() {
       _isLoading = false;
       _statusMessage = 'Error checking analytics: $e';
+    });
+  }
+}
+
+// Add this to lib/widgets/admin/analytics_setup_widget.dart
+
+Future<void> _fetchAnalyticsStats() async {
+  setState(() {
+    _isLoading = true;
+    _statusMessage = 'Fetching analytics stats...';
+  });
+
+  try {
+    final db = FirebaseFirestore.instance;
+    
+    // Get metadata
+    final metadataDoc = await db.collection('precomputedAnalytics').doc('metadata').get();
+    final metadata = metadataDoc.data() ?? {};
+    
+    // Get total drafts count
+    final draftCount = await AnalyticsQueryService.getDraftCount();
+    
+    // Get position distribution document
+    final posDistDoc = await db.collection('precomputedAnalytics').doc('positionDistribution').get();
+    final posDistData = posDistDoc.data() ?? {};
+    final totalPositions = posDistData['overall']?['total'] ?? 0;
+    
+    // Get team needs document
+    final teamNeedsDoc = await db.collection('precomputedAnalytics').doc('teamNeeds').get();
+    final teamNeedsData = teamNeedsDoc.data() ?? {};
+    final totalTeams = teamNeedsData['needs'] != null 
+      ? (teamNeedsData['needs'] as Map).length 
+      : 0;
+    
+    // Get playerDeviations document
+    final playerDevsDoc = await db.collection('precomputedAnalytics').doc('playerDeviations').get();
+    final playerDevsData = playerDevsDoc.data() ?? {};
+    final totalPlayers = playerDevsData['players'] != null 
+      ? (playerDevsData['players'] as List).length 
+      : 0;
+    
+    // Build stats message
+    final statsMessage = '''
+Analytics Collection Stats:
+--------------------------
+Total draft simulations: ${draftCount ?? 'Unknown'}
+Drafts processed for analytics: ${metadata['documentsProcessed'] ?? 'Unknown'}
+Last updated: ${metadata['lastUpdated'] != null ? (metadata['lastUpdated'] as Timestamp).toDate().toString() : 'Unknown'}
+
+Precomputed Data:
+--------------------------
+Total positions (filtered by userTeam): $totalPositions
+Team needs entries: $totalTeams
+Player deviation entries: $totalPlayers
+
+Status: ${metadata['inProgress'] == true ? 'Processing in progress' : 'Ready'}
+${metadata['error'] != null ? 'Error: ${metadata['error']}' : ''}
+''';
+    
+    setState(() {
+      _isLoading = false;
+      _statusMessage = statsMessage;
+    });
+  } catch (e) {
+    setState(() {
+      _isLoading = false;
+      _statusMessage = 'Error fetching analytics stats: $e';
     });
   }
 }
@@ -523,6 +591,14 @@ ElevatedButton(
       Text('Reset All Precomputed Data'),
     ],
   ),
+),
+ElevatedButton(
+  onPressed: _fetchAnalyticsStats,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.amber,
+    foregroundColor: Colors.black,
+  ),
+  child: const Text('Run Analytics Diagnostic'),
 ),
 ElevatedButton(
   onPressed: _checkAnalyticsProcessing,

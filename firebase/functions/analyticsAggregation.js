@@ -583,6 +583,8 @@ async function aggregatePositionDistribution(analyticsSnapshot) {
     // Overall position counts
     const positionCounts = {};
     let totalPicks = 0;
+    let totalProcessedPicks = 0; // Add this counter
+    let userTeamPicks = 0; // Add this counter
     
     // Team-specific position counts
     const teamPositionCounts = {};
@@ -590,24 +592,38 @@ async function aggregatePositionDistribution(analyticsSnapshot) {
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
+        const userTeam = data.userTeam; // Get user team
+        
+        totalProcessedPicks += picks.length; // Count all picks
         
         picks.forEach((pick) => {
-            const position = pick.position;
-            const team = pick.actualTeam;
-            
-            // Overall counts
-            positionCounts[position] = (positionCounts[position] || 0) + 1;
-            // firebase/functions/aggregateAnalytics.js (continued)
-
-            totalPicks++;
-            
-            // Team-specific counts
-            if (!teamPositionCounts[team]) {
-                teamPositionCounts[team] = {};
+            // Only count if this team was user-controlled
+            if (pick.actualTeam === userTeam) {
+                userTeamPicks++; // Count user-controlled picks
+                
+                const position = pick.position;
+                const team = pick.actualTeam;
+                
+                // Overall counts
+                positionCounts[position] = (positionCounts[position] || 0) + 1;
+                totalPicks++;
+                
+                // Team-specific counts
+                if (!teamPositionCounts[team]) {
+                    teamPositionCounts[team] = {};
+                }
+                teamPositionCounts[team][position] = (teamPositionCounts[team][position] || 0) + 1;
             }
-            teamPositionCounts[team][position] = (teamPositionCounts[team][position] || 0) + 1;
         });
     });
+    
+    // Log pick counts
+    console.log(`Position Distribution Aggregation Stats:
+    - Total processed picks: ${totalProcessedPicks}
+    - User-controlled team picks: ${userTeamPicks}
+    - Final picks included in analytics: ${totalPicks}
+    - Filter rate: ${(userTeamPicks / totalProcessedPicks * 100).toFixed(2)}%`);
+
     
     // Format overall position distribution
     const overallDistribution = {
@@ -759,24 +775,37 @@ function aggregatePositionPickData(analyticsSnapshot, specificRound = null) {
     const pickTotals = {};
     const pickRounds = {};
     
+    // Add debug counters
+    let totalProcessedPicks = 0;
+    let filteredByRound = 0;
+    let filteredByUserTeam = 0;
+    let finalIncludedPicks = 0;
+    
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
         const userTeam = data.userTeam; // Get the user-controlled team
+        
+        totalProcessedPicks += picks.length;
         
         picks.forEach((pick) => {
             const round = parseInt(pick.round) || 0;
             
             // Filter by round if specified
             if (specificRound !== null && round !== specificRound) {
+                filteredByRound++;
                 return;
             }
             
             // Only include picks from user-controlled teams
             if (pick.actualTeam !== userTeam) {
+                filteredByUserTeam++;
                 return;
             }
             
+            finalIncludedPicks++;
+            
+            // Original code continues...
             const pickNumber = pick.pickNumber;
             const position = pick.position;
             
@@ -798,6 +827,14 @@ function aggregatePositionPickData(analyticsSnapshot, specificRound = null) {
             pickRounds[pickNumber] = pick.round;
         });
     });
+
+    console.log(`Position by Pick Aggregation Stats (Round: ${specificRound || 'All'}):
+        - Total processed picks: ${totalProcessedPicks}
+        - Filtered by round: ${filteredByRound}
+        - Filtered by user team: ${filteredByUserTeam}
+        - Final picks included: ${finalIncludedPicks}
+        - Filter rate: ${(finalIncludedPicks / totalProcessedPicks * 100).toFixed(2)}%`);
+    
     
     // Convert to final format with percentage calculations
     const result = [];
