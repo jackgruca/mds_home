@@ -662,12 +662,18 @@ async function aggregateTeamNeeds(analyticsSnapshot) {
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
+        const userTeam = data.userTeam; // Get the user-controlled team
         
         picks.forEach((pick) => {
             const round = parseInt(pick.round) || 0;
             
             // Only consider early rounds (1-3)
             if (round > 3) return;
+            
+            // Only include picks from user-controlled teams
+            if (pick.actualTeam !== userTeam) {
+                return;
+            }
             
             const position = pick.position;
             const team = pick.actualTeam;
@@ -756,12 +762,18 @@ function aggregatePositionPickData(analyticsSnapshot, specificRound = null) {
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
+        const userTeam = data.userTeam; // Get the user-controlled team
         
         picks.forEach((pick) => {
             const round = parseInt(pick.round) || 0;
             
             // Filter by round if specified
             if (specificRound !== null && round !== specificRound) {
+                return;
+            }
+            
+            // Only include picks from user-controlled teams
+            if (pick.actualTeam !== userTeam) {
                 return;
             }
             
@@ -858,12 +870,18 @@ function aggregatePlayerPickData(analyticsSnapshot, specificRound = null) {
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
+        const userTeam = data.userTeam; // Get the user-controlled team
         
         picks.forEach((pick) => {
             const round = parseInt(pick.round) || 0;
             
             // Filter by round if specified
             if (specificRound !== null && round !== specificRound) {
+                return;
+            }
+            
+            // Only include picks from user-controlled teams
+            if (pick.actualTeam !== userTeam) {
                 return;
             }
             
@@ -948,8 +966,14 @@ async function aggregatePlayerDeviations(analyticsSnapshot) {
     analyticsSnapshot.forEach((doc) => {
         const data = doc.data();
         const picks = data.picks || [];
+        const userTeam = data.userTeam; // Get the user-controlled team
         
         picks.forEach((pick) => {
+            // Only include picks from user-controlled teams
+            if (pick.actualTeam !== userTeam) {
+                return;
+            }
+            
             // Calculate the deviation (positive means picked later than rank)
             const deviation = pick.pickNumber - pick.playerRank;
             

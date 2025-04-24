@@ -390,16 +390,21 @@ static Future<List<Map<String, dynamic>>> getTopPlayersByTeam({
         final picks = List<Map<String, dynamic>>.from(data['picks'] ?? []);
         
         for (var pickData in picks) {
-          final pick = DraftPickRecord.fromFirestore(pickData);
-          
-          // Filter by round if specified
-          if (round != null && int.tryParse(pick.round) != round) {
-            continue;
-          }
-          
-          final pickNumber = pick.pickNumber;
-          final playerName = pick.playerName;
-          final position = pick.position;
+  final pick = DraftPickRecord.fromFirestore(pickData);
+  
+  // Filter by round if specified
+  if (round != null && int.tryParse(pick.round) != round) {
+    continue;
+  }
+  
+  // Only include data where the pick's team matches the user-controlled team
+  if (team != null && team != 'All Teams' && pick.actualTeam != team) {
+    continue;
+  }
+  
+  final pickNumber = pick.pickNumber;
+  final playerName = pick.playerName;
+  final position = pick.position;
           
           // Initialize data structures if needed
           if (!pickPlayerCounts.containsKey(pickNumber)) {
