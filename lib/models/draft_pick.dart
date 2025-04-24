@@ -4,15 +4,21 @@ import 'package:flutter/material.dart';
 import '../services/draft_value_service.dart';
 import 'player.dart';
 
+
 class DraftPick {
+  // Existing properties
   final int pickNumber;
   String teamName;
   Player? selectedPlayer;
   final String round;
   final int? originalPickNumber;
   String? tradeInfo;
-  bool isActiveInDraft = true;  // New property
+  bool isActiveInDraft = true;
   
+  // Add this new property
+  bool isLockedPick = false;  // Indicates if this is a real draft pick
+
+  // Update constructor to include the new property
   DraftPick({
     required this.pickNumber,
     required this.teamName,
@@ -21,6 +27,7 @@ class DraftPick {
     this.originalPickNumber,
     this.tradeInfo,
     this.isActiveInDraft = true,
+    this.isLockedPick = false,  // Default to false
   });
   
   // Create a DraftPick from CSV row data
@@ -116,11 +123,22 @@ factory DraftPick.fromCsvRowWithHeaders(List<dynamic> row, Map<String, int> colu
       teamName = "Unknown Team";
     }
     
+    // Check if there's a LOCKED or IS_LOCKED column
+      bool isLocked = false;
+      if (columnIndices.containsKey('LOCKED') || columnIndices.containsKey('IS_LOCKED')) {
+        int lockedIndex = columnIndices['LOCKED'] ?? columnIndices['IS_LOCKED'] ?? -1;
+        if (lockedIndex >= 0 && lockedIndex < row.length) {
+          String lockedStr = row[lockedIndex].toString().trim().toLowerCase();
+          isLocked = lockedStr == 'true' || lockedStr == '1' || lockedStr == 'yes';
+        }
+      }
+
     return DraftPick(
       pickNumber: pickNumber,
       teamName: teamName,
       round: round,
       tradeInfo: tradeInfo?.isEmpty ?? true ? null : tradeInfo,
+      isLockedPick: isLocked,
     );
   } catch (e) {
     debugPrint("Error creating DraftPick from row with headers: $e");

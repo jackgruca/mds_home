@@ -258,6 +258,12 @@ bool anyUserTeamHasOffers() {
     _currentPick = nextPick.pickNumber;
     _tradeUp = false;
     _qbTrade = false;
+
+    // If this pick is locked (real pick), just return it without changes
+  if (nextPick.isLockedPick) {
+    _statusMessage = "Actual Pick #${nextPick.pickNumber}: ${nextPick.teamName} selected ${nextPick.selectedPlayer?.name ?? 'Unknown'} (${nextPick.selectedPlayer?.position ?? 'N/A'})";
+    return nextPick;
+  }
       
     // Check if this is a user team pick
     if (userTeams != null && userTeams!.contains(nextPick.teamName)) {
@@ -310,10 +316,21 @@ bool anyUserTeamHasOffers() {
     
     return nextPick;
   }
+
+  DraftPick? _getNextPick() {
+  for (var pick in draftOrder) {
+    // Skip picks that are already selected OR are active, but not locked
+    if (!pick.isSelected && pick.isActiveInDraft) {
+      return pick;
+    }
+  }
+  return null;
+}
   
 TradePackage? _evaluateTrades(DraftPick nextPick) {
   // Skip if already has trade info or is a user team pick
-  if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty) {
+  if (nextPick.tradeInfo != null && nextPick.tradeInfo!.isNotEmpty || 
+      nextPick.isLockedPick) {
     return null;
   }
 
@@ -1200,17 +1217,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
       return null;
     }
   }
-  
-  /// Get the next pick in the draft order
-  DraftPick? _getNextPick() {
-    for (var pick in draftOrder) {
-      if (!pick.isSelected && pick.isActiveInDraft) {
-        return pick;
-      }
-    }
-    return null;
-  }
-  
+
   /// Generate user-initiated trade offers to AI teams
   void generateUserTradeOffers() {
   if (userTeams == null || userTeams!.isEmpty || !enableUserTradeProposals) {

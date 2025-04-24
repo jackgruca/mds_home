@@ -1,4 +1,5 @@
 // lib/screens/draft_overview_screen.dart - Updated with trade integration
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_manager.dart';
 import 'package:provider/provider.dart';
@@ -81,6 +82,8 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   DraftPick? _userNextPick;
   final ScrollController _draftOrderScrollController = ScrollController();
   bool _summaryShown = false;
+  bool _useLiveData = true;
+
 
   // Tab controller for the additional trade history tab
   late TabController _tabController;
@@ -181,6 +184,32 @@ void initState() {
     debugPrint("ScrollToCurrentPick: Controller not ready or draft service null");
     return;
   }
+
+  void refreshLiveData() {
+  if (!_useLiveData) {
+    setState(() {
+      _useLiveData = true;  // Turn on live data if it's off
+    });
+  }
+  
+  // Show loading indicator
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Refreshing live draft data...'),
+      duration: Duration(seconds: 1),
+    ),
+  );
+  
+  // Reload data
+  _loadData().then((_) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Live draft data updated'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  });
+}
   
   // Get the current pick
   DraftPick? currentPick = _draftService!.getNextPick();
@@ -475,6 +504,12 @@ List<Color> _getTeamGradientColors(String teamName) {
       pick.isActiveInDraft = round <= widget.numberOfRounds;
     }
     
+    // Use the useLiveData parameter when loading draft order
+      allDraftPicks = await DataService.loadDraftOrder(
+        year: widget.draftYear, 
+        useLiveData: _useLiveData
+      );
+
     // Use custom team needs if provided
     if (widget.customTeamNeeds != null) {
       debugPrint("Using custom team needs data");
@@ -1573,6 +1608,27 @@ Widget build(BuildContext context) {
         titleSpacing: 8,
         elevation: 0,
         actions: [
+          // Add this button in your app bar actions
+IconButton(
+  icon: const Icon(Icons.refresh, size: 20),
+  tooltip: 'Refresh Live Draft Data',
+  onPressed: _refreshLiveData,
+),
+          // Live draft toggle
+          IconButton(
+    icon: Icon(
+      _useLiveData ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+      size: 20,
+    ),
+    tooltip: 'Live Draft Mode: ${_useLiveData ? 'ON' : 'OFF'}',
+    onPressed: () {
+      setState(() {
+        _useLiveData = !_useLiveData;
+        // Reload data when toggling
+        _loadData();
+      });
+    },
+  ),
           // Theme toggle button
           IconButton(
             icon: Icon(

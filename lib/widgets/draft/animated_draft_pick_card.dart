@@ -471,16 +471,19 @@ Color _getValueColor(double ratio) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     // Determine the card color with dark mode support
-    Color cardColor = widget.isUserTeam ? 
-        (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50) : 
-        (isDarkMode ? Colors.grey.shade800 : Colors.white);
-    
-    // Apply special highlight if this is the current pick
-    if (widget.isCurrentPick) {
-      cardColor = isDarkMode ? 
-        Colors.green.shade900.withOpacity(0.3) : 
-        Colors.green.shade50;
-    }
+    Color cardColor;
+  
+  if (widget.draftPick.isLockedPick) {
+    // Special color for locked (real) picks
+    cardColor = isDarkMode ? 
+      Colors.purple.shade900 : Colors.purple.shade50;
+  } else if (widget.isUserTeam) {
+    cardColor = isDarkMode ? 
+      Colors.blue.shade900 : Colors.blue.shade50;
+  } else {
+    cardColor = isDarkMode ? 
+      Colors.grey.shade800 : Colors.white;
+  }
     
     // Consistent height for all cards (important for scrolling calculation)
     const double cardHeight = 72.0;
@@ -704,6 +707,20 @@ Color _getValueColor(double ratio) {
                     //     onPressed: () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!),
                     //   ),
                     
+                    if (widget.draftPick.isLockedPick)
+    // Add a small badge/icon to indicate real pick
+    // This goes in the row of widgets in your card
+    Padding(
+      padding: const EdgeInsets.only(right: 4.0),
+      child: Tooltip(
+        message: "Real Draft Pick",
+        child: Icon(
+          Icons.verified,
+          size: 16,
+          color: isDarkMode ? Colors.purple.shade300 : Colors.purple.shade700,
+        ),
+      ),
+    ),
                     // Show rank info for selected players
                     if (widget.draftPick.selectedPlayer != null)
                       Container(

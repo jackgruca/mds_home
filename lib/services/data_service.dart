@@ -38,6 +38,7 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
     
     // Skip the header row (index 0)
     List<DraftPick> draftPicks = [];
+
     for (int i = 1; i < csvTable.length; i++) {
       try {
         DraftPick pick = DraftPick.fromCsvRowWithHeaders(csvTable[i], columnIndices);
@@ -48,8 +49,91 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
         debugPrint("Error parsing draft pick at row $i: $e");
       }
     }
+
+// Now check if live data exists and should be used
+    if (useLiveData) {
+      try {
+        final liveDataPath = 'assets/$year/live_draft_picks.csv';
+        final liveData = await rootBundle.loadString(liveDataPath);
+        
+        // Parse live data
+        List<List<dynamic>> liveTable = const CsvToListConverter(eol: "\n").convert(liveData);
+        
+        // Skip the header row (index 0)
+        if (liveTable.length > 1) {
+          // Create mapping of column names to indices
+          List<String> headers = liveTable[0].map<String>((dynamic col) => col.toString().toUpperCase()).toList();
+          Map<String, int> columnIndices = {};
+          for (int i = 0; i < headers.length; i++) {
+            columnIndices[headers[i]] = i;
+          }
+          
+          // Update draft picks with live data
+          for (int i = 1; i < liveTable.length; i++) {
+            var row = liveTable[i];
+            
+            // Find pick number to update
+            int pickIndex = columnIndices['PICK'] ?? 0;
+            if (pickIndex >= row.length) continue;
+            
+            int pickNumber = int.tryParse(row[pickIndex].toString()) ?? 0;
+            if (pickNumber <= 0) continue;
+            
+            // Find matching pick in our draft order
+            int draftPickIndex = draftPicks.indexWhere((p) => p.pickNumber == pickNumber);
+            if (draftPickIndex < 0) continue;
+            
+            // Check if this is a locked pick
+            bool isLocked = false;
+            int lockedIndex = columnIndices['LOCKED'] ?? columnIndices['IS_LOCKED'] ?? -1;
+            if (lockedIndex >= 0 && lockedIndex < row.length) {
+              String lockedStr = row[lockedIndex].toString().trim().toLowerCase();
+              isLocked = lockedStr == 'true' || lockedStr == '1' || lockedStr == 'yes';
+            }
+            
+            // Only process if locked
+            if (!isLocked) continue;
+            
+            // Get team name in case of trades
+            int teamIndex = columnIndices['TEAM'] ?? 1;
+            if (teamIndex < row.length) {
+              String teamName = row[teamIndex].toString();
+              if (teamName.isNotEmpty) {
+                draftPicks[draftPickIndex].teamName = teamName;
+              }
+            }
+            
+            // Get player name and position to create selected player
+            int selectionIndex = columnIndices['SELECTION'] ?? 2;
+            int positionIndex = columnIndices['POSITION'] ?? 3;
+            
+            if (selectionIndex < row.length && positionIndex < row.length) {
+              String playerName = row[selectionIndex].toString();
+              String position = row[positionIndex].toString();
+              
+              if (playerName.isNotEmpty && position.isNotEmpty) {
+                // Create a player object for this selection
+                Player player = Player(
+                  id: 10000 + pickNumber, // Use arbitrary ID for live picks
+                  name: playerName,
+                  position: position,
+                  rank: pickNumber, // Use pick number as rank for simplicity
+                  school: row.length > 5 ? row[5].toString() : "",
+                );
+                
+                // Update the draft pick
+                draftPicks[draftPickIndex].selectedPlayer = player;
+                draftPicks[draftPickIndex].isLockedPick = true;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Live data file may not exist yet - that's okay
+        debugPrint("Note: Live draft data not loaded: $e");
+      }
+    }
     
-    debugPrint("Successfully loaded ${draftPicks.length} draft picks");
     return draftPicks;
   } catch (e) {
     debugPrint("Error loading draft order for year $year: $e");
@@ -172,7 +256,22 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
       } catch (e) {
         debugPrint("Error parsing player at row $i: $e");
       }
-    }
+      
+    // If we have locked picks, remove those players from available pool
+  if (lockedPicks != null && lockedPicks.isNotEmpty) {
+    // Get set of player names from locked picks (real selections)
+    final Set<String> pickedPlayerNames = lockedPicks
+        .where((pick) => pick.isLockedPick && pick.selectedPlayer != null)
+        .map((pick) => pick.selectedPlayer!.name.toLowerCase())
+        .toSet();
+    
+    // Remove those players
+    players.removeWhere((player) => 
+      pickedPlayerNames.contains(player.name.toLowerCase()));
+  }
+  
+  return players;
+}
     
     // Sort players by rank to ensure consistent ordering
     players.sort((a, b) => a.rank.compareTo(b.rank));
