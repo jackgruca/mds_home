@@ -81,10 +81,10 @@ class PrecomputedAnalyticsService {
     try {
       // Try API first
       final filters = {
-        if (team != null) 'team': team,
-        if (rounds != null) 'rounds': rounds,
-        if (year != null) 'year': year,
-      };
+  if (team != null && team != 'All Teams') 'userTeam': team,
+  if (rounds != null) 'round': rounds,
+  if (year != null) 'year': year,
+};
       
       final apiData = await AnalyticsApiService.getAnalyticsData(
         dataType: 'positionDistribution',
@@ -234,10 +234,10 @@ class PrecomputedAnalyticsService {
     try {
       // Try API first
       final filters = {
-        if (team != null) 'team': team,
-        if (round != null) 'round': round,
-        if (year != null) 'year': year,
-      };
+  if (team != null && team != 'All Teams') 'userTeam': team,
+  if (round != null) 'round': round,
+  if (year != null) 'year': year,
+};
       
       String dataType = 'positionsByPick';
       if (round != null) {
@@ -319,10 +319,10 @@ static Future<List<Map<String, dynamic>>> _fetchConsolidatedPlayersByPick(
   try {
     // Try API first
     final filters = {
-      if (team != null) 'team': team,
-      if (round != null) 'round': round,
-      if (year != null) 'year': year,
-    };
+  if (team != null && team != 'All Teams') 'userTeam': team,
+  if (round != null) 'round': round,
+  if (year != null) 'year': year,
+};
     
     String dataType = 'playersByPick';
     if (round != null) {

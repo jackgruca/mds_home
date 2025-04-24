@@ -256,13 +256,18 @@ async function aggregateTeamPerformanceMetrics(analyticsSnapshot) {
         
         // Process each team's picks
         const teamPicks = {};
-        
-        // Group picks by team
-        picks.forEach((pick) => {
-            const team = pick.actualTeam;
-            if (!teamPicks[team]) teamPicks[team] = [];
-            teamPicks[team].push(pick);
-        });
+
+// Group picks by team, but only include picks where team is the userTeam
+picks.forEach((pick) => {
+  const team = pick.actualTeam;
+  const userTeam = data.userTeam;
+  
+  // Only include this pick in team analysis if the team matches the user's team
+  if (team === userTeam) {
+    if (!teamPicks[team]) teamPicks[team] = [];
+    teamPicks[team].push(pick);
+  }
+});
         
         // Calculate team-specific metrics
         for (const [team, teamPickList] of Object.entries(teamPicks)) {
