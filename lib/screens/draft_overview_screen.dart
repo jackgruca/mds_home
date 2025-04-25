@@ -675,7 +675,7 @@ List<Color> _getTeamGradientColors(String teamName) {
       _teamNeedsLists = teamNeedsLists;
       
       _isDataLoaded = true;
-      _statusMessage = "Draft data loaded successfully";
+      _statusMessage = "Update live picks w lock button";
     });
 
     // Apply any live picks from CSV
