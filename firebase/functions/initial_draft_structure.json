@@ -1,0 +1,23 @@
+{
+    "draft_2025": {
+      "live_picks": {
+        "-placeholder": {
+          "pickNumber": 0,
+          "playerName": "",
+          "position": "",
+          "school": "",
+          "team": "",
+          "timestamp": 0
+        }
+      },
+      "trades": {
+        "-placeholder": {
+          "pickNumber": 0,
+          "fromTeam": "",
+          "toTeam": "",
+          "compensation": "",
+          "timestamp": 0
+        }
+      }
+    }
+  }
