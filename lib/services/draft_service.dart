@@ -122,10 +122,23 @@ class DraftService {
   }
   
   // Add this new method right after the constructor
+  
   void _startListeningToLiveUpdates() {
     _livePickSubscription = _liveDraftService!.pickUpdates.listen((pickData) {
       debugPrint('Processing live pick: ${pickData['playerName']} at #${pickData['pickNumber']}');
       applyLivePick(pickData);
+      
+      // Notify UI to update after applying the pick
+      _tradeService.recordPlayerSelection(availablePlayers.firstWhere(
+        (p) => p.name.toLowerCase() == pickData['playerName'].toString().toLowerCase(),
+        orElse: () => Player(
+          id: 10000 + (pickData['pickNumber'] as int),
+          name: pickData['playerName'] as String,
+          position: pickData['position'] as String,
+          rank: pickData['pickNumber'] as int,
+          school: pickData['school'] as String,
+        ),
+      ));
     });
   }
   
@@ -164,8 +177,7 @@ class DraftService {
         rank: pickNumber,
         school: school,
       );
-      // Add to available players for records
-      availablePlayers.add(selectedPlayer);
+      // Don't add to available players - we'll remove from the pool either way
     }
     
     // Lock the pick
@@ -175,16 +187,35 @@ class DraftService {
     // Remove player from available players pool
     availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
     
-    // Update team needs
+    // Update team needs - fix position format
     TeamNeed? teamNeed = _getTeamNeeds(team);
     if (teamNeed != null) {
-      teamNeed.removeNeed(position);
+      // Handle special cases like "CB | WR" for Travis Hunter
+      String primaryPosition = position.contains('|') 
+          ? position.split('|')[0].trim() 
+          : position;
+      
+      // Update team need
+      teamNeed.removeNeed(primaryPosition);
+      
+      // Update selected positions
+      if (!teamNeed.selectedPositions.contains(primaryPosition)) {
+        teamNeed.selectedPositions.add(primaryPosition);
+      }
     }
+    
+    // Update position scarcity
+    _updatePositionScarcity(position);
+    
+    // Update completed picks count
+    _completedPicks++;
     
     // Update status
     _statusMessage = "Live pick: $team selects $playerName ($position)";
     
     debugPrint('Applied live pick #$pickNumber: $playerName');
+    debugPrint('Available players remaining: ${availablePlayers.length}');
+    debugPrint('Team $team needs updated to: ${teamNeed?.needs.join(", ")}');
   }
 
 // Also update the getOtherTeamPicks method to handle list of teams
