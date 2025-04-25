@@ -1113,43 +1113,7 @@ Future<void> _loadUserPreferences() async {
                     ),
                     
                     const SizedBox(width: 12.0),
-                    
-                    ElevatedButton(
-  onPressed: () async {
-    try {
-      debugPrint('Starting live draft service test...');
-      
-      final liveDraftService = LiveDraftService();
-      liveDraftService.startListening();
-      
-      // Listen for updates
-      liveDraftService.pickUpdates.listen((pickData) {
-        debugPrint('New pick received: ${pickData['playerName']} at #${pickData['pickNumber']}');
-      });
-      
-      debugPrint('Fetching existing picks...');
-      // Fetch existing picks
-      final picks = await liveDraftService.fetchAllPicks();
-      debugPrint('Existing picks: ${picks.length}');
-      
-      for (var pick in picks) {
-        debugPrint('Pick #${pick['pickNumber']}: ${pick['playerName']}');
-      }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Live draft service test completed')),
-      );
-    } catch (e, stackTrace) {
-      debugPrint('Error testing live draft service: $e');
-      debugPrint('Stack trace: $stackTrace');
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  },
-  child: const Text('Test Live Draft Service'),
-),
+
                     // Start button (expanded width)
                     Expanded(
                       child: SizedBox(
