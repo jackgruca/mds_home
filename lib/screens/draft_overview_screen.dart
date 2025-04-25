@@ -1,5 +1,6 @@
 // lib/screens/draft_overview_screen.dart - Updated with trade integration
 import 'package:flutter/material.dart';
+import 'package:mds_home/services/live_draft_service.dart';
 import 'package:mds_home/utils/theme_manager.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
@@ -99,6 +100,7 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   List<List<dynamic>> _teamNeedsLists = [];
 
   String? _activeUserTeam;
+  LiveDraftService? _liveDraftService;
 
   @override
 void initState() {
@@ -122,7 +124,9 @@ void initState() {
       }
     }
   });
-  
+  _liveDraftService = LiveDraftService(year: widget.draftYear);
+  _liveDraftService!.startListening();
+
   _initializeServices();
 }
 
@@ -170,6 +174,8 @@ void initState() {
 
   @override
   void dispose() {
+    _liveDraftService?.dispose();
+    _draftService?.dispose();
     _tabController.removeListener(_handleTabChange); // Remove listener
     _tabController.dispose();
     _draftOrderScrollController.dispose();
@@ -642,18 +648,19 @@ List<Color> _getTeamGradientColors(String teamName) {
     
     // Create draft service 
     final draftService = DraftService(
-      availablePlayers: List.from(players),
-      draftOrder: allDraftPicks,
-      teamNeeds: teamNeeds,
-      randomnessFactor: widget.randomnessFactor,
-      userTeams: widget.selectedTeams,
-      numberRounds: widget.numberOfRounds,
-      enableTrading: widget.enableTrading,
-      enableUserTradeProposals: widget.enableUserTradeProposals,
-      enableQBPremium: widget.enableQBPremium,
-      tradeFrequency: widget.tradeFrequency,
-      needVsValueBalance: widget.needVsValueBalance,
-    );
+        availablePlayers: List.from(players),
+        draftOrder: allDraftPicks,
+        teamNeeds: teamNeeds,
+        randomnessFactor: widget.randomnessFactor,
+        userTeams: widget.selectedTeams,
+        numberRounds: widget.numberOfRounds,
+        enableTrading: widget.enableTrading,
+        enableUserTradeProposals: widget.enableUserTradeProposals,
+        enableQBPremium: widget.enableQBPremium,
+        tradeFrequency: widget.tradeFrequency,
+        needVsValueBalance: widget.needVsValueBalance,
+        liveDraftService: _liveDraftService, // Add this line
+      );
 
     // Convert models to lists for the existing UI components
     final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
@@ -692,6 +699,7 @@ List<Color> _getTeamGradientColors(String teamName) {
       });
     }
     
+    await _loadExistingLivePicks();
   } catch (e) {
     setState(() {
       _statusMessage = "Error loading draft data: $e";
@@ -699,6 +707,26 @@ List<Color> _getTeamGradientColors(String teamName) {
     debugPrint("Error loading data: $e");
   }
 }
+
+Future<void> _loadExistingLivePicks() async {
+    if (_liveDraftService == null) return;
+    
+    debugPrint('Loading existing live picks...');
+    final picks = await _liveDraftService!.fetchAllPicks();
+    
+    for (var pick in picks) {
+      _draftService?.applyLivePick(pick);
+    }
+    
+    // Update UI after applying all existing picks
+    if (mounted) {
+      setState(() {
+        _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
+        _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
+        _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
+      });
+    }
+  }
 
   void _toggleDraft() {
     if (!_isDataLoaded || _draftService == null) {

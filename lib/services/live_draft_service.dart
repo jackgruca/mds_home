@@ -65,6 +65,17 @@ class LiveDraftService {
     }
     return [];
   }
+
+  Future<void> addPick(Map<String, dynamic> pickData) async {
+    try {
+      final pickNumber = pickData['pickNumber'].toString();
+      await _draftRef.child('live_picks').child(pickNumber).set(pickData);
+      debugPrint('Pick submitted successfully: $pickData');
+    } catch (e) {
+      debugPrint('Error adding pick: $e');
+      rethrow;
+    }
+  }
   
   void dispose() {
     _pickUpdateController.close();

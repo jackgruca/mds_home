@@ -1,7 +1,9 @@
 // lib/services/draft_service.dart
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:mds_home/screens/draft_overview_screen.dart';
+import 'package:mds_home/services/live_draft_service.dart';
 
 import '../models/draft_pick.dart';
 import '../models/future_pick_record.dart';
@@ -80,6 +82,8 @@ class DraftService {
   
   // Random instance for introducing randomness
   final Random _random = Random();
+  final LiveDraftService? _liveDraftService;
+  StreamSubscription? _livePickSubscription;
 
   DraftService({
   required this.availablePlayers,
@@ -93,7 +97,9 @@ class DraftService {
   this.enableQBPremium = true,
   this.tradeFrequency = 0.5,
   this.needVsValueBalance = 0.4,
-}) {
+  LiveDraftService? liveDraftService,
+  }) : _liveDraftService = liveDraftService {
+
   // Sort players by rank initially
   availablePlayers.sort((a, b) => a.rank.compareTo(b.rank));
   
@@ -108,7 +114,78 @@ class DraftService {
     tradeFrequency: tradeFrequency, // Pass new parameter
   );
    _initializeFuturePicks();
-}
+
+   // Add this at the END of the constructor body
+    if (_liveDraftService != null) {
+      _startListeningToLiveUpdates();
+    }
+  }
+  
+  // Add this new method right after the constructor
+  void _startListeningToLiveUpdates() {
+    _livePickSubscription = _liveDraftService!.pickUpdates.listen((pickData) {
+      debugPrint('Processing live pick: ${pickData['playerName']} at #${pickData['pickNumber']}');
+      applyLivePick(pickData);
+    });
+  }
+  
+  // Add this new method right after _startListeningToLiveUpdates
+  void applyLivePick(Map<String, dynamic> pickData) {
+    final pickNumber = pickData['pickNumber'] as int;
+    final playerName = pickData['playerName'] as String;
+    final position = pickData['position'] as String;
+    final school = pickData['school'] as String;
+    final team = pickData['team'] as String;
+    
+    // Find the draft pick
+    DraftPick? targetPick = draftOrder.firstWhere(
+      (pick) => pick.pickNumber == pickNumber,
+      orElse: () => throw Exception('Pick #$pickNumber not found')
+    );
+    
+    // Skip if this pick is already made
+    if (targetPick.selectedPlayer != null && targetPick.isLocked) {
+      debugPrint('Pick #$pickNumber already made, skipping');
+      return;
+    }
+    
+    // Find or create the player
+    Player? selectedPlayer;
+    try {
+      selectedPlayer = availablePlayers.firstWhere(
+        (p) => p.name.toLowerCase() == playerName.toLowerCase()
+      );
+    } catch (_) {
+      // Create new player if not found
+      selectedPlayer = Player(
+        id: 10000 + pickNumber,
+        name: playerName,
+        position: position,
+        rank: pickNumber,
+        school: school,
+      );
+      // Add to available players for records
+      availablePlayers.add(selectedPlayer);
+    }
+    
+    // Lock the pick
+    targetPick.selectedPlayer = selectedPlayer;
+    targetPick.isLocked = true;
+    
+    // Remove player from available players pool
+    availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
+    
+    // Update team needs
+    TeamNeed? teamNeed = _getTeamNeeds(team);
+    if (teamNeed != null) {
+      teamNeed.removeNeed(position);
+    }
+    
+    // Update status
+    _statusMessage = "Live pick: $team selects $playerName ($position)";
+    
+    debugPrint('Applied live pick #$pickNumber: $playerName');
+  }
 
 // Also update the getOtherTeamPicks method to handle list of teams
 List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
@@ -1436,6 +1513,9 @@ bool undoLastUserSelection() {
   return true;
 }
 
+void dispose() {
+    _livePickSubscription?.cancel();
+  }
 }
 class PlayerSelectionRecord {
   final DraftPick pick;

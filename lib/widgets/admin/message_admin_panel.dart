@@ -237,6 +237,13 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
             tooltip: 'Clear All Messages',
             onPressed: _clearAllMessages,
           ),
+          // Update Picks
+          IconButton(
+  icon: const Icon(Icons.admin_panel_settings),
+  onPressed: () {
+    Navigator.pushNamed(context, '/admin-draft');
+  },
+),
         ],
       ),
       body: _isLoading

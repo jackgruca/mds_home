@@ -1,5 +1,6 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
+import 'package:mds_home/screens/admin_input_screen.dart';
 import 'package:mds_home/screens/blog_list_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
@@ -127,6 +128,11 @@ class _MyAppState extends State<MyApp> {
     if (blogRoute != null) {
       return blogRoute;
     }
+
+    // Add this case
+  if (settings.name == '/admin-draft') {
+    return MaterialPageRoute(builder: (_) => const AdminDraftInputScreen());
+  }
     
     // Otherwise handle regular routes
     switch (settings.name) {
