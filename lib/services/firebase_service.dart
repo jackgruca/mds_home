@@ -1,6 +1,7 @@
 // lib/services/firebase_service.dart
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:js' as js;
@@ -40,6 +41,7 @@ class FirebaseService {
         options: const FirebaseOptions(
           apiKey: "AIzaSyCLO_VAZ9l6PK541-tFkYRquISv5x1I-Dw",
           authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+          databaseURL: "https://nfl-draft-simulator-9265f-default-rtdb.firebaseio.com",
           projectId: "nfl-draft-simulator-9265f",
           storageBucket: "nfl-draft-simulator-9265f.firebasestorage.app",
           messagingSenderId: "900728713837",
@@ -62,8 +64,15 @@ class FirebaseService {
         debugPrint('Could not get Firestore instance: $innerError');
       }
     }
-  }
 
+    try {
+      FirebaseDatabase.instance.setPersistenceEnabled(true);
+      debugPrint('Firebase Realtime Database initialized successfully');
+    } catch (e) {
+      debugPrint('Firebase Realtime Database initialization error: $e');
+    }
+  }
+  
   /// Save draft results to Firestore
   static Future<bool> saveDraftAnalytics({
     required String userTeam,
@@ -269,4 +278,6 @@ static Future<bool> checkAnalyticsCollections() async {
   
   /// Check if Firebase is properly initialized
   static bool get isInitialized => _initialized;
+
+  
 }
