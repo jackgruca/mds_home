@@ -1879,27 +1879,27 @@ Widget build(BuildContext context) {
             },
           ),
 
-           // Refresh live picks button
-  IconButton(
-    icon: const Icon(Icons.refresh, size: 20),
-    tooltip: "Reload Live Picks",
-    onPressed: () async {
-      await _applyLivePicks();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reloaded live picks'))
-      );
-    },
-  ),
+          // Refresh live picks button
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 20),
+            tooltip: "Reload Live Picks",
+            onPressed: () async {
+              await _applyLivePicks();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Reloaded live picks'))
+              );
+            },
+          ),
           // New lock pick button
-  IconButton(
-    icon: const Icon(Icons.lock_outline, size: 20),
-    onPressed: () {
-      _showLockPickDialog();
-    },
-  ),
+          IconButton(
+            icon: const Icon(Icons.lock_outline, size: 20),
+            onPressed: () {
+              _showLockPickDialog();
+            },
+          ),
         ],
-        // Only show TabBar on mobile screens
-        bottom: isDesktop ? null : PreferredSize(
+        // Always show TabBar, regardless of screen size
+        bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: TabBar(
             controller: _tabController,
@@ -1954,154 +1954,159 @@ Widget build(BuildContext context) {
       body: Column(
         children: [
           // Status bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _shouldShowTeamInfo() 
-                    ? _getTeamGradientColors(_activeUserTeam!)
-                    : Theme.of(context).brightness == Brightness.dark
-                      ? [Colors.blue.shade900, Colors.blue.shade800]
-                      : [Colors.blue.shade50, Colors.blue.shade100],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: _shouldShowTeamInfo() 
+                  ? _getTeamGradientColors(_activeUserTeam!)
+                  : Theme.of(context).brightness == Brightness.dark
+                    ? [Colors.blue.shade900, Colors.blue.shade800]
+                    : [Colors.blue.shade50, Colors.blue.shade100],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 0,
+                  blurRadius: 1,
+                  offset: const Offset(0, 1),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 0,
-                    blurRadius: 1,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Dynamic left side of the banner
-                  Expanded(
-                    child: _buildStatusBarContent(),
-                  ),
-                  
-                  // Draft recap button - keeps the same on the right side
-                  OutlinedButton.icon(
-  onPressed: () => _showDraftSummary(draftComplete: false),
-  icon: const Icon(Icons.summarize, size: 14),
-  label: const Text('Your Picks'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          // Tab content
+            child: Row(
+              children: [
+                // Dynamic left side of the banner
+                Expanded(
+                  child: _buildStatusBarContent(),
+                ),
+                
+                // Draft recap button - keeps the same on the right side
+                OutlinedButton.icon(
+                  onPressed: () => _showDraftSummary(draftComplete: false),
+                  icon: const Icon(Icons.summarize, size: 14),
+                  label: const Text('Your Picks'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Main content area
           Expanded(
-            child: isDesktop 
-              ? Row(
-                  children: [
-                    // Left side - Draft Order
-                    Expanded(
-                      child: DraftOrderTab(
-                        draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
-                        userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-                        scrollController: _draftOrderScrollController,
-                        teamNeeds: _teamNeedsLists,
-                        currentPickNumber: _draftService?.getNextPick()?.pickNumber,
-                      ),
-                    ),
-                    // Right side - Available Players
-                    Expanded(
-                      child: AvailablePlayersTab(
-                        availablePlayers: _availablePlayersLists,
-                        selectionEnabled: _isUserPickMode && _draftService != null && 
-                                       _userNextPick != null && 
-                                       widget.selectedTeams != null &&
-                                       widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
-                        userTeam: _userNextPick?.teamName,
-                        teamSelectedPositions: _getTeamSelectedPositions(),
-                        onPlayerSelected: (playerIndex) {
-                          if (_isUserPickMode && _userNextPick != null) {
-                            Player? selectedPlayer;
-                            
-                            try {
-                              selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-                            } catch (e) {
-                              if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-                                selectedPlayer = _draftService!.availablePlayers[playerIndex];
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Draft Order Tab
+                isDesktop 
+                  ? Row(
+                      children: [
+                        // Left side - Draft Order
+                        Expanded(
+                          child: DraftOrderTab(
+                            draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
+                            userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                            scrollController: _draftOrderScrollController,
+                            teamNeeds: _teamNeedsLists,
+                            currentPickNumber: _draftService?.getNextPick()?.pickNumber,
+                          ),
+                        ),
+                        // Right side - Available Players
+                        Expanded(
+                          child: AvailablePlayersTab(
+                            availablePlayers: _availablePlayersLists,
+                            selectionEnabled: _isUserPickMode && _draftService != null && 
+                                           _userNextPick != null && 
+                                           widget.selectedTeams != null &&
+                                           widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+                            userTeam: _userNextPick?.teamName,
+                            teamSelectedPositions: _getTeamSelectedPositions(),
+                            onPlayerSelected: (playerIndex) {
+                              if (_isUserPickMode && _userNextPick != null) {
+                                Player? selectedPlayer;
+                                
+                                try {
+                                  selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                                } catch (e) {
+                                  if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                                    selectedPlayer = _draftService!.availablePlayers[playerIndex];
+                                  }
+                                }
+                                
+                                if (selectedPlayer != null) {
+                                  _selectPlayer(_userNextPick!, selectedPlayer);
+                                  setState(() {
+                                    _isUserPickMode = false;
+                                    _userNextPick = null;
+                                  });
+                                } else {
+                                  debugPrint("Could not find player with index $playerIndex");
+                                }
                               }
-                            }
-                            
-                            if (selectedPlayer != null) {
-                              _selectPlayer(_userNextPick!, selectedPlayer);
-                              setState(() {
-                                _isUserPickMode = false;
-                                _userNextPick = null;
-                              });
-                            } else {
-                              debugPrint("Could not find player with index $playerIndex");
-                            }
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    DraftOrderTab(
+                            },
+                          ),
+                        ),
+                      ],
+                    )
+                  : DraftOrderTab(
                       draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
                       userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
                       scrollController: _draftOrderScrollController,
                       teamNeeds: _teamNeedsLists,
                       currentPickNumber: _draftService?.getNextPick()?.pickNumber,
                     ),
-                    AvailablePlayersTab(
-                      availablePlayers: _availablePlayersLists,
-                      selectionEnabled: _isUserPickMode && _draftService != null && 
-                                     _userNextPick != null && 
-                                     widget.selectedTeams != null &&
-                                     widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
-                      userTeam: _userNextPick?.teamName,
-                      teamSelectedPositions: _getTeamSelectedPositions(),
-                      onPlayerSelected: (playerIndex) {
-                        if (_isUserPickMode && _userNextPick != null) {
-                          Player? selectedPlayer;
-                          
-                          try {
-                            selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-                          } catch (e) {
-                            if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-                              selectedPlayer = _draftService!.availablePlayers[playerIndex];
-                            }
-                          }
-                          
-                          if (selectedPlayer != null) {
-                            _selectPlayer(_userNextPick!, selectedPlayer);
-                            setState(() {
-                              _isUserPickMode = false;
-                              _userNextPick = null;
-                            });
-                          } else {
-                            debugPrint("Could not find player with index $playerIndex");
-                          }
+                // Available Players Tab
+                AvailablePlayersTab(
+                  availablePlayers: _availablePlayersLists,
+                  selectionEnabled: _isUserPickMode && _draftService != null && 
+                                 _userNextPick != null && 
+                                 widget.selectedTeams != null &&
+                                 widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+                  userTeam: _userNextPick?.teamName,
+                  teamSelectedPositions: _getTeamSelectedPositions(),
+                  onPlayerSelected: (playerIndex) {
+                    if (_isUserPickMode && _userNextPick != null) {
+                      Player? selectedPlayer;
+                      
+                      try {
+                        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                      } catch (e) {
+                        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                          selectedPlayer = _draftService!.availablePlayers[playerIndex];
                         }
-                      },
-                    ),
-                    TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                    if (widget.showAnalytics)
-                      DraftAnalyticsDashboard(
-                        completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-                        draftedPlayers: _players.where((player) => 
-                          _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-                        executedTrades: _executedTrades,
-                        teamNeeds: _teamNeeds,
-                        userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-                      )
-                  ],
+                      }
+                      
+                      if (selectedPlayer != null) {
+                        _selectPlayer(_userNextPick!, selectedPlayer);
+                        setState(() {
+                          _isUserPickMode = false;
+                          _userNextPick = null;
+                        });
+                      } else {
+                        debugPrint("Could not find player with index $playerIndex");
+                      }
+                    }
+                  },
                 ),
+                // Team Needs Tab
+                TeamNeedsTab(teamNeeds: _teamNeedsLists),
+                // Analytics Tab
+                if (widget.showAnalytics)
+                  DraftAnalyticsDashboard(
+                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+                    draftedPlayers: _players.where((player) => 
+                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+                    executedTrades: _executedTrades,
+                    teamNeeds: _teamNeeds,
+                    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                  )
+              ],
+            ),
           ),
         ],
       ),
