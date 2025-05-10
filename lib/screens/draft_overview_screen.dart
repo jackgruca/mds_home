@@ -34,6 +34,8 @@ import '../widgets/trade/trade_dialog_wrapper.dart';
 import '../services/firebase_service.dart';
 import '../widgets/draft/draft_action_dialog.dart';
 
+// Add breakpoint constant at the top of the file after imports
+const double kDesktopBreakpoint = 1100.0;
 
 class DraftApp extends StatefulWidget {
   final double randomnessFactor;
@@ -1808,6 +1810,10 @@ Widget build(BuildContext context) {
     }
   }
 
+  // Get screen width for responsive layout
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isDesktop = screenWidth > kDesktopBreakpoint;
+
   return WillPopScope(
     onWillPop: () async {
     // Show a confirmation dialog
@@ -1892,7 +1898,8 @@ Widget build(BuildContext context) {
     },
   ),
         ],
-        bottom: PreferredSize(
+        // Only show TabBar on mobile screens
+        bottom: isDesktop ? null : PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: TabBar(
             controller: _tabController,
@@ -1946,8 +1953,6 @@ Widget build(BuildContext context) {
       ),
       body: Column(
         children: [
-          // Find the Status bar section in the build method of DraftAppState
-
           // Status bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
@@ -1993,76 +1998,123 @@ Widget build(BuildContext context) {
             ),
           // Tab content
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                DraftOrderTab(
-                  draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
-                  userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
-                  scrollController: _draftOrderScrollController,
-                  teamNeeds: _teamNeedsLists,
-                  currentPickNumber: _draftService?.getNextPick()?.pickNumber, // Pass current pick number
+            child: isDesktop 
+              ? Row(
+                  children: [
+                    // Left side - Draft Order
+                    Expanded(
+                      child: DraftOrderTab(
+                        draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
+                        userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                        scrollController: _draftOrderScrollController,
+                        teamNeeds: _teamNeedsLists,
+                        currentPickNumber: _draftService?.getNextPick()?.pickNumber,
+                      ),
+                    ),
+                    // Right side - Available Players
+                    Expanded(
+                      child: AvailablePlayersTab(
+                        availablePlayers: _availablePlayersLists,
+                        selectionEnabled: _isUserPickMode && _draftService != null && 
+                                       _userNextPick != null && 
+                                       widget.selectedTeams != null &&
+                                       widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+                        userTeam: _userNextPick?.teamName,
+                        teamSelectedPositions: _getTeamSelectedPositions(),
+                        onPlayerSelected: (playerIndex) {
+                          if (_isUserPickMode && _userNextPick != null) {
+                            Player? selectedPlayer;
+                            
+                            try {
+                              selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                            } catch (e) {
+                              if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                                selectedPlayer = _draftService!.availablePlayers[playerIndex];
+                              }
+                            }
+                            
+                            if (selectedPlayer != null) {
+                              _selectPlayer(_userNextPick!, selectedPlayer);
+                              setState(() {
+                                _isUserPickMode = false;
+                                _userNextPick = null;
+                              });
+                            } else {
+                              debugPrint("Could not find player with index $playerIndex");
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    DraftOrderTab(
+                      draftOrder: _draftPicks.where((pick) => pick.isActiveInDraft).toList(),
+                      userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                      scrollController: _draftOrderScrollController,
+                      teamNeeds: _teamNeedsLists,
+                      currentPickNumber: _draftService?.getNextPick()?.pickNumber,
+                    ),
+                    AvailablePlayersTab(
+                      availablePlayers: _availablePlayersLists,
+                      selectionEnabled: _isUserPickMode && _draftService != null && 
+                                     _userNextPick != null && 
+                                     widget.selectedTeams != null &&
+                                     widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
+                      userTeam: _userNextPick?.teamName,
+                      teamSelectedPositions: _getTeamSelectedPositions(),
+                      onPlayerSelected: (playerIndex) {
+                        if (_isUserPickMode && _userNextPick != null) {
+                          Player? selectedPlayer;
+                          
+                          try {
+                            selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
+                          } catch (e) {
+                            if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
+                              selectedPlayer = _draftService!.availablePlayers[playerIndex];
+                            }
+                          }
+                          
+                          if (selectedPlayer != null) {
+                            _selectPlayer(_userNextPick!, selectedPlayer);
+                            setState(() {
+                              _isUserPickMode = false;
+                              _userNextPick = null;
+                            });
+                          } else {
+                            debugPrint("Could not find player with index $playerIndex");
+                          }
+                        }
+                      },
+                    ),
+                    TeamNeedsTab(teamNeeds: _teamNeedsLists),
+                    if (widget.showAnalytics)
+                      DraftAnalyticsDashboard(
+                        completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
+                        draftedPlayers: _players.where((player) => 
+                          _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
+                        executedTrades: _executedTrades,
+                        teamNeeds: _teamNeeds,
+                        userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,
+                      )
+                  ],
                 ),
-               AvailablePlayersTab(
-  availablePlayers: _availablePlayersLists,
-  // This is the key change - do a real-time check if it's the user's turn
-  selectionEnabled: _isUserPickMode && _draftService != null && 
-                   _userNextPick != null && 
-                   widget.selectedTeams != null &&
-                   widget.selectedTeams!.contains(_draftService!.getNextPick()?.teamName),
-  userTeam: _userNextPick?.teamName,
-  teamSelectedPositions: _getTeamSelectedPositions(),
-  onPlayerSelected: (playerIndex) {
-    // Fix selection logic to work with multiple teams
-    if (_isUserPickMode && _userNextPick != null) {
-      Player? selectedPlayer;
-      
-      try {
-        selectedPlayer = _players.firstWhere((p) => p.id == playerIndex);
-      } catch (e) {
-        if (playerIndex >= 0 && playerIndex < _draftService!.availablePlayers.length) {
-          selectedPlayer = _draftService!.availablePlayers[playerIndex];
-        }
-      }
-      
-      if (selectedPlayer != null) {
-        _selectPlayer(_userNextPick!, selectedPlayer);
-        setState(() {
-          _isUserPickMode = false;
-          _userNextPick = null;
-        });
-      } else {
-        debugPrint("Could not find player with index $playerIndex");
-      }
-    }
-  },
-),
-                TeamNeedsTab(teamNeeds: _teamNeedsLists),
-                if (widget.showAnalytics)
-                  // Use the simplified analytics dashboard
-                  DraftAnalyticsDashboard(
-                    completedPicks: _draftPicks.where((pick) => pick.selectedPlayer != null).toList(),
-                    draftedPlayers: _players.where((player) => 
-                      _draftPicks.any((pick) => pick.selectedPlayer?.id == player.id)).toList(),
-                    executedTrades: _executedTrades,
-                    teamNeeds: _teamNeeds,
-                    userTeam: widget.selectedTeams?.isNotEmpty == true ? widget.selectedTeams!.first : null,  // Convert list to single team
-                  )
-                ],
-            ),
           ),
         ],
       ),
       
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: DraftControlButtons(
-      isDraftRunning: _isDraftRunning,
-      hasTradeOffers: hasTradeOffers,
-      tradeOffersCount: tradeOffersCount,  // Add the count
-      onToggleDraft: _toggleDraft,
-      onRestartDraft: _restartDraft,
-      onRequestTrade: _requestTrade,
-    ),
+        isDraftRunning: _isDraftRunning,
+        hasTradeOffers: hasTradeOffers,
+        tradeOffersCount: tradeOffersCount,
+        onToggleDraft: _toggleDraft,
+        onRestartDraft: _restartDraft,
+        onRequestTrade: _requestTrade,
+      ),
     ),
   );
 }
