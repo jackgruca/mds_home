@@ -111,109 +111,148 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
     );
   }
 
+  Widget _buildSearchBar(bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(
+          color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Search field
+          Expanded(
+            child: SizedBox(
+              height: 36,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search by Team',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
+            ),
+          ),
+          
+          // Pick count
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${widget.draftOrder.length} picks',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white : Colors.grey.shade800,
+              ),
+            ),
+          ),
+          
+          // Current pick indicator
+          if (widget.currentPickNumber != null)
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.green.shade800 : Colors.green.shade100,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isDarkMode ? Colors.green.shade600 : Colors.green.shade300,
+                ),
+              ),
+              child: Text(
+                'Pick #${widget.currentPickNumber}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.green.shade900,
+                ),
+              ),
+            ),
+          
+          // Clear search button when search is active
+          if (_searchQuery.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear, size: 16),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                setState(() {
+                  _searchQuery = '';
+                });
+              },
+              tooltip: 'Clear search',
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = MediaQuery.of(context).size.width > 900; // Threshold for desktop view
     
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
         children: [
-          // Search Bar - Styled to match the design in AvailablePlayersTab
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(
-                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              ),
-            ),
-            child: Row(
-              children: [
-                // Search field
-                Expanded(
-                  child: SizedBox(
-                    height: 36,
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search by Team',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                
-                // Pick count
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${widget.draftOrder.length} picks',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.white : Colors.grey.shade800,
-                    ),
-                  ),
-                ),
-                
-                // Current pick indicator
-                if (widget.currentPickNumber != null)
-                  Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Colors.green.shade800 : Colors.green.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isDarkMode ? Colors.green.shade600 : Colors.green.shade300,
-                      ),
-                    ),
-                    child: Text(
-                      'Pick #${widget.currentPickNumber}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.green.shade900,
-                      ),
-                    ),
-                  ),
-                
-                // Clear search button when search is active
-                if (_searchQuery.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear, size: 16),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      setState(() {
-                        _searchQuery = '';
-                      });
-                    },
-                    tooltip: 'Clear search',
-                  ),
-              ],
-            ),
-          ),
+          // Search Bar
+          _buildSearchBar(isDarkMode),
           const SizedBox(height: 8),
 
-          // Draft Order List
+          // Content area - responsive layout
           Expanded(
-            child: _buildDraftOrderCards(),
+            child: isDesktop 
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left side - Draft order (takes up half the screen on desktop)
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.5,
+                      child: _buildDraftOrderCards(),
+                    ),
+                    
+                    // Right side - Empty space for now (will be filled later)
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(left: 16),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? Colors.grey.shade800.withOpacity(0.3) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "Additional content will appear here",
+                            style: TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : _buildDraftOrderCards(), // Mobile view - just show the draft order
           ),
         ],
       ),
