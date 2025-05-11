@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'screens/betting_analytics_screen.dart';
 import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
+import 'screens/historical_data_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -133,6 +134,8 @@ class _MyAppState extends State<MyApp> {
       return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
     case '/betting-analytics':
       return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+    case '/historical-data':
+      return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
     default:
       return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
   }

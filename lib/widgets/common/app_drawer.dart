@@ -197,6 +197,22 @@ class AppDrawer extends StatelessWidget {
                 ),
                 
                 ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text('Historical Data'),
+                  selected: currentRoute == '/historical-data',
+                  selectedTileColor: isDarkMode ? 
+                      AppTheme.darkNavy.withOpacity(0.1) : 
+                      AppTheme.deepRed.withOpacity(0.1),
+                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (currentRoute != '/historical-data') {
+                      Navigator.pushNamed(context, '/historical-data');
+                    }
+                  },
+                ),
+                
+                ListTile(
                   leading: const Icon(Icons.article),
                   title: const Text('Blog'),
                   selected: currentRoute == '/blog',

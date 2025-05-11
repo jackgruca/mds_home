@@ -36,6 +36,7 @@ class AnimatedDraftPickCard extends StatefulWidget {
   State<AnimatedDraftPickCard> createState() => _AnimatedDraftPickCardState();
 }
 
+
 class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
