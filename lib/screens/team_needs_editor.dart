@@ -1,9 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
-import '../services/csv_export_service.dart';
 import '../services/csv_import_service.dart';
 
 class TeamNeedsEditor extends StatefulWidget {
@@ -496,17 +494,6 @@ class _TeamNeedsEditorState extends State<TeamNeedsEditor> {
     widget.onTeamNeedsChanged(_editableTeamNeeds);
   }
 
-  void _exportToCSV() {
-  if (!CsvExportService.isWebPlatform) {
-    CsvExportService.showPlatformWarning(context);
-    return;
-  }
-  
-  CsvExportService.exportToCsv(
-    data: _editableTeamNeeds,
-    filename: 'custom_player_rankings.csv',
-  );
-}
 
 Future<void> _importFromCSV() async {
   List<List<dynamic>>? importedData = await CsvImportService.importFromCsv();
@@ -587,60 +574,8 @@ void _showFormatGuideDialog() {
   );
 }
 
-void _downloadTemplate() {
-  final templateData = [
-    ['ID', 'Team', 'Need1', 'Need2', 'Need3', 'Need4', 'Need5', 'Need6', 'Need7', 'Selected'],
-    [1, 'Team Name Here', 'QB', 'WR', 'OT', 'CB', 'EDGE', '-', '-', ''],
-  ];
-  
-  CsvExportService.exportToCsv(
-    data: templateData,
-    filename: 'team_needs_template.csv',
-  );
-}
 
 // Add this to both editor classes
-void _showCsvPreviewDialog(List<List<dynamic>> data, String title) {
-  if (data.isEmpty) return;
-  
-  final headers = data[0];
-  final rows = data.sublist(1, min(11, data.length)); // Show up to 10 data rows
-  
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Preview: $title'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            child: DataTable(
-              columns: headers.map<DataColumn>((header) => 
-                DataColumn(label: Text(header.toString()))
-              ).toList(),
-              rows: rows.map<DataRow>((row) => 
-                DataRow(
-                  cells: List.generate(
-                    min(row.length, headers.length),
-                    (index) => DataCell(Text(row[index].toString())),
-                  ),
-                ),
-              ).toList(),
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
-    ),
-  );
-}
 
   Color _getPositionColor(String position) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;

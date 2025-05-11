@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
-import '../models/trade_offer.dart';
 import '../models/trade_package.dart';
 import '../services/data_service.dart';
 import '../services/draft_grade_service.dart';
@@ -14,15 +13,11 @@ import '../services/draft_service.dart';
 import '../services/draft_value_service.dart';
 import '../services/player_descriptions_service.dart';
 import '../utils/constants.dart';
-import '../widgets/trade/enhanced_trade_dialog.dart';
 import '../widgets/trade/user_trade_dialog.dart';
 import '../widgets/trade/trade_response_dialog.dart';
 import '../widgets/trade/user_trade_tabs_dialog.dart';
 import '../widgets/analytics/draft_analytics_dashboard.dart';
-import '../utils/constants.dart';
 
-import '../widgets/trade/trade_dialog.dart';
-import '../widgets/trade/trade_history.dart';
 import 'available_players_tab.dart';
 import 'draft_summary_screen.dart';
 import 'team_needs_tab.dart';
@@ -96,7 +91,6 @@ class DraftAppState extends State<DraftApp> with SingleTickerProviderStateMixin 
   List<TradePackage> _executedTrades = [];
   
   // Compatibility variables for existing UI components
-  List<List<dynamic>> _draftOrderLists = [];
   List<List<dynamic>> _availablePlayersLists = [];
   List<List<dynamic>> _teamNeedsLists = [];
 
@@ -184,67 +178,6 @@ void initState() {
     return;
   }
 
-void lockRealLifePick(int pickNumber, String playerName, String position, String school) {
-  if (_draftService == null || _players.isEmpty) return;
-  
-  // Find the pick by number
-  DraftPick? pickToLock = _draftPicks.firstWhere(
-    (pick) => pick.pickNumber == pickNumber,
-    orElse: () => DraftPick(
-      pickNumber: -1,  // Use invalid pick number to indicate not found
-      teamName: "",
-      round: ""
-    )
-);
-
-// Then check if pick was found
-if (pickToLock.pickNumber == -1) {
-  debugPrint("Could not find pick #$pickNumber to lock");
-  return;
-}
-  
-  // Find or create the player
-  Player? selectedPlayer;
-  
-  // First try to find an existing player with matching name
-  try {
-    selectedPlayer = _players.firstWhere(
-      (p) => p.name.toLowerCase() == playerName.toLowerCase()
-    );
-  } catch (_) {
-    // If not found, create a new player
-    selectedPlayer = Player(
-      id: 10000 + pickNumber, // Use a high number unlikely to conflict
-      name: playerName,
-      position: position,
-      rank: pickNumber, // Use pick number as approximate rank
-      school: school,
-    );
-    
-    // Add to available players
-    _players.add(selectedPlayer);
-  }
-  
-  // Lock the pick with the selected player
-  pickToLock.selectedPlayer = selectedPlayer;
-  pickToLock.isLocked = true;
-  
-  // Remove player from available players if they were in the list
-  _draftService!.availablePlayers.removeWhere((p) => p.name.toLowerCase() == playerName.toLowerCase());
-  
-  // Update UI
-  setState(() {
-    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
-    _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
-    _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
-  });
-  
-  // Scroll to the current pick
-  Future.delayed(const Duration(milliseconds: 150), () {
-    _scrollToCurrentPick();
-  });
-}
-  
   // Get the current pick
   DraftPick? currentPick = _draftService!.getNextPick();
   if (currentPick == null) {
@@ -658,7 +591,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     );
 
     // Convert models to lists for the existing UI components
-    final draftOrderLists = DataService.draftPicksToLists(displayDraftPicks);
+    DataService.draftPicksToLists(displayDraftPicks);
     final availablePlayersLists = widget.customPlayerRankings ?? DataService.playersToLists(players);
     final teamNeedsLists = widget.customTeamNeeds ?? DataService.teamNeedsToLists(teamNeeds);
 
@@ -672,7 +605,6 @@ List<Color> _getTeamGradientColors(String teamName) {
       _executedTrades = [];
       
       // Set list versions for UI compatibility
-      _draftOrderLists = draftOrderLists;
       _availablePlayersLists = availablePlayersLists;
       _teamNeedsLists = teamNeedsLists;
       
@@ -786,7 +718,7 @@ List<Color> _getTeamGradientColors(String teamName) {
     }
     
     // Process the next pick using the enhanced algorithm
-    final updatedPick = _draftService!.processDraftPick();
+    _draftService!.processDraftPick();
     
     // Check if a trade was executed
     _executedTrades = _draftService!.executedTrades;
@@ -794,7 +726,6 @@ List<Color> _getTeamGradientColors(String teamName) {
     // Update the UI with newly processed data
     setState(() {
       // Refresh the list representations for UI
-      _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
       _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
       _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
       
@@ -828,15 +759,6 @@ List<Color> _getTeamGradientColors(String teamName) {
   }
 }
 
-  void _handleUserPick(DraftPick pick) {
-    setState(() {
-      _isDraftRunning = false;
-      _statusMessage = "Your turn to pick or trade for pick #${pick.pickNumber} (${pick.teamName})";
-    });
-    
-    // First show trade offers for this pick
-    _showTradeOptions(pick);
-  }
 
 // In draft_overview_screen.dart, inside the DraftAppState class
 void _initiateUserTradeProposal() {
@@ -901,7 +823,6 @@ void _initiateUserTradeProposal() {
         
         setState(() {
           _executedTrades = _draftService!.executedTrades;
-          _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
           _statusMessage = "Trade accepted: ${offer.tradeDescription}";
         });
       },
@@ -925,7 +846,6 @@ void _initiateUserTradeProposal() {
               if (accepted) {
                 setState(() {
                   _executedTrades = _draftService!.executedTrades;
-                  _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
                   _statusMessage = _draftService!.statusMessage;
                 });
               }
@@ -959,7 +879,6 @@ void _initiateUserTradeProposal() {
           
           // Update UI
           setState(() {
-            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
             _executedTrades = _draftService!.executedTrades;
             _statusMessage = "Trade accepted: ${package.tradeDescription}";
 
@@ -1028,7 +947,6 @@ void _initiateUserTradeProposal() {
         if (accepted) {
           setState(() {
             _executedTrades = _draftService!.executedTrades;
-            _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
             _statusMessage = _draftService!.statusMessage;
             
             // Reset user pick mode
@@ -1241,7 +1159,6 @@ void _lockRealLifePick(int pickNumber, String playerName, String position, Strin
   
   // Update UI
   setState(() {
-    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
     _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // This updates the team needs display
     _statusMessage = "Locked pick #$pickNumber: $playerName ($position)";
@@ -1283,7 +1200,6 @@ Future<void> _applyLivePicks() async {
   
   // Update the UI to reflect the changes
   setState(() {
-    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
     _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);  // Update team needs display
     _statusMessage = "Applied ${livePicks.length} live picks";
@@ -1531,7 +1447,6 @@ void _selectPlayer(DraftPick pick, Player player) {
   
   // Update UI
   setState(() {
-    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
     _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
     _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
@@ -1579,7 +1494,6 @@ void executeUserSelectedTrade(TradePackage package) {
   
   setState(() {
     _executedTrades = _draftService!.executedTrades;
-    _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
     _statusMessage = "Trade executed: ${package.tradeDescription}";
     
     // Reset user pick mode
@@ -1650,7 +1564,6 @@ onUndo: () {
     if (success) {
       setState(() {
         // Update UI state
-        _draftOrderLists = DataService.draftPicksToLists(_draftPicks);
         _availablePlayersLists = DataService.playersToLists(_draftService!.availablePlayers);
         _teamNeedsLists = DataService.teamNeedsToLists(_teamNeeds);
         _statusMessage = "Undid your last pick. You're back to pick #${_draftService!.getNextPick()?.pickNumber ?? 'N/A'}";
@@ -1700,15 +1613,10 @@ onUndo: () {
     final userPicks = _draftService!.getTeamPicks(activeTeam);
     
     // Get other teams' picks
-    List<DraftPick> otherTeamPicks;
     bool controlsAllTeams = widget.selectedTeams!.length == NFLTeams.allTeams.length;
     
     if (controlsAllTeams) {
-      otherTeamPicks = _draftService!.draftOrder.where((pick) => 
-        pick.teamName != activeTeam && !pick.isSelected
-      ).toList();
     } else {
-      otherTeamPicks = _draftService!.getOtherTeamPicks(widget.selectedTeams);
     }
     
     // Debug log to check picks
@@ -1727,20 +1635,6 @@ onUndo: () {
 }
 
 // Add this method to the DraftAppState class
-void _testDraftSummary() {
-  // Force show the draft summary for testing
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Manually triggering draft summary'),
-      duration: Duration(seconds: 1),
-    ),
-  );
-  
-  // Show the summary after a brief delay
-  Future.delayed(const Duration(milliseconds: 500), () {
-    _showDraftSummary();
-  });
-}
 
 @override
 void didUpdateWidget(DraftApp oldWidget) {

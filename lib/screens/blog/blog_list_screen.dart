@@ -1,11 +1,11 @@
 // lib/screens/blog_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/seo_helper.dart';
-import '../models/blog_post.dart';
-import '../services/blog_service.dart';
-import '../utils/theme_config.dart';
+import '../../models/blog_post.dart';
+import '../../services/blog_service.dart';
+import '../../utils/theme_config.dart';
 import 'blog_detail_screen.dart';
-import '../widgets/common/app_drawer.dart';
+import '../../widgets/common/app_drawer.dart';
 
 class BlogListScreen extends StatefulWidget {
   const BlogListScreen({super.key});

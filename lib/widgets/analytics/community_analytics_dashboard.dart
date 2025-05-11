@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/analytics_provider.dart';
-import '../../utils/constants.dart';
-import '../../utils/team_logo_utils.dart';
 import 'team_draft_patterns_tab.dart';
 import 'player_draft_analysis_tab.dart';
 import 'draft_trend_insights_tab.dart';

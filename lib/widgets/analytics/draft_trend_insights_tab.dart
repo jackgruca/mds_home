@@ -1,7 +1,6 @@
 // lib/widgets/analytics/draft_trend_insights_tab.dart
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
-import '../../utils/team_logo_utils.dart';
 
 class DraftTrendInsightsTab extends StatefulWidget {
   final int draftYear;
@@ -79,7 +78,6 @@ class _DraftTrendInsightsTabState extends State<DraftTrendInsightsTab> with Auto
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

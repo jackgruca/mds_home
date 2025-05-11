@@ -982,14 +982,8 @@ String _getTradeAdviceText() {
   }
   
   // Also validate target future rounds
-  List<int> actualSelectedTargetFutureRounds = [];
   if (widget.draftService != null) {
-    List<int> availableRounds = widget.draftService?.getAvailableFuturePickRounds(_targetTeam) ?? [];
-    actualSelectedTargetFutureRounds = _selectedTargetFutureRounds
-      .where((round) => availableRounds.contains(round))
-      .toList();
   } else {
-    actualSelectedTargetFutureRounds = _selectedTargetFutureRounds;
   }
   
   // Update the TradePackage to include both future pick lists
@@ -999,7 +993,6 @@ String _getTradeAdviceText() {
   if (_selectedTargetPicks.isEmpty && _selectedTargetFutureRounds.isNotEmpty) {
     // Create a virtual draft pick for the first future round
     final firstRound = _selectedTargetFutureRounds.first;
-    final futurePick = FuturePick.forRound(_targetTeam, firstRound);
     
     // Create a dummy DraftPick for the future pick
     final dummyPick = DraftPick(

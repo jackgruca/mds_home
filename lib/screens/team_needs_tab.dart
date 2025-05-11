@@ -257,14 +257,6 @@ Widget _buildPlaceholderLogo(String teamName) {
 
 
 // Helper method for team initials
-String _getTeamInitials(String teamName) {
-  final initials = teamName.split(' ')
-      .map((word) => word.isNotEmpty ? word[0] : '')
-      .join('')
-      .toUpperCase();
-  
-  return initials.length > 2 ? initials.substring(0, 2) : initials;
-}
 
   // Inside the _getFormattedNeeds method, modify it to return both active needs and selected positions
   List<String> _getFormattedNeeds(List<dynamic> teamNeedRow) {

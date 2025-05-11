@@ -520,37 +520,6 @@ double _calculateTradeUpInterest(
 }
   
   // Check if other teams between current pick and team's next pick want same position
-  bool _competitorsWantSamePosition(String position, int currentPick, int teamNextPick) {
-    int competitorCount = 0;
-    
-    for (int pickNum = currentPick + 1; pickNum < teamNextPick; pickNum++) {
-      try {
-        // Find the team with this pick
-        final competitor = draftOrder.firstWhere(
-          (pick) => pick.pickNumber == pickNum && !pick.isSelected,
-          orElse: () => throw Exception('Pick not found')
-        );
-        
-        // Get team needs
-        final needs = _getTeamNeeds(competitor.teamName);
-        if (needs == null) continue;
-        
-        // Check if this position is a top need
-        if (needs.needs.take(3).contains(position)) {
-          competitorCount++;
-          
-          // If multiple competitors want this position, it's a clear threat
-          if (competitorCount >= 2) return true;
-        }
-      } catch (e) {
-        // Skip if pick not found
-        continue;
-      }
-    }
-    
-    // Return true if at least one competitor wants the position
-    return competitorCount > 0;
-  }
   
   // Generate realistic trade packages for interested teams
   List<TradePackage> _generateTradePackages(
@@ -1099,43 +1068,6 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   return evaluateTradeProposalWithAdjustedValue(counterOffer, adjustedValueRatio);
 }
 
-/// Check if the counter offer is essentially the same as the original offer but flipped
-bool _isReplicatedOffer(TradePackage originalOffer, TradePackage counterOffer) {
-  // Log for debugging
-  debugPrint("Checking if counter offer is a replication of original offer");
-  debugPrint("Original offer: ${originalOffer.teamOffering} -> ${originalOffer.teamReceiving}");
-  debugPrint("Counter offer: ${counterOffer.teamOffering} -> ${counterOffer.teamReceiving}");
-  
-  // Check if teams are flipped correctly (A->B becomes B->A)
-  bool teamsFlipped = originalOffer.teamOffering == counterOffer.teamReceiving &&
-                      originalOffer.teamReceiving == counterOffer.teamOffering;
-  
-  debugPrint("Teams flipped correctly? $teamsFlipped");
-  
-  if (!teamsFlipped) return false;
-  
-  // Compare picks more loosely - focus on total value rather than exact picks
-  // The original value offered should be very close to the counter value requested
-  double originalValueOffered = originalOffer.totalValueOffered;
-  double counterValueRequested = counterOffer.targetPickValue;
-  
-  // The original value requested should be very close to the counter value offered
-  double originalValueRequested = originalOffer.targetPickValue;
-  double counterValueOffered = counterOffer.totalValueOffered;
-  
-  debugPrint("Original offered: $originalValueOffered, Counter requested: $counterValueRequested");
-  debugPrint("Original requested: $originalValueRequested, Counter offered: $counterValueOffered");
-  
-  // Check if values are within 5% of each other (allowing some small difference due to rounding)
-  bool valuesMatchOffering = (originalValueOffered / counterValueRequested).between(0.95, 1.05);
-  bool valuesMatchTarget = (originalValueRequested / counterValueOffered).between(0.95, 1.05);
-  
-  debugPrint("Values match for offering? $valuesMatchOffering");
-  debugPrint("Values match for target? $valuesMatchTarget");
-  
-  // Consider a match if both value pairs are close
-  return teamsFlipped && valuesMatchOffering && valuesMatchTarget;
-}
 
 /// Check if the counter offer is better for the AI team but still reasonable
 bool _isImprovedCounterOffer(TradePackage originalOffer, TradePackage counterOffer) {
@@ -1163,35 +1095,7 @@ bool _isImprovedCounterOffer(TradePackage originalOffer, TradePackage counterOff
   return isImproved && isReasonable;
 }
 
-/// Helper method to check if two values are close (within 5%)
-bool _areValuesClose(double value1, double value2) {
-  if (value1 == 0 || value2 == 0) return false;
-  double ratio = value1 / value2;
-  return ratio >= 0.95 && ratio <= 1.05;
-}
 
-/// Helper to check if two sets of picks are equivalent
-bool _arePicksEquivalent(List<DraftPick> setA, DraftPick mainPick, List<DraftPick> additionalPicks) {
-  // Create a complete list of picks from mainPick + additionalPicks
-  List<DraftPick> setB = [mainPick, ...additionalPicks];
-  
-  // If sizes don't match, they're definitely not equivalent
-  if (setA.length != setB.length) return false;
-  
-  // Check if all picks in setA exist in setB (by pick number)
-  for (var pickA in setA) {
-    bool foundMatch = false;
-    for (var pickB in setB) {
-      if (pickA.pickNumber == pickB.pickNumber) {
-        foundMatch = true;
-        break;
-      }
-    }
-    if (!foundMatch) return false;
-  }
-  
-  return true;
-}
 
   /// Process a user trade proposal with realistic acceptance criteria
 bool evaluateTradeProposal(TradePackage proposal) {
@@ -1201,7 +1105,7 @@ bool evaluateTradeProposal(TradePackage proposal) {
   }
   
   // Get team tendencies
-  final tendency = _getTeamTradingTendency(proposal.teamReceiving);
+  _getTeamTradingTendency(proposal.teamReceiving);
   
   // Core decision factors
   final valueRatio = proposal.totalValueOffered / proposal.targetPickValue;

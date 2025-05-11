@@ -277,8 +277,6 @@ class _EnhancedTradeDialogState extends State<EnhancedTradeDialog> with SingleTi
 
   Widget _buildTradeDetails() {
   final package = widget.tradeOffer.packages[_selectedIndex];
-  final isFair = package.isFairTrade;
-  final isGreat = package.isGreatTrade;
   
   return Expanded(
     child: SingleChildScrollView(

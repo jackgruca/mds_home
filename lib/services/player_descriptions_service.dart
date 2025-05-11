@@ -1,5 +1,4 @@
 // lib/services/player_descriptions_service.dart
-import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:csv/csv.dart';
@@ -167,69 +166,8 @@ static Map<String, String>? getPlayerDescription(String playerName) {
         .replaceAll(RegExp(r'\s+'), ' '); // Normalize whitespace
   }
   
-  /// Calculate similarity between two strings (0.0 to 1.0)
-  static double _calculateSimilarity(String s1, String s2) {
-    if (s1 == s2) return 1.0;
-    if (s1.isEmpty || s2.isEmpty) return 0.0;
-    
-    // Calculate Levenshtein distance
-    int distance = _levenshteinDistance(s1, s2);
-    int maxLength = s1.length > s2.length ? s1.length : s2.length;
-    
-    // Convert to similarity (0.0 to 1.0)
-    return 1.0 - (distance / maxLength);
-  }
   
-  /// Find the best matching name from a list of candidates
-  static String? _findBestMatch(String name, List<String> candidates) {
-    if (candidates.isEmpty) return null;
-    
-    String? bestMatch;
-    double bestSimilarity = 0.5; // Threshold for a good match
-    
-    for (var candidate in candidates) {
-      double similarity = _calculateSimilarity(name, candidate);
-      if (similarity > bestSimilarity) {
-        bestSimilarity = similarity;
-        bestMatch = candidate;
-      }
-    }
-    
-    return bestMatch;
-  }
   
-  /// Calculate Levenshtein distance between two strings
-  static int _levenshteinDistance(String s1, String s2) {
-    if (s1 == s2) return 0;
-    if (s1.isEmpty) return s2.length;
-    if (s2.isEmpty) return s1.length;
-    
-    List<List<int>> d = List.generate(
-      s1.length + 1, 
-      (i) => List.generate(s2.length + 1, (j) => 0)
-    );
-    
-    for (int i = 0; i <= s1.length; i++) {
-      d[i][0] = i;
-    }
-    
-    for (int j = 0; j <= s2.length; j++) {
-      d[0][j] = j;
-    }
-    
-    for (int j = 1; j <= s2.length; j++) {
-      for (int i = 1; i <= s1.length; i++) {
-        int cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
-        d[i][j] = [
-          d[i - 1][j] + 1,      // deletion
-          d[i][j - 1] + 1,      // insertion
-          d[i - 1][j - 1] + cost // substitution
-        ].reduce(min);
-      }
-    }
-    
-    return d[s1.length][s2.length];
-  }
   
   /// Print all loaded player names for debugging
   static void debugPrintAllPlayerNames() {

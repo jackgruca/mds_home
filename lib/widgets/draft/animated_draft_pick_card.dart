@@ -6,7 +6,6 @@ import '../../models/draft_pick.dart';
 import '../../models/player.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_value_service.dart';
-import '../../utils/constants.dart';
 import '../../widgets/player/player_details_dialog.dart';
 import '../../utils/mock_player_data.dart';
 import '../../services/player_descriptions_service.dart';
@@ -41,7 +40,6 @@ class _AnimatedDraftPickCardState extends State<AnimatedDraftPickCard> with Sing
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  final Random _random = Random();
   Map<int, TradePackage> executedTrades = {};
   
   @override

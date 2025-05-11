@@ -5,7 +5,6 @@ import '../widgets/auth/auth_dialog.dart';
 import 'team_needs_editor.dart';
 import 'player_rankings_editor.dart';
 import '../services/data_service.dart';
-import '../widgets/draft/custom_data_manager_dialog.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -128,46 +127,6 @@ class _CustomizeDraftTabViewState extends State<CustomizeDraftTabView> with Sing
     }
   }
 
-  void _showDataManagerDialog() {
-  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-  
-  if (!authProvider.isLoggedIn) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('You need to be logged in to manage saved draft data'),
-      ),
-    );
-    return;
-  }
-  
-  showDialog(
-    context: context,
-    builder: (context) => CustomDataManagerDialog(
-      currentYear: widget.selectedYear,
-      currentTeamNeeds: _teamNeeds,
-      currentPlayerRankings: _playerRankings,
-      onDataSelected: (customData) {
-        setState(() {
-          if (customData.teamNeeds != null) {
-            _teamNeeds = customData.teamNeeds;
-            widget.onTeamNeedsChanged(customData.teamNeeds!);
-          }
-          
-          if (customData.playerRankings != null) {
-            _playerRankings = customData.playerRankings;
-            widget.onPlayerRankingsChanged(customData.playerRankings!);
-          }
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Loaded "${customData.name}" data set'),
-          ),
-        );
-      },
-    ),
-  );
-}
 
 Future<void> _autoSaveChanges(String type) async {
   final authProvider = Provider.of<AuthProvider>(context, listen: false);

@@ -96,14 +96,6 @@ class TeamLogoUtils {
   }
   
   // Helper method to find a working logo URL
-  static Future<int> _findWorkingLogo(String abbr, List<String> formats) async {
-    // In a production app, you'd implement HTTP head requests to check which URL works
-    // For simplicity in this example, we'll return the first format, assuming it works
-    // In a real implementation, you'd try each URL and return the index of the first working one
-    
-    // This is just a placeholder implementation - in your app, you'd need to check each URL
-    return 0; // Return the first format
-  }
   
   // Helper method to build a placeholder logo
   static Widget _buildPlaceholderLogo(

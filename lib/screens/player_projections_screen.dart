@@ -1,7 +1,6 @@
 // lib/screens/player_projections_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
-import '../utils/theme_config.dart';
 
 class PlayerProjectionsScreen extends StatelessWidget {
   const PlayerProjectionsScreen({super.key});

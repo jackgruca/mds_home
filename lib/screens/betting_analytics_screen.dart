@@ -1,7 +1,6 @@
 // lib/screens/betting_analytics_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
-import '../utils/theme_config.dart';
 
 class BettingAnalyticsScreen extends StatelessWidget {
   const BettingAnalyticsScreen({super.key});

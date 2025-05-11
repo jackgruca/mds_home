@@ -14,7 +14,6 @@ import 'dart:js' as js;
 import '../../models/draft_pick.dart';
 import '../../models/team_need.dart';
 import '../../models/trade_package.dart';
-import '../../utils/theme_config.dart';
 import '../draft/shareable_draft_card.dart';
 
 /// Widget for copying draft results as images

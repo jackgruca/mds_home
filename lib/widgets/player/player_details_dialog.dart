@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../models/player.dart';
 import '../../services/player_espn_id_service.dart';
 import '../../utils/team_logo_utils.dart';
-import '../../utils/constants.dart';
 
 // In lib/widgets/player/player_details_dialog.dart
 class PlayerDetailsDialog extends StatelessWidget {
@@ -36,7 +35,6 @@ class PlayerDetailsDialog extends StatelessWidget {
 
 Widget contentBox(BuildContext context, bool isDarkMode) {
   final headerColor = _getPositionColor(player.position);
-  final screenSize = MediaQuery.of(context).size;
   
   // Get player headshot URL
   String? headshotUrl;
@@ -678,52 +676,6 @@ Widget _buildCompactStat(
 // Add these new helper methods at the end of the PlayerDetailsDialog class:
 
 // New helper method for grid-style stat items
-Widget _buildGridStatItem(
-  BuildContext context, 
-  String label, 
-  String value, 
-  bool isDarkMode, 
-  {Color? ratingColor}
-) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-    decoration: BoxDecoration(
-      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(
-        color: ratingColor != null 
-            ? ratingColor.withOpacity(0.5) 
-            : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300),
-        width: ratingColor != null ? 1.5 : 1.0,
-      ),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.normal,
-            color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: ratingColor ?? (isDarkMode ? Colors.white : Colors.black87),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
-  );
-}
 
 // Helper for 40 time color
 Color _getFortyTimeColor(String fortyTime) {
@@ -752,88 +704,9 @@ Color _getRasColor(double ras) {
 }
 
 // Helper for grade color
-Color _getGradeColor(String grade) {
-  if (grade.startsWith('A+')) return Colors.green.shade700;
-  if (grade.startsWith('A')) return Colors.green.shade600;
-  if (grade.startsWith('B+')) return Colors.blue.shade700;
-  if (grade.startsWith('B')) return Colors.blue.shade600;
-  if (grade.startsWith('C+')) return Colors.orange.shade700;
-  if (grade.startsWith('C')) return Colors.orange.shade600;
-  if (grade.startsWith('D')) return Colors.red.shade600;
-  return Colors.red.shade700;
-}
 
 // Player grade helper
-String _getPlayerGrade(Player player) {
-  // Simple algorithm based on rank and position importance
-  if (player.rank <= 10) return 'A+';
-  if (player.rank <= 20) return 'A';
-  if (player.rank <= 32) return 'B+';
-  if (player.rank <= 50) return 'B';
-  if (player.rank <= 75) return 'C+';
-  if (player.rank <= 100) return 'C';
-  if (player.rank <= 150) return 'D';
-  return 'F';
-}
 
-Widget _buildStrengthsWeaknesses(
-  BuildContext context,
-  String title,
-  String content,
-  IconData icon,
-  Color color,
-  bool isDarkMode,
-) {
-  return Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: color.withOpacity(isDarkMode ? 0.1 : 0.05),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(
-        color: color.withOpacity(isDarkMode ? 0.3 : 0.2),
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              icon,
-              color: color.withOpacity(isDarkMode ? 0.8 : 1.0),
-              size: 16,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color.withOpacity(isDarkMode ? 0.9 : 1.0),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // Make this area scrollable with a fixed height
-        SizedBox(
-          height: 80, // Fixed height for scrollable area
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Text(
-              content,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade800,
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
   
   Color _getPositionColor(String position) {
     // Different colors for different position groups
@@ -856,95 +729,6 @@ Widget _buildStrengthsWeaknesses(
     return Colors.grey.shade700;
   }
 
-  Widget _buildStatCard(
-  BuildContext context,
-  String label,
-  String value,
-  IconData icon,
-  bool isDarkMode, {
-  bool hasRating = false,
-  double? rating,
-  bool isInverted = false,
-}) {
-  Color getColorForRating(double rating, bool isInverted) {
-    if (isInverted) {
-      // For 40 time, lower is better
-      if (label == '40 Time') {
-        double time = double.tryParse(value.replaceAll('s', '')) ?? 0;
-        if (time <= 4.3) return Colors.green.shade800;
-        if (time <= 4.4) return Colors.green.shade600;
-        if (time <= 4.5) return Colors.green.shade400;
-        if (time <= 4.6) return Colors.blue.shade500;
-        if (time <= 4.7) return Colors.blue.shade300;
-        if (time <= 4.8) return Colors.orange.shade400;
-        if (time <= 4.9) return Colors.orange.shade600;
-        return Colors.red.shade400;
-      }
-    } else {
-      // For RAS and other ratings, higher is better
-      if (rating >= 9.0) return Colors.green.shade800;
-      if (rating >= 8.0) return Colors.green.shade600;
-      if (rating >= 7.0) return Colors.green.shade400;
-      if (rating >= 6.0) return Colors.blue.shade500;
-      if (rating >= 5.0) return Colors.blue.shade300;
-      if (rating >= 4.0) return Colors.orange.shade400;
-      if (rating >= 3.0) return Colors.orange.shade600;
-      return Colors.red.shade400;
-    }
-    return isDarkMode ? Colors.white70 : Colors.grey.shade700;
-  }
-  
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-    decoration: BoxDecoration(
-      color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Column(
-      children: [
-        Icon(
-          icon,
-          color: hasRating && rating != null 
-              ? getColorForRating(rating, isInverted) 
-              : (isDarkMode ? Colors.white70 : Colors.grey.shade700),
-          size: 20,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: hasRating && rating != null 
-              ? getColorForRating(rating, isInverted) 
-              : (isDarkMode ? Colors.white : Colors.black87),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 // Helper method to get a rating value for the 40 time
-double _getFortyTimeRating(String fortyTime) {
-  // Convert string to double, handling errors
-  double time = double.tryParse(fortyTime.replaceAll('s', '')) ?? 5.0;
-  
-  // Map 40 time to a 0-10 scale where:
-  // 4.2s = 10.0 (exceptional)
-  // 5.0s = 0.0 (poor)
-  if (time <= 4.2) return 10.0;
-  if (time >= 5.0) return 0.0;
-  
-  // Linear mapping from 4.2-5.0 to 10.0-0.0
-  return 10.0 - ((time - 4.2) * (10.0 / 0.8));
-}
 }
