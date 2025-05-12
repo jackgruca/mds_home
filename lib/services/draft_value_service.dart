@@ -10,7 +10,6 @@ class DraftValueService {
   static List<DraftValue> _draftValues = [];
   static bool _isInitialized = false;
 
-  static const String _version = "v1.1";
   static Map<int, double>? _draftValueMap;
 
   /// Load the draft value chart from CSV

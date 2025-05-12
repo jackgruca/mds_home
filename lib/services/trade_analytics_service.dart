@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/draft_pick.dart';
 import '../models/trade_package.dart';
-import '../services/draft_value_service.dart';
 
 /// Service that provides advanced analytics for trade proposals
 class TradeAnalyticsService {
@@ -45,7 +44,7 @@ class TradeAnalyticsService {
   /// Get recommended action for a trade
   static String getRecommendedAction(TradePackage package) {
     double fairnessScore = calculateFairnessScore(package);
-    double targetPickQuality = calculatePickQualityScore(package.targetPick.pickNumber);
+    calculatePickQualityScore(package.targetPick.pickNumber);
     
     // If team receiving has a top pick (1-10)
     if (package.targetPick.pickNumber <= 10) {
@@ -118,7 +117,7 @@ class TradeAnalyticsService {
   static Map<String, List<String>> getTradeProsCons(TradePackage package) {
     List<String> pros = [];
     List<String> cons = [];
-    double fairnessScore = calculateFairnessScore(package);
+    calculateFairnessScore(package);
     double valueRatio = package.totalValueOffered / package.targetPickValue;
     
     // Analysis based on value

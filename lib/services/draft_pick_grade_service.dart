@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
-import '../models/player.dart';
 import '../models/team_need.dart';
 import '../services/draft_value_service.dart';
 import 'draft_grade_service.dart';
@@ -435,7 +434,6 @@ if (debug) {
   final double positionValue = factors['positionValue'];
   final int needIndex = factors['needIndex'];
   final bool isInNeedRange = factors['isInNeedRange'];
-  final String letterGrade = gradeInfo['letter'];
   
   String description = '';
   

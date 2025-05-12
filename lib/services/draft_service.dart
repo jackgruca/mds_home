@@ -35,7 +35,6 @@ class DraftService {
   late TradeService _tradeService;
   
   // Draft state tracking
-  bool _tradeUp = false;
   bool _qbTrade = false;
   String _statusMessage = "";
   int _currentPick = 0;
@@ -51,7 +50,6 @@ class DraftService {
   final Map<int, List<TradePackage>> _pendingUserOffers = {};
   
   // Track draft progress to adjust trade frequency
-  int _completedPicks = 0;
   
   // Trade frequency settings
   final Map<int, double> _roundTradeFrequency = {
@@ -164,24 +162,11 @@ List<DraftPick> getOtherTeamPicks(List<String>? excludeTeams) {
     _tradeService.recordPlayerSelection(player);
     
     // Track completed picks
-    _completedPicks++;
     
     // Set status message
     _statusMessage = "Pick #${pick.pickNumber}: ${pick.teamName} selects ${player.name} (${player.position})";
   }
   
-  /// Generate trade offers for user team pick
-  void _generateUserTradeOffers(DraftPick userPick) {
-    // Generate realistic offers using trade service
-    TradeOffer tradeOffers = _tradeService.generateTradeOffersForPick(userPick.pickNumber);
-    
-    // Store the offers for the user to consider
-    if (tradeOffers.packages.isNotEmpty) {
-      _pendingUserOffers[userPick.pickNumber] = tradeOffers.packages;
-    } else {
-      _pendingUserOffers.remove(userPick.pickNumber);
-    }
-  }
 
   /// Clean up stale trade offers for picks that have already been handled
   void cleanupTradeOffers() {
@@ -256,7 +241,6 @@ bool anyUserTeamHasOffers() {
   }
   
   _currentPick = nextPick.pickNumber;
-  _tradeUp = false;
   _qbTrade = false;
     
   // Check if this pick is locked and already has a player
@@ -293,7 +277,6 @@ bool anyUserTeamHasOffers() {
     
     // If a trade was executed, return the updated pick
     if (executedTrade != null) {
-      _tradeUp = true;
       _statusMessage = "Trade executed: ${executedTrade.tradeDescription}";
       
       // Clean up any stale trade offers
@@ -826,6 +809,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
         // Position runs create urgency for teams
         if (volatilityFactor > 0.3) {
           // The position is getting scarce - teams with this need will prioritize it
+          // ignore: unnecessary_null_comparison
           int positionNeedIndex = teamNeed != null ? teamNeed.needs.indexOf(player.position) : -1;
           
           if (positionNeedIndex >= 0 && positionNeedIndex < 3) {
@@ -962,76 +946,6 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   }
   
   // Modify _makeSelection method to use pick number for determining randomness
-  Player? _makeSelection(String needPosition) {
-    // Filter players by position using contains
-    List<Player> candidatesForPosition = availablePlayers
-        .where((player) => player.position.contains(needPosition))
-        .toList();
-    
-    if (candidatesForPosition.isEmpty) {
-      return null;
-    }
-    
-    // Sort by rank
-    candidatesForPosition.sort((a, b) => a.rank.compareTo(b.rank));
-    
-    // Use current pick number for randomness calculation
-    int pickNumber = _currentPick;
-    double randSelect = _random.nextDouble();
-    int selectIndex;
-    
-    // Differentiate selection probabilities by pick range
-    if (pickNumber <= 5) {
-      // Top 5 picks - almost always take the best player (95%)
-      if (randSelect <= 0.95) {
-        selectIndex = 0;
-      } else {
-        selectIndex = min(1, candidatesForPosition.length - 1);
-      }
-    } 
-    else if (pickNumber <= 15) {
-      // Picks 6-15 - still heavily favor best player (90%)
-      if (randSelect <= 0.90) {
-        selectIndex = 0;
-      } else if (randSelect <= 0.98) {
-        selectIndex = min(1, candidatesForPosition.length - 1);
-      } else {
-        selectIndex = min(2, candidatesForPosition.length - 1);
-      }
-    }
-    else if (pickNumber <= 32) {
-      // Rest of first round - moderately favor best player (85%)
-      if (randSelect <= 0.85) {
-        selectIndex = 0;
-      } else if (randSelect <= 0.97) {
-        selectIndex = min(1, candidatesForPosition.length - 1);
-      } else {
-        selectIndex = min(2, candidatesForPosition.length - 1);
-      }
-    }
-    else if (pickNumber <= 64) {
-      // Second round - slightly favor best player (80%)
-      if (randSelect <= 0.80) {
-        selectIndex = 0;
-      } else if (randSelect <= 0.95) {
-        selectIndex = min(1, candidatesForPosition.length - 1);
-      } else {
-        selectIndex = min(2, candidatesForPosition.length - 1);
-      }
-    }
-    else {
-      // Later rounds - standard randomness
-      if (randSelect <= 0.75) {
-        selectIndex = 0;
-      } else if (randSelect <= 0.90) {
-        selectIndex = min(1, candidatesForPosition.length - 1);
-      } else {
-        selectIndex = min(2, candidatesForPosition.length - 1);
-      }
-    }
-    
-    return candidatesForPosition[selectIndex];
-  }
   
   /// Select the best player available with consideration for pick position
   Player _selectBestPlayerAvailable(int pickNumber) {
@@ -1076,35 +990,6 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
     return availablePlayers[selectIndex];
   }
   
-  /// Select best player that matches any of the given positions
-  Player _selectBestPlayerForPosition(List<String> positions, int pickNumber) {
-    // Filter players by any matching position
-    List<Player> candidatesForPositions = availablePlayers
-      .where((player) => positions.contains(player.position))
-      .toList();
-  
-    // If no matches, fall back to best overall
-    if (candidatesForPositions.isEmpty) {
-      return _selectBestPlayerAvailable(pickNumber);
-    }
-    
-    // Sort by rank
-    candidatesForPositions.sort((a, b) => a.rank.compareTo(b.rank));
-    
-    // Random selection logic
-    double randSelect = _random.nextDouble();
-    int selectIndex;
-    
-    if (randSelect <= 0.75) {
-      selectIndex = 0; // 75% chance for top player
-    } else if (randSelect > 0.75 && randSelect <= 0.95) {
-      selectIndex = min(1, candidatesForPositions.length - 1); // 20% for second
-    } else {
-      selectIndex = min(2, candidatesForPositions.length - 1); // 5% for third
-    }
-    
-    return candidatesForPositions[selectIndex];
-  }
   
   /// Select the best player with appropriate randomness factor for draft position
   Player _selectBestPlayerWithRandomness(List<Player> players, int pickNumber) {
@@ -1187,13 +1072,7 @@ bool evaluateCounterOffer(TradePackage originalOffer, TradePackage counterOffer)
   }
     
   // Randomization helper functions (from R code)
-  double _getRandomAddValue() {
-    return _random.nextDouble() * 10 - 4; // Range from -4 to 6
-  }
     
-  double _getRandomMultValue() {
-    return _random.nextDouble() * 0.3 + 0.01; // Range from 0.01 to 0.3
-  }
   
   /// Get the team needs for a specific team
   TeamNeed? _getTeamNeeds(String teamName) {
@@ -1281,7 +1160,6 @@ void generateUserPickOffers() {
 void executeUserSelectedTrade(TradePackage package) {
   _executeTrade(package);
   _statusMessage = "Trade executed: ${package.tradeDescription}";
-  _tradeUp = true;
   
   // Clean up any stale trade offers
   cleanupTradeOffers();

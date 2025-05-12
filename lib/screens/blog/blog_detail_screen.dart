@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mds_home/utils/seo_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../models/blog_post.dart';
-import '../services/blog_service.dart';
-import '../utils/theme_config.dart';
+import '../../models/blog_post.dart';
+import '../../services/blog_service.dart';
+import '../../utils/theme_config.dart';
 
 class BlogDetailScreen extends StatefulWidget {
   final String postId;

@@ -1,15 +1,12 @@
 // lib/widgets/analytics/draft_analytics_dashboard.dart
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../models/draft_pick.dart';
 import '../../models/player.dart';
 import '../../models/trade_package.dart';
 import '../../services/draft_grade_service.dart';
-import '../../services/draft_value_service.dart';
 import '../../models/team_need.dart';
 import '../../services/draft_pick_grade_service.dart';
-import '../../utils/constants.dart';
 import '../../utils/team_logo_utils.dart';
 import '../common/export_button_widget.dart';
 import '../draft/shareable_draft_card.dart';
@@ -282,61 +279,6 @@ Widget _buildTwoColumnLayout(List<DraftPick> picks, bool isDarkMode) {
   );
 }
 
-Widget _buildMultiColumnLayout(List<DraftPick> picks, int columns, bool isDarkMode) {
-  // Calculate items per column, ensuring equal distribution
-  int itemsPerColumn = (picks.length / columns).ceil();
-  
-  // Create list of columns
-  List<List<DraftPick>> columnPicks = List.generate(columns, (index) => []);
-  
-  // Distribute picks across columns
-  for (int i = 0; i < picks.length; i++) {
-    int columnIndex = i ~/ itemsPerColumn;
-    if (columnIndex < columns) {
-      columnPicks[columnIndex].add(picks[i]);
-    }
-  }
-  
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      for (int i = 0; i < columns; i++) ...[
-        if (i > 0)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4.0),
-            width: 1,
-            color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-          ),
-        
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (columnPicks[i].isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-                  child: Text(
-                    'Picks ${columnPicks[i].first.pickNumber} - ${columnPicks[i].last.pickNumber}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
-              ...columnPicks[i].map((pick) => 
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4.0),
-                  child: _buildPickRow(pick, isDarkMode),
-                )
-              ),
-            ],
-          ),
-        ),
-      ],
-    ],
-  );
-}
 
 Widget _buildPickRow(DraftPick pick, bool isDarkMode) {
   if (pick.selectedPlayer == null) {
@@ -692,7 +634,6 @@ Color _getPickNumberColor(String round) {
       // Only consider runs of 3 or more
       if (maxRunLength >= 3) {
         int end = picks[endIdx];
-        int span = end - start + 1;
         
         // Check if this run overlaps with any previously identified run
         bool overlapsWithExisting = _positionRuns.any((run) => 
@@ -843,7 +784,7 @@ Widget build(BuildContext context) {
   );
 }
   
-Widget _buildSectionHeader(String title, {bool showExportButton = false}) {
+Widget _buildSectionHeader(String title) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 6.0),
     child: Row(

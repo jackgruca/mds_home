@@ -1,19 +1,15 @@
 // lib/services/draft_export_service.dart
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mds_home/services/draft_grade_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/draft_pick.dart';
 import '../models/team_need.dart';
 import '../models/trade_package.dart';
-import '../services/draft_pick_grade_service.dart';
-import '../utils/constants.dart';
 
 class DraftExportService {
   /// Share draft results via platform-specific methods
@@ -69,77 +65,8 @@ class DraftExportService {
   }
 }
   // Update the method that renders pick cards in HTML
-static void _writePickCardHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
-  if (pick.selectedPlayer == null) return;
-  
-  // Calculate pick grade
-  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-  String letterGrade = gradeInfo['letter'];
-  
-  // Value differential
-  int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-  String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-  String valueDiffClass = valueDiff >= 0 ? "positive" : "negative";
-  
-  // Grade CSS class
-  String gradeClass = letterGrade.toLowerCase();
-  if (gradeClass.contains('+')) {
-    gradeClass = gradeClass.replaceAll('+', '-plus');
-  }
-  
-  // Position CSS class
-  String positionClass = pick.selectedPlayer!.position.toLowerCase();
-  
-  // User team highlighting
-  String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-  
-  // Team abbreviation for logo
-  String teamAbbr = _getTeamAbbreviation(pick.teamName);
-  
-  html.write('''
-    <div class="pick-card $userTeamClass">
-      <div class="pick-number">${pick.pickNumber}</div>
-      <div class="team-logo">
-        <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}" onerror="this.style.display='none'">
-      </div>
-      <div class="pick-details">
-        <div class="player-name">${pick.selectedPlayer!.name}</div>
-        <div class="player-meta">
-          <span class="position-badge pos-$positionClass">${pick.selectedPlayer!.position}</span>
-          <div class="school-logo">
-            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" alt="" onerror="this.style.display='none'">
-          </div>
-          <span class="school-name">${pick.selectedPlayer!.school}</span>
-          <span class="rank-value $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</span>
-        </div>
-      </div>
-      <div class="grade-badge grade-$gradeClass">$letterGrade</div>
-    </div>
-  ''');
-}
 
 // Add this method to draft_export_service.dart
-static void _writeStatsSection(StringBuffer html, Map<String, dynamic> draftStats) {
-  html.write('''
-    <div class="section-title">Draft Stats</div>
-    <div class="stats-container">
-      <div class="stat-card">
-        <div class="stat-title">Total Picks</div>
-        <div class="stat-value">${draftStats['totalPicks']}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-title">Total Trades</div>
-        <div class="stat-value">${draftStats['totalTrades']}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-title">Average Value</div>
-        <div class="stat-value ${draftStats['avgValueDiff'] >= 0 ? 'positive' : 'negative'}">
-          ${draftStats['avgValueDiff'] >= 0 ? '+' : ''}${draftStats['avgValueDiff'].toStringAsFixed(1)}
-        </div>
-      </div>
-    </div>
-  ''');
-}
   /// Export first round
   static Future<void> exportFirstRound({
     required BuildContext context,
@@ -761,236 +688,9 @@ static String generateFormattedClipboardText(
   return html.toString();
 }
 
-  /// Helper to write compact pick HTML for 2-column layout
-static void _writeCompactPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
-  if (pick.selectedPlayer == null) return;
-  
-  // Calculate pick grade
-  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-  String letterGrade = gradeInfo['letter'];
-  
-  // Value differential
-  int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-  String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-  String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
-  
-  // Grade CSS class
-  String gradeClass = letterGrade.toLowerCase();
-  if (gradeClass.contains('+')) {
-    gradeClass = gradeClass.replaceAll('+', '-plus');
-  } else if (gradeClass.contains('-')) {
-    gradeClass = gradeClass.replaceAll('-', '-minus');
-  }
-  
-  // Position CSS class
-  String positionClass = pick.selectedPlayer!.position.toLowerCase();
-  
-  // User team highlighting
-  String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-  
-  // Team abbreviation for logo
-  String teamAbbr = _getTeamAbbreviation(pick.teamName);
-  
-  html.write('''
-    <div class="draft-card $userTeamClass">
-      <div class="pick-circle round-${pick.round}">${pick.pickNumber}</div>
-      <div class="team-logo-small">
-        <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}">
-      </div>
-      <div class="player-content">
-        <div class="player-name">${pick.selectedPlayer!.name}</div>
-        <div class="card-details">
-          <div class="position-pill pos-$positionClass">${pick.selectedPlayer!.position}</div>
-          <div class="school-logo-sm">
-            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
-                 alt="" onerror="this.style.display='none';">
-          </div>
-          <div class="school-text">${pick.selectedPlayer!.school}</div>
-          <div class="rank-value $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</div>
-        </div>
-      </div>
-      <div class="grade-badge grade-$gradeClass">$letterGrade</div>
-    </div>
-  ''');
-}
 
-  /// Calculate overall draft stats
-  static Map<String, dynamic> _calculateOverallStats(
-    List<DraftPick> picks, 
-    List<TradePackage> trades,
-    List<TeamNeed> teamNeeds
-  ) {
-    // Count completed picks
-    int totalPicks = picks.where((p) => p.selectedPlayer != null).length;
-    int totalTrades = trades.length;
-    
-    // Calculate average value differential
-    double totalValueDiff = 0;
-    for (var pick in picks) {
-      if (pick.selectedPlayer != null) {
-        totalValueDiff += (pick.pickNumber - pick.selectedPlayer!.rank);
-      }
-    }
-    double avgValueDiff = totalPicks > 0 ? totalValueDiff / totalPicks : 0;
-    
-    // Count team grades
-    Map<String, String> teamGrades = {};
-    Map<String, List<DraftPick>> teamPicks = {};
-    
-    // Group picks by team
-    for (var pick in picks) {
-      if (pick.selectedPlayer != null) {
-        if (!teamPicks.containsKey(pick.teamName)) {
-          teamPicks[pick.teamName] = [];
-        }
-        teamPicks[pick.teamName]!.add(pick);
-      }
-    }
-    
-    // Calculate grades for each team
-    for (var team in teamPicks.keys) {
-      final teamTradeList = trades.where(
-        (trade) => trade.teamOffering == team || trade.teamReceiving == team
-      ).toList();
-      
-      final gradeInfo = _calculateTeamGrade(teamPicks[team]!, teamTradeList, teamNeeds, team);
-      teamGrades[team] = gradeInfo['grade'];
-    }
-    
-    // Count grades
-    int aGrades = teamGrades.values.where((g) => g.startsWith('A')).length;
-    int bGrades = teamGrades.values.where((g) => g.startsWith('B')).length;
-    int cGrades = teamGrades.values.where((g) => g.startsWith('C')).length;
-    int dGrades = teamGrades.values.where((g) => g.startsWith('D')).length;
-    
-    // Count positions drafted
-    Map<String, int> positionCounts = {};
-    for (var pick in picks) {
-      if (pick.selectedPlayer != null) {
-        final position = pick.selectedPlayer!.position;
-        positionCounts[position] = (positionCounts[position] ?? 0) + 1;
-      }
-    }
-    
-    // Return stats map
-    return {
-      'totalPicks': totalPicks,
-      'totalTrades': totalTrades,
-      'avgValueDiff': avgValueDiff,
-      'aGrades': aGrades,
-      'bGrades': bGrades,
-      'cGrades': cGrades,
-      'dGrades': dGrades,
-      'positionCounts': positionCounts,
-    };
-  }
   
-  /// Calculate team grade based on picks, trades, and team needs
-  static Map<String, dynamic> _calculateTeamGrade(
-  List<DraftPick> teamPicks, 
-  List<TradePackage> teamTrades,
-  List<TeamNeed> teamNeeds,
-  String team
-) {
-  // Call the centralized service instead of local calculation
-  return DraftGradeService.calculateTeamGrade(
-    teamPicks,
-    teamTrades,
-    teamNeeds,
-    debug: true
-  );
-}
   
-  /// Get NFL team abbreviation for logo URLs
-  static String _getTeamAbbreviation(String teamName) {
-    // Map full team names to abbreviations
-    const Map<String, String> teamMap = NFLTeamMappings.fullNameToAbbreviation;
-    
-    // Return the abbreviation if found in the map
-    if (teamMap.containsKey(teamName)) {
-      return teamMap[teamName]!;
-    }
-    
-    // For unknown teams or if the map fails, generate a simple abbreviation
-    if (teamName.length <= 3) {
-      return teamName;
-    }
-    
-    // Generate from team name (e.g., "New York Giants" -> "NYG")
-    final words = teamName.split(' ');
-    if (words.length >= 2) {
-      return words.map((word) => word.isNotEmpty ? word[0] : '').join('');
-    }
-    
-    // Fallback to first 3 characters
-    return teamName.substring(0, min(3, teamName.length));
-  }
   
-  /// Get ESPN college ID for school logos
-  static String _getCollegeId(String schoolName) {
-    // Try to get the ESP ID from the mapping
-    final collegeId = CollegeTeamESPNIds.findIdForSchool(schoolName);
-    
-    // Return the ID if found
-    if (collegeId != null) {
-      return collegeId;
-    }
-    
-    // Fallback to placeholder
-    return 'placeholder';
-  }
 
-/// Helper to write compact first round pick HTML
-static void _writeCompactFirstRoundPickHtml(StringBuffer html, DraftPick pick, List<TeamNeed> teamNeeds, String? userTeam) {
-  if (pick.selectedPlayer == null) return;
-  
-  // Calculate pick grade
-  Map<String, dynamic> gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-  String letterGrade = gradeInfo['letter'];
-  
-  // Value differential
-  int valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-  String valueDiffText = valueDiff >= 0 ? "+$valueDiff" : "$valueDiff";
-  String valueDiffClass = valueDiff >= 0 ? "value-positive" : "value-negative";
-  
-  // Grade CSS class - Fix for minus grades
-  String gradeClass = letterGrade.toLowerCase();
-  if (gradeClass.contains('+')) {
-    gradeClass = gradeClass.replaceAll('+', '-plus');
-  } else if (gradeClass.contains('-')) {
-    gradeClass = gradeClass.replaceAll('-', '-minus');
-  }
-  
-  // Position CSS class
-  String positionClass = pick.selectedPlayer!.position.toLowerCase();
-  
-  // User team highlighting
-  String userTeamClass = (userTeam != null && pick.teamName == userTeam) ? "user-team" : "";
-  
-  // Team abbreviation for logo
-  String teamAbbr = _getTeamAbbreviation(pick.teamName);
-  
-  html.write('''
-    <div class="draft-card $userTeamClass">
-      <div class="pick-circle">${pick.pickNumber}</div>
-      <div class="team-logo-small">
-        <img src="https://a.espncdn.com/i/teamlogos/nfl/500/${teamAbbr.toLowerCase()}.png" alt="${pick.teamName}">
-      </div>
-      <div class="player-content">
-        <div class="player-name">${pick.selectedPlayer!.name}</div>
-        <div class="card-details">
-          <div class="position-pill pos-$positionClass">${pick.selectedPlayer!.position}</div>
-          <div class="school-logo-sm">
-            <img src="https://a.espncdn.com/i/teamlogos/ncaa/500/${_getCollegeId(pick.selectedPlayer!.school)}.png" 
-                 alt="" onerror="this.style.display='none';">
-          </div>
-        </div>
-      </div>
-      <div class="grade-column">
-        <div class="grade-badge grade-$gradeClass">$letterGrade</div>
-        <div class="rank-small $valueDiffClass">Rank: #${pick.selectedPlayer!.rank} ($valueDiffText)</div>
-      </div>
-    </div>
-  ''');
-}
 }

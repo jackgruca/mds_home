@@ -89,7 +89,6 @@ class _AdvancedInsightsTabState extends State<AdvancedInsightsTab> with Automati
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

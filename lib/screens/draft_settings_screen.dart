@@ -6,7 +6,6 @@ import '../utils/theme_config.dart';
 import '../widgets/auth/auth_dialog.dart';
 import 'customize_draft_tab.dart';
 import '../services/data_service.dart';
-import '../widgets/draft/custom_data_manager_dialog.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -153,43 +152,6 @@ void initState() {
   Navigator.pop(context);
 }
 
-void _showQuickLoadDialog() {
-  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-  
-  if (!authProvider.isLoggedIn) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('You need to be logged in to load saved data')),
-    );
-    return;
-  }
-  
-  showDialog(
-    context: context,
-    builder: (context) => CustomDataManagerDialog(
-      currentYear: _selectedYear,
-      currentTeamNeeds: _customTeamNeeds,
-      currentPlayerRankings: _customPlayerRankings,
-      onDataSelected: (customData) {
-        setState(() {
-          if (customData.teamNeeds != null) {
-            _customTeamNeeds = customData.teamNeeds;
-          }
-          
-          if (customData.playerRankings != null) {
-            _customPlayerRankings = customData.playerRankings;
-          }
-        });
-        
-        // Switch to the customize tab
-        _tabController.animateTo(1);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loaded "${customData.name}" data set')),
-        );
-      },
-    ),
-  );
-}
 
   @override
   Widget build(BuildContext context) {

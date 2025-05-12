@@ -1,6 +1,5 @@
 // lib/screens/admin_analytics_screen.dart
 import 'package:flutter/material.dart';
-import '../services/analytics_query_service.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
@@ -11,7 +10,6 @@ class AdminAnalyticsScreen extends StatefulWidget {
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   bool _isLoading = true;
-  Map<String, dynamic> _adminStats = {};
 
   @override
   void initState() {
@@ -27,7 +25,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     try {
       // You can add admin-specific analytics queries here
       setState(() {
-        _adminStats = {}; // Populate with data
+// Populate with data
         _isLoading = false;
       });
     } catch (e) {

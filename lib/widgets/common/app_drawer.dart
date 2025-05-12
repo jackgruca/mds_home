@@ -2,9 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../screens/betting_analytics_screen.dart';
-import '../../screens/blog_list_screen.dart';
-import '../../screens/player_projections_screen.dart';
 import '../../utils/theme_config.dart';
 import '../auth/auth_dialog.dart';
 
@@ -195,6 +192,22 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pop(context);
                     if (currentRoute != '/betting-analytics') {
                       Navigator.pushNamed(context, '/betting-analytics');
+                    }
+                  },
+                ),
+                
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text('Historical Data'),
+                  selected: currentRoute == '/historical-data',
+                  selectedTileColor: isDarkMode ? 
+                      AppTheme.darkNavy.withOpacity(0.1) : 
+                      AppTheme.deepRed.withOpacity(0.1),
+                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  onTap: () {
+                    Navigator.pop(context);
+                    if (currentRoute != '/historical-data') {
+                      Navigator.pushNamed(context, '/historical-data');
                     }
                   },
                 ),

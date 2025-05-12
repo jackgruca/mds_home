@@ -1,23 +1,17 @@
 // lib/screens/team_selection_screen.dart
 import 'package:flutter/material.dart';
-import 'package:mds_home/models/blog_post.dart';
-import 'package:mds_home/services/blog_service.dart';
-import 'package:mds_home/utils/theme_config.dart';
-import '../models/team.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
 import '../utils/constants.dart';
-import '../widgets/auth/auth_dialog.dart';
-import '../widgets/auth/header_auth_button.dart';
+
 import '../widgets/common/user_feedback_banner.dart';
-import 'betting_analytics_screen.dart';
-import 'blog_list_screen.dart';
+
 import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
 import '../widgets/common/app_drawer.dart'; // Add this import
-import 'player_projections_screen.dart';
+
 import 'tutorial_screen.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
@@ -186,9 +180,6 @@ Future<void> _loadUserPreferences() async {
     final Color nfcColor = isDarkMode ? const Color(0xFF4D90E8) : const Color(0xFF002244);  // Brighter blue for dark mode
     
     // Background and text colors based on theme
-    final Color cardBackground = isDarkMode ? Colors.grey[800]! : Colors.white;
-    final Color cardBorder = isDarkMode ? Colors.grey[600]! : Colors.grey[300]!;
-    final Color labelTextColor = isDarkMode ? Colors.white : Colors.black;
     
     return Scaffold(
     appBar: AppBar(
@@ -1186,90 +1177,4 @@ Future<void> _loadUserPreferences() async {
   );
 }
 // Add this to TeamSelectionScreen build method
-Widget _buildBlogPreview() {
-  return Card(
-    margin: const EdgeInsets.all(16.0),
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Latest from our Blog',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/blog');
-                },
-                child: const Text('View All'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12.0),
-          FutureBuilder<List<BlogPost>>(
-            future: BlogService.getAllPosts(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No blog posts available');
-              }
-              
-              // Display the most recent post
-              final latestPost = snapshot.data!.first;
-              return InkWell(
-                onTap: () {
-                  Navigator.pushNamed(context, '/blog/${latestPost.id}');
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (latestPost.thumbnailUrl != null)
-                      Image.network(
-                        latestPost.thumbnailUrl!,
-                        height: 180,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    const SizedBox(height: 8.0),
-                    Text(
-                      latestPost.title,
-                      style: const TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4.0),
-                    Text(
-                      latestPost.shortDescription,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8.0),
-                    Text(
-                      'Read More',
-                      style: TextStyle(
-                        color: Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    ),
-  );
-}
 }

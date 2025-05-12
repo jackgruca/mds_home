@@ -1,7 +1,5 @@
 // lib/utils/sitemap_generator.dart
-import 'dart:convert';
 import 'dart:io';
-import '../models/blog_post.dart';
 import '../services/blog_service.dart';
 
 class SitemapGenerator {

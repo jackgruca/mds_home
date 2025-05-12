@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../utils/theme_config.dart';
 import 'contact_form_dialog.dart';
-import '../auth/auth_dialog.dart';
-import '../auth/auth_status_widget.dart';
+
 
 class UserFeedbackBanner extends StatefulWidget {
   final VoidCallback? onDismiss;
@@ -20,7 +19,6 @@ class UserFeedbackBanner extends StatefulWidget {
 }
 
 class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
-  final bool _isSubscribed = false;
   
   void _showContactForm() {
     showDialog(
@@ -29,14 +27,6 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
     );
   }
   
-  void _showAuthDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => const AuthDialog(
-        initialMode: AuthMode.signUp,
-      ),
-    );
-  }
   
   @override
   Widget build(BuildContext context) {

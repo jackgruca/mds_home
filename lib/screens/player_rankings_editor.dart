@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/player.dart';
 import '../utils/team_logo_utils.dart';
-import '../services/csv_export_service.dart';
 import '../services/csv_import_service.dart';
 
 class PlayerRankingsEditor extends StatefulWidget {
@@ -645,201 +644,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  void _showBatchAdjustmentDialog() {
-  // Selected position to adjust
-  String? positionToAdjust;
-  bool increaseRank = false; // true = better rank (lower number), false = worse rank (higher number)
-  int adjustmentAmount = 5;
-  
-  showDialog(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) {
-        return AlertDialog(
-          title: const Text('Batch Rank Adjustment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Adjust the ranking of all players in a specific position',
-                style: TextStyle(fontSize: 14),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Position to Adjust',
-                ),
-                value: positionToAdjust,
-                items: _availablePositions
-                    .where((pos) => pos != 'All')
-                    .map((pos) => DropdownMenuItem(
-                          value: pos,
-                          child: Text(pos),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      positionToAdjust = value;
-                    });
-                  }
-                },
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Adjustment direction
-              Row(
-                children: [
-                  const Text('Direction:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 16),
-                  ChoiceChip(
-                    label: const Text('Better ↑'),
-                    selected: increaseRank,
-                    onSelected: (selected) {
-                      setState(() {
-                        increaseRank = true;
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text('Worse ↓'),
-                    selected: !increaseRank,
-                    onSelected: (selected) {
-                      setState(() {
-                        increaseRank = false;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Adjustment amount
-              Row(
-                children: [
-                  const Text('Amount:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Slider(
-                      value: adjustmentAmount.toDouble(),
-                      min: 1,
-                      max: 20,
-                      divisions: 19,
-                      label: adjustmentAmount.toString(),
-                      onChanged: (value) {
-                        setState(() {
-                          adjustmentAmount = value.toInt();
-                        });
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: 30,
-                    child: Text(
-                      '$adjustmentAmount',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: positionToAdjust != null ? () {
-                Navigator.pop(context);
-                
-                // Apply the batch adjustment
-                _applyBatchAdjustment(
-                  position: positionToAdjust!,
-                  amount: adjustmentAmount,
-                  improvement: increaseRank,
-                );
-              } : null,
-              child: const Text('Apply'),
-            ),
-          ],
-        );
-      }
-    ),
-  );
-}
 
-void _applyBatchAdjustment({
-  required String position,
-  required int amount,
-  required bool improvement,
-}) {
-  // Get all players with the specified position
-  final positionPlayers = _players.where((p) => p.position == position).toList();
-  
-  if (positionPlayers.isEmpty) return;
-  
-  // Sort by current rank
-  positionPlayers.sort((a, b) => a.rank.compareTo(b.rank));
-  
-  setState(() {
-    if (improvement) {
-      // Better rank (move players up)
-      for (var player in positionPlayers) {
-        // Calculate new rank (lower = better)
-        int targetRank = max(1, player.rank - amount);
-        int currentRank = player.rank;
-        
-        // Move players down to make room
-        for (var p in _players) {
-          if (p != player && p.rank >= targetRank && p.rank < currentRank) {
-            p.rank += 1;
-          }
-        }
-        
-        // Assign new rank
-        player.rank = targetRank;
-      }
-    } else {
-      // Worse rank (move players down)
-      // Sort in reverse order to avoid conflicts
-      positionPlayers.sort((a, b) => b.rank.compareTo(a.rank));
-      
-      for (var player in positionPlayers) {
-        // Calculate new rank (higher = worse)
-        int targetRank = min(_players.length, player.rank + amount);
-        int currentRank = player.rank;
-        
-        // Move players up to make room
-        for (var p in _players) {
-          if (p != player && p.rank <= targetRank && p.rank > currentRank) {
-            p.rank -= 1;
-          }
-        }
-        
-        // Assign new rank
-        player.rank = targetRank;
-      }
-    }
-    
-    // Sort players by rank
-    _players.sort((a, b) => a.rank.compareTo(b.rank));
-    
-    // Normalize ranks to ensure no duplicates and proper ordering
-    for (int i = 0; i < _players.length; i++) {
-      _players[i].rank = i + 1;
-    }
-    
-    // Update the data in the original format
-    _updateRankingsFromPlayers();
-  });
-}
 
   void _addNewPlayer() {
   // Generate a unique ID for the new player
@@ -944,17 +749,6 @@ void _applyBatchAdjustment({
   );
 }
 
-void _exportToCSV() {
-  if (!CsvExportService.isWebPlatform) {
-    CsvExportService.showPlatformWarning(context);
-    return;
-  }
-  
-  CsvExportService.exportToCsv(
-    data: _editablePlayerRankings,
-    filename: 'custom_player_rankings.csv',
-  );
-}
 
 Future<void> _importFromCSV() async {
   List<List<dynamic>>? importedData = await CsvImportService.importFromCsv();
@@ -1062,18 +856,6 @@ void _showFormatGuideDialog() {
   );
 }
 
-void _downloadTemplate() {
-  final templateData = [
-    ['ID', 'Name', 'Position', 'School', 'Notes', 'Rank'],
-    [1, 'Player Name', 'QB', 'University', '', 1],
-    [2, 'Another Player', 'WR', 'College', '', 2],
-  ];
-  
-  CsvExportService.exportToCsv(
-    data: templateData,
-    filename: 'player_rankings_template.csv',
-  );
-}
 
 // Add this to both editor classes
 void _showCsvPreviewDialog(List<List<dynamic>> data, String title) {

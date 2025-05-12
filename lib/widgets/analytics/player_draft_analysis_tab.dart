@@ -1,8 +1,7 @@
 // lib/widgets/analytics/player_draft_analysis_tab.dart
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
-import '../../utils/constants.dart';
-import '../../utils/team_logo_utils.dart';
+
 
 class PlayerDraftAnalysisTab extends StatefulWidget {
   final int draftYear;
@@ -99,7 +98,6 @@ class _PlayerDraftAnalysisTabState extends State<PlayerDraftAnalysisTab> with Au
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,12 +1,12 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
-import 'package:mds_home/screens/blog_list_screen.dart';
+import 'package:mds_home/screens/blog/blog_list_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
 import 'screens/betting_analytics_screen.dart';
-import 'screens/draft_overview_screen.dart';
 import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
+import 'screens/historical_data_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -14,18 +14,14 @@ import 'services/precomputed_analytics_service.dart'; // Add this
 import 'utils/analytics_server.dart';
 import 'utils/theme_config.dart';
 import 'utils/theme_manager.dart';
-import 'services/message_service.dart';
 import 'providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
 
 import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 // Secret tap counter for admin access
-int _secretTapCount = 0;
-DateTime? _lastTapTime;
 
 void main() async {
   // Initialize services
@@ -138,6 +134,8 @@ class _MyAppState extends State<MyApp> {
       return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
     case '/betting-analytics':
       return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+    case '/historical-data':
+      return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
     default:
       return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
   }
@@ -247,7 +245,6 @@ class AdminPanel extends StatelessWidget {
                 title: const Text('Message Management'),
                 subtitle: const Text('View and manage user feedback messages'),
                 onTap: () async {
-                  final messageCount = await MessageService.getPendingMessageCount();
                   if (context.mounted) {
                     Navigator.of(context).push(
                       MaterialPageRoute(

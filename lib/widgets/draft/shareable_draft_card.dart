@@ -5,10 +5,7 @@ import '../../models/draft_pick.dart';
 import '../../models/team_need.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../services/draft_pick_grade_service.dart';
-
-import 'package:flutter/material.dart';
 import '../../utils/constants.dart';
-import '../../utils/theme_config.dart';
 
 // Update the ShareableDraftCard class
 class ShareableDraftCard extends StatelessWidget {
@@ -52,13 +49,11 @@ Widget build(BuildContext context) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   
   // Calculate height based on content - make sure min <= max
-  final int pickCount = filteredPicks.length;
-  final double estimatedItemHeight = exportMode == "your_picks" ? 80.0 : 45.0;
-  final double calculatedHeight = 120.0 + (pickCount * estimatedItemHeight); // header/footer + content
+// header/footer + content
   
   // IMPORTANT: Use proper min and max constraints that don't conflict
   const double minHeight = 200.0;  // minimum height 
-  final double maxHeight = max(1200.0, minHeight); // ensure max >= min
+  max(1200.0, minHeight); // ensure max >= min
 
   double contentHeight;
   if (exportMode == "first_round") {
@@ -241,7 +236,6 @@ Widget _buildCompactFirstRoundPickCard(DraftPick pick, BuildContext context) {
   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
   final isUserTeam = pick.teamName == userTeam;
   final valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-  final valueDiffText = valueDiff >= 0 ? "(+$valueDiff)" : "($valueDiff)";
   final valueDiffColor = valueDiff >= 0 ? Colors.green : Colors.red;
   
   // Get grade info
@@ -393,165 +387,6 @@ Widget _buildCompactFirstRoundPickCard(DraftPick pick, BuildContext context) {
 }
 
   // Optimized card for first round display
-  Widget _buildFirstRoundPickCard(DraftPick pick, BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final isUserTeam = pick.teamName == userTeam;
-    final valueDiff = pick.pickNumber - pick.selectedPlayer!.rank;
-    final valueDiffText = valueDiff >= 0 ? "(+$valueDiff)" : "($valueDiff)";
-    final valueDiffColor = valueDiff >= 0 ? Colors.green : Colors.red;
-    
-    // Grade calculation
-    final gradeInfo = DraftPickGradeService.calculatePickGrade(pick, teamNeeds);
-    final letterGrade = gradeInfo['letter'] as String;
-    
-    // Don't use transparency to avoid rendering issues
-    final cardColor = isUserTeam
-        ? (isDarkMode ? Colors.blue.shade900 : Colors.blue.shade50)
-        : (isDarkMode ? Colors.grey.shade800 : Colors.white);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(6.0),
-        child: Row(
-          children: [
-            // Pick number
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.blue.shade600,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  "${pick.pickNumber}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            
-            // Team logo
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: TeamLogoUtils.buildNFLTeamLogo(
-                pick.teamName,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 8),
-            
-            // Player details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Player name
-                  Text(
-                    pick.selectedPlayer!.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  // Position, school, rank
-                  Row(
-                    children: [
-                      // Position badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _getPositionColor(pick.selectedPlayer!.position),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Text(
-                          pick.selectedPlayer!.position,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      
-                      // School
-                      Text(
-                        pick.selectedPlayer!.school,
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white70 : Colors.grey.shade700,
-                          fontSize: 10,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      
-                      const SizedBox(width: 4),
-                      
-                      // Rank display
-                      Text(
-                        "Rank: #${pick.selectedPlayer!.rank}",
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: valueDiffColor,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        valueDiffText,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: valueDiffColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Grade badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _getGradeColor(letterGrade).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: _getGradeColor(letterGrade),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                letterGrade,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _getGradeColor(letterGrade),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   String _getTitle() {
     if (exportMode == "your_picks" && userTeam != null) {

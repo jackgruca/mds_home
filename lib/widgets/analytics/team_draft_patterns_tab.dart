@@ -2,9 +2,6 @@
 
 import 'package:flutter/material.dart';
 import '../../services/analytics_query_service.dart';
-import '../../services/analytics_cache_manager.dart';
-import '../../utils/constants.dart';
-import '../../utils/team_logo_utils.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 
@@ -212,56 +209,10 @@ Widget _buildPositionTrendsTable() {
 
 
 // Add these helper methods to convert team-specific data formats
-List<Map<String, dynamic>> _convertToPickPositionFormat(List<Map<String, dynamic>> teamData) {
-  // This converts the team's pick history to the position trend table format
-  List<Map<String, dynamic>> result = [];
-  
-  for (var pick in teamData) {
-    // Each pick has the team's actual selection details
-    final pickNumber = pick['pickNumber'] as int;
-    final round = pick['round'] as String;
-    final position = pick['position'] as String;
-    
-    // For team view, there's only one position per pick (what they actually selected)
-    result.add({
-      'pick': pickNumber,
-      'round': round,
-      'positions': [
-        {'position': position, 'count': 1, 'percentage': '100.0%'}
-      ],
-      'totalDrafts': 1
-    });
-  }
-  
-  // Sort by pick number
-  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-  return result;
-}
 
-List<Map<String, dynamic>> _convertToPickPlayerFormat(List<Map<String, dynamic>> teamData) {
-  // This converts the team's pick history to the player trend table format
-  List<Map<String, dynamic>> result = [];
-  
-  for (var pick in teamData) {
-    // Each pick has the team's actual selection details
-    result.add({
-      'pick': pick['pickNumber'] as int,
-      'player': pick['playerName'] as String,
-      'position': pick['position'] as String,
-      'count': 1,
-      'percentage': '100.0%',
-      'totalDrafts': 1
-    });
-  }
-  
-  // Sort by pick number
-  result.sort((a, b) => (a['pick'] as int).compareTo(b['pick'] as int));
-  return result;
-}
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,7 +1,6 @@
 // lib/utils/blog_router.dart
 import 'package:flutter/material.dart';
-import '../screens/blog_detail_screen.dart';
-import '../models/blog_post.dart';
+import '../screens/blog/blog_detail_screen.dart';
 
 class BlogRouter {
   static const String blogPathPrefix = '/blog/';

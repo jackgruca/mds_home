@@ -1,5 +1,4 @@
 // lib/screens/available_players_tab.dart
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +9,7 @@ import '../services/player_espn_id_service.dart';
 import '../utils/constants.dart';
 import '../utils/team_logo_utils.dart';
 import '../widgets/player/player_details_dialog.dart';
-import '../utils/mock_player_data.dart';
-import '../services/favorite_players_service.dart';  // Add this import
+// Add this import
 
 enum SortOption { 
   rank, 
@@ -51,7 +49,6 @@ class _AvailablePlayersTabState extends State<AvailablePlayersTab> {
   String _searchQuery = '';
   final Set<String> _selectedPositions = {};
   bool _showFavorites = false;
-  final Set<int> _favoritePlayerIds = {};
   bool _debugMode = false;
   final Map<int, Player> _enrichedPlayerCache = {};
 
@@ -400,7 +397,6 @@ void _enrichPlayerData(Player player) {
 
   // Toggle player favorite status
   void _toggleFavorite(int playerId) async {
-    final isFavorite = await FavoritePlayersService.toggleFavorite(playerId);
     setState(() {
       // Just trigger rebuild to update UI
     });
@@ -429,12 +425,8 @@ void _enrichPlayerData(Player player) {
     }
     
     // Get column indices
-    int idIndex = columnIndices['ID'] ?? 0;
-    int nameIndex = columnIndices["NAME"] ?? 1;
     int positionIndex = columnIndices["POSITION"] ?? 2;
-    int schoolIndex = columnIndices['SCHOOL'] ?? 3;
-    int rankIndex = columnIndices["RANK_COMBINED"] ?? widget.availablePlayers[0].length - 1;
-    int rasIndex = columnIndices["RAS"] ?? -1; // Add index for RAS score
+
 
 // Create Player objects from the raw data
 List<Player> allPlayers = [];
@@ -462,32 +454,6 @@ for (var row in widget.availablePlayers.skip(1)) {
   } catch (e) {
     debugPrint("Error processing player row: $e");
   }
-}
-
-void debugPlayerDescriptionsService() {
-  debugPrint('===== DEBUGGING PLAYER DESCRIPTIONS SERVICE =====');
-  
-  // Check if service is initialized
-  debugPrint('Attempting to get description for Travis Hunter...');
-  Map<String, String>? hunterInfo = PlayerDescriptionsService.getPlayerDescription('Travis Hunter');
-  
-  if (hunterInfo != null) {
-    debugPrint('Found data for Travis Hunter:');
-    hunterInfo.forEach((key, value) {
-      debugPrint('  $key: ${value.substring(0, min(30, value.length))}${value.length > 30 ? "..." : ""}');
-    });
-  } else {
-    debugPrint('NO DATA FOUND for Travis Hunter - PlayerDescriptionsService not working correctly');
-  }
-  
-  // Try a few more names
-  List<String> sampleNames = ['Caleb Williams', 'Marvin Harrison Jr', 'Malik Nabers', 'Drake Maye'];
-  for (String name in sampleNames) {
-    Map<String, String>? playerInfo = PlayerDescriptionsService.getPlayerDescription(name);
-    debugPrint('$name: ${playerInfo != null ? "Data Found" : "NO DATA FOUND"}');
-  }
-  
-  debugPrint('=================================================');
 }
 
 // Validate player data before filtering and sorting

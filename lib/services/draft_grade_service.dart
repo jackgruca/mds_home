@@ -1,10 +1,7 @@
 // lib/services/draft_grade_service.dart
 
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import '../models/draft_pick.dart';
-import '../models/player.dart';
 import '../models/team_need.dart';
 import '../models/trade_package.dart';
 import '../services/draft_value_service.dart';
@@ -111,42 +108,6 @@ class DraftGradeService {
     };
   }
 
-  /// Generate description based on team grade
-static String _generateTeamGradeDescription(
-  String grade, 
-  Map<String, dynamic> factors
-) {
-  // Extract key factors
-  double avgWeightedValue = factors['avgWeightedValue'] ?? 0.0;
-  double tradeValue = factors['tradeValue'] ?? 0.0;
-  
-  // Base descriptions for each grade
-  switch (grade) {
-    case 'A+':
-      return 'Exceptional draft with outstanding value across all rounds. '
-             'Demonstrated strategic excellence in player selection and trades.';
-    case 'A':
-      return 'Excellent draft with high-quality picks, especially in early rounds. '
-             'Showed strong value assessment and strategic drafting.';
-    case 'B+':
-      return 'Very good draft with solid value picks and good trade management. '
-             'Addressed key team needs effectively.';
-    case 'B':
-      return 'Solid draft with good value selections. '
-             'Demonstrated moderate success in player acquisition.';
-    case 'C+':
-      return 'Average draft with some promising picks but missed opportunities. '
-             'Showed potential but room for improvement.';
-    case 'C':
-      return 'Below average draft with several reaches and unfilled needs. '
-             'Requires more strategic approach in future drafts.';
-    case 'D':
-      return 'Poor draft with significant value losses and strategic missteps. '
-             'Needs substantial improvement in draft strategy.';
-    default:
-      return 'Draft performance could not be definitively assessed.';
-  }
-}
 
 /// Calculate team overall grade with a comprehensive approach
 static Map<String, dynamic> calculateTeamGrade(
@@ -352,54 +313,10 @@ static String _generateSimpleDescription(String grade, List<String> pickGrades) 
 
 
 // Convert letter grade to numeric GPA value
-static double _letterToNumeric(String letterGrade) {
-  switch (letterGrade) {
-    case 'A+': return 4.3;
-    case 'A': return 4.0;
-    case 'A-': return 3.7;
-    case 'B+': return 3.3;
-    case 'B': return 3.0;
-    case 'B-': return 2.7;
-    case 'C+': return 2.3;
-    case 'C': return 2.0;
-    case 'C-': return 1.7;
-    case 'D+': return 1.3;
-    case 'D': return 1.0;
-    case 'F': return 0.0;
-    default: return 2.0; // Default to C
-  }
-}
 
 // Convert numeric GPA to letter grade
-static String _numericToLetter(double numericGrade) {
-  if (numericGrade >= 4.3) return 'A+';
-  if (numericGrade >= 4.0) return 'A';
-  if (numericGrade >= 3.7) return 'A-';
-  if (numericGrade >= 3.3) return 'B+';
-  if (numericGrade >= 3.0) return 'B';
-  if (numericGrade >= 2.7) return 'B-';
-  if (numericGrade >= 2.3) return 'C+';
-  if (numericGrade >= 2.0) return 'C';
-  if (numericGrade >= 1.7) return 'C-';
-  if (numericGrade >= 1.3) return 'D+';
-  if (numericGrade >= 1.0) return 'D';
-  return 'F';
-}
 
 // Generate a simple description based on the final grade
-static String _generateDescription(String grade, List<String> individualGrades) {
-  if (grade.startsWith('A')) {
-    return 'Outstanding draft with excellent value selections.';
-  } else if (grade.startsWith('B')) {
-    return 'Solid draft that effectively balanced value and need.';
-  } else if (grade.startsWith('C')) {
-    return 'Average draft with some good picks but room for improvement.';
-  } else if (grade.startsWith('D')) {
-    return 'Below average draft that missed opportunities for better value.';
-  } else {
-    return 'Poor draft with significant reaches and missed opportunities.';
-  }
-}
 
   /// Calculate how well a team addressed their needs
   static double calculateNeedsSatisfactionScore(
@@ -502,7 +419,6 @@ static String getTeamLetterGrade(double score) {
   String grade, 
   Map<String, dynamic> factors
 ) {
-  final double finalScore = factors['finalScore'] ?? 0.0;
   final double avgPickScore = factors['avgPickScore'] ?? 0.0;
   final double tradeGradeScore = factors['tradeGradeScore'] ?? 0.0;
   final double needsGradeScore = factors['needsGradeScore'] ?? 0.0;

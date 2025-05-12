@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/trade_package.dart';
 import '../../models/trade_offer.dart';
 import 'enhanced_trade_dialog.dart';
-import '../../services/draft_value_service.dart';
-import '../../models/draft_pick.dart';
+
 import '../../widgets/trade/trade_response_dialog.dart';
-import 'user_trade_dialog.dart'; 
 
 class TradeDialogWrapper extends StatelessWidget {
   final TradeOffer tradeOffer;
