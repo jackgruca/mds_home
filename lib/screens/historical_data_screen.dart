@@ -98,6 +98,10 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController = TextEditingController();
 
+  // Add new state variables for sorting and filtering
+  final Map<String, bool> _columnSortAscending = {};
+  final Map<String, List<String>> _columnFilters = {};
+
   @override
   void initState() {
     super.initState();
@@ -157,7 +161,6 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
     }
     
     setState(() {
-      // Pass queryConditions to the service
       _matchups = HistoricalDataService.getMatchups(
         startDate: _startDate,
         endDate: _endDate,
@@ -169,14 +172,11 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
         isWin: _isWin,
         isSpreadWin: _isSpreadWin,
         isOver: _isOver,
-        queryConditions: _queryConditions, // Pass conditions
+        queryConditions: _queryConditions,
       );
-      // getRawRows will use the filtered matchups internally if HistoricalDataService is updated accordingly
-      // For now, ensure it can also accept queryConditions if it does its own filtering,
-      // or rely on getMatchups being the primary source of filtered data.
-      // Assuming getRawRows will be updated to use the filtered _matchups list or take queryConditions.
+      
       _rawRows = HistoricalDataService.getRawRows(
-         startDate: _startDate,
+        startDate: _startDate,
         endDate: _endDate,
         team: _selectedTeam,
         opponent: _selectedOpponent,
@@ -186,9 +186,32 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
         isWin: _isWin,
         isSpreadWin: _isSpreadWin,
         isOver: _isOver,
-        queryConditions: _queryConditions, // Pass conditions
+        queryConditions: _queryConditions,
       );
-      _currentPage = 0; 
+
+      // Apply column filters
+      if (_columnFilters.isNotEmpty) {
+        _rawRows = _rawRows.where((row) {
+          return _columnFilters.entries.every((entry) {
+            final column = entry.key;
+            final allowedValues = entry.value;
+            if (allowedValues.isEmpty) return true;
+            return allowedValues.contains(row[column]);
+          });
+        }).toList();
+      }
+
+      // Apply sorting if any column is sorted
+      _columnSortAscending.forEach((column, ascending) {
+        _rawRows.sort((a, b) {
+          final aValue = a[column] ?? '';
+          final bValue = b[column] ?? '';
+          final comparison = aValue.compareTo(bValue);
+          return ascending ? comparison : -comparison;
+        });
+      });
+
+      _currentPage = 0;
     });
   }
 
@@ -579,6 +602,50 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
     );
   }
 
+  // Add method to handle column sorting
+  void _handleSort(String column) {
+    setState(() {
+      if (_columnSortAscending[column] == null) {
+        _columnSortAscending[column] = true;
+      } else {
+        _columnSortAscending[column] = !_columnSortAscending[column]!;
+      }
+      
+      // Sort the raw rows based on the selected column
+      _rawRows.sort((a, b) {
+        final aValue = a[column] ?? '';
+        final bValue = b[column] ?? '';
+        final comparison = aValue.compareTo(bValue);
+        return _columnSortAscending[column]! ? comparison : -comparison;
+      });
+    });
+  }
+
+  // Add method to handle column filtering
+  void _handleColumnFilter(String column, String value) {
+    setState(() {
+      if (!_columnFilters.containsKey(column)) {
+        _columnFilters[column] = [];
+      }
+      
+      if (_columnFilters[column]!.contains(value)) {
+        _columnFilters[column]!.remove(value);
+      } else {
+        _columnFilters[column]!.add(value);
+      }
+      
+      _applyFilters();
+    });
+  }
+
+  // Add method to clear column filter
+  void _clearColumnFilter(String column) {
+    setState(() {
+      _columnFilters.remove(column);
+      _applyFilters();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_headers.isNotEmpty && _newQueryField == null) {
@@ -703,37 +770,90 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: DataTable(
                                   showCheckboxColumn: false,
-                                  columns: _selectedFields
-                                      .map((header) => DataColumn(
-                                            label: Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                          ))
-                                      .toList(),
+                                  columns: _selectedFields.map((header) {
+                                    // Get unique values for this column
+                                    final uniqueValues = _rawRows.map((row) => row[header] ?? '').toSet().toList()..sort();
+                                    
+                                    return DataColumn(
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                          if (_columnSortAscending.containsKey(header))
+                                            Icon(
+                                              _columnSortAscending[header]! ? Icons.arrow_upward : Icons.arrow_downward,
+                                              size: 16,
+                                            ),
+                                          if (_columnFilters.containsKey(header) && _columnFilters[header]!.isNotEmpty)
+                                            Icon(Icons.filter_list, size: 16, color: Theme.of(context).primaryColor),
+                                        ],
+                                      ),
+                                      onSort: (_, __) => _handleSort(header),
+                                      tooltip: 'Click to sort, long press to filter',
+                                    );
+                                  }).toList(),
                                   rows: _rawRows.isEmpty 
-                                      ? [] 
-                                      : _rawRows
-                                          .skip(_currentPage * _rowsPerPage)
-                                          .take(_rowsPerPage)
-                                          .toList() // Make a modifiable list for asMap
-                                          .asMap() // For alternating row colors
-                                          .map((index, row) => MapEntry(index, DataRow(
-                                                color: WidgetStateProperty.resolveWith<Color?>(
-                                                  (Set<WidgetState> states) {
-                                                    if (index.isEven) return Colors.grey.withOpacity(0.08);
-                                                    return null; 
-                                                  },
-                                                ),
-                                                cells: _selectedFields
-                                                    .map((header) => DataCell(
-                                                          Text(row[header] ?? 'N/A', 
-                                                            style: TextStyle(
-                                                              color: row[header] == null ? Colors.grey.shade600 : null,
+                                    ? [] 
+                                    : _rawRows
+                                        .skip(_currentPage * _rowsPerPage)
+                                        .take(_rowsPerPage)
+                                        .toList()
+                                        .asMap()
+                                        .map((index, row) => MapEntry(index, DataRow(
+                                              color: WidgetStateProperty.resolveWith<Color?>(
+                                                (Set<WidgetState> states) {
+                                                  if (index.isEven) return Colors.grey.withOpacity(0.08);
+                                                  return null;
+                                                },
+                                              ),
+                                              cells: _selectedFields.map((header) {
+                                                final value = row[header] ?? 'N/A';
+                                                // Get unique values for this column
+                                                final uniqueValues = _rawRows.map((row) => row[header] ?? '').toSet().toList()..sort();
+                                                return DataCell(
+                                                  GestureDetector(
+                                                    onLongPress: () {
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (context) => AlertDialog(
+                                                          title: Text('Filter $header'),
+                                                          content: SingleChildScrollView(
+                                                            child: Column(
+                                                              mainAxisSize: MainAxisSize.min,
+                                                              children: [
+                                                                ...uniqueValues.map((value) => CheckboxListTile(
+                                                                  title: Text(value),
+                                                                  value: _columnFilters[header]?.contains(value) ?? false,
+                                                                  onChanged: (checked) => _handleColumnFilter(header, value),
+                                                                )),
+                                                              ],
                                                             ),
                                                           ),
-                                                        ))
-                                                    .toList(),
-                                              )))
-                                          .values
-                                          .toList(),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () => _clearColumnFilter(header),
+                                                              child: const Text('Clear Filter'),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () => Navigator.pop(context),
+                                                              child: const Text('Close'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: Text(
+                                                      value,
+                                                      style: TextStyle(
+                                                        color: value == 'N/A' ? Colors.grey.shade600 : null,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            )))
+                                        .values
+                                        .toList(),
                                 ),
                               ),
                             ),
