@@ -8,6 +8,10 @@ import 'screens/betting_analytics_screen.dart';
 import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'screens/historical_data_screen.dart';
+import 'screens/hubs/gm_hub_screen.dart';
+import 'screens/hubs/betting_hub_screen.dart';
+import 'screens/hubs/fantasy_hub_screen.dart';
+import 'screens/hubs/data_explorer_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -133,13 +137,19 @@ class _MyAppState extends State<MyApp> {
               case '/draft':
                 return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+                return MaterialPageRoute(builder: (_) => DataExplorerScreen());
               case '/betting':
-                return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+                return MaterialPageRoute(builder: (_) => BettingHubScreen());
               case '/projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               case '/blog':
                 return MaterialPageRoute(builder: (_) => const BlogListScreen());
+              case '/gm-hub': 
+                return MaterialPageRoute(builder: (_) => GmHubScreen());
+              case '/fantasy':
+                return MaterialPageRoute(builder: (_) => FantasyHubScreen());
+              case '/data/historical':
+                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }

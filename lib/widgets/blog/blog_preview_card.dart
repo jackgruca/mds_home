@@ -6,6 +6,7 @@ class BlogPreviewCard extends StatelessWidget {
   final String excerpt;
   final String date;
   final String imageUrl;
+  final VoidCallback? onTap;
 
   const BlogPreviewCard({
     super.key,
@@ -13,6 +14,7 @@ class BlogPreviewCard extends StatelessWidget {
     required this.excerpt,
     required this.date,
     required this.imageUrl,
+    this.onTap,
   });
 
   @override
@@ -20,16 +22,18 @@ class BlogPreviewCard extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final formattedDate = DateFormat('MMM d, y').format(DateTime.parse(date));
     
+    final VoidCallback effectiveOnTap = onTap ?? 
+      () {
+        Navigator.pushNamed(context, '/blog/${title.toLowerCase().replaceAll(' ', '-')}');
+      };
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: () {
-          // Navigate to blog post
-          Navigator.pushNamed(context, '/blog/${title.toLowerCase().replaceAll(' ', '-')}');
-        },
+        onTap: effectiveOnTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

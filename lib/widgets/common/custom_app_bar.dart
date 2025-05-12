@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
+  final Widget titleWidget;
   final List<Widget>? actions;
-  final bool centerTitle;
+  final PreferredSizeWidget? bottom;
 
   const CustomAppBar({
     super.key,
-    required this.title,
+    required this.titleWidget,
     this.actions,
-    this.centerTitle = true,
+    this.bottom,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: Text(title),
+      title: titleWidget,
       actions: actions,
-      centerTitle: centerTitle,
+      bottom: bottom,
       elevation: 0, // Modern flat look
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0.0));
 } 

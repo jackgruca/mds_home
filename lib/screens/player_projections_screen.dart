@@ -1,6 +1,9 @@
 // lib/screens/player_projections_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
+import '../../widgets/common/top_nav_bar.dart';
+import '../../widgets/common/custom_app_bar.dart';
+import '../../widgets/auth/auth_dialog.dart';
 
 class PlayerProjectionsScreen extends StatelessWidget {
   const PlayerProjectionsScreen({super.key});
@@ -8,10 +11,33 @@ class PlayerProjectionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Player Projections'),
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)), 
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton(
+              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 14),
+              ),
+              child: const Text('Sign In / Sign Up'),
+            ),
+          ),
+        ],
       ),
       drawer: const AppDrawer(),
       body: Center(

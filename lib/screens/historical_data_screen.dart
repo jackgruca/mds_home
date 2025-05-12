@@ -5,6 +5,9 @@ import 'package:mds_home/services/historical_data_service.dart';
 import 'package:intl/intl.dart';
 import 'package:mds_home/widgets/analytics/visualization_tab.dart';
 import 'package:mds_home/widgets/analytics/quick_start_templates.dart';
+import '../../widgets/common/top_nav_bar.dart';
+import '../../widgets/common/custom_app_bar.dart';
+import '../../widgets/auth/auth_dialog.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -508,23 +511,54 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       _newQueryField = _headers[0];
     }
 
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
+
+    // Keep the combined bottom widget for TabBar
+    final PreferredSizeWidget tabBarBottom = PreferredSize(
+      preferredSize: const Size.fromHeight(kTextTabBarHeight), // Only TabBar height
+      child: TabBar(
+        controller: _tabController,
+        tabs: const [
+          Tab(text: 'Data Table'),
+          Tab(text: 'Visualizations'),
+        ],
+      ),
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('NFL Historical Data'),
+      appBar: CustomAppBar( // Use CustomAppBar
+        // Construct the title widget
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)), 
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
         actions: [
+          // Add filter button specific to this screen
           IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Quick Filters',
             onPressed: _showFilterDialog,
           ),
+          // Add consistent Auth button
+           Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton(
+              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 14),
+              ),
+              child: const Text('Sign In / Sign Up'),
+            ),
+          ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Data Table'),
-            Tab(text: 'Visualizations'),
-          ],
-        ),
+        bottom: tabBarBottom, // Use the TabBar bottom widget
       ),
       drawer: const AppDrawer(),
       body: _isLoading
