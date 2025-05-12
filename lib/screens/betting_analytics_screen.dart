@@ -13,7 +13,7 @@ class BettingAnalyticsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Betting Analytics'),
       ),
-      drawer: const AppDrawer(currentRoute: '/betting-analytics'),
+      drawer: const AppDrawer(),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

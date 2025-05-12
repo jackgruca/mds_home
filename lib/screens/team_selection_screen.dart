@@ -10,18 +10,19 @@ import 'draft_overview_screen.dart';
 import 'draft_settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
-import '../widgets/common/app_drawer.dart'; // Add this import
+import '../widgets/common/app_drawer.dart';
 
 import 'tutorial_screen.dart';
+import '../widgets/auth/auth_dialog.dart';
 
 class TeamSelectionScreen extends StatefulWidget {
   const TeamSelectionScreen({super.key});
 
   @override
-  TeamSelectionScreenState createState() => TeamSelectionScreenState();
+  State<TeamSelectionScreen> createState() => _TeamSelectionScreenState();
 }
 
-class TeamSelectionScreenState extends State<TeamSelectionScreen> {
+class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
   int _numberOfRounds = 1;
   double _speed = 2.0;
   double _randomness = 0.4;
@@ -225,7 +226,7 @@ Future<void> _loadUserPreferences() async {
         ),
       ],
     ),
-        drawer: const AppDrawer(currentRoute: '/'),
+        drawer: const AppDrawer(),
 
     // The rest of your existing TeamSelectionScreen code
     body: SafeArea(

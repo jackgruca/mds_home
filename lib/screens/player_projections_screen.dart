@@ -13,7 +13,7 @@ class PlayerProjectionsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Player Projections'),
       ),
-        drawer: const AppDrawer(currentRoute: '/player-projections'),
+      drawer: const AppDrawer(),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

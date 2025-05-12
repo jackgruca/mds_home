@@ -1,6 +1,7 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
 import 'package:mds_home/screens/blog/blog_list_screen.dart';
+import 'package:mds_home/screens/home_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
 import 'screens/betting_analytics_screen.dart';
@@ -100,50 +101,52 @@ class _MyAppState extends State<MyApp> {
     });
     testDraftCount();
   }
+
   void testDraftCount() async {
-  int? count = await AnalyticsQueryService.getDraftCount();
-  print('🔥 Total drafts in Firestore: $count');
-}
+    int? count = await AnalyticsQueryService.getDraftCount();
+    print('🔥 Total drafts in Firestore: $count');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-  navigatorObservers: [AnalyticsRouteObserver()],
-  debugShowCheckedModeBanner: false,
-  title: 'NFL Draft Simulator',
-  theme: AppTheme.lightTheme,
-  darkTheme: AppTheme.darkTheme,
-  themeMode: themeManager.themeMode,
-  home: const TeamSelectionScreen(),
-  // Add these lines:
-  onGenerateRoute: (settings) {
-    final blogRoute = BlogRouter.handleBlogRoute(settings);
-    if (blogRoute != null) {
-      return blogRoute;
-    }
-    
-    // Otherwise handle regular routes
-    switch (settings.name) {
-    case '/':
-      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-    case '/blog':
-      return MaterialPageRoute(builder: (_) => const BlogListScreen());
-    case '/player-projections':
-      return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
-    case '/betting-analytics':
-      return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
-    case '/historical-data':
-      return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
-    default:
-      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-  }
-  },
-  initialRoute: '/',
-  // Add this to use path URL strategy instead of hash
-  useInheritedMediaQuery: true, // This helps with web responsiveness
-);
+          navigatorObservers: [AnalyticsRouteObserver()],
+          debugShowCheckedModeBanner: false,
+          title: 'StickToTheModel',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeManager.themeMode,
+          home: const HomeScreen(),
+          onGenerateRoute: (settings) {
+            // Handle blog routes first
+            final blogRoute = BlogRouter.handleBlogRoute(settings);
+            if (blogRoute != null) {
+              return blogRoute;
+            }
+            
+            // Handle regular routes
+            switch (settings.name) {
+              case '/':
+                return MaterialPageRoute(builder: (_) => const HomeScreen());
+              case '/draft':
+                return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+              case '/data':
+                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+              case '/betting':
+                return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
+              case '/projections':
+                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+              case '/blog':
+                return MaterialPageRoute(builder: (_) => const BlogListScreen());
+              default:
+                return MaterialPageRoute(builder: (_) => const HomeScreen());
+            }
+          },
+          initialRoute: '/',
+          useInheritedMediaQuery: true,
+        );
       },
     );
   }

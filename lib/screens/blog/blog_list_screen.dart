@@ -63,7 +63,7 @@ void initState() {
           ),
         ],
       ),
-        drawer: const AppDrawer(currentRoute: '/blog'),
+      drawer: const AppDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _posts.isEmpty
