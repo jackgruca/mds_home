@@ -68,7 +68,7 @@ class GmHubScreen extends StatelessWidget {
     {
       'title': 'Build Your Championship Roster',
       'desc': 'Utilize our suite of tools to construct the ultimate team.',
-      'image': 'assets/images/placeholder/gm_hub_slide_1.png', // Placeholder path
+      'image': 'assets/images/GM/PIT Draft.png', // Updated to PIT Draft image
       'route': '/team-builder/roster', // Example route
     },
     {
