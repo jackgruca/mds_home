@@ -74,7 +74,7 @@ class GmHubScreen extends StatelessWidget {
     {
       'title': 'Master the NFL Draft',
       'desc': 'Leverage insights from mock drafts and big boards.',
-      'image': 'assets/images/placeholder/gm_hub_slide_2.png', // Placeholder path
+      'image': 'assets/images/GM/big board.png', // Use GM big board image
       'route': '/draft',
     },
      {

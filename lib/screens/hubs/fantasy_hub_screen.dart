@@ -50,7 +50,7 @@ class FantasyHubScreen extends StatelessWidget {
     {
       'title': 'Ace Your Fantasy Draft',
       'desc': 'Prepare with mock drafts, rankings, and strategy tools.',
-      'image': 'assets/images/placeholder/fantasy_hub_slide_2.png', // Placeholder
+      'image': 'assets/images/FF/shiva.png', // Use FF shiva image
       'route': '/draft/fantasy',
     },
      {

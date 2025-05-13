@@ -21,19 +21,19 @@ class _HomeScreenState extends State<HomeScreen> {
     {
       'title': 'Run a Mock Draft',
       'desc': 'Simulate the NFL draft with real-time analytics.',
-      'image': 'assets/images/blog/draft_analysis_blog.jpg',
+      'image': 'assets/images/GM/PIT Draft.png',
       'route': '/draft',
     },
     {
       'title': 'Fantasy Football Mock Drafts',
       'desc': 'Practice your fantasy draft strategy.',
-      'image': 'assets/images/blog/player_projections_blog.jpg',
+      'image': 'assets/images/GM/big board.png',
       'route': '/draft/fantasy',
     },
     {
       'title': 'Player Big Boards',
       'desc': 'View and customize player rankings.',
-      'image': 'assets/images/blog/betting_metrics_blog.jpg',
+      'image': 'assets/images/FF/shiva.png',
       'route': '/draft/big-board',
     },
     {
