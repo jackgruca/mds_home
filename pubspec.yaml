@@ -51,7 +51,6 @@ flutter:
     - assets/2025/live_picks.csv
     - assets/draft_value_chart.csv
     - assets/blog_posts.json
-    - assets/data/historical_nfl_matchups.csv
     - assets/images/
     - assets/images/blog/
     - assets/images/GM/

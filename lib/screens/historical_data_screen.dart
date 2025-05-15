@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
-import 'package:mds_home/models/nfl_matchup.dart';
-import 'package:mds_home/services/historical_data_service.dart';
+import 'package:mds_home/models/nfl_matchup.dart'; // Import the centralized model
 import 'package:intl/intl.dart';
 import 'package:mds_home/widgets/analytics/visualization_tab.dart';
 import 'package:mds_home/widgets/analytics/quick_start_templates.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -61,7 +61,9 @@ class HistoricalDataScreen extends StatefulWidget {
 class _HistoricalDataScreenState extends State<HistoricalDataScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _error;
-  List<NFLMatchup> _matchups = [];
+  List<Map<String, dynamic>> _rawRows = [];
+  List<NFLMatchup> _matchupsForViz = []; // For VisualizationTab
+  int _totalRecords = 0;
   
   // Pagination state
   int _currentPage = 0;
@@ -80,17 +82,16 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   bool? _isOver;
   
   // Available filter options
-  List<String> _teams = [];
-  List<int> _seasons = [];
-  List<int> _weeks = [];
+  final List<String> _teams = [];
+  final List<int> _seasons = [];
+  final List<int> _weeks = [];
   
   // Sort state
-  String _sortColumn = 'date';
+  String _sortColumn = 'Date';
   bool _sortAscending = false;
 
   List<String> _headers = [];
-  List<Map<String, String>> _rawRows = [];
-
+  
   // Main fields to show by default
   static const List<String> _defaultFields = [
     'Team', 'Date', 'Opponent', 'Final', 'Closing_spread', 'Actual_total', 'Outcome', 'Spread_result', 'Points_result'
@@ -108,228 +109,153 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   final Map<String, List<String>> _columnFilters = {};
 
   late TabController _tabController;
+  FirebaseFunctions functions = FirebaseFunctions.instance;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadHistoricalData();
-    _newQueryOperator = QueryOperator.equals;
+    _headers = _defaultFields;
+    if (_headers.isNotEmpty) _newQueryField = _headers[0];
+    
+    _fetchDataFromFirebase();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _newQueryValueController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadHistoricalData() async {
+  Future<void> _fetchDataFromFirebase() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    try {
-      print('Initializing HistoricalDataService...');
-      await HistoricalDataService.initialize();
-      
-      _teams = HistoricalDataService.getUniqueTeams();
-      print('Loaded ${_teams.length} unique teams');
-      
-      _seasons = HistoricalDataService.getUniqueSeasons();
-      print('Loaded ${_seasons.length} unique seasons');
-      
-      _weeks = HistoricalDataService.getUniqueWeeks();
-      print('Loaded ${_weeks.length} unique weeks');
-      
-      _headers = HistoricalDataService.getHeaders();
-      print('Loaded ${_headers.length} headers: $_headers');
-      
-      if (_headers.isNotEmpty && _newQueryField == null) {
-        _newQueryField = _headers[0];
-      }
-      
-      if (_selectedFields.any((f) => !_headers.contains(f))) {
-        _selectedFields = List.from(_headers);
-        print('Using all headers as selected fields');
-      }
-      
-      _applyFilters(); // Initial data load with no filters or default queries
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
 
+    try {
+      final HttpsCallable callable = functions.httpsCallable('getHistoricalMatchups');
+      final result = await callable.call<Map<String, dynamic>>({
+        'filters': filtersForFunction,
+        'limit': _rowsPerPage,
+        'offset': _currentPage * _rowsPerPage,
+        'orderBy': _sortColumn,
+        'orderDirection': _sortAscending ? 'asc' : 'desc',
+      });
+
+      if (mounted) {
+        setState(() {
+          final List<dynamic> data = result.data['data'] ?? [];
+          _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
+          _matchupsForViz = _rawRows.map((row) => NFLMatchup.fromFirestoreMap(row)).toList();
+          _totalRecords = result.data['totalRecords'] ?? 0;
+
+          if (_rawRows.isNotEmpty) {
+            _headers = _rawRows.first.keys.toList();
+            if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
+              _newQueryField = _headers[0];
+            }
+            _selectedFields = _selectedFields.where((sf) => _headers.contains(sf)).toList();
+            if (_selectedFields.isEmpty && _headers.isNotEmpty) {
+              _selectedFields = _headers.take(5).toList();
+            }
+          }
+          _isLoading = false;
+        });
+      }
+    } on FirebaseFunctionsException catch (e) {
+      print('FirebaseFunctionsException caught in Flutter client:');
+      print('Code: ${e.code}');
+      print('Message: ${e.message}');
+      print('Details: ${e.details}');
+      if (mounted) {
+        setState(() {
+          String displayError = 'Error fetching data: ${e.message}';
+          if (e.code == 'failed-precondition') {
+            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
+          } else if (e.message != null && e.message!.toLowerCase().contains('index')){
+            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
+          }
+           _error = displayError;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      print('Error in _loadHistoricalData: $e');
-      setState(() {
-        _error = 'Failed to load historical data: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Generic error in _fetchDataFromFirebase (client-side): $e');
+      if (mounted) {
+        setState(() {
+          _error = 'An unexpected error occurred on the client: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _applyFilters() {
-    print("Applying filters with ${_queryConditions.length} conditions:");
-    for (var condition in _queryConditions) {
-      print(condition.toString());
-    }
-    
-    setState(() {
-      _matchups = HistoricalDataService.getMatchups(
-        startDate: _startDate,
-        endDate: _endDate,
-        team: _selectedTeam,
-        opponent: _selectedOpponent,
-        season: _selectedSeason,
-        week: _selectedWeek,
-        isHome: _isHome,
-        isWin: _isWin,
-        isSpreadWin: _isSpreadWin,
-        isOver: _isOver,
-        queryConditions: _queryConditions,
-      );
-      
-      _rawRows = HistoricalDataService.getRawRows(
-        startDate: _startDate,
-        endDate: _endDate,
-        team: _selectedTeam,
-        opponent: _selectedOpponent,
-        season: _selectedSeason,
-        week: _selectedWeek,
-        isHome: _isHome,
-        isWin: _isWin,
-        isSpreadWin: _isSpreadWin,
-        isOver: _isOver,
-        queryConditions: _queryConditions,
-      );
-
-      // Apply column filters
-      if (_columnFilters.isNotEmpty) {
-        _rawRows = _rawRows.where((row) {
-          return _columnFilters.entries.every((entry) {
-            final column = entry.key;
-            final allowedValues = entry.value;
-            if (allowedValues.isEmpty) return true;
-            return allowedValues.contains(row[column]);
-          });
-        }).toList();
-      }
-
-      // Apply sorting if any column is sorted
-      _columnSortAscending.forEach((column, ascending) {
-        _rawRows.sort((a, b) {
-          final aValue = a[column] ?? '';
-          final bValue = b[column] ?? '';
-          final comparison = aValue.compareTo(bValue);
-          return ascending ? comparison : -comparison;
-        });
-      });
-
-      _currentPage = 0;
-    });
+  void _applyFiltersAndFetch() {
+    _currentPage = 0;
+    _fetchDataFromFirebase();
   }
 
   void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Filter Matchups'),
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text('Filter Matchups (Legacy)'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Date Range
-                ListTile(
-                  title: const Text('Date Range'),
-                  subtitle: Text(
-                    _startDate == null && _endDate == null
-                        ? 'All dates'
-                        : '${DateFormat('MM/dd/yyyy').format(_startDate ?? DateTime(2000))} - ${DateFormat('MM/dd/yyyy').format(_endDate ?? DateTime.now())}',
-                  ),
-                  onTap: () async {
-                    final DateTimeRange? range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      initialDateRange: _startDate != null && _endDate != null
-                          ? DateTimeRange(start: _startDate!, end: _endDate!)
-                          : null,
-                    );
-                    if (range != null) {
-                      setState(() {
-                        _startDate = range.start;
-                        _endDate = range.end;
-                      });
-                    }
-                  },
-                ),
-                
-                // Team
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Team'),
                   value: _selectedTeam,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Teams')),
-                    ..._teams.map((team) => DropdownMenuItem(
-                      value: team,
-                      child: Text(team),
-                    )),
+                    ..._teams.map((team) => DropdownMenuItem(value: team, child: Text(team))),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedTeam = value);
+                    setStateDialog(() => _selectedTeam = value);
                   },
                 ),
-                
-                // Opponent
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Opponent'),
                   value: _selectedOpponent,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Opponents')),
-                    ..._teams.map((team) => DropdownMenuItem(
-                      value: team,
-                      child: Text(team),
-                    )),
+                    ..._teams.map((team) => DropdownMenuItem(value: team, child: Text(team))),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedOpponent = value);
+                    setStateDialog(() => _selectedOpponent = value);
                   },
                 ),
-                
-                // Season
                 DropdownButtonFormField<int>(
                   decoration: const InputDecoration(labelText: 'Season'),
                   value: _selectedSeason,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Seasons')),
-                    ..._seasons.map((season) => DropdownMenuItem(
-                      value: season,
-                      child: Text(season.toString()),
-                    )),
+                    ..._seasons.map((season) => DropdownMenuItem(value: season, child: Text(season.toString()))),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedSeason = value);
+                    setStateDialog(() => _selectedSeason = value);
                   },
                 ),
-                
-                // Week
                 DropdownButtonFormField<int>(
                   decoration: const InputDecoration(labelText: 'Week'),
                   value: _selectedWeek,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Weeks')),
-                    ..._weeks.map((week) => DropdownMenuItem(
-                      value: week,
-                      child: Text(week.toString()),
-                    )),
+                    ..._weeks.map((week) => DropdownMenuItem(value: week, child: Text(week.toString()))),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedWeek = value);
+                    setStateDialog(() => _selectedWeek = value);
                   },
                 ),
-                
-                // Game Type
                 DropdownButtonFormField<bool>(
                   decoration: const InputDecoration(labelText: 'Game Type'),
                   value: _isHome,
@@ -339,11 +265,9 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     DropdownMenuItem(value: false, child: Text('Away Games')),
                   ],
                   onChanged: (value) {
-                    setState(() => _isHome = value);
+                    setStateDialog(() => _isHome = value);
                   },
                 ),
-                
-                // Result
                 DropdownButtonFormField<bool>(
                   decoration: const InputDecoration(labelText: 'Result'),
                   value: _isWin,
@@ -353,11 +277,9 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     DropdownMenuItem(value: false, child: Text('Losses')),
                   ],
                   onChanged: (value) {
-                    setState(() => _isWin = value);
+                    setStateDialog(() => _isWin = value);
                   },
                 ),
-                
-                // Spread Result
                 DropdownButtonFormField<bool>(
                   decoration: const InputDecoration(labelText: 'Spread Result'),
                   value: _isSpreadWin,
@@ -367,11 +289,9 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     DropdownMenuItem(value: false, child: Text('Failed to Cover')),
                   ],
                   onChanged: (value) {
-                    setState(() => _isSpreadWin = value);
+                    setStateDialog(() => _isSpreadWin = value);
                   },
                 ),
-                
-                // Total Result
                 DropdownButtonFormField<bool>(
                   decoration: const InputDecoration(labelText: 'Total Result'),
                   value: _isOver,
@@ -381,25 +301,24 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     DropdownMenuItem(value: false, child: Text('Under')),
                   ],
                   onChanged: (value) {
-                    setState(() => _isOver = value);
+                    setStateDialog(() => _isOver = value);
                   },
                 ),
+                const Text("Note: Apply these via 'Build Query' for now for Firebase integration.", style: TextStyle(color: Colors.orange)),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                _applyFilters();
+                _applyFiltersAndFetch();
               },
-              child: const Text('Apply'),
+              child: const Text('Apply (Legacy)'),
             ),
           ],
         ),
@@ -412,13 +331,15 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       context: context,
       builder: (context) {
         List<String> tempSelected = List.from(_selectedFields);
+        List<String> currentAvailableHeaders = List.from(_headers);
+
         return AlertDialog(
           title: const Text('Customize Columns'),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
               child: Column(
-                children: _headers.map((header) {
+                children: currentAvailableHeaders.map((header) {
                   return CheckboxListTile(
                     title: Text(header),
                     value: tempSelected.contains(header),
@@ -428,7 +349,6 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       } else {
                         tempSelected.remove(header);
                       }
-                      setState(() {});
                     },
                   );
                 }).toList(),
@@ -455,26 +375,6 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     );
   }
 
-  void _sort<T>(Comparable<T> Function(NFLMatchup m) getField, String column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = column;
-        _sortAscending = true;
-      }
-      
-      _matchups.sort((a, b) {
-        final aValue = getField(a);
-        final bValue = getField(b);
-        return _sortAscending
-            ? Comparable.compare(aValue, bValue)
-            : Comparable.compare(bValue, aValue);
-      });
-    });
-  }
-
-  // Methods for Query Builder
   void _addQueryCondition() {
     if (_newQueryField != null && _newQueryOperator != null && _newQueryValueController.text.isNotEmpty) {
       setState(() {
@@ -502,21 +402,16 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     setState(() {
       _queryConditions.clear();
     });
-    _applyFilters(); 
+    _applyFiltersAndFetch();
   }
   
   @override
   Widget build(BuildContext context) {
-    if (_headers.isNotEmpty && _newQueryField == null) {
-      _newQueryField = _headers[0];
-    }
-
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     final theme = Theme.of(context);
 
-    // Keep the combined bottom widget for TabBar
     final PreferredSizeWidget tabBarBottom = PreferredSize(
-      preferredSize: const Size.fromHeight(kTextTabBarHeight), // Only TabBar height
+      preferredSize: const Size.fromHeight(kTextTabBarHeight),
       child: TabBar(
         controller: _tabController,
         tabs: const [
@@ -527,8 +422,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     );
 
     return Scaffold(
-      appBar: CustomAppBar( // Use CustomAppBar
-        // Construct the title widget
+      appBar: CustomAppBar(
         titleWidget: Row(
           children: [
             const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)), 
@@ -537,13 +431,11 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
           ],
         ),
         actions: [
-          // Add filter button specific to this screen
           IconButton(
             icon: const Icon(Icons.filter_list),
-            tooltip: 'Quick Filters',
+            tooltip: 'Quick Filters (Legacy)',
             onPressed: _showFilterDialog,
           ),
-          // Add consistent Auth button
            Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
@@ -558,585 +450,302 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
             ),
           ),
         ],
-        bottom: tabBarBottom, // Use the TabBar bottom widget
+        bottom: tabBarBottom,
       ),
       drawer: const AppDrawer(),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-              : SingleChildScrollView(
-                  child: Column(
+      body: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.yellow[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade200, width: 1),
+            ),
+            child: ExpansionTile(
+              leading: const Icon(Icons.lightbulb_outline, color: Colors.amber, size: 26),
+              title: Text(
+                'Quick Ideas (Tap to Expand)',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold, fontSize: 16, color: Colors.amber[900],
+                ),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: QuickStartTemplates.templates.map((template) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: ActionChip(
+                          label: Text(template.name),
+                          tooltip: template.description,
+                          onPressed: () {
+                            setState(() {
+                              _queryConditions.clear();
+                              _queryConditions.addAll(template.conditions);
+                              _applyFiltersAndFetch();
+                            });
+                          },
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Quick Ideas Dropdown inside the card
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber.shade200, width: 1),
-                        ),
-                        child: ExpansionTile(
-                          leading: const Icon(Icons.lightbulb_outline, color: Colors.amber, size: 26),
-                          title: Text(
-                            'Quick Ideas (Tap to Expand)',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.amber[900],
-                            ),
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: QuickStartTemplates.templates.map((template) => Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                    child: ActionChip(
-                                      label: Text(template.name),
-                                      tooltip: template.description,
-                                      onPressed: () {
-                                        setState(() {
-                                          _queryConditions.clear();
-                                          _queryConditions.addAll(template.conditions);
-                                          _applyFilters();
-                                        });
-                                      },
-                                    ),
-                                  )).toList(),
-                                ),
-                              ),
-                            ),
-                          ],
+                      Text('Build Query', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
+                      TextButton(
+                        onPressed: _showCustomizeColumnsDialog,
+                        child: const Text('Customize Columns', style: TextStyle(fontSize: 15)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8.0),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(labelText: 'Field', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                          value: _headers.contains(_newQueryField) ? _newQueryField : null,
+                          items: _headers.map((header) => DropdownMenuItem(
+                            value: header,
+                            child: Text(header, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
+                          )).toList(),
+                          onChanged: (value) {
+                            setState(() => _newQueryField = value);
+                          },
+                          isExpanded: true,
                         ),
                       ),
-                      // Unified Query/Filter Section
-                      Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Build Query', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
-                                  Row(
-                                    children: [
-                                      TextButton(
-                                        style: TextButton.styleFrom(minimumSize: const Size(36, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                        onPressed: _showFilterDialog,
-                                        child: const Text('Filter', style: TextStyle(fontSize: 15)),
-                                      ),
-                                      TextButton(
-                                        style: TextButton.styleFrom(minimumSize: const Size(36, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                        onPressed: _showCustomizeColumnsDialog,
-                                        child: const Text('Customize Columns', style: TextStyle(fontSize: 15)),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8.0),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: DropdownButtonFormField<String>(
-                                      decoration: const InputDecoration(labelText: 'Field', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
-                                      value: _newQueryField,
-                                      items: _headers.map((header) => DropdownMenuItem(
-                                        value: header,
-                                        child: Text(header, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
-                                      )).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _newQueryField = value;
-                                        });
-                                      },
-                                      isExpanded: true,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  Expanded(
-                                    flex: 2,
-                                    child: DropdownButtonFormField<QueryOperator>(
-                                      decoration: const InputDecoration(labelText: 'Operator', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
-                                      value: _newQueryOperator,
-                                      items: QueryOperator.values.map((op) => DropdownMenuItem(
-                                        value: op,
-                                        child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 17)),
-                                      )).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _newQueryOperator = value;
-                                        });
-                                      },
-                                      isExpanded: true,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  Expanded(
-                                    flex: 2,
-                                    child: TextField(
-                                      controller: _newQueryValueController,
-                                      style: const TextStyle(fontSize: 17),
-                                      decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  SizedBox(
-                                    height: 36,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0), textStyle: const TextStyle(fontSize: 16)),
-                                      onPressed: _addQueryCondition,
-                                      child: const Text('Add'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8.0),
-                              if (_queryConditions.isNotEmpty) ...[
-                                Text('Current Conditions:', style: Theme.of(context).textTheme.bodySmall),
-                                const SizedBox(height: 4.0),
-                                Wrap(
-                                  spacing: 6.0,
-                                  runSpacing: 2.0,
-                                  children: _queryConditions.asMap().entries.map((entry) {
-                                    int idx = entry.key;
-                                    QueryCondition condition = entry.value;
-                                    return Chip(
-                                      label: Text(condition.toString(), style: const TextStyle(fontSize: 12)),
-                                      onDeleted: () => _removeQueryCondition(idx),
-                                      visualDensity: VisualDensity.compact,
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 8.0),
-                              ],
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  TextButton(
-                                    style: TextButton.styleFrom(minimumSize: const Size(36, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                    onPressed: _clearAllQueryConditions,
-                                    child: const Text('Clear All', style: TextStyle(fontSize: 13)),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  SizedBox(
-                                    height: 32,
-                                    child: ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), textStyle: const TextStyle(fontSize: 13)),
-                                      icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                                      label: const Text('Apply Queries'),
-                                      onPressed: _applyFilters,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                      const SizedBox(width: 6.0),
+                      Expanded(
+                        flex: 2,
+                        child: DropdownButtonFormField<QueryOperator>(
+                          decoration: const InputDecoration(labelText: 'Operator', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                          value: _newQueryOperator,
+                          items: QueryOperator.values.map((op) => DropdownMenuItem(
+                            value: op,
+                            child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 17)),
+                          )).toList(),
+                          onChanged: (value) {
+                            setState(() => _newQueryOperator = value);
+                          },
+                          isExpanded: true,
                         ),
                       ),
-                      // Tab Content
+                      const SizedBox(width: 6.0),
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: _newQueryValueController,
+                          style: const TextStyle(fontSize: 17),
+                          decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                        ),
+                      ),
+                      const SizedBox(width: 6.0),
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.7,
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            // Data Table Tab
-                            Column(
-                              children: [
-                                if (_selectedTeam != null)
-                                  Card(
-                                    margin: const EdgeInsets.all(8.0),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '$_selectedTeam Statistics',
-                                            style: Theme.of(context).textTheme.titleLarge,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _buildStatColumn(
-                                                  'Overall',
-                                                  HistoricalDataService.getTeamStats(_selectedTeam!),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _buildStatColumn(
-                                                  'Home',
-                                                  HistoricalDataService.getTeamStats(_selectedTeam!),
-                                                  isHome: true,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _buildStatColumn(
-                                                  'Away',
-                                                  HistoricalDataService.getTeamStats(_selectedTeam!),
-                                                  isHome: false,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                if (_selectedTeam != null ||
-                                    _selectedOpponent != null ||
-                                    _selectedSeason != null ||
-                                    _selectedWeek != null ||
-                                    _isHome != null ||
-                                    _isWin != null ||
-                                    _isSpreadWin != null ||
-                                    _isOver != null)
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Wrap(
-                                      spacing: 8.0,
-                                      children: [
-                                        if (_selectedTeam != null)
-                                          FilterChip(
-                                            label: Text('Team: $_selectedTeam'),
-                                            onDeleted: () => setState(() {
-                                              _selectedTeam = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _selectedTeam = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_selectedOpponent != null)
-                                          FilterChip(
-                                            label: Text('Opponent: $_selectedOpponent'),
-                                            onDeleted: () => setState(() {
-                                              _selectedOpponent = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _selectedOpponent = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_selectedSeason != null)
-                                          FilterChip(
-                                            label: Text('Season: $_selectedSeason'),
-                                            onDeleted: () => setState(() {
-                                              _selectedSeason = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _selectedSeason = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_selectedWeek != null)
-                                          FilterChip(
-                                            label: Text('Week: $_selectedWeek'),
-                                            onDeleted: () => setState(() {
-                                              _selectedWeek = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _selectedWeek = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_isHome != null)
-                                          FilterChip(
-                                            label: Text(_isHome! ? 'Home' : 'Away'),
-                                            onDeleted: () => setState(() {
-                                              _isHome = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _isHome = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_isWin != null)
-                                          FilterChip(
-                                            label: Text(_isWin! ? 'Win' : 'Loss'),
-                                            onDeleted: () => setState(() {
-                                              _isWin = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _isWin = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_isSpreadWin != null)
-                                          FilterChip(
-                                            label: Text(_isSpreadWin! ? 'Cover' : 'No Cover'),
-                                            onDeleted: () => setState(() {
-                                              _isSpreadWin = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _isSpreadWin = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                        if (_isOver != null)
-                                          FilterChip(
-                                            label: Text(_isOver! ? 'Over' : 'Under'),
-                                            onDeleted: () => setState(() {
-                                              _isOver = null;
-                                              _applyFilters();
-                                            }),
-                                            selected: true,
-                                            onSelected: (s) {
-                                              if (!s) setState(() {
-                                                _isOver = null;
-                                                _applyFilters();
-                                              });
-                                            },
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                                        child: Text(
-                                          _rawRows.isEmpty
-                                              ? 'No data to display for the current filters.'
-                                              : 'Page ${_currentPage + 1} of ${(_rawRows.length / _rowsPerPage).ceil().clamp(1, 999)}. Total: ${_rawRows.length} records.',
-                                          style: TextStyle(color: Colors.grey.shade700),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: SingleChildScrollView(
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                            child: DataTable(
-                                              showCheckboxColumn: false,
-                                              columns: _selectedFields.map((header) {
-                                                // Get unique values for this column
-                                                final uniqueValues = _rawRows.map((row) => row[header] ?? '').toSet().toList()..sort();
-                                                
-                                                return DataColumn(
-                                                  label: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                      if (_columnSortAscending.containsKey(header))
-                                                        Icon(
-                                                          _columnSortAscending[header]! ? Icons.arrow_upward : Icons.arrow_downward,
-                                                          size: 16,
-                                                        ),
-                                                      if (_columnFilters.containsKey(header) && _columnFilters[header]!.isNotEmpty)
-                                                        Icon(Icons.filter_list, size: 16, color: Theme.of(context).primaryColor),
-                                                    ],
-                                                  ),
-                                                  onSort: (_, __) => _handleSort(header),
-                                                  tooltip: 'Click to sort, long press to filter',
-                                                );
-                                              }).toList(),
-                                              rows: _rawRows.isEmpty 
-                                                ? [] 
-                                                : _rawRows
-                                                    .skip(_currentPage * _rowsPerPage)
-                                                    .take(_rowsPerPage)
-                                                    .toList()
-                                                    .asMap()
-                                                    .map((index, row) => MapEntry(index, DataRow(
-                                                          color: WidgetStateProperty.resolveWith<Color?>(
-                                                            (Set<WidgetState> states) {
-                                                              if (index.isEven) return Colors.grey.withOpacity(0.08);
-                                                              return null;
-                                                            },
-                                                          ),
-                                                          cells: _selectedFields.map((header) {
-                                                            final value = row[header] ?? 'N/A';
-                                                            // Get unique values for this column
-                                                            final uniqueValues = _rawRows.map((row) => row[header] ?? '').toSet().toList()..sort();
-                                                            return DataCell(
-                                                              GestureDetector(
-                                                                onLongPress: () {
-                                                                  showDialog(
-                                                                    context: context,
-                                                                    builder: (context) => AlertDialog(
-                                                                      title: Text('Filter $header'),
-                                                                      content: SingleChildScrollView(
-                                                                        child: Column(
-                                                                          mainAxisSize: MainAxisSize.min,
-                                                                          children: [
-                                                                            ...uniqueValues.map((value) => CheckboxListTile(
-                                                                              title: Text(value),
-                                                                              value: _columnFilters[header]?.contains(value) ?? false,
-                                                                              onChanged: (checked) => _handleColumnFilter(header, value),
-                                                                            )),
-                                                                          ],
-                                                                        ),
-                                                                      ),
-                                                                      actions: [
-                                                                        TextButton(
-                                                                          onPressed: () => _clearColumnFilter(header),
-                                                                          child: const Text('Clear Filter'),
-                                                                        ),
-                                                                        TextButton(
-                                                                          onPressed: () => Navigator.pop(context),
-                                                                          child: const Text('Close'),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  );
-                                                                },
-                                                                child: Text(
-                                                                  value,
-                                                                  style: TextStyle(
-                                                                    color: value == 'N/A' ? Colors.grey.shade600 : null,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            );
-                                                          }).toList(),
-                                                        )))
-                                                    .values
-                                                    .toList(),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      if (_rawRows.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              ElevatedButton(
-                                                onPressed: _currentPage > 0
-                                                    ? () => setState(() => _currentPage--)
-                                                    : null,
-                                                child: const Text('Previous'),
-                                              ),
-                                              const SizedBox(width: 16),
-                                              Text('Page ${_currentPage + 1} of ${(_rawRows.length / _rowsPerPage).ceil().clamp(1, 999)}'),
-                                              const SizedBox(width: 16),
-                                              ElevatedButton(
-                                                onPressed: (_currentPage + 1) * _rowsPerPage < _rawRows.length
-                                                    ? () => setState(() => _currentPage++)
-                                                    : null,
-                                                child: const Text('Next'),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // Visualizations Tab
-                            VisualizationTab(
-                              matchups: _matchups,
-                              selectedTeam: _selectedTeam,
-                              currentFilters: _queryConditions,
-                              onApplyFilter: (conditions) {
-                                setState(() {
-                                  _queryConditions.clear();
-                                  _queryConditions.addAll(conditions);
-                                  _applyFilters();
-                                });
-                              },
-                            ),
-                          ],
+                        height: 36,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0), textStyle: const TextStyle(fontSize: 16)),
+                          onPressed: _addQueryCondition,
+                          child: const Text('Add'),
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 8.0),
+                  if (_queryConditions.isNotEmpty) ...[
+                    Text('Current Conditions:', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 4.0),
+                    Wrap(
+                      spacing: 6.0,
+                      runSpacing: 2.0,
+                      children: _queryConditions.asMap().entries.map((entry) {
+                        int idx = entry.key;
+                        QueryCondition condition = entry.value;
+                        return Chip(
+                          label: Text(condition.toString(), style: const TextStyle(fontSize: 12)),
+                          onDeleted: () => _removeQueryCondition(idx),
+                          visualDensity: VisualDensity.compact,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8.0),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(36, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
+                        onPressed: _clearAllQueryConditions,
+                        child: const Text('Clear All', style: TextStyle(fontSize: 13)),
+                      ),
+                      const SizedBox(width: 6.0),
+                      SizedBox(
+                        height: 32,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), textStyle: const TextStyle(fontSize: 13)),
+                          icon: const Icon(Icons.filter_alt_outlined, size: 16),
+                          label: const Text('Apply Queries'),
+                          onPressed: _applyFiltersAndFetch,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center,)
+                    ))
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildDataTableTab(),
+                        VisualizationTab(
+                          matchups: _matchupsForViz,
+                          selectedTeam: _selectedTeam,
+                          currentFilters: _queryConditions,
+                          onApplyFilter: (conditions) {
+                            setState(() {
+                              _queryConditions.clear();
+                              _queryConditions.addAll(conditions);
+                              _applyFiltersAndFetch();
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildStatColumn(String label, Map<String, dynamic> stats, {bool isHome = false}) {
+  Widget _buildDataTableTab() {
+    if (_rawRows.isEmpty && !_isLoading && _error == null) {
+      return const Center(child: Text('No data to display. Try adjusting your filters.'));
+    }
     return Column(
       children: [
-        Text(label, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Text(stats[label]?.toString() ?? 'N/A', style: Theme.of(context).textTheme.bodyMedium),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          child: Text(
+            _rawRows.isEmpty
+                ? 'No data to display for the current filters.'
+                : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: DataTable(
+                showCheckboxColumn: false,
+                sortColumnIndex: _headers.indexOf(_sortColumn).clamp(0, _headers.isNotEmpty ? _headers.length -1 : 0),
+                sortAscending: _sortAscending,
+                columns: _selectedFields.map((header) {
+                  return DataColumn(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        if (_sortColumn == header)
+                          Icon(
+                            _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                            size: 16,
+                          ),
+                      ],
+                    ),
+                    onSort: (columnIndex, ascending) {
+                      setState(() {
+                        _sortColumn = _selectedFields[columnIndex];
+                        _sortAscending = ascending;
+                        _applyFiltersAndFetch();
+                      });
+                    },
+                    tooltip: 'Sort by $header',
+                  );
+                }).toList(),
+                rows: _rawRows.isEmpty 
+                  ? [] 
+                  : _rawRows
+                      .map((rowMap) => DataRow(
+                            cells: _selectedFields.map((header) {
+                              final value = rowMap[header];
+                              String displayValue = 'N/A';
+                              if (value != null) {
+                                if (value is String && (header == 'Date' || header.endsWith('_date'))) {
+                                  try {
+                                    displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
+                                  } catch (e) {
+                                    displayValue = value;
+                                  }
+                                } else {
+                                  displayValue = value.toString();
+                                }
+                              }
+                              return DataCell(Text(
+                                displayValue,
+                                style: TextStyle(
+                                  color: displayValue == 'N/A' ? Colors.grey.shade600 : null,
+                                ),
+                              ));
+                            }).toList(),
+                          ))
+                      .toList(),
+              ),
+            ),
+          ),
+        ),
+        if (_rawRows.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _currentPage > 0
+                      ? () => setState(() { _currentPage--; _fetchDataFromFirebase(); })
+                      : null,
+                  child: const Text('Previous'),
+                ),
+                const SizedBox(width: 16),
+                Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
+                      ? () => setState(() { _currentPage++; _fetchDataFromFirebase(); })
+                      : null,
+                  child: const Text('Next'),
+                ),
+              ],
+            ),
+          ),
       ],
     );
-  }
-
-  // Add method to handle column sorting
-  void _handleSort(String column) {
-    setState(() {
-      if (_columnSortAscending[column] == null) {
-        _columnSortAscending[column] = true;
-      } else {
-        _columnSortAscending[column] = !_columnSortAscending[column]!;
-      }
-      
-      // Sort the raw rows based on the selected column
-      _rawRows.sort((a, b) {
-        final aValue = a[column] ?? '';
-        final bValue = b[column] ?? '';
-        final comparison = aValue.compareTo(bValue);
-        return _columnSortAscending[column]! ? comparison : -comparison;
-      });
-    });
-  }
-
-  // Add method to handle column filtering
-  void _handleColumnFilter(String column, String value) {
-    setState(() {
-      if (!_columnFilters.containsKey(column)) {
-        _columnFilters[column] = [];
-      }
-      
-      if (_columnFilters[column]!.contains(value)) {
-        _columnFilters[column]!.remove(value);
-      } else {
-        _columnFilters[column]!.add(value);
-      }
-      
-      _applyFilters();
-    });
-  }
-
-  // Add method to clear column filter
-  void _clearColumnFilter(String column) {
-    setState(() {
-      _columnFilters.remove(column);
-      _applyFilters();
-    });
   }
 } 

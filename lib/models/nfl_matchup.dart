@@ -169,6 +169,80 @@ class NFLMatchup {
     }
   }
 
+  // Factory constructor for Firestore data (Map<String, dynamic>)
+  factory NFLMatchup.fromFirestoreMap(Map<String, dynamic> map) {
+    // Helper to safely get string, providing a default
+    String getString(String key, {String defaultValue = ''}) => map[key]?.toString() ?? defaultValue;
+    // Helper to safely get int, providing a default
+    int getInt(String key, {int defaultValue = 0}) {
+      final val = map[key];
+      if (val is int) return val;
+      if (val is double) return val.round(); // Handle cases where numbers might come as double from Firestore
+      if (val is String) return int.tryParse(val) ?? defaultValue;
+      return defaultValue;
+    }
+    // Helper to safely get double, providing a default
+    double getDouble(String key, {double defaultValue = 0.0}) {
+      final val = map[key];
+      if (val is double) return val;
+      if (val is int) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? defaultValue;
+      return defaultValue;
+    }
+    // Helper to safely get DateTime from ISO string or Timestamp
+    DateTime getDateTime(String key) {
+      final val = map[key];
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now(); // Default if parse fails
+      // Assuming the import script converts Firestore Timestamps to ISO strings before sending to client,
+      // but if it were a direct Firestore Timestamp object:
+      // if (val is Timestamp) return val.toDate(); 
+      return DateTime.now(); // Default if not a recognizable format
+    }
+
+    return NFLMatchup(
+      team: getString('Team'),
+      season: getInt('Season'),
+      week: getInt('Week'),
+      date: getDateTime('Date'), // Cloud function converts Timestamp to ISO String
+      gameId: getString('gameID'), // Ensure keys match Firestore (case-sensitive)
+      rot: getInt('Rot'),
+      vh: getString('VH'),
+      firstQuarter: getInt('1st'),
+      secondQuarter: getInt('2nd'),
+      thirdQuarter: getInt('3rd'),
+      fourthQuarter: getInt('4th'),
+      finalScore: getInt('Final'),
+      moneyLine: getInt('ML'),
+      halftime: getDouble('Halftime'),
+      pointsOpen: getDouble('Points_open'),
+      pointsClose: getDouble('Points_close'),
+      openingSpread: getDouble('Opening_spread'),
+      closingSpread: getDouble('Closing_spread'), // Corrected key from CSV import script
+      actualTotal: getDouble('Actual_total'),   // Corrected key from CSV import script
+      actualSpread: getDouble('Actual_spread'), // Corrected key from CSV import script
+      outcome: getString('Outcome'),
+      spreadResult: getString('Spread_result'), // Corrected key from CSV import script
+      pointsResult: getString('Points_result'), // Corrected key from CSV import script
+      temperature: map['temp'] == null || map['temp'].toString() == 'NA' ? null : getDouble('temp'),
+      setting: map['setting'] == null || map['setting'].toString() == 'NA' ? null : getString('setting'),
+      opponent: getString('Opponent'),
+      winsToDate: getInt('Wins_to_date'),         // Corrected key from CSV import script
+      defVsWRTier: getInt('defVsWR_tier'),       // Corrected key from CSV import script
+      defVsRBTier: getInt('defVsRB_tier'),       // Corrected key from CSV import script
+      defVsQBTier: getInt('defVsQB_tier'),       // Corrected key from CSV import script
+      passOffTier: getInt('passOffTier'),
+      qbrTier: getInt('QBR_tier'),               // Corrected key from CSV import script
+      opponentWinsToDate: getInt('Opponent_wins_to_date'), // Corrected key
+      opponentDaysRest: getInt('Opponent_days_rest'),    // Corrected key
+      opponentPassOffTier: getInt('Opponent_passOffTier'), // Corrected key
+      opponentDefVsWRTier: getInt('Opponent_defVsWR_tier'),// Corrected key
+      opponentDefVsRBTier: getInt('Opponent_defVsRB_tier'),// Corrected key
+      opponentDefVsQBTier: getInt('Opponent_defVsQB_tier'),// Corrected key
+      opponentQbrTier: getInt('Opponent_QBR_tier'),      // Corrected key
+      daysRest: getInt('days_rest'),
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'team': team,

@@ -2,6 +2,23 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
+// Helper function to parse query values (numbers, booleans)
+function parseQueryValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+    if (!isNaN(value) && value.trim() !== '' && value.indexOf('.') !== -1) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) return num;
+    } else if (!isNaN(value) && value.trim() !== '') {
+        const num = parseInt(value, 10);
+        if (!isNaN(num)) return num;
+    }
+  }
+  return value; // Return as string if not obviously a number or boolean
+}
+
 exports.dailyAnalyticsAggregation = functions.runWith({
     timeoutSeconds: 300,  // Increase timeout to 5 minutes
     memory: '1GB'         // Increase memory allocation
@@ -1018,3 +1035,107 @@ async function aggregatePlayerDeviations(analyticsSnapshot) {
     console.log('Player deviations aggregation completed');
     return { players: averageDeviations, byPosition };
 }
+
+// New function to fetch historical matchups with filtering
+exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => {
+    const db = admin.firestore();
+    console.log('getHistoricalMatchups called with full request data:', JSON.stringify(data, null, 2));
+
+    const filters = data.filters || {};
+    const limit = data.limit ? parseInt(data.limit, 10) : 50;
+    const offset = data.offset ? parseInt(data.offset, 10) : 0;
+    let orderByField = data.orderBy || 'Date'; 
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+
+    let query = db.collection('historicalMatchups');
+
+    console.log('Applying filters:', JSON.stringify(filters, null, 2));
+    for (const fieldKey in filters) {
+        if (Object.prototype.hasOwnProperty.call(filters, fieldKey)) {
+            const filterValue = filters[fieldKey];
+            if (filterValue !== null && filterValue !== undefined && filterValue !== '') {
+                const parsedValue = parseQueryValue(filterValue);
+                console.log(`  -> Querying: ${fieldKey} == ${parsedValue} (original value: '${filterValue}', type: ${typeof parsedValue})`);
+                query = query.where(fieldKey, '==', parsedValue);
+            }
+        }
+    }
+
+    try {
+        // Optimized way to get total count for filtered query
+        const countSnapshot = await query.count().get();
+        const totalRecords = countSnapshot.data().count;
+        console.log(`Total records found for filters: ${totalRecords}`);
+
+        orderByField = orderByField.replace(/\./g, '_').trim();
+        if (orderByField) {
+             console.log(`Applying orderBy: ${orderByField} ${orderDirection}`);
+             query = query.orderBy(orderByField, orderDirection);
+        } 
+
+        if (offset > 0) {
+            console.warn(`Using offset (${offset}) will fetch ${offset + limit} docs and slice. Consider 'startAfter' for large offsets if performance is an issue on later pages.`);
+            // Fetch N documents to get to the correct starting point for the offset.
+            // This requires ordering to be consistent.
+            // This is still not the most optimal way for deep pagination but simpler than full cursor pagination for now.
+            let offsetQuery = query;
+            if (offset > 0) {
+                 // To implement offset correctly with Firestore when not using startAfter on a specific doc,
+                 // you need to fetch docs up to the offset + limit. 
+                 // However, query.offset() method exists and is simpler if it works for your firebase-admin version.
+                 // Let's try using the built-in offset if available, otherwise keep the manual slice logic as a fallback concept.
+                 // For count optimization, the most critical part was query.count().get().
+                 // The nodejs admin SDK does support .offset()
+                offsetQuery = offsetQuery.offset(offset);
+            }
+            query = offsetQuery.limit(limit);
+        } else {
+            query = query.limit(limit);
+        }
+
+        const snapshot = await query.get();
+
+        if (snapshot.empty) {
+            console.log('No matching documents found for the current page/limit.');
+            return {
+                data: [],
+                totalRecords: totalRecords, // Still return total count based on filters
+                limit: limit,
+                offset: offset,
+                message: 'No documents found for the current page/criteria.'
+            };
+        }
+
+        const matchups = snapshot.docs.map(doc => {
+            const docData = doc.data();
+            for (const key in docData) {
+                if (docData[key] instanceof admin.firestore.Timestamp) {
+                    docData[key] = docData[key].toDate().toISOString(); 
+                }
+            }
+            return { id: doc.id, ...docData };
+        });
+
+        console.log(`Returning ${matchups.length} documents for current page.`);
+        return {
+            data: matchups,
+            totalRecords: totalRecords,
+            limit: limit,
+            offset: offset, 
+            message: `Successfully fetched ${matchups.length} records.`
+        };
+
+    } catch (error) {
+        console.error('Error in getHistoricalMatchups Cloud Function:', error);
+        if (error.code === 'failed-precondition') {
+             console.error('Query failed, likely requires a Firestore index. Check Firestore console for index creation link in error logs from Functions.');
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'Query requires a composite index. Please check server logs (Firebase Functions console) and create the required index in Firestore.',
+                error.message
+            );
+        }
+        // Throw a more specific error back to the client if possible
+        throw new functions.https.HttpsError('internal', `Failed to fetch historical matchups: ${error.message}`, error.details || {originalError: error.toString()});
+    }
+});

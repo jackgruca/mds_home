@@ -12,3 +12,6 @@ const analyticsAggregation = require('./analyticsAggregation');
 // Export the functions
 exports.dailyAnalyticsAggregation = analyticsAggregation.dailyAnalyticsAggregation;
 exports.getAnalyticsData = analyticsAggregation.getAnalyticsData;
+
+// Export the new function for historical matchups
+exports.getHistoricalMatchups = analyticsAggregation.getHistoricalMatchups;
