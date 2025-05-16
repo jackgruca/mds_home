@@ -114,6 +114,8 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   bool _vizTruncated = false; // If true, visualization is truncated to 5000 rows
   bool _isVizLoading = false; // Track visualization loading state
   int _lastVizQueryHash = 0; // To avoid duplicate fetches
+  List<NFLMatchup>? _vizCacheAll; // Cache for unfiltered visualization data
+  bool _isVizCacheLoading = false; // Track cache loading state
 
   @override
   void initState() {
@@ -203,10 +205,27 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     }
   }
 
+  // Fetch ALL data for visualizations (up to 5000 rows), with cache for unfiltered
   Future<void> _fetchVisualizationData() async {
+    // If no filters, use cache if available
+    final bool noFilters = _queryConditions.isEmpty;
+    if (noFilters && _vizCacheAll != null) {
+      print('[VizCache] Using cached unfiltered data.');
+      setState(() {
+        _allFilteredMatchups = _vizCacheAll!;
+        _isVizLoading = false;
+        _vizTruncated = _vizCacheAll!.length >= 5000;
+        _lastVizQueryHash = _computeVizQueryHash();
+      });
+      return;
+    }
+    if (noFilters && _vizCacheAll == null) {
+      print('[VizCache] Building cache for unfiltered data...');
+    }
     setState(() {
       _isVizLoading = true;
       _vizTruncated = false;
+      if (noFilters && _vizCacheAll == null) _isVizCacheLoading = true;
     });
     Map<String, dynamic> filtersForFunction = {};
     for (var condition in _queryConditions) {
@@ -224,18 +243,24 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       if (mounted) {
         setState(() {
           final List<dynamic> vizData = vizResult.data['data'] ?? [];
-          _allFilteredMatchups = vizData.map((row) => NFLMatchup.fromFirestoreMap(Map<String, dynamic>.from(row))).toList();
+          final List<NFLMatchup> matchups = vizData.map((row) => NFLMatchup.fromFirestoreMap(Map<String, dynamic>.from(row))).toList();
+          _allFilteredMatchups = matchups;
           final int vizTotal = vizResult.data['totalRecords'] ?? 0;
           _vizTruncated = vizData.length >= 5000 && vizTotal > 5000;
           _isVizLoading = false;
-          // Save a hash of the current query to avoid duplicate fetches
+          _isVizCacheLoading = false;
           _lastVizQueryHash = _computeVizQueryHash();
+          // Cache the unfiltered set for future instant loads
+          if (noFilters) {
+            _vizCacheAll = matchups;
+          }
         });
       }
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
         setState(() {
           _isVizLoading = false;
+          _isVizCacheLoading = false;
           _allFilteredMatchups = [];
         });
       }
@@ -243,6 +268,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       if (mounted) {
         setState(() {
           _isVizLoading = false;
+          _isVizCacheLoading = false;
           _allFilteredMatchups = [];
         });
       }
@@ -275,6 +301,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     _allFilteredMatchups = [];
     _isVizLoading = false;
     _lastVizQueryHash = 0;
+    // If filters are cleared, use cache next time
+    if (_queryConditions.isEmpty && _vizCacheAll != null) {
+      // No need to clear cache
+    } else if (_queryConditions.isNotEmpty) {
+      print('[VizCache] Invalidating cache due to filters.');
+      // If filters are applied, do not use cache
+      _vizCacheAll = null;
+    }
     _fetchDataFromFirebase();
   }
 
@@ -747,7 +781,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       controller: _tabController,
                       children: [
                         _buildDataTableTab(),
-                        _isVizLoading
+                        (_isVizLoading || _isVizCacheLoading)
                           ? const Center(child: CircularProgressIndicator())
                           : VisualizationTab(
                               matchups: _allFilteredMatchups,

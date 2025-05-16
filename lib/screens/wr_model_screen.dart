@@ -60,6 +60,8 @@ class _WRModelScreenState extends State<WRModelScreen> {
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
   int _totalRecords = 0;
+  List<Map<String, dynamic>>? _wrCacheAll; // Cache for unfiltered WR data
+  bool _isCacheLoading = false; // Track cache loading state
   
   // Pagination state
   int _currentPage = 0;
@@ -105,16 +107,29 @@ class _WRModelScreenState extends State<WRModelScreen> {
   }
 
   Future<void> _fetchDataFromFirebase() async {
+    // If no filters, use cache if available
+    final bool noFilters = _queryConditions.isEmpty;
+    if (noFilters && _wrCacheAll != null) {
+      print('[WRCache] Using cached unfiltered data.');
+      setState(() {
+        _rawRows = List<Map<String, dynamic>>.from(_wrCacheAll!);
+        _totalRecords = _wrCacheAll!.length;
+        _isLoading = false;
+      });
+      return;
+    }
+    if (noFilters && _wrCacheAll == null) {
+      print('[WRCache] Building cache for unfiltered data...');
+    }
     setState(() {
       _isLoading = true;
       _error = null;
+      if (noFilters && _wrCacheAll == null) _isCacheLoading = true;
     });
-
     Map<String, dynamic> filtersForFunction = {};
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-
     try {
       final HttpsCallable callable = functions.httpsCallable('getWrModelStats');
       final result = await callable.call<Map<String, dynamic>>({
@@ -124,16 +139,24 @@ class _WRModelScreenState extends State<WRModelScreen> {
         'orderBy': _sortColumn,
         'orderDirection': _sortAscending ? 'asc' : 'desc',
       });
-
-      print('WRModelScreen: Firebase function result:');
-      print(result.data);
-
+      // For unfiltered, also fetch and cache the full set (up to 5000 rows)
+      if (noFilters && _wrCacheAll == null) {
+        final fullResult = await callable.call<Map<String, dynamic>>({
+          'filters': {},
+          'limit': 5000,
+          'offset': 0,
+          'orderBy': _sortColumn,
+          'orderDirection': _sortAscending ? 'asc' : 'desc',
+        });
+        final List<dynamic> fullData = fullResult.data['data'] ?? [];
+        _wrCacheAll = fullData.map((item) => Map<String, dynamic>.from(item)).toList();
+        _isCacheLoading = false;
+      }
       if (mounted) {
         setState(() {
           final List<dynamic> data = result.data['data'] ?? [];
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
-
           if (_rawRows.isNotEmpty) {
             _headers = _rawRows.first.keys.toList();
             if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
@@ -145,6 +168,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
             }
           }
           _isLoading = false;
+          _isCacheLoading = false;
         });
       }
     } on FirebaseFunctionsException catch (e) {
@@ -162,6 +186,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
           }
           _error = displayError;
           _isLoading = false;
+          _isCacheLoading = false;
         });
       }
     } catch (e, stack) {
@@ -171,6 +196,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
         setState(() {
           _error = 'An unexpected error occurred on the client: $e\n$stack';
           _isLoading = false;
+          _isCacheLoading = false;
         });
       }
     }
@@ -178,6 +204,14 @@ class _WRModelScreenState extends State<WRModelScreen> {
 
   void _applyFiltersAndFetch() {
     _currentPage = 0;
+    // If filters are cleared, use cache next time
+    if (_queryConditions.isEmpty && _wrCacheAll != null) {
+      // No need to clear cache
+    } else if (_queryConditions.isNotEmpty) {
+      print('[WRCache] Invalidating cache due to filters.');
+      // If filters are applied, do not use cache
+      _wrCacheAll = null;
+    }
     _fetchDataFromFirebase();
   }
 
@@ -449,7 +483,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
             ),
           ),
           Expanded(
-            child: _isLoading
+            child: (_isLoading || _isCacheLoading)
               ? const Center(child: CircularProgressIndicator())
               : _error != null
                   ? Center(child: Padding(
