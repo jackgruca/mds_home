@@ -100,26 +100,24 @@ final List<NavItem> topNavItems = [
     title: 'Data Explorer',
     route: '/data', // Landing page route
     icon: Icons.analytics,
-     isPlaceholder: false, // <<< Changed to false: Landing page exists
+    isPlaceholder: false, // Landing page exists
     subItems: [
-      // --- Implemented --- 
-      NavItem(title: 'Historical Game Results', route: '/data/historical', isPlaceholder: false),
-       // --- Placeholders --- 
-      // EXPLORE
+      NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
+      NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
+      // --- Placeholders ---
       NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
       NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),
       NavItem(title: 'Advanced Metrics Database', route: '/data/metrics', isPlaceholder: true),
-      // VISUALIZE
       NavItem(title: 'Interactive Charts', route: '/data/charts', isPlaceholder: true),
       NavItem(title: 'Comparison Tools', route: '/data/compare', isPlaceholder: true),
       NavItem(title: 'Trend Spotters', route: '/data/trends', isPlaceholder: true),
       NavItem(title: 'Situational Analysis', route: '/data/situational', isPlaceholder: true),
-      // ANALYZE
       NavItem(title: 'Custom Query Builder', route: '/data/query', isPlaceholder: true),
       NavItem(title: 'Data Export Tools', route: '/data/export', isPlaceholder: true),
       NavItem(title: 'Statistical Significance Tester', route: '/data/sig-test', isPlaceholder: true),
       NavItem(title: 'Correlation Finder', route: '/data/correlation', isPlaceholder: true),
-   ]),
+    ],
+  ),
    NavItem(title: 'Blog', route: '/blog', icon: Icons.article), // Implemented
 ];
 

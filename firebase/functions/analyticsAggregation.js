@@ -1139,3 +1139,76 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
         throw new functions.https.HttpsError('internal', `Failed to fetch historical matchups: ${error.message}`, error.details || {originalError: error.toString()});
     }
 });
+
+exports.getWrModelStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('wrModelStats');
+
+    console.log('getWrModelStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting if provided
+    if (data.orderBy) {
+      console.log(`Applying orderBy: ${data.orderBy} ${data.orderDirection || 'desc'}`);
+      query = query.orderBy(data.orderBy, data.orderDirection || 'desc');
+    }
+
+    // Apply pagination
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+    if (data.offset) {
+      query = query.offset(data.offset);
+    }
+
+    // Execute query
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      console.warn('No documents found for wrModelStats query.');
+      return {
+        data: [],
+        totalRecords: totalRecords,
+        message: 'No WR model stats found for the current query.'
+      };
+    }
+    const results = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(data).forEach(key => {
+        if (data[key] instanceof admin.firestore.Timestamp) {
+          data[key] = data[key].toDate().toISOString();
+        }
+      });
+      return data;
+    });
+
+    console.log(`Returning ${results.length} WR model records.`);
+    return {
+      data: results,
+      totalRecords: totalRecords
+    };
+  } catch (error) {
+    console.error('Error in getWrModelStats:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch WR Model data: ${error.message}`,
+      error
+    );
+  }
+});

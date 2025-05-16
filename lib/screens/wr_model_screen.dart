@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
-import 'package:mds_home/models/nfl_matchup.dart'; // Import the centralized model
-import 'package:intl/intl.dart';
-import 'package:mds_home/widgets/analytics/visualization_tab.dart';
-import 'package:mds_home/widgets/analytics/quick_start_templates.dart';
-import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/common/custom_app_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import 'package:mds_home/models/wr_model_stat.dart';
+import 'package:mds_home/widgets/common/top_nav_bar.dart';
+import 'package:mds_home/widgets/common/custom_app_bar.dart';
+import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-// Enum for Query Operators
+// Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
   equals,
   notEquals,
@@ -41,7 +38,7 @@ String queryOperatorToString(QueryOperator op) {
 class QueryCondition {
   final String field;
   final QueryOperator operator;
-  final String value; // Store value as String, parse when applying
+  final String value;
 
   QueryCondition({required this.field, required this.operator, required this.value});
 
@@ -51,50 +48,33 @@ class QueryCondition {
   }
 }
 
-class HistoricalDataScreen extends StatefulWidget {
-  const HistoricalDataScreen({super.key});
+class WRModelScreen extends StatefulWidget {
+  const WRModelScreen({super.key});
 
   @override
-  State<HistoricalDataScreen> createState() => _HistoricalDataScreenState();
+  State<WRModelScreen> createState() => _WRModelScreenState();
 }
 
-class _HistoricalDataScreenState extends State<HistoricalDataScreen> with SingleTickerProviderStateMixin {
+class _WRModelScreenState extends State<WRModelScreen> {
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
-  List<NFLMatchup> _matchupsForViz = []; // For VisualizationTab
   int _totalRecords = 0;
   
   // Pagination state
   int _currentPage = 0;
   static const int _rowsPerPage = 25;
   
-  // Filter state
-  DateTime? _startDate;
-  DateTime? _endDate;
-  String? _selectedTeam;
-  String? _selectedOpponent;
-  int? _selectedSeason;
-  int? _selectedWeek;
-  bool? _isHome;
-  bool? _isWin;
-  bool? _isSpreadWin;
-  bool? _isOver;
-  
-  // Available filter options
-  final List<String> _teams = [];
-  final List<int> _seasons = [];
-  final List<int> _weeks = [];
-  
   // Sort state
-  String _sortColumn = 'Date';
+  String _sortColumn = 'points';
   bool _sortAscending = false;
 
   List<String> _headers = [];
   
   // Main fields to show by default
   static const List<String> _defaultFields = [
-    'Team', 'Date', 'Opponent', 'Final', 'Closing_spread', 'Actual_total', 'Outcome', 'Spread_result', 'Points_result'
+    'receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 
+    'seasonYards', 'wr_rank', 'numTD', 'numRec', 'points'
   ];
   List<String> _selectedFields = List.from(_defaultFields);
 
@@ -104,17 +84,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController = TextEditingController();
 
-  // Add new state variables for sorting and filtering
-  final Map<String, bool> _columnSortAscending = {};
-  final Map<String, List<String>> _columnFilters = {};
-
-  late TabController _tabController;
   FirebaseFunctions functions = FirebaseFunctions.instance;
+
+  // Only allow the 'Equals' operator for WR Model Stats queries
+  final List<QueryOperator> _allowedOperators = [QueryOperator.equals];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _headers = _defaultFields;
     if (_headers.isNotEmpty) _newQueryField = _headers[0];
     
@@ -123,7 +100,6 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
 
   @override
   void dispose() {
-    _tabController.dispose();
     _newQueryValueController.dispose();
     super.dispose();
   }
@@ -140,7 +116,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     }
 
     try {
-      final HttpsCallable callable = functions.httpsCallable('getHistoricalMatchups');
+      final HttpsCallable callable = functions.httpsCallable('getWrModelStats');
       final result = await callable.call<Map<String, dynamic>>({
         'filters': filtersForFunction,
         'limit': _rowsPerPage,
@@ -149,11 +125,13 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
         'orderDirection': _sortAscending ? 'asc' : 'desc',
       });
 
+      print('WRModelScreen: Firebase function result:');
+      print(result.data);
+
       if (mounted) {
         setState(() {
           final List<dynamic> data = result.data['data'] ?? [];
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
-          _matchupsForViz = _rawRows.map((row) => NFLMatchup.fromFirestoreMap(row)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
 
           if (_rawRows.isNotEmpty) {
@@ -171,26 +149,27 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       }
     } on FirebaseFunctionsException catch (e) {
       print('FirebaseFunctionsException caught in Flutter client:');
-      print('Code: ${e.code}');
-      print('Message: ${e.message}');
-      print('Details: ${e.details}');
+      print('Code: \\${e.code}');
+      print('Message: \\${e.message}');
+      print('Details: \\${e.details}');
       if (mounted) {
         setState(() {
-          String displayError = 'Error fetching data: ${e.message}';
+          String displayError = 'Error fetching data: \\nCode: \\${e.code}\nMessage: \\${e.message}\nDetails: \\${e.details}';
           if (e.code == 'failed-precondition') {
-            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
+            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: \\${e.message}';
           } else if (e.message != null && e.message!.toLowerCase().contains('index')){
-            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
+            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: \\${e.message}';
           }
-           _error = displayError;
+          _error = displayError;
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       print('Generic error in _fetchDataFromFirebase (client-side): $e');
+      print(stack);
       if (mounted) {
         setState(() {
-          _error = 'An unexpected error occurred on the client: $e';
+          _error = 'An unexpected error occurred on the client: $e\n$stack';
           _isLoading = false;
         });
       }
@@ -200,130 +179,6 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   void _applyFiltersAndFetch() {
     _currentPage = 0;
     _fetchDataFromFirebase();
-  }
-
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) => AlertDialog(
-          title: const Text('Filter Matchups (Legacy)'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Team'),
-                  value: _selectedTeam,
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All Teams')),
-                    ..._teams.map((team) => DropdownMenuItem(value: team, child: Text(team))),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _selectedTeam = value);
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Opponent'),
-                  value: _selectedOpponent,
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All Opponents')),
-                    ..._teams.map((team) => DropdownMenuItem(value: team, child: Text(team))),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _selectedOpponent = value);
-                  },
-                ),
-                DropdownButtonFormField<int>(
-                  decoration: const InputDecoration(labelText: 'Season'),
-                  value: _selectedSeason,
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All Seasons')),
-                    ..._seasons.map((season) => DropdownMenuItem(value: season, child: Text(season.toString()))),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _selectedSeason = value);
-                  },
-                ),
-                DropdownButtonFormField<int>(
-                  decoration: const InputDecoration(labelText: 'Week'),
-                  value: _selectedWeek,
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All Weeks')),
-                    ..._weeks.map((week) => DropdownMenuItem(value: week, child: Text(week.toString()))),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _selectedWeek = value);
-                  },
-                ),
-                DropdownButtonFormField<bool>(
-                  decoration: const InputDecoration(labelText: 'Game Type'),
-                  value: _isHome,
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All Games')),
-                    DropdownMenuItem(value: true, child: Text('Home Games')),
-                    DropdownMenuItem(value: false, child: Text('Away Games')),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _isHome = value);
-                  },
-                ),
-                DropdownButtonFormField<bool>(
-                  decoration: const InputDecoration(labelText: 'Result'),
-                  value: _isWin,
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All Results')),
-                    DropdownMenuItem(value: true, child: Text('Wins')),
-                    DropdownMenuItem(value: false, child: Text('Losses')),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _isWin = value);
-                  },
-                ),
-                DropdownButtonFormField<bool>(
-                  decoration: const InputDecoration(labelText: 'Spread Result'),
-                  value: _isSpreadWin,
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All Spread Results')),
-                    DropdownMenuItem(value: true, child: Text('Covered')),
-                    DropdownMenuItem(value: false, child: Text('Failed to Cover')),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _isSpreadWin = value);
-                  },
-                ),
-                DropdownButtonFormField<bool>(
-                  decoration: const InputDecoration(labelText: 'Total Result'),
-                  value: _isOver,
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All Total Results')),
-                    DropdownMenuItem(value: true, child: Text('Over')),
-                    DropdownMenuItem(value: false, child: Text('Under')),
-                  ],
-                  onChanged: (value) {
-                    setStateDialog(() => _isOver = value);
-                  },
-                ),
-                const Text("Note: Apply these via 'Build Query' for now for Firebase integration.", style: TextStyle(color: Colors.orange)),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _applyFiltersAndFetch();
-              },
-              child: const Text('Apply (Legacy)'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showCustomizeColumnsDialog() {
@@ -404,39 +259,23 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     });
     _applyFiltersAndFetch();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     final theme = Theme.of(context);
 
-    final PreferredSizeWidget tabBarBottom = PreferredSize(
-      preferredSize: const Size.fromHeight(kTextTabBarHeight),
-      child: TabBar(
-        controller: _tabController,
-        tabs: const [
-          Tab(text: 'Data Table'),
-          Tab(text: 'Visualizations'),
-        ],
-      ),
-    );
-
     return Scaffold(
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)), 
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Quick Filters (Legacy)',
-            onPressed: _showFilterDialog,
-          ),
-           Padding(
+          Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
               onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
@@ -450,52 +289,10 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
             ),
           ),
         ],
-        bottom: tabBarBottom,
       ),
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          Container(
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.yellow[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.shade200, width: 1),
-            ),
-            child: ExpansionTile(
-              leading: const Icon(Icons.lightbulb_outline, color: Colors.amber, size: 26),
-              title: Text(
-                'Quick Ideas (Tap to Expand)',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold, fontSize: 16, color: Colors.amber[900],
-                ),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: QuickStartTemplates.templates.map((template) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        child: ActionChip(
-                          label: Text(template.name),
-                          tooltip: template.description,
-                          onPressed: () {
-                            setState(() {
-                              _queryConditions.clear();
-                              _queryConditions.addAll(template.conditions);
-                              _applyFiltersAndFetch();
-                            });
-                          },
-                        ),
-                      )).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Padding(
@@ -538,7 +335,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                         child: DropdownButtonFormField<QueryOperator>(
                           decoration: const InputDecoration(labelText: 'Operator', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
                           value: _newQueryOperator,
-                          items: QueryOperator.values.map((op) => DropdownMenuItem(
+                          items: _allowedOperators.map((op) => DropdownMenuItem(
                             value: op,
                             child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 17)),
                           )).toList(),
@@ -619,33 +416,16 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       padding: const EdgeInsets.all(16.0),
                       child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center,)
                     ))
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildDataTableTab(),
-                        VisualizationTab(
-                          matchups: _matchupsForViz,
-                          selectedTeam: _selectedTeam,
-                          currentFilters: _queryConditions,
-                          onApplyFilter: (conditions) {
-                            setState(() {
-                              _queryConditions.clear();
-                              _queryConditions.addAll(conditions);
-                              _applyFiltersAndFetch();
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                  : _buildDataTable(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDataTableTab() {
+  Widget _buildDataTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
-      return const Center(child: Text('No data to display. Try adjusting your filters.'));
+      return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.'));
     }
     return Column(
       children: [
@@ -698,12 +478,8 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                               final value = rowMap[header];
                               String displayValue = 'N/A';
                               if (value != null) {
-                                if (value is String && (header == 'Date' || header.endsWith('_date'))) {
-                                  try {
-                                    displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
-                                  } catch (e) {
-                                    displayValue = value;
-                                  }
+                                if (value is num) {
+                                  displayValue = value.toStringAsFixed(2);
                                 } else {
                                   displayValue = value.toString();
                                 }

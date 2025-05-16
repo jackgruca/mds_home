@@ -12,6 +12,7 @@ import 'screens/hubs/gm_hub_screen.dart';
 import 'screens/hubs/betting_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
+import 'screens/wr_model_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -150,6 +151,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => FantasyHubScreen());
               case '/data/historical':
                 return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+              case '/historical-data':
+                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+              case '/wr-model':
+                return MaterialPageRoute(builder: (_) => const WRModelScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }
