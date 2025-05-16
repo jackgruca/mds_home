@@ -44,359 +44,196 @@ class VisualizationTab extends StatelessWidget {
       );
     }
 
+    // --- HEADLINE STATS SECTION ---
+    final totalGames = matchups.length;
+    final wins = matchups.where((m) => m.isWin).length;
+    final losses = totalGames - wins;
+    final winPct = totalGames > 0 ? (wins / totalGames * 100).toStringAsFixed(1) : '0.0';
+    final spreadWins = matchups.where((m) => m.isSpreadWin).length;
+    final spreadPct = totalGames > 0 ? (spreadWins / totalGames * 100).toStringAsFixed(1) : '0.0';
+
+    // --- GROUP-BY LOGIC ---
+    // List of attributes to group by (add/remove as needed)
+    final groupByAttributes = <_GroupByAttribute>[
+      _GroupByAttribute(
+        field: 'Season',
+        label: 'Season',
+        valueGetter: (NFLMatchup m) => m.season.toString(),
+      ),
+      _GroupByAttribute(
+        field: 'temp',
+        label: 'Temperature (°F, 10° bins)',
+        valueGetter: (NFLMatchup m) {
+          if (m.temperature == null) return 'Unknown';
+          final t = m.temperature!.round();
+          final bin = (t ~/ 10) * 10;
+          return '$bin-${bin + 9}';
+        },
+      ),
+      _GroupByAttribute(
+        field: 'setting',
+        label: 'Setting',
+        valueGetter: (NFLMatchup m) => m.setting ?? 'Unknown',
+      ),
+      _GroupByAttribute(
+        field: 'Opponent_passOffTier',
+        label: 'Opponent Pass Off Tier',
+        valueGetter: (NFLMatchup m) => m.opponentPassOffTier.toString(),
+      ),
+      _GroupByAttribute(
+        field: 'Opponent_defVsWR_tier',
+        label: 'Opponent Def vs WR Tier',
+        valueGetter: (NFLMatchup m) => m.opponentDefVsWRTier.toString(),
+      ),
+      _GroupByAttribute(
+        field: 'Opponent_defVsRB_tier',
+        label: 'Opponent Def vs RB Tier',
+        valueGetter: (NFLMatchup m) => m.opponentDefVsRBTier.toString(),
+      ),
+      _GroupByAttribute(
+        field: 'Opponent_defVsQB_tier',
+        label: 'Opponent Def vs QB Tier',
+        valueGetter: (NFLMatchup m) => m.opponentDefVsQBTier.toString(),
+      ),
+      // Add more group-by attributes as needed
+    ];
+    // NOTE: The visualizations below use the full `matchups` list passed to this widget.
+    // If you see only a subset (e.g., 25 rows), update the parent to pass the full filtered data for visualization purposes.
+
+    // Determine which fields are already filtered
+    final filteredFields = currentFilters.map((f) => f.field).toSet();
+    final groupBysToShow = groupByAttributes.where((g) => !filteredFields.contains(g.field)).toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick Insights Cards
-          _buildQuickInsightsCards(context),
+          // --- HEADLINE STATS CARDS ---
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              _headlineStatCard('W/L', '$wins-$losses', '$winPct% Win'),
+              const SizedBox(width: 16),
+              _headlineStatCard('ATS', '$spreadWins-${totalGames - spreadWins}', '$spreadPct% ATS'),
+            ],
+          ),
           const SizedBox(height: 24),
-          
-          // Win/Loss Record Chart
-          if (selectedTeam != null) ...[
+
+          // --- GROUP-BY SUMMARIES ---
+          for (final groupBy in groupBysToShow) ...[
             Text(
-              'Win/Loss Record',
+              'By ${groupBy.label}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 300,
-              child: _buildWinLossChart(),
+            const SizedBox(height: 12),
+            _GroupBySummary(
+              matchups: matchups,
+              groupBy: groupBy,
+              onApplyFilter: onApplyFilter,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
           ],
-
-          // Points Distribution Chart
-          Text(
-            'Points Distribution',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 300,
-            child: _buildPointsDistributionChart(),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickInsightsCards(BuildContext context) {
-    // Calculate insights
-    final totalGames = matchups.length;
-    final wins = matchups.where((m) => m.isWin).length;
-    final homeGames = matchups.where((m) => m.isHome).length;
-    final homeWins = matchups.where((m) => m.isHome && m.isWin).length;
-    final spreadWins = matchups.where((m) => m.isSpreadWin).length;
-    final overs = matchups.where((m) => m.isOver).length;
-
-    // Calculate additional insights
-    final avgPoints = matchups.fold<double>(
-            0, (sum, m) => sum + (m.finalScore + m.opponentScore)) /
-        totalGames;
-    final avgMargin = matchups.fold<double>(
-            0, (sum, m) => sum + (m.finalScore - m.opponentScore).abs()) /
-        totalGames;
-
-    // Find patterns
-    final List<Map<String, dynamic>> patterns = [];
-    
-    // Home field advantage pattern
-    if (homeWins / homeGames > 0.6) {
-      patterns.add({
-        'title': 'Strong Home Field Advantage',
-        'description': 'Team performs significantly better at home',
-        'filter': [
-          QueryCondition(
-            field: 'VH',
-            operator: QueryOperator.equals,
-            value: 'H',
-          ),
-        ],
-      });
-    }
-
-    // High scoring pattern
-    if (avgPoints > 50) {
-      patterns.add({
-        'title': 'High Scoring Games',
-        'description': 'Games average over 50 points',
-        'filter': [
-          QueryCondition(
-            field: 'Actual_total',
-            operator: QueryOperator.greaterThan,
-            value: '50',
-          ),
-        ],
-      });
-    }
-
-    // Close games pattern
-    if (avgMargin < 7) {
-      patterns.add({
-        'title': 'Close Games',
-        'description': 'Games decided by less than a touchdown on average',
-        'filter': [
-          QueryCondition(
-            field: 'Final',
-            operator: QueryOperator.lessThan,
-            value: '7',
-          ),
-        ],
-      });
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Insights',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 16.0,
-          runSpacing: 16.0,
-          children: [
-            _buildInsightCard(
-              'Overall Record',
-              '$wins-${totalGames - wins}',
-              '${((wins / totalGames) * 100).toStringAsFixed(1)}% Win Rate',
-              Icons.sports_score,
-            ),
-            _buildInsightCard(
-              'Home Record',
-              '$homeWins-${homeGames - homeWins}',
-              '${((homeWins / homeGames) * 100).toStringAsFixed(1)}% Home Win Rate',
-              Icons.home,
-            ),
-            _buildInsightCard(
-              'Against Spread',
-              '$spreadWins-${totalGames - spreadWins}',
-              '${((spreadWins / totalGames) * 100).toStringAsFixed(1)}% ATS Win Rate',
-              Icons.trending_up,
-            ),
-            _buildInsightCard(
-              'Over/Under',
-              '$overs-${totalGames - overs}',
-              '${((overs / totalGames) * 100).toStringAsFixed(1)}% Over Rate',
-              Icons.show_chart,
-            ),
-          ],
-        ),
-        if (patterns.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text(
-            'Patterns Found',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
-            children: patterns.map((pattern) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      pattern['title'],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(pattern['description']),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => onApplyFilter(pattern['filter']),
-                      child: const Text('Explore Further'),
-                    ),
-                  ],
-                ),
-              ),
-            )).toList(),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildInsightCard(String title, String record, String percentage, IconData icon) {
+// --- Helper: Headline Stat Card ---
+  Widget _headlineStatCard(String title, String stat, String sub) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 22),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(icon, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            Text(
-              record,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              percentage,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
+            Text(stat, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text(sub, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWinLossChart() {
-    // Group matchups by season
-    final Map<int, List<NFLMatchup>> matchupsBySeason = {};
-    for (var matchup in matchups) {
-      matchupsBySeason.putIfAbsent(matchup.season, () => []);
-      matchupsBySeason[matchup.season]!.add(matchup);
+// --- GroupBy Attribute Helper Class ---
+}
+
+class _GroupByAttribute {
+  final String field;
+  final String label;
+  final String Function(NFLMatchup) valueGetter;
+  final Map<String, String>? valueLabels;
+  _GroupByAttribute({
+    required this.field,
+    required this.label,
+    required this.valueGetter,
+    this.valueLabels,
+  });
+}
+
+// --- GroupBy Summary Widget ---
+class _GroupBySummary extends StatelessWidget {
+  final List<NFLMatchup> matchups;
+  final _GroupByAttribute groupBy;
+  final Function(List<QueryCondition>) onApplyFilter;
+  const _GroupBySummary({
+    required this.matchups,
+    required this.groupBy,
+    required this.onApplyFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Group matchups by the attribute value
+    final Map<String, List<NFLMatchup>> grouped = {};
+    for (final m in matchups) {
+      final val = groupBy.valueGetter(m);
+      grouped.putIfAbsent(val, () => []).add(m);
     }
-
-    // Calculate wins and losses per season
-    final List<BarChartGroupData> barGroups = [];
-    final seasons = matchupsBySeason.keys.toList()..sort();
-
-    for (var season in seasons) {
-      final seasonMatchups = matchupsBySeason[season]!;
-      final wins = seasonMatchups.where((m) => m.isWin).length;
-      final losses = seasonMatchups.length - wins;
-
-      barGroups.add(
-        BarChartGroupData(
-          x: seasons.indexOf(season),
-          barRods: [
-            BarChartRodData(
-              toY: wins.toDouble(),
-              color: Colors.green,
-              width: 20,
-            ),
-            BarChartRodData(
-              toY: losses.toDouble(),
-              color: Colors.red,
-              width: 20,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 20, // Adjust based on your data
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                if (value >= 0 && value < seasons.length) {
-                  return Text(seasons[value.toInt()].toString());
-                }
-                return const Text('');
-              },
+    // Sort keys for display
+    final keys = grouped.keys.toList()..sort();
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: keys.map((val) {
+        final group = grouped[val]!;
+        final wins = group.where((m) => m.isWin).length;
+        final total = group.length;
+        final winPct = total > 0 ? (wins / total * 100).toStringAsFixed(1) : '0.0';
+        final spreadWins = group.where((m) => m.isSpreadWin).length;
+        final spreadPct = total > 0 ? (spreadWins / total * 100).toStringAsFixed(1) : '0.0';
+        final label = groupBy.valueLabels != null ? (groupBy.valueLabels![val] ?? val) : val;
+        return GestureDetector(
+          onTap: () {
+            // Apply this group as a filter
+            onApplyFilter([
+              QueryCondition(field: groupBy.field, operator: QueryOperator.equals, value: val),
+            ]);
+          },
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text('W/L: $wins-${total - wins}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Win%: $winPct%', style: TextStyle(color: Colors.green[700], fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('ATS: $spreadWins-${total - spreadWins}', style: const TextStyle(fontSize: 16)),
+                  Text('ATS%: $spreadPct%', style: TextStyle(color: Colors.blue[700], fontSize: 14)),
+                ],
+              ),
             ),
           ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-            ),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: barGroups,
-        gridData: const FlGridData(show: false),
-      ),
-    );
-  }
-
-  Widget _buildPointsDistributionChart() {
-    // Create points distribution data
-    final List<FlSpot> spots = [];
-    final Map<int, int> pointsDistribution = {};
-
-    for (var matchup in matchups) {
-      final totalPoints = matchup.finalScore + matchup.opponentScore;
-      pointsDistribution[totalPoints] = (pointsDistribution[totalPoints] ?? 0) + 1;
-    }
-
-    final sortedPoints = pointsDistribution.keys.toList()..sort();
-    for (var i = 0; i < sortedPoints.length; i++) {
-      spots.add(FlSpot(
-        sortedPoints[i].toDouble(),
-        pointsDistribution[sortedPoints[i]]!.toDouble(),
-      ));
-    }
-
-    return LineChart(
-      LineChartData(
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: Colors.blue,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: true),
-            belowBarData: BarAreaData(
-              show: true,
-              color: Colors.blue.withOpacity(0.2),
-            ),
-          ),
-        ],
-        titlesData: const FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-            ),
-          ),
-          topTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: true),
-        gridData: const FlGridData(show: true),
-      ),
+        );
+      }).toList(),
     );
   }
 } 

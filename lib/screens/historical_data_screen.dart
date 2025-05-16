@@ -62,7 +62,8 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
-  List<NFLMatchup> _matchupsForViz = []; // For VisualizationTab
+  List<NFLMatchup> _matchupsForViz = []; // For VisualizationTab (legacy, now unused)
+  List<NFLMatchup> _allFilteredMatchups = []; // For VisualizationTab (all filtered data)
   int _totalRecords = 0;
   
   // Pagination state
@@ -110,6 +111,9 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
 
   late TabController _tabController;
   FirebaseFunctions functions = FirebaseFunctions.instance;
+  bool _vizTruncated = false; // If true, visualization is truncated to 5000 rows
+  bool _isVizLoading = false; // Track visualization loading state
+  int _lastVizQueryHash = 0; // To avoid duplicate fetches
 
   @override
   void initState() {
@@ -117,12 +121,13 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     _tabController = TabController(length: 2, vsync: this);
     _headers = _defaultFields;
     if (_headers.isNotEmpty) _newQueryField = _headers[0];
-    
+    _tabController.addListener(_onTabChanged);
     _fetchDataFromFirebase();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _newQueryValueController.dispose();
     super.dispose();
@@ -132,6 +137,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     setState(() {
       _isLoading = true;
       _error = null;
+      _vizTruncated = false;
     });
 
     Map<String, dynamic> filtersForFunction = {};
@@ -197,8 +203,78 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     }
   }
 
+  Future<void> _fetchVisualizationData() async {
+    setState(() {
+      _isVizLoading = true;
+      _vizTruncated = false;
+    });
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
+    try {
+      final HttpsCallable callable = functions.httpsCallable('getHistoricalMatchups');
+      final vizResult = await callable.call<Map<String, dynamic>>({
+        'filters': filtersForFunction,
+        'limit': 5000, // Hardcoded max for visualizations
+        'offset': 0,
+        'orderBy': _sortColumn,
+        'orderDirection': _sortAscending ? 'asc' : 'desc',
+      });
+      if (mounted) {
+        setState(() {
+          final List<dynamic> vizData = vizResult.data['data'] ?? [];
+          _allFilteredMatchups = vizData.map((row) => NFLMatchup.fromFirestoreMap(Map<String, dynamic>.from(row))).toList();
+          final int vizTotal = vizResult.data['totalRecords'] ?? 0;
+          _vizTruncated = vizData.length >= 5000 && vizTotal > 5000;
+          _isVizLoading = false;
+          // Save a hash of the current query to avoid duplicate fetches
+          _lastVizQueryHash = _computeVizQueryHash();
+        });
+      }
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isVizLoading = false;
+          _allFilteredMatchups = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isVizLoading = false;
+          _allFilteredMatchups = [];
+        });
+      }
+    }
+  }
+
+  // Helper: Compute a hash of the current viz query (filters, sort)
+  int _computeVizQueryHash() {
+    return Object.hashAll([
+      ..._queryConditions.map((c) => '${c.field}:${c.operator}:${c.value}'),
+      _sortColumn,
+      _sortAscending,
+    ]);
+  }
+
+  // Tab change listener: fetch viz data only when needed
+  void _onTabChanged() {
+    if (_tabController.index == 1) {
+      // Visualization tab selected
+      final int currentHash = _computeVizQueryHash();
+      if (_allFilteredMatchups.isEmpty || _lastVizQueryHash != currentHash) {
+        _fetchVisualizationData();
+      }
+    }
+  }
+
+  // When filters change, clear viz data so it reloads next time
   void _applyFiltersAndFetch() {
     _currentPage = 0;
+    _allFilteredMatchups = [];
+    _isVizLoading = false;
+    _lastVizQueryHash = 0;
     _fetchDataFromFirebase();
   }
 
@@ -651,6 +727,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
               ),
             ),
           ),
+          if (_vizTruncated)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Warning: Visualization is limited to 5000 records. Refine your filters for more precise insights.',
+                style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold),
+              ),
+            ),
           Expanded(
             child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -663,18 +747,20 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       controller: _tabController,
                       children: [
                         _buildDataTableTab(),
-                        VisualizationTab(
-                          matchups: _matchupsForViz,
-                          selectedTeam: _selectedTeam,
-                          currentFilters: _queryConditions,
-                          onApplyFilter: (conditions) {
-                            setState(() {
-                              _queryConditions.clear();
-                              _queryConditions.addAll(conditions);
-                              _applyFiltersAndFetch();
-                            });
-                          },
-                        ),
+                        _isVizLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : VisualizationTab(
+                              matchups: _allFilteredMatchups,
+                              selectedTeam: _selectedTeam,
+                              currentFilters: _queryConditions,
+                              onApplyFilter: (conditions) {
+                                setState(() {
+                                  _queryConditions.clear();
+                                  _queryConditions.addAll(conditions);
+                                  _applyFiltersAndFetch();
+                                });
+                              },
+                            ),
                       ],
                     ),
           ),
