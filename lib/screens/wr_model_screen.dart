@@ -182,49 +182,89 @@ class _WRModelScreenState extends State<WRModelScreen> {
   }
 
   void _showCustomizeColumnsDialog() {
+    // Create a temporary list to hold selected fields until confirmed
+    List<String> tempSelected = List.from(_selectedFields);
+
     showDialog(
       context: context,
       builder: (context) {
-        List<String> tempSelected = List.from(_selectedFields);
-        List<String> currentAvailableHeaders = List.from(_headers);
-
-        return AlertDialog(
-          title: const Text('Customize Columns'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                children: currentAvailableHeaders.map((header) {
-                  return CheckboxListTile(
-                    title: Text(header),
-                    value: tempSelected.contains(header),
-                    onChanged: (checked) {
-                      if (checked == true) {
-                        tempSelected.add(header);
-                      } else {
-                        tempSelected.remove(header);
-                      }
-                    },
-                  );
-                }).toList(),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Customize Columns'),
+              content: SizedBox(
+                width: 400,
+                height: 500, // Set explicit height to make it scrollable
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Search Fields',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        ),
+                        onChanged: (value) {
+                          // Filter the displayed headers based on search input
+                          setState(() {
+                            // No need to change anything here, just trigger a rebuild
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: _headers
+                            .where((header) => header.toLowerCase().contains(''))
+                            .map((header) {
+                              return CheckboxListTile(
+                                title: Text(header),
+                                value: tempSelected.contains(header),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      tempSelected.add(header);
+                                    } else {
+                                      tempSelected.remove(header);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _selectedFields = List.from(tempSelected);
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Apply'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Select all fields
+                    setState(() {
+                      tempSelected = List.from(_headers);
+                    });
+                  },
+                  child: const Text('Select All'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Apply changes and close dialog
+                    this.setState(() {
+                      _selectedFields = List.from(tempSelected);
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          }
         );
       },
     );
@@ -428,6 +468,35 @@ class _WRModelScreenState extends State<WRModelScreen> {
       return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.', style: TextStyle(fontSize: 16)));
     }
 
+    // Define common field groupings with descriptive tab names
+    final List<Map<String, dynamic>> fieldGroups = [
+      {
+        'name': 'Overview',
+        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 'numRec', 'seasonYards', 'numTD', 'points', 'wr_rank']
+      },
+      {
+        'name': 'Targets & Receptions',
+        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgt', 'tgtShare', 'numRec', 'recYdsShare', 'rec_per_game', 'avg_depth', 'aDOT']
+      },
+      {
+        'name': 'Production',  
+        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'seasonYards', 'ydsPerRec', 'ydsPerTgt', 'yards_per_game', 'numTD', 'points']
+      },
+      {
+        'name': 'Advanced',
+        'fields': ['receiver_player_name', 'posteam', 'season', 'WOPR', 'RACR', 'aDOT', 'YPRR', 'aYPRR', 'aFP', 'points']
+      },
+      {
+        'name': 'Custom',
+        'fields': _selectedFields
+      },
+    ];
+
+    // Filter field groups to include only available fields
+    for (var group in fieldGroups.where((g) => g['name'] != 'Custom')) {
+      group['fields'] = (group['fields'] as List<String>).where((field) => _headers.contains(field)).toList();
+    }
+
     // Calculate percentiles for numeric columns that need shading
     Map<String, Map<dynamic, double>> columnPercentiles = {};
     
@@ -507,169 +576,267 @@ class _WRModelScreenState extends State<WRModelScreen> {
     const TextStyle headerTextStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15);
     const TextStyle cellTextStyle = TextStyle(fontSize: 14);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
-            children: [
-              Text(
-                _rawRows.isEmpty
-                    ? '' // Show nothing if no data for pagination info
-                    : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-              ),
-              Text(
-                'Last Updated: ${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}', 
-                style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(8.0), // Add padding around the DataTable
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
-                headingTextStyle: headerTextStyle,
-                columnSpacing: 20, // Adjust spacing between columns
-                dataRowMinHeight: 40, // Minimum height for data rows
-                dataRowMaxHeight: 48, // Maximum height for data rows
-                showCheckboxColumn: false,
-                sortColumnIndex: _selectedFields.contains(_sortColumn) ? _selectedFields.indexOf(_sortColumn) : null,
-                sortAscending: _sortAscending,
-                columns: _selectedFields.map((header) {
-                  return DataColumn(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(header /* Consider formatting header text if needed, e.g. replace '_' with ' ' */),
-                        if (_sortColumn == header)
-                          Icon(
-                            _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                            size: 16,
-                            color: Colors.white, // Sort icon color for header
-                          ),
-                      ],
-                    ),
-                    onSort: (columnIndex, ascending) {
-                      setState(() {
-                        _sortColumn = _selectedFields[columnIndex];
-                        _sortAscending = ascending;
-                        _applyFiltersAndFetch();
-                      });
-                    },
-                    tooltip: 'Sort by $header',
-                  );
-                }).toList(),
-                rows: _rawRows.asMap().entries.map((entry) {
-                  final int rowIndex = entry.key;
-                  final Map<String, dynamic> rowMap = entry.value;
-                  return DataRow(
-                    color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
-                      return rowIndex.isEven ? evenRowColor : oddRowColor;
-                    }),
-                    cells: _selectedFields.map((header) {
-                      final value = rowMap[header];
-                      String displayValue = 'N/A';
-                      Color? cellBackgroundColor;
-                      TextStyle cellStyle = cellTextStyle;
-                      
-                      if (value != null) {
-                        if (value is num && numericShadingColumns.contains(header)) {
-                          // Apply percentile-based shading for numeric fields
-                          double? percentile = columnPercentiles[header]?[value];
-                          if (percentile != null) {
-                            // Blue shade based on percentile (higher percentile = deeper blue)
-                            int blueIntensity = (220 - (percentile * 160)).toInt().clamp(60, 220);
-                            cellBackgroundColor = Color.fromRGBO(220, 230, blueIntensity, 1.0);
-                            
-                            // Make text bold for high percentiles
-                            if (percentile > 0.85) {
-                              cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
-                            }
+    // Track the currently selected field group
+    int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
+    
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Get the current fields to display based on the selected group
+        List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
+            ? _selectedFields 
+            : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
+            
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
+          children: [
+            // Field group tabs
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                children: fieldGroups.asMap().entries.map((entry) {
+                  final int idx = entry.key;
+                  final String name = entry.value['name'];
+                  final bool isSelected = idx == selectedGroupIndex;
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          selectedGroupIndex = idx;
+                          // If not the custom tab, update the displayed fields
+                          if (idx != fieldGroups.length - 1) {
+                            // No need to update _selectedFields here, just changing the view
                           }
-                          
-                          // Smart numeric formatting
-                          if (header.toLowerCase().contains('share') || header.toLowerCase().contains('pct') || header.toLowerCase().contains('%')) {
-                            displayValue = '${(value * 100).toStringAsFixed(1)}%';
-                          } else if (value is double) {
-                             // Specific formatting for different metrics
-                            if (header.toLowerCase() == 'adot' || header.toLowerCase() == 'yprr' || header.toLowerCase().contains('epa')) {
-                                displayValue = value.toStringAsFixed(2);
-                            } else if (header.toLowerCase() == 'points'){
-                                displayValue = value.toStringAsFixed(1);
-                            } else {
-                                displayValue = value.toStringAsFixed(1);
-                            }
-                          } else {
-                            displayValue = value.toString();
-                          }
-                        } else {
-                          displayValue = value.toString();
-                        }
-                      }
-                      
-                      return DataCell(
-                        Container(
-                          // Fill the entire cell
-                          width: double.infinity,
-                          height: double.infinity,
-                          color: cellBackgroundColor,
-                          alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                          child: Text(
-                            displayValue,
-                            style: cellStyle,
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade200,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8.0),
+                            topRight: Radius.circular(8.0),
                           ),
                         ),
-                        // Allow sorting on this column
-                        onTap: () {
-                          if (_selectedFields.contains(header)) {
-                            setState(() {
-                              _sortColumn = header;
-                              _sortAscending = !_sortAscending;
-                              _applyFiltersAndFetch();
-                            });
-                          }
-                        },
-                      );
-                    }).toList(),
+                        alignment: Alignment.center,
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
                   );
                 }).toList(),
               ),
             ),
-          ),
-        ),
-        if (_rawRows.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: _currentPage > 0
-                      ? () => setState(() { _currentPage--; _fetchDataFromFirebase(); })
-                      : null,
-                  child: const Text('Previous'),
-                ),
-                const SizedBox(width: 16),
-                Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
-                      ? () => setState(() { _currentPage++; _fetchDataFromFirebase(); })
-                      : null,
-                  child: const Text('Next'),
-                ),
-              ],
+            
+            // Row with action buttons
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
+                children: [
+                  Text(
+                    _rawRows.isEmpty
+                        ? '' // Show nothing if no data for pagination info
+                        : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  ),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Customize'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                        onPressed: () {
+                          _showCustomizeColumnsDialog();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Last Updated: ${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}', 
+                        style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+            
+            Expanded(
+              child: SingleChildScrollView(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.all(8.0), // Add padding around the DataTable
+                  child: Theme(
+                    // Override default DataTable theme to remove cell spacing
+                    data: Theme.of(context).copyWith(
+                      dataTableTheme: const DataTableThemeData(
+                        columnSpacing: 0, // Remove spacing between columns
+                        horizontalMargin: 0, // Remove horizontal margin
+                        dividerThickness: 0, // Remove divider
+                      ),
+                    ),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
+                      headingTextStyle: headerTextStyle,
+                      dataRowHeight: 44, // Fixed height for all rows
+                      showCheckboxColumn: false,
+                      sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
+                      sortAscending: _sortAscending,
+                      border: TableBorder.all(
+                        color: Colors.white,
+                        width: 0.5,
+                        style: BorderStyle.solid,
+                      ),
+                      columns: displayFields.map((header) {
+                        return DataColumn(
+                          label: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(header),
+                                if (_sortColumn == header)
+                                  Icon(
+                                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                    size: 16,
+                                    color: Colors.white, // Sort icon color for header
+                                  ),
+                              ],
+                            ),
+                          ),
+                          onSort: (columnIndex, ascending) {
+                            this.setState(() {
+                              _sortColumn = displayFields[columnIndex];
+                              _sortAscending = ascending;
+                              _applyFiltersAndFetch();
+                            });
+                          },
+                          tooltip: 'Sort by $header',
+                        );
+                      }).toList(),
+                      rows: _rawRows.asMap().entries.map((entry) {
+                        final int rowIndex = entry.key;
+                        final Map<String, dynamic> rowMap = entry.value;
+                        return DataRow(
+                          color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                            return rowIndex.isEven ? evenRowColor : oddRowColor;
+                          }),
+                          cells: displayFields.map((header) {
+                            final value = rowMap[header];
+                            String displayValue = 'N/A';
+                            Color? cellBackgroundColor;
+                            TextStyle cellStyle = cellTextStyle;
+                            
+                            if (value != null) {
+                              if (value is num && numericShadingColumns.contains(header)) {
+                                // Apply percentile-based shading for numeric fields
+                                double? percentile = columnPercentiles[header]?[value];
+                                if (percentile != null) {
+                                  // Blue shade based on percentile (higher percentile = deeper blue)
+                                  // Use pure blue color with varying opacity
+                                  cellBackgroundColor = Color.fromRGBO(
+                                    100,  // Red
+                                    140,  // Green
+                                    240,  // Blue
+                                    0.1 + (percentile * 0.85)  // Alpha (10% to 95%)
+                                  );
+                                  
+                                  // Make text bold for high percentiles
+                                  if (percentile > 0.85) {
+                                    cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
+                                  }
+                                }
+                                
+                                // Smart numeric formatting
+                                if (header.toLowerCase().contains('share') || header.toLowerCase().contains('pct') || header.toLowerCase().contains('%')) {
+                                  displayValue = '${(value * 100).toStringAsFixed(1)}%';
+                                } else if (value is double) {
+                                   // Specific formatting for different metrics
+                                  if (header.toLowerCase() == 'adot' || header.toLowerCase() == 'yprr' || header.toLowerCase().contains('epa')) {
+                                      displayValue = value.toStringAsFixed(2);
+                                  } else if (header.toLowerCase() == 'points'){
+                                      displayValue = value.toStringAsFixed(1);
+                                  } else {
+                                      displayValue = value.toStringAsFixed(1);
+                                  }
+                                } else {
+                                  displayValue = value.toString();
+                                }
+                              } else {
+                                displayValue = value.toString();
+                              }
+                            }
+                            
+                            return DataCell(
+                              Container(
+                                // Fill the entire cell
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: cellBackgroundColor,
+                                alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                child: Text(
+                                  displayValue,
+                                  style: cellStyle,
+                                ),
+                              ),
+                              // Allow sorting on this column
+                              onTap: () {
+                                if (displayFields.contains(header)) {
+                                  this.setState(() {
+                                    _sortColumn = header;
+                                    _sortAscending = !_sortAscending;
+                                    _applyFiltersAndFetch();
+                                  });
+                                }
+                              },
+                            );
+                          }).toList(),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (_rawRows.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _currentPage > 0
+                          ? () => this.setState(() { _currentPage--; _fetchDataFromFirebase(); })
+                          : null,
+                      child: const Text('Previous'),
+                    ),
+                    const SizedBox(width: 16),
+                    Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
+                          ? () => this.setState(() { _currentPage++; _fetchDataFromFirebase(); })
+                          : null,
+                      child: const Text('Next'),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      }
     );
   }
 } 

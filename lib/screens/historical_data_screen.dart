@@ -327,49 +327,89 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   }
 
   void _showCustomizeColumnsDialog() {
+    // Create a temporary list to hold selected fields until confirmed
+    List<String> tempSelected = List.from(_selectedFields);
+
     showDialog(
       context: context,
       builder: (context) {
-        List<String> tempSelected = List.from(_selectedFields);
-        List<String> currentAvailableHeaders = List.from(_headers);
-
-        return AlertDialog(
-          title: const Text('Customize Columns'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                children: currentAvailableHeaders.map((header) {
-                  return CheckboxListTile(
-                    title: Text(header),
-                    value: tempSelected.contains(header),
-                    onChanged: (checked) {
-                      if (checked == true) {
-                        tempSelected.add(header);
-                      } else {
-                        tempSelected.remove(header);
-                      }
-                    },
-                  );
-                }).toList(),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Customize Columns'),
+              content: SizedBox(
+                width: 400,
+                height: 500, // Set explicit height to make it scrollable
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Search Fields',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        ),
+                        onChanged: (value) {
+                          // Filter the displayed headers based on search input
+                          setState(() {
+                            // No need to change anything here, just trigger a rebuild
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: _headers
+                            .where((header) => header.toLowerCase().contains(''))
+                            .map((header) {
+                              return CheckboxListTile(
+                                title: Text(header),
+                                value: tempSelected.contains(header),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      tempSelected.add(header);
+                                    } else {
+                                      tempSelected.remove(header);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _selectedFields = List.from(tempSelected);
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Apply'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Select all fields
+                    setState(() {
+                      tempSelected = List.from(_headers);
+                    });
+                  },
+                  child: const Text('Select All'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Apply changes and close dialog
+                    this.setState(() {
+                      _selectedFields = List.from(tempSelected);
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          }
         );
       },
     );
@@ -647,105 +687,357 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
       return const Center(child: Text('No data to display. Try adjusting your filters.'));
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Text(
-            _rawRows.isEmpty
-                ? 'No data to display for the current filters.'
-                : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-            style: TextStyle(color: Colors.grey.shade700),
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: DataTable(
-                showCheckboxColumn: false,
-                sortColumnIndex: _selectedFields.contains(_sortColumn) ? _selectedFields.indexOf(_sortColumn) : null,
-                sortAscending: _sortAscending,
-                columns: _selectedFields.map((header) {
-                  return DataColumn(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (_sortColumn == header)
-                          Icon(
-                            _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                            size: 16,
+    
+    // Define common field groupings with descriptive tab names
+    final List<Map<String, dynamic>> fieldGroups = [
+      {
+        'name': 'Game Overview',
+        'fields': ['Team', 'Date', 'Opponent', 'Final', 'VH', 'Season', 'Week', 'stadium', 'Outcome']
+      },
+      {
+        'name': 'Betting',
+        'fields': ['Team', 'Date', 'Opponent', 'Final', 'Closing_spread', 'Actual_spread', 'Spread_result', 'Closing_total', 'Actual_total', 'Points_result']
+      },
+      {
+        'name': 'Team Stats',
+        'fields': ['Team', 'Season', 'Week', 'Pass_yards', 'Rush_yards', 'Total_yards', 'Pass_att', 'Rush_att', 'TDs', 'Turnovers']
+      },
+      {
+        'name': 'Weather & Conditions',
+        'fields': ['Team', 'Date', 'Opponent', 'stadium', 'surface', 'temp', 'wind', 'setting', 'Season', 'Week']
+      },
+      {
+        'name': 'Custom',
+        'fields': _selectedFields
+      },
+    ];
+
+    // Filter field groups to include only available fields
+    for (var group in fieldGroups.where((g) => g['name'] != 'Custom')) {
+      group['fields'] = (group['fields'] as List<String>).where((field) => _headers.contains(field)).toList();
+    }
+    
+    // Calculate percentiles for numeric columns
+    Map<String, Map<dynamic, double>> columnPercentiles = {};
+    
+    // Fields to exclude from shading (non-numeric or identifier fields)
+    final List<String> excludedFields = [
+      'Team', 'Opponent', 'Date', 'Season', 'Week', 'id', 'VH', 'stadium', 'surface', 'temp', 'setting'
+    ];
+    
+    // Determine numeric columns dynamically
+    List<String> numericShadingColumns = [];
+    if (_rawRows.isNotEmpty) {
+      for (String field in _selectedFields) {
+        // Skip excluded fields
+        if (excludedFields.contains(field)) continue;
+        
+        // Check if this field contains numeric values
+        if (_rawRows.any((row) => row[field] != null && row[field] is num)) {
+          numericShadingColumns.add(field);
+        }
+      }
+    }
+    
+    // Function to calculate percentile rank
+    double calculatePercentileRank(List<num> values, num value) {
+      if (values.isEmpty) return 0.0;
+      int below = values.where((v) => v < value).length;
+      int equal = values.where((v) => v == value).length;
+      // Handle case where all values are the same
+      if (values.length == equal) return 0.5;
+      // Percentile calculation
+      return (below + 0.5 * equal) / values.length;
+    }
+    
+    // Get active season filter if any
+    String? seasonFilter;
+    for (var condition in _queryConditions) {
+      if (condition.field == 'Season') {
+        seasonFilter = condition.value;
+        break;
+      }
+    }
+    
+    // Calculate percentiles for each column to be shaded
+    for (var column in numericShadingColumns) {
+      List<num> columnValues = [];
+      
+      // Filter data by season if season filter is applied
+      for (var row in _rawRows) {
+        if (row[column] != null && row[column] is num) {
+          // Only include rows matching season filter if it exists
+          if (seasonFilter != null) {
+            if (row['Season'].toString() == seasonFilter) {
+              columnValues.add(row[column]);
+            }
+          } else {
+            // No season filter, use all values
+            columnValues.add(row[column]);
+          }
+        }
+      }
+      
+      // Calculate percentile for each value
+      Map<dynamic, double> valueToPercentile = {};
+      for (var row in _rawRows) {
+        if (row[column] != null && row[column] is num) {
+          valueToPercentile[row[column]] = calculatePercentileRank(columnValues, row[column]);
+        }
+      }
+      
+      columnPercentiles[column] = valueToPercentile;
+    }
+    
+    // Define colors for styling
+    final Color headerColor = Colors.blue.shade700; // Darker blue for header
+    final Color evenRowColor = Colors.grey.shade100; // Light gray for even rows
+    const Color oddRowColor = Colors.white; // White for odd rows
+    const TextStyle headerTextStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15);
+    const TextStyle cellTextStyle = TextStyle(fontSize: 14);
+    
+    // Track the currently selected field group
+    int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
+    
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Get the current fields to display based on the selected group
+        List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
+            ? _selectedFields 
+            : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
+        
+        return Column(
+          children: [
+            // Field group tabs
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                children: fieldGroups.asMap().entries.map((entry) {
+                  final int idx = entry.key;
+                  final String name = entry.value['name'];
+                  final bool isSelected = idx == selectedGroupIndex;
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          selectedGroupIndex = idx;
+                          // If not the custom tab, update the displayed fields
+                          if (idx != fieldGroups.length - 1) {
+                            // No need to update _selectedFields here, just changing the view
+                          }
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade200,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8.0),
+                            topRight: Radius.circular(8.0),
                           ),
-                      ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
                     ),
-                    onSort: (columnIndex, ascending) {
-                      setState(() {
-                        _sortColumn = _selectedFields[columnIndex];
-                        _sortAscending = ascending;
-                        _applyFiltersAndFetch();
-                      });
-                    },
-                    tooltip: 'Sort by $header',
                   );
                 }).toList(),
-                rows: _rawRows.isEmpty 
-                  ? [] 
-                  : _rawRows
-                      .map((rowMap) => DataRow(
-                            cells: _selectedFields.map((header) {
-                              final value = rowMap[header];
-                              String displayValue = 'N/A';
-                              if (value != null) {
-                                if (value is String && (header == 'Date' || header.endsWith('_date'))) {
-                                  try {
-                                    displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
-                                  } catch (e) {
-                                    displayValue = value;
-                                  }
-                                } else {
-                                  displayValue = value.toString();
-                                }
-                              }
-                              return DataCell(Text(
-                                displayValue,
-                                style: TextStyle(
-                                  color: displayValue == 'N/A' ? Colors.grey.shade600 : null,
-                                ),
-                              ));
-                            }).toList(),
-                          ))
-                      .toList(),
               ),
             ),
-          ),
-        ),
-        if (_rawRows.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton(
-                  onPressed: _currentPage > 0
-                      ? () => setState(() { _currentPage--; _fetchDataFromFirebase(); })
-                      : null,
-                  child: const Text('Previous'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: Text(
+                    _rawRows.isEmpty
+                        ? 'No data to display for the current filters.'
+                        : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
                 ),
-                const SizedBox(width: 16),
-                Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
-                      ? () => setState(() { _currentPage++; _fetchDataFromFirebase(); })
-                      : null,
-                  child: const Text('Next'),
+                TextButton.icon(
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Customize Columns'),
+                  onPressed: _showCustomizeColumnsDialog,
                 ),
               ],
             ),
-          ),
-      ],
+            
+            Expanded(
+              child: SingleChildScrollView(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Theme(
+                    // Override default DataTable theme to remove cell spacing
+                    data: Theme.of(context).copyWith(
+                      dataTableTheme: const DataTableThemeData(
+                        columnSpacing: 0, // Remove spacing between columns
+                        horizontalMargin: 0, // Remove horizontal margin
+                        dividerThickness: 0, // Remove divider
+                      ),
+                    ),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
+                      headingTextStyle: headerTextStyle,
+                      dataRowHeight: 44, // Fixed height for all rows
+                      showCheckboxColumn: false,
+                      sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
+                      sortAscending: _sortAscending,
+                      border: TableBorder.all(
+                        color: Colors.white,
+                        width: 0.5,
+                        style: BorderStyle.solid,
+                      ),
+                      columns: displayFields.map((header) {
+                        return DataColumn(
+                          label: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                if (_sortColumn == header)
+                                  Icon(
+                                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          onSort: (columnIndex, ascending) {
+                            this.setState(() {
+                              _sortColumn = displayFields[columnIndex];
+                              _sortAscending = ascending;
+                              _applyFiltersAndFetch();
+                            });
+                          },
+                          tooltip: 'Sort by $header',
+                        );
+                      }).toList(),
+                      rows: _rawRows.isEmpty 
+                        ? [] 
+                        : _rawRows.asMap().entries.map((entry) {
+                            final int rowIndex = entry.key;
+                            final Map<String, dynamic> rowMap = entry.value;
+                            return DataRow(
+                              color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                                return rowIndex.isEven ? evenRowColor : oddRowColor;
+                              }),
+                              cells: displayFields.map((header) {
+                                final value = rowMap[header];
+                                String displayValue = 'N/A';
+                                Color? cellBackgroundColor;
+                                TextStyle cellStyle = cellTextStyle;
+                                
+                                if (value != null) {
+                                  if (value is num && numericShadingColumns.contains(header)) {
+                                    // Apply percentile-based shading for numeric fields
+                                    double? percentile = columnPercentiles[header]?[value];
+                                    if (percentile != null) {
+                                      // Blue shade based on percentile (higher percentile = deeper blue)
+                                      cellBackgroundColor = Color.fromRGBO(
+                                        100,  // Red
+                                        140,  // Green
+                                        240,  // Blue
+                                        0.1 + (percentile * 0.85)  // Alpha (10% to 95%)
+                                      );
+                                      
+                                      // Make text bold for high percentiles
+                                      if (percentile > 0.85) {
+                                        cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
+                                      }
+                                    }
+                                    
+                                    // Format numeric value
+                                    if (value is double) {
+                                      displayValue = value.toStringAsFixed(1);
+                                    } else {
+                                      displayValue = value.toString();
+                                    }
+                                  } else if (value is String && (header == 'Date' || header.endsWith('_date'))) {
+                                    try {
+                                      displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
+                                    } catch (e) {
+                                      displayValue = value;
+                                    }
+                                  } else {
+                                    displayValue = value.toString();
+                                  }
+                                }
+                                
+                                return DataCell(
+                                  Container(
+                                    // Fill the entire cell
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    color: cellBackgroundColor,
+                                    alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                    child: Text(
+                                      displayValue,
+                                      style: cellStyle,
+                                    ),
+                                  ),
+                                  // Allow sorting on this column
+                                  onTap: () {
+                                    if (displayFields.contains(header)) {
+                                      this.setState(() {
+                                        _sortColumn = header;
+                                        _sortAscending = !_sortAscending;
+                                        _applyFiltersAndFetch();
+                                      });
+                                    }
+                                  },
+                                );
+                              }).toList(),
+                            );
+                          }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (_rawRows.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _currentPage > 0
+                          ? () => this.setState(() { _currentPage--; _fetchDataFromFirebase(); })
+                          : null,
+                      child: const Text('Previous'),
+                    ),
+                    const SizedBox(width: 16),
+                    Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
+                          ? () => this.setState(() { _currentPage++; _fetchDataFromFirebase(); })
+                          : null,
+                      child: const Text('Next'),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      }
     );
   }
 } 
