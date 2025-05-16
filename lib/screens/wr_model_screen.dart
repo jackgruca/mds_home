@@ -425,25 +425,120 @@ class _WRModelScreenState extends State<WRModelScreen> {
 
   Widget _buildDataTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
-      return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.'));
+      return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.', style: TextStyle(fontSize: 16)));
     }
+
+    // Calculate percentiles for numeric columns that need shading
+    Map<String, Map<dynamic, double>> columnPercentiles = {};
+    
+    // Fields to exclude from shading (non-numeric or identifier fields)
+    final List<String> excludedFields = [
+      'receiver_player_name', 'posteam', 'season', 'id', 'name', 'team'
+    ];
+    
+    // Determine numeric columns dynamically
+    List<String> numericShadingColumns = [];
+    if (_rawRows.isNotEmpty) {
+      for (String field in _selectedFields) {
+        // Skip excluded fields
+        if (excludedFields.contains(field)) continue;
+        
+        // Check if this field contains numeric values
+        if (_rawRows.any((row) => row[field] != null && row[field] is num)) {
+          numericShadingColumns.add(field);
+        }
+      }
+    }
+    
+    // Function to calculate percentile rank
+    double calculatePercentileRank(List<num> values, num value) {
+      if (values.isEmpty) return 0.0;
+      int below = values.where((v) => v < value).length;
+      int equal = values.where((v) => v == value).length;
+      // Handle case where all values are the same
+      if (values.length == equal) return 0.5;
+      // Percentile calculation
+      return (below + 0.5 * equal) / values.length;
+    }
+    
+    // Get active season filter if any
+    String? seasonFilter;
+    for (var condition in _queryConditions) {
+      if (condition.field == 'season') {
+        seasonFilter = condition.value;
+        break;
+      }
+    }
+    
+    // Calculate percentiles for each column to be shaded
+    for (var column in numericShadingColumns) {
+      List<num> columnValues = [];
+      
+      // Filter data by season if season filter is applied
+      for (var row in _rawRows) {
+        if (row[column] != null && row[column] is num) {
+          // Only include rows matching season filter if it exists
+          if (seasonFilter != null) {
+            if (row['season'].toString() == seasonFilter) {
+              columnValues.add(row[column]);
+            }
+          } else {
+            // No season filter, use all values
+            columnValues.add(row[column]);
+          }
+        }
+      }
+      
+      // Calculate percentile for each value
+      Map<dynamic, double> valueToPercentile = {};
+      for (var row in _rawRows) {
+        if (row[column] != null && row[column] is num) {
+          valueToPercentile[row[column]] = calculatePercentileRank(columnValues, row[column]);
+        }
+      }
+      
+      columnPercentiles[column] = valueToPercentile;
+    }
+    
+    // Define colors for styling
+    final Color headerColor = Colors.blue.shade700; // Darker blue for header
+    final Color evenRowColor = Colors.grey.shade100; // Light gray for even rows
+    const Color oddRowColor = Colors.white; // White for odd rows
+    const TextStyle headerTextStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15);
+    const TextStyle cellTextStyle = TextStyle(fontSize: 14);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Text(
-            _rawRows.isEmpty
-                ? 'No data to display for the current filters.'
-                : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-            style: TextStyle(color: Colors.grey.shade700),
+          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
+            children: [
+              Text(
+                _rawRows.isEmpty
+                    ? '' // Show nothing if no data for pagination info
+                    : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+              ),
+              Text(
+                'Last Updated: ${DateTime.now().month}/${DateTime.now().day}/${DateTime.now().year}', 
+                style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic, fontSize: 12),
+              ),
+            ],
           ),
         ),
         Expanded(
           child: SingleChildScrollView(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.all(8.0), // Add padding around the DataTable
               child: DataTable(
+                headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
+                headingTextStyle: headerTextStyle,
+                columnSpacing: 20, // Adjust spacing between columns
+                dataRowMinHeight: 40, // Minimum height for data rows
+                dataRowMaxHeight: 48, // Maximum height for data rows
                 showCheckboxColumn: false,
                 sortColumnIndex: _selectedFields.contains(_sortColumn) ? _selectedFields.indexOf(_sortColumn) : null,
                 sortAscending: _sortAscending,
@@ -452,11 +547,12 @@ class _WRModelScreenState extends State<WRModelScreen> {
                     label: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(header /* Consider formatting header text if needed, e.g. replace '_' with ' ' */),
                         if (_sortColumn == header)
                           Icon(
                             _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                             size: 16,
+                            color: Colors.white, // Sort icon color for header
                           ),
                       ],
                     ),
@@ -470,29 +566,81 @@ class _WRModelScreenState extends State<WRModelScreen> {
                     tooltip: 'Sort by $header',
                   );
                 }).toList(),
-                rows: _rawRows.isEmpty 
-                  ? [] 
-                  : _rawRows
-                      .map((rowMap) => DataRow(
-                            cells: _selectedFields.map((header) {
-                              final value = rowMap[header];
-                              String displayValue = 'N/A';
-                              if (value != null) {
-                                if (value is num) {
-                                  displayValue = value.toStringAsFixed(2);
-                                } else {
-                                  displayValue = value.toString();
-                                }
-                              }
-                              return DataCell(Text(
-                                displayValue,
-                                style: TextStyle(
-                                  color: displayValue == 'N/A' ? Colors.grey.shade600 : null,
-                                ),
-                              ));
-                            }).toList(),
-                          ))
-                      .toList(),
+                rows: _rawRows.asMap().entries.map((entry) {
+                  final int rowIndex = entry.key;
+                  final Map<String, dynamic> rowMap = entry.value;
+                  return DataRow(
+                    color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                      return rowIndex.isEven ? evenRowColor : oddRowColor;
+                    }),
+                    cells: _selectedFields.map((header) {
+                      final value = rowMap[header];
+                      String displayValue = 'N/A';
+                      Color? cellBackgroundColor;
+                      TextStyle cellStyle = cellTextStyle;
+                      
+                      if (value != null) {
+                        if (value is num && numericShadingColumns.contains(header)) {
+                          // Apply percentile-based shading for numeric fields
+                          double? percentile = columnPercentiles[header]?[value];
+                          if (percentile != null) {
+                            // Blue shade based on percentile (higher percentile = deeper blue)
+                            int blueIntensity = (220 - (percentile * 160)).toInt().clamp(60, 220);
+                            cellBackgroundColor = Color.fromRGBO(220, 230, blueIntensity, 1.0);
+                            
+                            // Make text bold for high percentiles
+                            if (percentile > 0.85) {
+                              cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
+                            }
+                          }
+                          
+                          // Smart numeric formatting
+                          if (header.toLowerCase().contains('share') || header.toLowerCase().contains('pct') || header.toLowerCase().contains('%')) {
+                            displayValue = '${(value * 100).toStringAsFixed(1)}%';
+                          } else if (value is double) {
+                             // Specific formatting for different metrics
+                            if (header.toLowerCase() == 'adot' || header.toLowerCase() == 'yprr' || header.toLowerCase().contains('epa')) {
+                                displayValue = value.toStringAsFixed(2);
+                            } else if (header.toLowerCase() == 'points'){
+                                displayValue = value.toStringAsFixed(1);
+                            } else {
+                                displayValue = value.toStringAsFixed(1);
+                            }
+                          } else {
+                            displayValue = value.toString();
+                          }
+                        } else {
+                          displayValue = value.toString();
+                        }
+                      }
+                      
+                      return DataCell(
+                        Container(
+                          // Fill the entire cell
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: cellBackgroundColor,
+                          alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                          child: Text(
+                            displayValue,
+                            style: cellStyle,
+                          ),
+                        ),
+                        // Allow sorting on this column
+                        onTap: () {
+                          if (_selectedFields.contains(header)) {
+                            setState(() {
+                              _sortColumn = header;
+                              _sortAscending = !_sortAscending;
+                              _applyFiltersAndFetch();
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  );
+                }).toList(),
               ),
             ),
           ),
