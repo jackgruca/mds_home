@@ -26,6 +26,7 @@ import 'package:flutter/foundation.dart';
 import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'screens/fantasy/big_board_screen.dart';
 
 // Secret tap counter for admin access
 
@@ -149,6 +150,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => GmHubScreen());
               case '/fantasy':
                 return MaterialPageRoute(builder: (_) => FantasyHubScreen());
+              case '/fantasy/big-board':
+                return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/data/historical':
                 return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
               case '/historical-data':

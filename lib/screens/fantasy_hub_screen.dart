@@ -16,6 +16,12 @@ class FantasyHubScreen extends StatelessWidget {
   // --- Placeholder Data ---
   final List<Map<String, String>> _slides = [
     {
+      'title': 'Create Your Fantasy Big Board',
+      'desc': 'Compare rankings across major platforms and create your own.',
+      'image': 'assets/images/blog/player_projections_blog.jpg',
+      'route': '/fantasy/big-board',
+    },
+    {
       'title': 'Fantasy Mock Draft Now!',
       'desc': 'Practice your strategy against realistic opponents.',
       'image': 'assets/images/blog/player_projections_blog.jpg', 
@@ -24,32 +30,40 @@ class FantasyHubScreen extends StatelessWidget {
     {
       'title': 'Check Player Projections',
       'desc': 'See updated projections for the upcoming week.',
-      'image': 'assets/images/placeholder/fantasy_projections.png', // Placeholder
+      'image': 'assets/images/placeholder/fantasy_projections.png',
       'route': '/projections',
     },
-    // Add more fantasy-specific slides
   ];
 
   final List<Map<String, dynamic>> _tools = [
      {
-      'icon': Icons.drafts, // Example icon
+      'icon': Icons.leaderboard,
+      'title': 'Fantasy Big Board', 
+      'desc': 'Create and compare player rankings.',
+      'route': '/fantasy/big-board',
+      'isPlaceholder': false,
+    },
+     {
+      'icon': Icons.drafts,
       'title': 'Fantasy Draft Sim', 
       'desc': 'Prepare for your league draft.',
       'route': '/draft/fantasy',
+      'isPlaceholder': false,
     },
      {
-      'icon': Icons.leaderboard, 
+      'icon': Icons.trending_up, 
       'title': 'Player Rankings', 
       'desc': 'See the latest expert rankings.',
       'route': '/fantasy/rankings',
+      'isPlaceholder': true,
     },
       {
       'icon': Icons.rule, 
       'title': 'Start/Sit Optimizer', 
       'desc': 'Get recommendations for your lineup.',
       'route': '/fantasy/start-sit',
+      'isPlaceholder': true,
     },
-    // Add more relevant fantasy tools/links
   ];
 
   final List<Map<String, String>> _blogPosts = [

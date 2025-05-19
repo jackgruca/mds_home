@@ -76,14 +76,15 @@ final List<NavItem> topNavItems = [
     title: 'Fantasy Hub',
     route: '/fantasy', // Landing page route
     icon: Icons.sports_football,
-    isPlaceholder: false, // <<< Changed to false: Landing page exists
+    isPlaceholder: false,
     subItems: [
       // --- Implemented --- 
       NavItem(title: 'Fantasy Draft Simulator', route: '/draft/fantasy', isPlaceholder: false),
       NavItem(title: 'Rest-of-Season Projections', route: '/projections', isPlaceholder: false),
+      NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
        // --- Placeholders --- 
       // PREPARE
-      NavItem(title: 'Player Rankings & Big Board', route: '/fantasy/rankings', isPlaceholder: true),
+      NavItem(title: 'Player Rankings', route: '/fantasy/rankings', isPlaceholder: true),
       NavItem(title: 'Draft Strategy Planner', route: '/fantasy/strategy', isPlaceholder: true),
       NavItem(title: 'ADP Analysis Tool', route: '/fantasy/adp', isPlaceholder: true),
       // COMPETE
