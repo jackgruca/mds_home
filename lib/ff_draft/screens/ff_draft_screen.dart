@@ -75,25 +75,6 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
           title: Text('${widget.settings.platform} ${widget.settings.scoringSystem} Draft'),
           actions: [
             IconButton(
-              icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-              onPressed: () {
-                setState(() {
-                  _isPaused = !_isPaused;
-                });
-                if (_isPaused) {
-                  _draftProvider.pauseDraft();
-                } else {
-                  _draftProvider.startDraftSimulation();
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.undo),
-              onPressed: () {
-                _draftProvider.undoLastPick();
-              },
-            ),
-            IconButton(
               icon: const Icon(Icons.settings),
               onPressed: () {
                 // TODO: Show draft settings dialog
@@ -103,11 +84,23 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
         ),
         body: Column(
           children: [
-            // Rolling picks section
+            // Timer and controls section
             FFDraftTimer(
               key: ValueKey(_timerKey),
               timePerPick: widget.settings.timePerPick,
               onTimeExpired: _draftProvider.handleTimeExpired,
+              isPaused: _isPaused,
+              onPlayPause: () {
+                setState(() {
+                  _isPaused = !_isPaused;
+                });
+                if (_isPaused) {
+                  _draftProvider.pauseDraft();
+                } else {
+                  _draftProvider.startDraftSimulation();
+                }
+              },
+              onUndo: _draftProvider.undoLastPick,
             ),
             FFRollingPicks(
               onPickSelected: _draftProvider.handlePickSelection,

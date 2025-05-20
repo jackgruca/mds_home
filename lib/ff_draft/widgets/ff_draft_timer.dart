@@ -6,11 +6,17 @@ import '../providers/ff_draft_provider.dart';
 class FFDraftTimer extends StatefulWidget {
   final int timePerPick;
   final VoidCallback onTimeExpired;
+  final bool isPaused;
+  final VoidCallback onPlayPause;
+  final VoidCallback onUndo;
 
   const FFDraftTimer({
     super.key,
     required this.timePerPick,
     required this.onTimeExpired,
+    required this.isPaused,
+    required this.onPlayPause,
+    required this.onUndo,
   });
 
   @override
@@ -20,7 +26,6 @@ class FFDraftTimer extends StatefulWidget {
 class _FFDraftTimerState extends State<FFDraftTimer> {
   Timer? _timer;
   int _timeRemaining = 0;
-  bool _isPaused = false;
 
   @override
   void initState() {
@@ -37,7 +42,7 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPaused) {
+      if (!widget.isPaused) {
         setState(() {
           if (_timeRemaining > 0) {
             _timeRemaining--;
@@ -50,24 +55,23 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
     });
   }
 
-  void _pauseTimer() {
-    setState(() {
-      _isPaused = true;
-    });
-  }
-
-  void _resumeTimer() {
-    setState(() {
-      _isPaused = false;
-    });
-  }
-
   void _resetTimer() {
     setState(() {
       _timeRemaining = widget.timePerPick;
-      _isPaused = false;
     });
     _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant FFDraftTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isPaused != widget.isPaused) {
+      if (!widget.isPaused) {
+        _startTimer();
+      } else {
+        _timer?.cancel();
+      }
+    }
   }
 
   @override
@@ -80,8 +84,8 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
           return const SizedBox.shrink();
         }
 
-        // Start timer when it's the user's pick
-        if (currentPick.isUserPick && _timer == null) {
+        // Start timer when it's the user's pick and not paused
+        if (currentPick.isUserPick && _timer == null && !widget.isPaused) {
           _startTimer();
         }
 
@@ -110,13 +114,21 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
                   ],
                 ),
               ),
-              
+              // Play/Pause and Undo buttons
+              IconButton(
+                icon: Icon(widget.isPaused ? Icons.play_arrow : Icons.pause),
+                onPressed: widget.onPlayPause,
+                tooltip: widget.isPaused ? 'Resume Draft' : 'Pause Draft',
+              ),
+              IconButton(
+                icon: const Icon(Icons.undo),
+                onPressed: widget.onUndo,
+                tooltip: 'Undo Last Pick',
+              ),
               // Timer
               if (currentPick.isUserPick) ...[
                 const SizedBox(width: 16),
                 _buildTimerDisplay(),
-                const SizedBox(width: 16),
-                _buildTimerControls(),
               ],
             ],
           ),
@@ -148,23 +160,6 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
           color: _timeRemaining <= 10 ? Colors.red : null,
         ),
       ),
-    );
-  }
-
-  Widget _buildTimerControls() {
-    return Row(
-      children: [
-        IconButton(
-          icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-          onPressed: _isPaused ? _resumeTimer : _pauseTimer,
-          tooltip: _isPaused ? 'Resume' : 'Pause',
-        ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _resetTimer,
-          tooltip: 'Reset',
-        ),
-      ],
     );
   }
 } 
