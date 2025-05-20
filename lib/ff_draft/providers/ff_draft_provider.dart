@@ -6,6 +6,13 @@ import '../models/ff_team.dart';
 import '../models/ff_player.dart';
 import '../models/ff_draft_pick.dart';
 import '../models/ff_platform_ranks.dart';
+import 'dart:math';
+
+class _PlayerScore {
+  final FFPlayer player;
+  double score;
+  _PlayerScore({required this.player, required this.score});
+}
 
 class FFDraftProvider extends ChangeNotifier {
   final FFDraftSettings settings;
@@ -19,6 +26,9 @@ class FFDraftProvider extends ChangeNotifier {
   int userTeamIndex = 0;
   bool paused = true;
   List<FFDraftPick> pickHistory = [];
+  List<FFDraftPick> userPickHistory = [];
+  VoidCallback? onUserPick;
+  final Random _rand = Random();
 
   FFDraftProvider({required this.settings, this.userPick});
 
@@ -139,22 +149,113 @@ class FFDraftProvider extends ChangeNotifier {
   }
 
   FFPlayer? _getBestAvailablePlayer(FFTeam team) {
-    // Sort available players by rank
-    availablePlayers.sort((a, b) {
-      final rankA = a.stats?['rank'] ?? double.infinity;
-      final rankB = b.stats?['rank'] ?? double.infinity;
-      return rankA.compareTo(rankB);
-    });
+    // --- 1. Dynamic reach calculation ---
+    final pickNumber = getCurrentPick()?.pickNumber ?? 1;
+    const randomness = 0.3; // Reduced from 0.5 to 0.3 for more consistent picks
+    const baseReach = 2;
+    const maxExtraReach = 10;
+    final dynamicReach = baseReach + (randomness * maxExtraReach * _rand.nextDouble());
+    final reachLimit = (pickNumber + dynamicReach).round();
 
-    // Find first player that fills a need
-    for (final player in availablePlayers) {
-      if (_isPositionNeeded(team, player.position)) {
-        return player;
+    // --- 2. Filter candidates within reach ---
+    final candidates = availablePlayers.where((p) {
+      final rank = p.stats?['rank'] ?? 9999;
+      return rank <= reachLimit;
+    }).toList();
+    if (candidates.isEmpty) return availablePlayers.isNotEmpty ? availablePlayers.first : null;
+
+    // --- 3. Score candidates ---
+    List<_PlayerScore> scored = candidates.map((p) {
+      double score = 0;
+      final rank = p.stats?['rank'] ?? 9999;
+      final position = p.position;
+      final byeWeek = p.byeWeek;
+      // Position of need
+      if (_isPositionNeeded(team, position)) {
+        score += 10;
       }
+      // Stacking bonus (QB/WR/TE)
+      if (position == 'WR' || position == 'TE') {
+        final hasQB = team.roster.any((rosterP) => rosterP.position == 'QB' && rosterP.team == p.team);
+        if (hasQB) score += 2;
+      }
+      if (position == 'QB') {
+        final hasWR = team.roster.any((rosterP) => (rosterP.position == 'WR' || rosterP.position == 'TE') && rosterP.team == p.team);
+        if (hasWR) score += 2;
+      }
+      // Negative stack penalty (RB/WR on same team)
+      if (position == 'RB') {
+        final hasWR = team.roster.any((rosterP) => rosterP.position == 'WR' && rosterP.team == p.team);
+        if (hasWR) score -= 1.5;
+      }
+      if (position == 'WR') {
+        final hasRB = team.roster.any((rosterP) => rosterP.position == 'RB' && rosterP.team == p.team);
+        if (hasRB) score -= 1.5;
+      }
+      // Bye week penalty
+      if (byeWeek != null && byeWeek.isNotEmpty) {
+        final sameBye = team.roster.where((rosterP) => rosterP.byeWeek == byeWeek).length;
+        if (sameBye >= 2) score -= 0.5;
+      }
+      // Roster construction penalty (overfilling a position)
+      final positionCount = team.roster.where((rosterP) => rosterP.position == position).length;
+      // QB/TE special logic
+      if (position == 'QB') {
+        if (positionCount == 1) score -= 7; // much less likely to take a 2nd
+        if (positionCount >= 2) score -= 1000; // never take a 3rd
+      }
+      if (position == 'TE') {
+        if (positionCount == 1) score -= 6; // much less likely to take a 2nd
+        if (positionCount >= 2) score -= 1000; // never take a 3rd
+      }
+      // General position limits
+      final positionLimits = {
+        'QB': 2,
+        'RB': 8,
+        'WR': 8,
+        'TE': 2,
+        'FLEX': 1,
+        'K': 1,
+        'DEF': 1,
+      };
+      if (positionCount >= (positionLimits[position] ?? 0)) {
+        score -= 1000;
+      }
+      // Positional run bonus (if recent picks have targeted this position)
+      final recentPicks = draftPicks.where((pick) => pick.isSelected).toList().reversed.take(5).toList();
+      final runCount = recentPicks.where((pick) => pick.selectedPlayer?.position == position).length;
+      if ((position == 'RB' || position == 'TE') && runCount >= 2) {
+        score += 2.5;
+      } else if (runCount >= 3) {
+        score += 1.5;
+      }
+      // Slight randomness in score
+      score += _rand.nextDouble() * randomness;
+      // Higher score for better rank
+      score += (1000 - rank) * 0.001;
+      return _PlayerScore(player: p, score: score);
+    }).toList();
+    scored.sort((a, b) => b.score.compareTo(a.score));
+
+    // --- 4. With some probability, pick a player outside the top candidate ---
+    if (scored.length > 1 && _rand.nextDouble() < randomness * 0.25) {
+      // Pick randomly from top 3-5
+      final topN = min(5, scored.length);
+      return scored[_rand.nextInt(topN)].player;
     }
 
-    // If no position is needed, take best available
-    return availablePlayers.isNotEmpty ? availablePlayers.first : null;
+    // For AI bench logic: if all starting spots are filled, prefer FLEX
+    final startersFilled = team.roster.length >= 9; // 9 starters (QB, RB, RB, WR, WR, WR, TE, K, DEF)
+    if (startersFilled) {
+      for (final s in scored) {
+        if (s.player.position == 'RB' || s.player.position == 'WR' || s.player.position == 'TE') {
+          s.score += 1.0;
+        }
+      }
+      scored.sort((a, b) => b.score.compareTo(a.score));
+    }
+
+    return scored.first.player;
   }
 
   bool _isPositionNeeded(FFTeam team, String position) {
@@ -178,6 +279,9 @@ class FFDraftProvider extends ChangeNotifier {
 
   void _makePick(FFDraftPick pick, FFPlayer player) {
     pickHistory.add(pick.copyWith());
+    if (pick.isUserPick) {
+      userPickHistory.add(pick.copyWith());
+    }
     // Add player to the first available slot for their position
     final team = pick.team;
     int slotIndex = team.roster.indexWhere((p) => p.position == player.position && p.id.isEmpty);
@@ -192,6 +296,10 @@ class FFDraftProvider extends ChangeNotifier {
     pick.selectedPlayer = player;
     // Move to next pick
     currentPickIndex++;
+    // If next pick is user, trigger timer reset
+    if (getCurrentPick()?.isUserPick == true && onUserPick != null) {
+      onUserPick!();
+    }
     // Update at-risk players
     _updateAtRiskPlayers();
     notifyListeners();
@@ -224,17 +332,23 @@ class FFDraftProvider extends ChangeNotifier {
   }
 
   void handlePlayerSelection(FFPlayer player) {
+    // Prevent drafting a player already on any roster
+    if (teams.any((team) => team.roster.any((p) => p.id == player.id))) {
+      return;
+    }
     if (isUserTurn()) {
       userMakesPick(player);
     }
   }
 
   bool canDraftPlayer(FFPlayer player) {
+    // Always allow user to pick any player
     final currentPick = getCurrentPick();
-    if (currentPick == null || !currentPick.isUserPick) return false;
-
-    // Check if we need this position
-    return _isPositionNeeded(currentPick.team, player.position);
+    if (currentPick == null) return false;
+    if (currentPick.isUserPick) return true;
+    // For AI, only block if all bench spots are filled
+    // (AI logic for bench handled in _getBestAvailablePlayer)
+    return true;
   }
 
   bool isUserTurn() {
@@ -278,16 +392,74 @@ class FFDraftProvider extends ChangeNotifier {
   }
 
   void undoLastPick() {
-    if (pickHistory.isEmpty) return;
-    final lastPick = pickHistory.removeLast();
-    // Remove player from team roster
-    if (lastPick.selectedPlayer != null) {
-      lastPick.team.roster.removeWhere((p) => p.id == lastPick.selectedPlayer!.id);
-      availablePlayers.insert(0, lastPick.selectedPlayer!);
+    // Ensure there's a user pick to undo
+    if (userPickHistory.isEmpty) return;
+    
+    // Get the last user pick
+    final lastUserPick = userPickHistory.last;
+    
+    // Find the index of the last user pick in the draft picks
+    final lastUserPickIndex = draftPicks.indexWhere((pick) => 
+      pick.pickNumber == lastUserPick.pickNumber);
+    
+    if (lastUserPickIndex == -1) return;
+    
+    // Undo the last user pick itself
+    final userPick = draftPicks[lastUserPickIndex];
+    if (userPick.selectedPlayer != null) {
+      // Return the player to available players
+      availablePlayers.insert(0, userPick.selectedPlayer!);
+      
+      // Reset the roster slot for this player
+      final team = userPick.team;
+      final rosterIndex = team.roster.indexWhere((p) => p.id == userPick.selectedPlayer!.id);
+      if (rosterIndex != -1) {
+        team.roster[rosterIndex] = FFPlayer.empty(position: userPick.selectedPlayer!.position);
+      }
+      
+      // Clear the selected player from the draft pick
+      userPick.selectedPlayer = null;
     }
-    // Move back pick index
-    currentPickIndex = lastPick.pickNumber - 1;
-    draftPicks[currentPickIndex].selectedPlayer = null;
+    
+    // Undo all picks after the last user pick
+    for (int i = draftPicks.length - 1; i > lastUserPickIndex; i--) {
+      final pick = draftPicks[i];
+      
+      // If the pick has a selected player
+      if (pick.selectedPlayer != null) {
+        // Return the player to available players
+        availablePlayers.insert(0, pick.selectedPlayer!);
+        
+        // Reset the roster slot for this player
+        final team = pick.team;
+        final rosterIndex = team.roster.indexWhere((p) => p.id == pick.selectedPlayer!.id);
+        if (rosterIndex != -1) {
+          team.roster[rosterIndex] = FFPlayer.empty(position: pick.selectedPlayer!.position);
+        }
+        
+        // Clear the selected player from the draft pick
+        pick.selectedPlayer = null;
+      }
+    }
+    
+    // Reset current pick index to before the last user pick
+    currentPickIndex = lastUserPickIndex;
+    
+    // Remove subsequent picks from history
+    pickHistory.removeWhere((pick) => pick.pickNumber >= lastUserPick.pickNumber);
+    userPickHistory.removeWhere((pick) => pick.pickNumber >= lastUserPick.pickNumber);
+    
+    // Sort available players back to original order
+    availablePlayers.sort((a, b) {
+      final rankA = a.stats?['rank'] ?? 9999;
+      final rankB = b.stats?['rank'] ?? 9999;
+      return rankA.compareTo(rankB);
+    });
+    
+    // Update at-risk players
+    _updateAtRiskPlayers();
+    
+    // Notify listeners of changes
     notifyListeners();
   }
 

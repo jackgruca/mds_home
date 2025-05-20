@@ -3,7 +3,7 @@ import 'ff_player.dart';
 class FFTeam {
   final String id;
   final String name;
-  final List<FFPlayer> roster;
+  List<FFPlayer> roster;
   final int? draftPosition;
   final Map<String, int>? positionCounts;
   final bool isUserTeam;
@@ -11,11 +11,11 @@ class FFTeam {
   FFTeam({
     required this.id,
     required this.name,
-    required this.roster,
+    List<FFPlayer>? roster,
     this.draftPosition,
     this.positionCounts,
     this.isUserTeam = false,
-  });
+  }) : roster = roster ?? [];
 
   // Factory constructor to create a team from JSON
   factory FFTeam.fromJson(Map<String, dynamic> json) {
@@ -90,5 +90,23 @@ class FFTeam {
   // Check if team needs a position
   bool needsPosition(String position, int requiredCount) {
     return getPositionCount(position) < requiredCount;
+  }
+
+  FFTeam copyWith({
+    String? id,
+    String? name,
+    List<FFPlayer>? roster,
+    int? draftPosition,
+    Map<String, int>? positionCounts,
+    bool? isUserTeam,
+  }) {
+    return FFTeam(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      roster: roster ?? this.roster,
+      draftPosition: draftPosition ?? this.draftPosition,
+      positionCounts: positionCounts ?? this.positionCounts,
+      isUserTeam: isUserTeam ?? this.isUserTeam,
+    );
   }
 } 

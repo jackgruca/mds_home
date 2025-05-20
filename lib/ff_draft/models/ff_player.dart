@@ -80,4 +80,18 @@ class FFPlayer {
       isFavorite: isFavorite ?? this.isFavorite,
     );
   }
+
+  // Factory constructor to create an empty player for a specific position
+  factory FFPlayer.empty({required String position}) {
+    return FFPlayer(
+      id: '',
+      name: '',
+      position: position,
+      team: '',
+      rank: 9999,
+      platformRanks: {},
+      consensusRank: 9999,
+      stats: {},
+    );
+  }
 } 

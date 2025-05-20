@@ -33,6 +33,13 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
   bool _isInitialized = false;
   int _selectedTeamIndex = 0;
   bool _isPaused = true;
+  int _timerKey = 0;
+
+  void _resetTimer() {
+    setState(() {
+      _timerKey++;
+    });
+  }
 
   @override
   void initState() {
@@ -42,6 +49,7 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
 
   Future<void> _initializeDraft() async {
     _draftProvider = FFDraftProvider(settings: widget.settings, userPick: widget.userPick);
+    _draftProvider.onUserPick = _resetTimer;
     await _draftProvider.initializeDraft();
     setState(() {
       _selectedTeamIndex = _draftProvider.userTeamIndex;
@@ -97,6 +105,7 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
           children: [
             // Rolling picks section
             FFDraftTimer(
+              key: ValueKey(_timerKey),
               timePerPick: widget.settings.timePerPick,
               onTimeExpired: _draftProvider.handleTimeExpired,
             ),
@@ -113,9 +122,9 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
                     flex: 2,
                     child: Column(
                       children: [
-                        // Team selector
+                        // Team selector and player count in one row
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.zero,
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
                             border: Border(
@@ -143,11 +152,15 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
                             },
                           ),
                         ),
-                        // Team roster
+                        // Team roster (real-time update)
                         Expanded(
-                          child: FFTeamRoster(
-                            team: _draftProvider.teams[_selectedTeamIndex],
-                            onPlayerSelected: _draftProvider.handlePlayerSelection,
+                          child: Consumer<FFDraftProvider>(
+                            builder: (context, provider, _) {
+                              return FFTeamRoster(
+                                team: provider.teams[_selectedTeamIndex],
+                                onPlayerSelected: provider.handlePlayerSelection,
+                              );
+                            },
                           ),
                         ),
                       ],

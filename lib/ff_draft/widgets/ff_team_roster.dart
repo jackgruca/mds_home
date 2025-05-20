@@ -16,32 +16,7 @@ class FFTeamRoster extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header (player count only)
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey[300]!,
-                width: 1,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              const Spacer(),
-              Text(
-                '${team.roster.length} players',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Roster sections
+        // Roster sections (remove player count header)
         Expanded(
           child: ListView(
             children: [
@@ -55,37 +30,88 @@ class FFTeamRoster extends StatelessWidget {
   }
 
   Widget _buildRosterSection(String title, List<String> positions) {
-    // Create a copy of the roster to track which players have been assigned
+    // Assign players to starting spots, then FLEX, then BENCH
     final assigned = <int>{};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+    final starters = _getStarterPositions();
+    final flexEligible = ['RB', 'WR', 'TE'];
+    final List<FFPlayer> starterPlayers = [];
+    final List<FFPlayer> flexCandidates = [];
+    final List<FFPlayer> benchPlayers = [];
+
+    // 1. Assign starters (excluding FLEX)
+    for (var pos in starters.where((p) => p != 'FLEX')) {
+      final idx = team.roster.indexWhere((p) => p.position == pos && !assigned.contains(team.roster.indexOf(p)) && p.id.isNotEmpty);
+      if (idx != -1) {
+        starterPlayers.add(team.roster[idx]);
+        assigned.add(idx);
+      } else {
+        starterPlayers.add(FFPlayer(id: '', name: '', position: pos, team: '', stats: {}));
+      }
+    }
+
+    // 2. Find FLEX candidate (first unassigned RB/WR/TE)
+    int flexIdx = team.roster.indexWhere((p) => flexEligible.contains(p.position) && !assigned.contains(team.roster.indexOf(p)) && p.id.isNotEmpty);
+    FFPlayer flexPlayer;
+    if (flexIdx != -1) {
+      flexPlayer = team.roster[flexIdx];
+      assigned.add(flexIdx);
+    } else {
+      flexPlayer = FFPlayer(id: '', name: '', position: 'FLEX', team: '', stats: {});
+    }
+
+    // 3. All remaining unassigned players go to bench
+    for (int i = 0; i < team.roster.length; i++) {
+      if (!assigned.contains(i) && team.roster[i].id.isNotEmpty) {
+        benchPlayers.add(team.roster[i]);
+        assigned.add(i);
+      }
+    }
+
+    // 4. Render the section
+    if (title == 'Starters') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-        ...positions.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final position = entry.value;
-          // Find the first unassigned player for this position
-          final playerIdx = team.roster.indexWhere((p) => p.position == position && !assigned.contains(team.roster.indexOf(p)) && p.id.isNotEmpty);
-          FFPlayer? player;
-          if (playerIdx != -1) {
-            player = team.roster[playerIdx];
-            assigned.add(playerIdx);
-          } else {
-            player = FFPlayer(id: '', name: '', position: position, team: '', stats: {});
-          }
-          return _buildPlayerCard(player, position);
-        }).toList(),
-      ],
-    );
+          ...starterPlayers.map((player) => _buildPlayerCard(player, player.position)),
+          _buildPlayerCard(flexPlayer, 'FLEX'),
+        ],
+      );
+    } else if (title == 'Bench') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ...positions.asMap().entries.map((entry) {
+            final idx = entry.key;
+            FFPlayer player = idx < benchPlayers.length
+                ? benchPlayers[idx]
+                : FFPlayer(id: '', name: '', position: 'BN${idx + 1}', team: '', stats: {});
+            return _buildPlayerCard(player, 'BN');
+          }).toList(),
+        ],
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
   }
 
   Widget _buildPlayerCard(FFPlayer player, String position) {
@@ -120,13 +146,11 @@ class FFTeamRoster extends StatelessWidget {
               ),
         trailing: isEmpty
             ? null
-            : IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () {
-                  // TODO: Remove player from roster
-                },
+            : const IconButton(
+                icon: Icon(Icons.remove_circle_outline),
+                onPressed: null,
               ),
-        onTap: isEmpty ? null : () => onPlayerSelected(player),
+        onTap: null,
       ),
     );
   }
