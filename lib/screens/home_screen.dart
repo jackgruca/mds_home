@@ -19,28 +19,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<Map<String, String>> _slides = [
     {
-      'title': 'Run a Mock Draft',
-      'desc': 'Simulate the NFL draft with real-time analytics.',
+      'title': 'Mock Draft Simulator',
+      'desc': 'Simulate the NFL draft with real-time analytics and team-building tools.',
       'image': 'assets/images/GM/PIT Draft.png',
       'route': '/draft',
     },
     {
-      'title': 'Fantasy Football Mock Drafts',
-      'desc': 'Practice your fantasy draft strategy.',
-      'image': 'assets/images/GM/big board.png',
-      'route': '/draft/fantasy',
+      'title': 'Data Hub',
+      'desc': 'Explore advanced NFL data, stats, and analytics.',
+      'image': 'assets/images/data/moneyBall.jpeg',
+      'route': '/data',
     },
     {
       'title': 'Player Big Boards',
-      'desc': 'View and customize player rankings.',
+      'desc': 'View and customize player rankings from multiple sources.',
       'image': 'assets/images/FF/shiva.png',
-      'route': '/draft/big-board',
+      'route': '/fantasy/big-board',
     },
     {
-      'title': 'Games This Week',
-      'desc': 'See matchups, odds, and projections for this week.',
-      'image': 'assets/images/blog/draft_analysis_blog.jpg',
-      'route': '/data',
+      'title': 'Fantasy Football Mock Draft',
+      'desc': 'Practice your fantasy draft strategy and get ready for your league.',
+      'image': 'assets/images/GM/big board.png',
+      'route': '/draft/fantasy',
     },
   ];
 
@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'icon': Icons.leaderboard,
       'title': 'Player Big Boards',
       'desc': 'View and customize player rankings.',
-      'route': '/draft/big-board',
+      'route': '/fantasy/big-board',
     },
     {
       'icon': Icons.calendar_today,
@@ -73,13 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
       'icon': Icons.trending_up,
       'title': 'Player Analytics',
       'desc': 'Projections, stats, and fantasy insights.',
-      'route': '/projections',
+      'route': '/wr-model',
     },
     {
       'icon': Icons.paid,
       'title': 'Betting Analytics',
       'desc': 'Odds, trends, and historical ATS data.',
-      'route': '/betting',
+      'route': '/data/historical',
     },
   ];
 
