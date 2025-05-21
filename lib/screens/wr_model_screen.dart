@@ -5,6 +5,7 @@ import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:mds_home/utils/team_logo_utils.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -820,10 +821,25 @@ class _WRModelScreenState extends State<WRModelScreen> {
                                 color: cellBackgroundColor,
                                 alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
                                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                child: Text(
-                                  displayValue,
-                                  style: cellStyle,
-                                ),
+                                child: header == 'posteam' 
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TeamLogoUtils.buildNFLTeamLogo(
+                                          value.toString(),
+                                          size: 24.0,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          value.toString(),
+                                          style: cellStyle,
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      displayValue,
+                                      style: cellStyle,
+                                    ),
                               ),
                               // Allow sorting on this column
                               onTap: () {
