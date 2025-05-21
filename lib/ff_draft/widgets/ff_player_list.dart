@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ff_player.dart';
+import '../models/ff_draft_pick.dart';
 import '../providers/ff_draft_provider.dart';
 
 class FFPlayerList extends StatefulWidget {
@@ -17,7 +18,7 @@ class FFPlayerList extends StatefulWidget {
 
 class _FFPlayerListState extends State<FFPlayerList> {
   String _selectedPosition = 'All';
-  String _searchQuery = '';
+  final String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -28,81 +29,112 @@ class _FFPlayerListState extends State<FFPlayerList> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          // Search bar
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search players...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
+    final provider = Provider.of<FFDraftProvider>(context);
+    final availablePlayers = provider.availablePlayers;
+    final draftPicks = provider.draftPicks;
+    final teams = provider.teams;
+    final numTeams = teams.length;
+    return ListView.builder(
+      itemCount: availablePlayers.length,
+      itemBuilder: (context, index) {
+        final player = availablePlayers[index];
+        // Always use player.rank or player.stats['rank'] for the left circle
+        final rank = player.rank ?? player.stats?['rank'] ?? index + 1;
+        // Find the original pick for this player (for round/pick/team display)
+        FFDraftPick? originalPick;
+        try {
+          originalPick = draftPicks.firstWhere((pick) => pick.selectedPlayer?.id == player.id);
+        } catch (_) {
+          originalPick = null;
+        }
+        String bottomRow;
+        if (originalPick != null) {
+          final pickNumber = originalPick.pickNumber;
+          final round = originalPick.round;
+          final pickInRound = pickNumber - (round - 1) * numTeams;
+          final teamName = originalPick.team.name;
+          bottomRow = '$round.$pickInRound $teamName';
+        } else {
+          bottomRow = player.team.isNotEmpty ? player.team : '';
+        }
+        final roundColor = _getRoundColor((rank - 1) ~/ numTeams + 1);
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: roundColor,
+              child: Text(
+                rank.toString(),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Position filter
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+            title: Row(
               children: [
-                _buildPositionChip('All'),
-                _buildPositionChip('QB'),
-                _buildPositionChip('RB'),
-                _buildPositionChip('WR'),
-                _buildPositionChip('TE'),
-                _buildPositionChip('K'),
-                _buildPositionChip('DEF'),
+                Expanded(
+                  child: Text(
+                    player.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildPositionBadge(player.position),
               ],
             ),
+            subtitle: Text(bottomRow),
+            onTap: () => widget.onPlayerSelected(player),
           ),
-          
-          const SizedBox(height: 8),
-          
-          // Player list
-          Expanded(
-            child: Consumer<FFDraftProvider>(
-              builder: (context, provider, child) {
-                final players = _filterPlayers(provider);
-                
-                return ListView.builder(
-                  itemCount: players.length,
-                  itemBuilder: (context, index) {
-                    final player = players[index];
-                    final canDraft = provider.canDraftPlayer(player);
-                    
-                    return _buildPlayerListItem(
-                      context,
-                      player,
-                      canDraft,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+        );
+      },
+    );
+  }
+
+  Color _getRoundColor(int round) {
+    // Cycle through a palette for rounds
+    const palette = [
+      Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.red, Colors.teal, Colors.brown
+    ];
+    return palette[(round - 1) % palette.length];
+  }
+
+  Widget _buildPositionBadge(String position) {
+    Color color;
+    switch (position) {
+      case 'QB':
+        color = Colors.blue;
+        break;
+      case 'RB':
+        color = Colors.green;
+        break;
+      case 'WR':
+        color = Colors.orange;
+        break;
+      case 'TE':
+        color = Colors.purple;
+        break;
+      case 'K':
+        color = Colors.red;
+        break;
+      case 'DEF':
+      case 'D/ST':
+        color = Colors.brown;
+        break;
+      default:
+        color = Colors.grey;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        position,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+        ),
       ),
     );
   }
