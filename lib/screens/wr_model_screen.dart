@@ -786,7 +786,23 @@ class _WRModelScreenState extends State<WRModelScreen> {
         List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
             ? _selectedFields 
             : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
-            
+
+        // If Player Info section, aggregate to one row per player (most recent season)
+        List<Map<String, dynamic>> displayRows;
+        if (selectedGroupIndex == 0) { // Player Info
+          final Map<String, Map<String, dynamic>> playerMap = {};
+          for (final row in _rawRows) {
+            final id = row['receiver_player_id'] ?? row['receiver_player_name'];
+            if (id == null) continue;
+            if (!playerMap.containsKey(id) || (row['season'] ?? 0) > (playerMap[id]?['season'] ?? 0)) {
+              playerMap[id] = row;
+            }
+          }
+          displayRows = playerMap.values.toList();
+        } else {
+          displayRows = _rawRows;
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -905,7 +921,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                           tooltip: 'Sort by ${headerDisplayNames[header] ?? header}',
                         );
                       }).toList(),
-                      rows: _rawRows.asMap().entries.map((entry) {
+                      rows: displayRows.asMap().entries.map((entry) {
                         final int rowIndex = entry.key;
                         final Map<String, dynamic> rowMap = entry.value;
                         return DataRow(
