@@ -5,6 +5,7 @@ import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:mds_home/utils/team_logo_utils.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -75,8 +76,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
   
   // Main fields to show by default
   static const List<String> _defaultFields = [
-    'receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 
-    'seasonYards', 'wr_rank', 'numTD', 'numRec', 'points'
+    'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 'numRushTD', 'points'
   ];
   List<String> _selectedFields = List.from(_defaultFields);
 
@@ -90,6 +90,124 @@ class _WRModelScreenState extends State<WRModelScreen> {
 
   // Only allow the 'Equals' operator for WR Model Stats queries
   final List<QueryOperator> _allowedOperators = [QueryOperator.equals];
+
+  // Updated field groups for user-requested organization, with new advanced stats
+  static const List<Map<String, dynamic>> fieldGroups = [
+    {
+      'name': 'Player Info',
+      'fields': [
+        'receiver_player_name', 'position', 'posteam', 'college_name',
+        'height', 'weight', 'draft_number', 'draftround', 'entry_year',
+        'birth_date', 'forty', 'bench', 'vertical', 'broad_jump', 'cone', 'shuttle',
+        'college_conference', 'draft_club'
+      ]
+    },
+    {
+      'name': 'Basic Info',
+      'fields': [
+        'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 'numRushTD', 'points'
+      ]
+    },
+    {
+      'name': 'Advanced Stats',
+      'fields': [
+        'receiver_player_name', 'posteam', 'season', 'passOffenseTier', 'qbTier', 'runOffenseTier',
+        'targets', 'receptions', 'air_yards', 'total_yac', 'total_epa', 'avg_epa', 'aDOT', 'explosive_plays', 'explosive_rate',
+        'total_yards', 'yac_per_reception', 'first_downs', 'first_down_rate', 'actual_catch_rate', 'avg_cpoe', 'catch_rate_over_expected',
+        'explosive_yards', 'explosive_yards_share', 'red_zone_targets'
+      ]
+    },
+    {
+      'name': 'Custom',
+      'fields': []
+    }
+  ];
+
+  // Map for short, clear header display names
+  static const Map<String, String> headerDisplayNames = {
+    'receiver_player_name': 'Player',
+    'position': 'Pos',
+    'posteam': 'Team',
+    'college_name': 'College',
+    'height': 'Ht',
+    'weight': 'Wt',
+    'draft_number': 'Pick',
+    'draftround': 'Rnd',
+    'entry_year': 'Yr',
+    'birth_date': 'DOB',
+    'forty': '40yd',
+    'bench': 'Bench',
+    'vertical': 'Vert',
+    'broad_jump': 'BJump',
+    'cone': 'Cone',
+    'shuttle': 'Shut',
+    'college_conference': 'Conf',
+    'draft_club': 'DraftTm',
+    'season': 'Yr',
+    'numGames': 'G',
+    'wr_rank': 'WR Rank',
+    'playerYear': 'Exp',
+    'numRec': 'Rec',
+    'tgtShare': 'Tgt%',
+    'seasonYards': 'Yds',
+    'numTD': 'TD',
+    'seasonRushYards': 'Rush Yds',
+    'runShare': 'Rush%',
+    'numRushTD': 'Rush TD',
+    'points': 'Pts',
+    'passOffenseTier': 'Pass Tier',
+    'qbTier': 'QB-Tier',
+    'runOffenseTier': 'Rush Tier',
+    'targets': 'Tgt',
+    'receptions': 'Rec',
+    'air_yards': 'AirYds',
+    'total_yac': 'YAC',
+    'total_epa': 'EPA',
+    'avg_epa': 'EPA/Play',
+    'aDOT': 'aDOT',
+    'explosive_plays': 'Expl',
+    'explosive_rate': 'Expl%',
+    'total_yards': 'TotYds',
+    'yac_per_reception': 'YAC/Rec',
+    'first_downs': '1D',
+    'first_down_rate': '1D%',
+    'actual_catch_rate': 'Catch%',
+    'avg_cpoe': 'CPOE',
+    'catch_rate_over_expected': 'CROE',
+    'explosive_yards': 'ExplYds',
+    'explosive_yards_share': 'ExplYds%',
+    'red_zone_targets': 'RZ-Tgt',
+  };
+
+  // Helper to determine field type for query input
+  String getFieldType(String field) {
+    const Set<String> doubleFields = {
+      'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle'
+    };
+    const Set<String> intFields = {
+      'season', 'numGames', 'seasonYards', 'wr_rank', 'playerYear', 'passOffenseTier', 'qbTier', 'numTD', 'numRec',
+      'runOffenseTier', 'numRushTD', 'seasonRushYards', 'height', 'weight', 'draft_number', 'draftround', 'entry_year',
+      'bench', 'broad_jump'
+    };
+    if (field == 'birth_date') return 'date';
+    if (field == 'height') return 'height';
+    if (doubleFields.contains(field)) return 'double';
+    if (intFields.contains(field)) return 'int';
+    return 'string';
+  }
+
+  // All operators for query
+  final List<QueryOperator> _allOperators = [
+    QueryOperator.equals,
+    QueryOperator.notEquals,
+    QueryOperator.greaterThan,
+    QueryOperator.greaterThanOrEquals,
+    QueryOperator.lessThan,
+    QueryOperator.lessThanOrEquals,
+    QueryOperator.contains,
+    QueryOperator.startsWith,
+    QueryOperator.endsWith,
+  ];
 
   @override
   void initState() {
@@ -158,6 +276,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
           if (_rawRows.isNotEmpty) {
+            // Use all keys from the first row as headers
             _headers = _rawRows.first.keys.toList();
             if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
               _newQueryField = _headers[0];
@@ -241,7 +360,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
                           contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                         ),
                         onChanged: (value) {
-                          // Filter the displayed headers based on search input
                           setState(() {
                             // No need to change anything here, just trigger a rebuild
                           });
@@ -398,7 +516,11 @@ class _WRModelScreenState extends State<WRModelScreen> {
                             child: Text(header, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
                           )).toList(),
                           onChanged: (value) {
-                            setState(() => _newQueryField = value);
+                            setState(() {
+                              _newQueryField = value;
+                              _newQueryOperator = null;
+                              _newQueryValueController.clear();
+                            });
                           },
                           isExpanded: true,
                         ),
@@ -409,7 +531,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                         child: DropdownButtonFormField<QueryOperator>(
                           decoration: const InputDecoration(labelText: 'Operator', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
                           value: _newQueryOperator,
-                          items: _allowedOperators.map((op) => DropdownMenuItem(
+                          items: _allOperators.map((op) => DropdownMenuItem(
                             value: op,
                             child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 17)),
                           )).toList(),
@@ -422,10 +544,77 @@ class _WRModelScreenState extends State<WRModelScreen> {
                       const SizedBox(width: 6.0),
                       Expanded(
                         flex: 2,
-                        child: TextField(
-                          controller: _newQueryValueController,
-                          style: const TextStyle(fontSize: 17),
-                          decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                        child: Builder(
+                          builder: (context) {
+                            final fieldType = getFieldType(_newQueryField ?? '');
+                            if (fieldType == 'height') {
+                              // Height input as feet/inches
+                              final feetController = TextEditingController();
+                              final inchesController = TextEditingController();
+                              return Row(
+                                children: [
+                                  Flexible(
+                                    child: TextField(
+                                      controller: feetController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(labelText: 'ft', isDense: true),
+                                      onChanged: (val) {
+                                        _newQueryValueController.text = val.isEmpty ? '0' : val;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: TextField(
+                                      controller: inchesController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(labelText: 'in', isDense: true),
+                                      onChanged: (val) {
+                                        final feet = int.tryParse(feetController.text) ?? 0;
+                                        final inches = int.tryParse(val) ?? 0;
+                                        _newQueryValueController.text = (feet * 12 + inches).toString();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else if (fieldType == 'int' || fieldType == 'double') {
+                              return TextField(
+                                controller: _newQueryValueController,
+                                keyboardType: TextInputType.numberWithOptions(decimal: fieldType == 'double'),
+                                style: const TextStyle(fontSize: 17),
+                                decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                              );
+                            } else if (fieldType == 'date') {
+                              return InkWell(
+                                onTap: () async {
+                                  DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    _newQueryValueController.text = '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${(picked.year % 100).toString().padLeft(2, '0')}';
+                                    setState(() {});
+                                  }
+                                },
+                                child: IgnorePointer(
+                                  child: TextField(
+                                    controller: _newQueryValueController,
+                                    style: const TextStyle(fontSize: 17),
+                                    decoration: const InputDecoration(labelText: 'MM/DD/YY', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return TextField(
+                                controller: _newQueryValueController,
+                                style: const TextStyle(fontSize: 17),
+                                decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                              );
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: 6.0),
@@ -500,35 +689,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
   Widget _buildDataTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
       return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.', style: TextStyle(fontSize: 16)));
-    }
-
-    // Define common field groupings with descriptive tab names
-    final List<Map<String, dynamic>> fieldGroups = [
-      {
-        'name': 'Overview',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 'numRec', 'seasonYards', 'numTD', 'points', 'wr_rank']
-      },
-      {
-        'name': 'Targets & Receptions',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgt', 'tgtShare', 'numRec', 'recYdsShare', 'rec_per_game', 'avg_depth', 'aDOT']
-      },
-      {
-        'name': 'Production',  
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'seasonYards', 'ydsPerRec', 'ydsPerTgt', 'yards_per_game', 'numTD', 'points']
-      },
-      {
-        'name': 'Advanced',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'WOPR', 'RACR', 'aDOT', 'YPRR', 'aYPRR', 'aFP', 'points']
-      },
-      {
-        'name': 'Custom',
-        'fields': _selectedFields
-      },
-    ];
-
-    // Filter field groups to include only available fields
-    for (var group in fieldGroups.where((g) => g['name'] != 'Custom')) {
-      group['fields'] = (group['fields'] as List<String>).where((field) => _headers.contains(field)).toList();
     }
 
     // Calculate percentiles for numeric columns that need shading
@@ -613,63 +773,65 @@ class _WRModelScreenState extends State<WRModelScreen> {
     // Track the currently selected field group
     int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
     
+    // Double fields for display (all others are int)
+    final Set<String> doubleFields = {
+      'tgtShare', 'runShare', 'explosive_rate', 'yac_per_reception', 'avg_epa', 'total_epa', 'avg_cpoe', 'catch_rate_over_expected',
+      'forty', 'vertical', 'broad_jump', 'cone', 'shuttle', 'explosive_yards_share', 'first_down_rate', 'actual_catch_rate',
+      'EPA', 'EPA/Play', 'YAC/Rec', 'CPOE', 'CROE', '1D%', 'Catch%'
+    };
+
     return StatefulBuilder(
       builder: (context, setState) {
         // Get the current fields to display based on the selected group
         List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
             ? _selectedFields 
             : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
-            
+
+        // If Player Info section, aggregate to one row per player (most recent season)
+        List<Map<String, dynamic>> displayRows;
+        if (selectedGroupIndex == 0) { // Player Info
+          final Map<String, Map<String, dynamic>> playerMap = {};
+          for (final row in _rawRows) {
+            final id = row['receiver_player_id'] ?? row['receiver_player_name'];
+            if (id == null) continue;
+            if (!playerMap.containsKey(id) || (row['season'] ?? 0) > (playerMap[id]?['season'] ?? 0)) {
+              playerMap[id] = row;
+            }
+          }
+          displayRows = playerMap.values.toList();
+        } else {
+          displayRows = _rawRows;
+        }
+
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Field group tabs
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                children: fieldGroups.asMap().entries.map((entry) {
-                  final int idx = entry.key;
-                  final String name = entry.value['name'];
-                  final bool isSelected = idx == selectedGroupIndex;
-                  
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(fieldGroups.length, (index) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          selectedGroupIndex = idx;
-                          // If not the custom tab, update the displayed fields
-                          if (idx != fieldGroups.length - 1) {
-                            // No need to update _selectedFields here, just changing the view
-                          }
-                        });
+                    child: ChoiceChip(
+                      label: Text(fieldGroups[index]['name']),
+                      selected: selectedGroupIndex == index,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            selectedGroupIndex = index;
+                            if (index != fieldGroups.length - 1) {
+                              _selectedFields = List<String>.from(fieldGroups[index]['fields']);
+                            }
+                          });
+                        }
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade200,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8.0),
-                            topRight: Radius.circular(8.0),
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ),
                     ),
                   );
-                }).toList(),
+                }),
               ),
             ),
-            
+            const SizedBox(height: 8),
             // Row with action buttons
             Padding(
               padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
@@ -739,7 +901,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(header),
+                                Text(headerDisplayNames[header] ?? header),
                                 if (_sortColumn == header)
                                   Icon(
                                     _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
@@ -756,10 +918,10 @@ class _WRModelScreenState extends State<WRModelScreen> {
                               _applyFiltersAndFetch();
                             });
                           },
-                          tooltip: 'Sort by $header',
+                          tooltip: 'Sort by ${headerDisplayNames[header] ?? header}',
                         );
                       }).toList(),
-                      rows: _rawRows.asMap().entries.map((entry) {
+                      rows: displayRows.asMap().entries.map((entry) {
                         final int rowIndex = entry.key;
                         final Map<String, dynamic> rowMap = entry.value;
                         return DataRow(
@@ -812,6 +974,48 @@ class _WRModelScreenState extends State<WRModelScreen> {
                               }
                             }
                             
+                            // Custom formatting for certain fields
+                            if (value != null) {
+                              // Format birth_date as MM/DD/YY
+                              if (header == 'birth_date') {
+                                DateTime? date;
+                                if (value is String) {
+                                  date = DateTime.tryParse(value);
+                                } else if (value is DateTime) {
+                                  date = value;
+                                } else if (value is Map && value['_seconds'] != null) {
+                                  // Firestore Timestamp as map
+                                  date = DateTime.fromMillisecondsSinceEpoch(value['_seconds'] * 1000);
+                                }
+                                if (date != null) {
+                                  displayValue = '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${(date.year % 100).toString().padLeft(2, '0')}';
+                                } else {
+                                  displayValue = value.toString();
+                                }
+                              }
+                              // Format height as feet/inches
+                              else if (header == 'height') {
+                                int inches = value is int ? value : int.tryParse(value.toString()) ?? 0;
+                                int feet = inches ~/ 12;
+                                int remInches = inches % 12;
+                                displayValue = inches > 0 ? "$feet'$remInches\"" : 'N/A';
+                              }
+                              // Format double fields (max 2 decimal places)
+                              else if (doubleFields.contains(header)) {
+                                double dval = value is double ? value : double.tryParse(value.toString()) ?? 0.0;
+                                displayValue = dval.toStringAsFixed(2);
+                              }
+                              // Format all other numeric fields as int (no decimals)
+                              else if (value is num) {
+                                int ival = value is int ? value : int.tryParse(value.toString()) ?? value.toInt();
+                                displayValue = ival.toString();
+                              }
+                              // Default string
+                              else {
+                                displayValue = value.toString();
+                              }
+                            }
+                            
                             return DataCell(
                               Container(
                                 // Fill the entire cell
@@ -820,10 +1024,25 @@ class _WRModelScreenState extends State<WRModelScreen> {
                                 color: cellBackgroundColor,
                                 alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
                                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                child: Text(
-                                  displayValue,
-                                  style: cellStyle,
-                                ),
+                                child: header == 'posteam' 
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TeamLogoUtils.buildNFLTeamLogo(
+                                          value.toString(),
+                                          size: 24.0,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          displayValue,
+                                          style: cellStyle,
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      displayValue,
+                                      style: cellStyle,
+                                    ),
                               ),
                               // Allow sorting on this column
                               onTap: () {

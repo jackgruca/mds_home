@@ -27,6 +27,8 @@ import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'screens/fantasy/big_board_screen.dart';
+import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
+import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
 
 // Secret tap counter for admin access
 
@@ -138,6 +140,12 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
               case '/draft':
                 return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+              case '/draft/fantasy':
+                return MaterialPageRoute(builder: (_) => const FFHomeScreen());
+              case '/ff-draft':
+                return MaterialPageRoute(builder: (_) => const FFHomeScreen());
+              case '/ff-draft/setup':
+                return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
                 return MaterialPageRoute(builder: (_) => DataExplorerScreen());
               case '/betting':
