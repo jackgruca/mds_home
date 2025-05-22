@@ -123,6 +123,62 @@ class _WRModelScreenState extends State<WRModelScreen> {
     }
   ];
 
+  // Map for short, clear header display names
+  static const Map<String, String> headerDisplayNames = {
+    'receiver_player_name': 'Player',
+    'position': 'Pos',
+    'posteam': 'Team',
+    'college_name': 'College',
+    'height': 'Ht',
+    'weight': 'Wt',
+    'draft_number': 'Pick',
+    'draftround': 'Rnd',
+    'entry_year': 'Yr',
+    'birth_date': 'DOB',
+    'forty': '40yd',
+    'bench': 'Bench',
+    'vertical': 'Vert',
+    'broad_jump': 'BJump',
+    'cone': 'Cone',
+    'shuttle': 'Shut',
+    'college_conference': 'Conf',
+    'draft_club': 'DraftTm',
+    'season': 'Yr',
+    'numGames': 'G',
+    'wr_rank': 'WR Rank',
+    'playerYear': 'Exp',
+    'numRec': 'Rec',
+    'tgtShare': 'Tgt%',
+    'seasonYards': 'Yds',
+    'numTD': 'TD',
+    'seasonRushYards': 'Rush Yds',
+    'runShare': 'Rush%',
+    'numRushTD': 'Rush TD',
+    'points': 'Pts',
+    'passOffenseTier': 'Pass Tier',
+    'qbTier': 'QB-Tier',
+    'runOffenseTier': 'Rush Tier',
+    'targets': 'Tgt',
+    'receptions': 'Rec',
+    'air_yards': 'AirYds',
+    'total_yac': 'YAC',
+    'total_epa': 'EPA',
+    'avg_epa': 'EPA/Play',
+    'aDOT': 'aDOT',
+    'explosive_plays': 'Expl',
+    'explosive_rate': 'Expl%',
+    'total_yards': 'TotYds',
+    'yac_per_reception': 'YAC/Rec',
+    'first_downs': '1D',
+    'first_down_rate': '1D%',
+    'actual_catch_rate': 'Catch%',
+    'avg_cpoe': 'CPOE',
+    'catch_rate_over_expected': 'CROE',
+    'explosive_yards': 'ExplYds',
+    'explosive_yards_share': 'ExplYds%',
+    'red_zone_targets': 'RZ-Tgt',
+  };
+
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> doubleFields = {
@@ -717,15 +773,11 @@ class _WRModelScreenState extends State<WRModelScreen> {
     // Track the currently selected field group
     int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
     
-    // Double fields for display
+    // Double fields for display (all others are int)
     final Set<String> doubleFields = {
-      'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle'
-    };
-    // Int fields for display
-    final Set<String> intFields = {
-      'season', 'numGames', 'seasonYards', 'wr_rank', 'playerYear', 'passOffenseTier', 'qbTier', 'numTD', 'numRec',
-      'runOffenseTier', 'numRushTD', 'seasonRushYards', 'height', 'weight', 'draft_number', 'draftround', 'entry_year',
-      'bench', 'broad_jump'
+      'tgtShare', 'runShare', 'explosive_rate', 'yac_per_reception', 'avg_epa', 'total_epa', 'avg_cpoe', 'catch_rate_over_expected',
+      'forty', 'vertical', 'broad_jump', 'cone', 'shuttle', 'explosive_yards_share', 'first_down_rate', 'actual_catch_rate',
+      'EPA', 'EPA/Play', 'YAC/Rec', 'CPOE', 'CROE', '1D%', 'Catch%'
     };
 
     return StatefulBuilder(
@@ -833,7 +885,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(header),
+                                Text(headerDisplayNames[header] ?? header),
                                 if (_sortColumn == header)
                                   Icon(
                                     _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
@@ -850,7 +902,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                               _applyFiltersAndFetch();
                             });
                           },
-                          tooltip: 'Sort by $header',
+                          tooltip: 'Sort by ${headerDisplayNames[header] ?? header}',
                         );
                       }).toList(),
                       rows: _rawRows.asMap().entries.map((entry) {
@@ -932,14 +984,14 @@ class _WRModelScreenState extends State<WRModelScreen> {
                                 int remInches = inches % 12;
                                 displayValue = inches > 0 ? "$feet'$remInches\"" : 'N/A';
                               }
-                              // Format double fields
+                              // Format double fields (max 2 decimal places)
                               else if (doubleFields.contains(header)) {
                                 double dval = value is double ? value : double.tryParse(value.toString()) ?? 0.0;
                                 displayValue = dval.toStringAsFixed(2);
                               }
-                              // Format int fields
-                              else if (intFields.contains(header)) {
-                                int ival = value is int ? value : int.tryParse(value.toString()) ?? 0;
+                              // Format all other numeric fields as int (no decimals)
+                              else if (value is num) {
+                                int ival = value is int ? value : int.tryParse(value.toString()) ?? value.toInt();
                                 displayValue = ival.toString();
                               }
                               // Default string
