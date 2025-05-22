@@ -91,7 +91,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
   // Only allow the 'Equals' operator for WR Model Stats queries
   final List<QueryOperator> _allowedOperators = [QueryOperator.equals];
 
-  // Updated field groups for user-requested organization
+  // Updated field groups for user-requested organization, with new advanced stats
   static const List<Map<String, dynamic>> fieldGroups = [
     {
       'name': 'Player Info',
@@ -111,13 +111,46 @@ class _WRModelScreenState extends State<WRModelScreen> {
     {
       'name': 'Advanced Stats',
       'fields': [
-        'receiver_player_name', 'posteam', 'season', 'passOffenseTier', 'qbTier', 'runOffenseTier'
+        'receiver_player_name', 'posteam', 'season', 'passOffenseTier', 'qbTier', 'runOffenseTier',
+        'targets', 'receptions', 'air_yards', 'total_yac', 'total_epa', 'avg_epa', 'aDOT', 'explosive_plays', 'explosive_rate',
+        'total_yards', 'yac_per_reception', 'first_downs', 'first_down_rate', 'actual_catch_rate', 'avg_cpoe', 'catch_rate_over_expected',
+        'explosive_yards', 'explosive_yards_share', 'red_zone_targets'
       ]
     },
     {
       'name': 'Custom',
       'fields': []
     }
+  ];
+
+  // Helper to determine field type for query input
+  String getFieldType(String field) {
+    const Set<String> doubleFields = {
+      'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle'
+    };
+    const Set<String> intFields = {
+      'season', 'numGames', 'seasonYards', 'wr_rank', 'playerYear', 'passOffenseTier', 'qbTier', 'numTD', 'numRec',
+      'runOffenseTier', 'numRushTD', 'seasonRushYards', 'height', 'weight', 'draft_number', 'draftround', 'entry_year',
+      'bench', 'broad_jump'
+    };
+    if (field == 'birth_date') return 'date';
+    if (field == 'height') return 'height';
+    if (doubleFields.contains(field)) return 'double';
+    if (intFields.contains(field)) return 'int';
+    return 'string';
+  }
+
+  // All operators for query
+  final List<QueryOperator> _allOperators = [
+    QueryOperator.equals,
+    QueryOperator.notEquals,
+    QueryOperator.greaterThan,
+    QueryOperator.greaterThanOrEquals,
+    QueryOperator.lessThan,
+    QueryOperator.lessThanOrEquals,
+    QueryOperator.contains,
+    QueryOperator.startsWith,
+    QueryOperator.endsWith,
   ];
 
   @override
@@ -427,7 +460,11 @@ class _WRModelScreenState extends State<WRModelScreen> {
                             child: Text(header, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
                           )).toList(),
                           onChanged: (value) {
-                            setState(() => _newQueryField = value);
+                            setState(() {
+                              _newQueryField = value;
+                              _newQueryOperator = null;
+                              _newQueryValueController.clear();
+                            });
                           },
                           isExpanded: true,
                         ),
@@ -438,7 +475,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                         child: DropdownButtonFormField<QueryOperator>(
                           decoration: const InputDecoration(labelText: 'Operator', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
                           value: _newQueryOperator,
-                          items: _allowedOperators.map((op) => DropdownMenuItem(
+                          items: _allOperators.map((op) => DropdownMenuItem(
                             value: op,
                             child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 17)),
                           )).toList(),
@@ -451,10 +488,77 @@ class _WRModelScreenState extends State<WRModelScreen> {
                       const SizedBox(width: 6.0),
                       Expanded(
                         flex: 2,
-                        child: TextField(
-                          controller: _newQueryValueController,
-                          style: const TextStyle(fontSize: 17),
-                          decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                        child: Builder(
+                          builder: (context) {
+                            final fieldType = getFieldType(_newQueryField ?? '');
+                            if (fieldType == 'height') {
+                              // Height input as feet/inches
+                              final feetController = TextEditingController();
+                              final inchesController = TextEditingController();
+                              return Row(
+                                children: [
+                                  Flexible(
+                                    child: TextField(
+                                      controller: feetController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(labelText: 'ft', isDense: true),
+                                      onChanged: (val) {
+                                        _newQueryValueController.text = val.isEmpty ? '0' : val;
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: TextField(
+                                      controller: inchesController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(labelText: 'in', isDense: true),
+                                      onChanged: (val) {
+                                        final feet = int.tryParse(feetController.text) ?? 0;
+                                        final inches = int.tryParse(val) ?? 0;
+                                        _newQueryValueController.text = (feet * 12 + inches).toString();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else if (fieldType == 'int' || fieldType == 'double') {
+                              return TextField(
+                                controller: _newQueryValueController,
+                                keyboardType: TextInputType.numberWithOptions(decimal: fieldType == 'double'),
+                                style: const TextStyle(fontSize: 17),
+                                decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                              );
+                            } else if (fieldType == 'date') {
+                              return InkWell(
+                                onTap: () async {
+                                  DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    _newQueryValueController.text = '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${(picked.year % 100).toString().padLeft(2, '0')}';
+                                    setState(() {});
+                                  }
+                                },
+                                child: IgnorePointer(
+                                  child: TextField(
+                                    controller: _newQueryValueController,
+                                    style: const TextStyle(fontSize: 17),
+                                    decoration: const InputDecoration(labelText: 'MM/DD/YY', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return TextField(
+                                controller: _newQueryValueController,
+                                style: const TextStyle(fontSize: 17),
+                                decoration: const InputDecoration(labelText: 'Value', contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8), isDense: true, labelStyle: TextStyle(fontSize: 17)),
+                              );
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: 6.0),

@@ -22,11 +22,12 @@ function parseValue(key, value) {
   const intFields = [
     'season', 'numGames', 'seasonYards', 'wr_rank', 'playerYear', 'passOffenseTier', 'qbTier', 'numTD', 'numRec',
     'runOffenseTier', 'numRushTD', 'seasonRushYards', 'height', 'weight', 'draft_number', 'draftround', 'entry_year',
-    'bench', 'broad_jump'
+    'bench', 'broad_jump', 'targets', 'receptions', 'air_yards', 'total_yac', 'total_epa', 'explosive_plays', 'total_yards', 'first_downs', 'red_zone_targets'
   ];
   // Float fields
   const floatFields = [
-    'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle'
+    'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle',
+    'avg_epa', 'aDOT', 'explosive_rate', 'yac_per_reception', 'avg_cpoe', 'catch_rate_over_expected', 'explosive_yards_share'
   ];
   if (intFields.includes(key)) {
     const intVal = parseInt(value, 10);
