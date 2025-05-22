@@ -76,8 +76,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
   
   // Main fields to show by default
   static const List<String> _defaultFields = [
-    'receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 
-    'seasonYards', 'wr_rank', 'numTD', 'numRec', 'points'
+    'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 'numRushTD', 'points'
   ];
   List<String> _selectedFields = List.from(_defaultFields);
 
@@ -91,6 +90,35 @@ class _WRModelScreenState extends State<WRModelScreen> {
 
   // Only allow the 'Equals' operator for WR Model Stats queries
   final List<QueryOperator> _allowedOperators = [QueryOperator.equals];
+
+  // Updated field groups for user-requested organization
+  static const List<Map<String, dynamic>> fieldGroups = [
+    {
+      'name': 'Player Info',
+      'fields': [
+        'receiver_player_name', 'position', 'posteam', 'college_name',
+        'height', 'weight', 'draft_number', 'draftround', 'entry_year',
+        'birth_date', 'forty', 'bench', 'vertical', 'broad_jump', 'cone', 'shuttle',
+        'college_conference', 'draft_club'
+      ]
+    },
+    {
+      'name': 'Basic Info',
+      'fields': [
+        'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 'numRushTD', 'points'
+      ]
+    },
+    {
+      'name': 'Advanced Stats',
+      'fields': [
+        'receiver_player_name', 'posteam', 'season', 'passOffenseTier', 'qbTier', 'runOffenseTier'
+      ]
+    },
+    {
+      'name': 'Custom',
+      'fields': []
+    }
+  ];
 
   @override
   void initState() {
@@ -159,6 +187,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
           if (_rawRows.isNotEmpty) {
+            // Use all keys from the first row as headers
             _headers = _rawRows.first.keys.toList();
             if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
               _newQueryField = _headers[0];
@@ -242,7 +271,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
                           contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                         ),
                         onChanged: (value) {
-                          // Filter the displayed headers based on search input
                           setState(() {
                             // No need to change anything here, just trigger a rebuild
                           });
@@ -503,35 +531,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
       return const Center(child: Text('No WR data found. Try adjusting your filters or check the database.', style: TextStyle(fontSize: 16)));
     }
 
-    // Define common field groupings with descriptive tab names
-    final List<Map<String, dynamic>> fieldGroups = [
-      {
-        'name': 'Overview',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgtShare', 'numRec', 'seasonYards', 'numTD', 'points', 'wr_rank']
-      },
-      {
-        'name': 'Targets & Receptions',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'tgt', 'tgtShare', 'numRec', 'recYdsShare', 'rec_per_game', 'avg_depth', 'aDOT']
-      },
-      {
-        'name': 'Production',  
-        'fields': ['receiver_player_name', 'posteam', 'season', 'numGames', 'seasonYards', 'ydsPerRec', 'ydsPerTgt', 'yards_per_game', 'numTD', 'points']
-      },
-      {
-        'name': 'Advanced',
-        'fields': ['receiver_player_name', 'posteam', 'season', 'WOPR', 'RACR', 'aDOT', 'YPRR', 'aYPRR', 'aFP', 'points']
-      },
-      {
-        'name': 'Custom',
-        'fields': _selectedFields
-      },
-    ];
-
-    // Filter field groups to include only available fields
-    for (var group in fieldGroups.where((g) => g['name'] != 'Custom')) {
-      group['fields'] = (group['fields'] as List<String>).where((field) => _headers.contains(field)).toList();
-    }
-
     // Calculate percentiles for numeric columns that need shading
     Map<String, Map<dynamic, double>> columnPercentiles = {};
     
@@ -614,6 +613,17 @@ class _WRModelScreenState extends State<WRModelScreen> {
     // Track the currently selected field group
     int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
     
+    // Double fields for display
+    final Set<String> doubleFields = {
+      'tgtShare', 'runShare', 'points', 'forty', 'vertical', 'cone', 'shuttle'
+    };
+    // Int fields for display
+    final Set<String> intFields = {
+      'season', 'numGames', 'seasonYards', 'wr_rank', 'playerYear', 'passOffenseTier', 'qbTier', 'numTD', 'numRec',
+      'runOffenseTier', 'numRushTD', 'seasonRushYards', 'height', 'weight', 'draft_number', 'draftround', 'entry_year',
+      'bench', 'broad_jump'
+    };
+
     return StatefulBuilder(
       builder: (context, setState) {
         // Get the current fields to display based on the selected group
@@ -622,55 +632,34 @@ class _WRModelScreenState extends State<WRModelScreen> {
             : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
             
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch children to fill width
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Field group tabs
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                children: fieldGroups.asMap().entries.map((entry) {
-                  final int idx = entry.key;
-                  final String name = entry.value['name'];
-                  final bool isSelected = idx == selectedGroupIndex;
-                  
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(fieldGroups.length, (index) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          selectedGroupIndex = idx;
-                          // If not the custom tab, update the displayed fields
-                          if (idx != fieldGroups.length - 1) {
-                            // No need to update _selectedFields here, just changing the view
-                          }
-                        });
+                    child: ChoiceChip(
+                      label: Text(fieldGroups[index]['name']),
+                      selected: selectedGroupIndex == index,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            selectedGroupIndex = index;
+                            if (index != fieldGroups.length - 1) {
+                              _selectedFields = List<String>.from(fieldGroups[index]['fields']);
+                            }
+                          });
+                        }
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade200,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8.0),
-                            topRight: Radius.circular(8.0),
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ),
                     ),
                   );
-                }).toList(),
+                }),
               ),
             ),
-            
+            const SizedBox(height: 8),
             // Row with action buttons
             Padding(
               padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
@@ -813,6 +802,48 @@ class _WRModelScreenState extends State<WRModelScreen> {
                               }
                             }
                             
+                            // Custom formatting for certain fields
+                            if (value != null) {
+                              // Format birth_date as MM/DD/YY
+                              if (header == 'birth_date') {
+                                DateTime? date;
+                                if (value is String) {
+                                  date = DateTime.tryParse(value);
+                                } else if (value is DateTime) {
+                                  date = value;
+                                } else if (value is Map && value['_seconds'] != null) {
+                                  // Firestore Timestamp as map
+                                  date = DateTime.fromMillisecondsSinceEpoch(value['_seconds'] * 1000);
+                                }
+                                if (date != null) {
+                                  displayValue = '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${(date.year % 100).toString().padLeft(2, '0')}';
+                                } else {
+                                  displayValue = value.toString();
+                                }
+                              }
+                              // Format height as feet/inches
+                              else if (header == 'height') {
+                                int inches = value is int ? value : int.tryParse(value.toString()) ?? 0;
+                                int feet = inches ~/ 12;
+                                int remInches = inches % 12;
+                                displayValue = inches > 0 ? "$feet'$remInches\"" : 'N/A';
+                              }
+                              // Format double fields
+                              else if (doubleFields.contains(header)) {
+                                double dval = value is double ? value : double.tryParse(value.toString()) ?? 0.0;
+                                displayValue = dval.toStringAsFixed(2);
+                              }
+                              // Format int fields
+                              else if (intFields.contains(header)) {
+                                int ival = value is int ? value : int.tryParse(value.toString()) ?? 0;
+                                displayValue = ival.toString();
+                              }
+                              // Default string
+                              else {
+                                displayValue = value.toString();
+                              }
+                            }
+                            
                             return DataCell(
                               Container(
                                 // Fill the entire cell
@@ -831,7 +862,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          value.toString(),
+                                          displayValue,
                                           style: cellStyle,
                                         ),
                                       ],
