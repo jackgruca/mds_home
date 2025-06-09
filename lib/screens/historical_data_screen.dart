@@ -224,12 +224,27 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       if (mounted) {
         setState(() {
           String displayError = 'Error fetching data:\nCode: ${e.code}\nMessage: ${e.message}\nDetails: ${e.details}';
-          if (e.code == 'failed-precondition') {
-            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
+          String userFacingMessage = 'An unexpected error occurred.';
+
+          if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
+            final Map<String, dynamic> details = e.details as Map<String, dynamic>;
+            final String? indexUrl = (details['originalError']?.toString() ?? '').contains('composite=')
+                ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
+                : null;
+            
+            if (indexUrl != null && indexUrl.isNotEmpty) {
+              userFacingMessage = 'This advanced query requires a special setup for optimal performance. We\'ve logged this request and will build the necessary index to make it faster for everyone. Please try again in a few minutes, or try a simpler query.';
+              // Log the index request to Firestore via Cloud Function
+              _logIndexRequestToFirestore(indexUrl, 'HistoricalDataScreen');
+            } else {
+              userFacingMessage = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs.';
+            }
+            displayError = '$userFacingMessage\nDetails: ${e.message}';
           } else if (e.message != null && e.message!.toLowerCase().contains('index')){
-            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
+            userFacingMessage = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
+            displayError = userFacingMessage;
           }
-           _error = displayError;
+          _error = displayError;
           _isLoading = false;
         });
       }
@@ -1285,5 +1300,24 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
         );
       }
     );
+  }
+
+  // Method to log index requests to Firestore via Cloud Function
+  Future<void> _logIndexRequestToFirestore(String indexUrl, String screen) async {
+    try {
+      final HttpsCallable callable = functions.httpsCallable('logIndexRequest');
+      await callable.call({
+        'indexUrl': indexUrl,
+        'queryDetails': {
+          'filters': _queryConditions.map((c) => {'field': c.field, 'operator': c.operator.toString(), 'value': c.value}).toList(),
+          'orderBy': _sortColumn,
+          'orderDirection': _sortAscending ? 'asc' : 'desc',
+        },
+        'screen': screen,
+      });
+      print('Index request successfully logged to Firestore.');
+    } catch (e) {
+      print('Error calling logIndexRequest Cloud Function: $e');
+    }
   }
 } 

@@ -1231,3 +1231,37 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
     );
   }
 });
+
+// New Callable Function to log index requests from the client
+exports.logIndexRequest = functions.https.onCall(async (data, context) => {
+  // Optional: Authenticate context. If you only want logged-in users to trigger requests,
+  // if (!context.auth) {
+  //   throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  // }
+
+  const db = admin.firestore();
+  const indexUrl = data.indexUrl; // The pre-generated URL from Firestore error
+  const queryDetails = data.queryDetails; // Filter and sort parameters
+  const screen = data.screen; // e.g., HistoricalData, WRModel
+  const userId = context.auth ? context.auth.uid : 'anonymous';
+
+  if (!indexUrl || !queryDetails) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing indexUrl or queryDetails.');
+  }
+
+  try {
+    await db.collection('admin_index_requests').add({
+      indexUrl: indexUrl,
+      queryDetails: queryDetails,
+      screen: screen,
+      userId: userId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'pending', // pending, created, dismissed
+    });
+    console.log(`New index request logged for user ${userId} on screen ${screen}.`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error logging index request:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to log index request.', error.message);
+  }
+});
