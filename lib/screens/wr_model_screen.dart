@@ -61,13 +61,20 @@ class _WRModelScreenState extends State<WRModelScreen> {
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
   int _totalRecords = 0;
-  List<Map<String, dynamic>>? _wrCacheAll; // Cache for unfiltered WR data
+  List<Map<String, dynamic>>? _wrCacheAll; // No longer used for full caching, but keeping for now if needed for future viz
   bool _isCacheLoading = false; // Track cache loading state
   
   // Pagination state
   int _currentPage = 0;
   static const int _rowsPerPage = 25;
+  List<dynamic> _pageCursors = [null]; // Stores cursors for each page
+  dynamic _nextCursor; // Cursor for the next page, received from backend
   
+  // For preloading next pages
+  final Map<int, List<Map<String, dynamic>>> _preloadedPages = {};
+  final Map<int, dynamic> _preloadedCursors = {};
+  static const int _pagesToPreload = 2; // How many pages to preload ahead
+
   // Sort state
   String _sortColumn = 'points';
   bool _sortAscending = false;
@@ -89,7 +96,7 @@ class _WRModelScreenState extends State<WRModelScreen> {
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
   // Only allow the 'Equals' operator for WR Model Stats queries
-  final List<QueryOperator> _allowedOperators = [QueryOperator.equals];
+  final List<QueryOperator> _allowedOperators = [QueryOperator.equals]; // Will remove this if allowing all operators
 
   // Updated field groups for user-requested organization, with new advanced stats
   static const List<Map<String, dynamic>> fieldGroups = [
@@ -225,58 +232,54 @@ class _WRModelScreenState extends State<WRModelScreen> {
   }
 
   Future<void> _fetchDataFromFirebase() async {
-    // If no filters, use cache if available
-    final bool noFilters = _queryConditions.isEmpty;
-    if (noFilters && _wrCacheAll != null) {
-      print('[WRCache] Using cached unfiltered data.');
+    // Check if the requested page is already preloaded
+    if (_preloadedPages.containsKey(_currentPage)) {
+      print('[Preload] Using preloaded data for page $_currentPage');
       setState(() {
-        _rawRows = List<Map<String, dynamic>>.from(_wrCacheAll!);
-        _totalRecords = _wrCacheAll!.length;
+        _rawRows = _preloadedPages[_currentPage]!;
+        _nextCursor = _preloadedCursors[_currentPage];
+        // Clear this page from preloaded cache as it's now the current page
+        _preloadedPages.remove(_currentPage);
+        _preloadedCursors.remove(_currentPage);
         _isLoading = false;
       });
+      // Start preloading the next set of pages after this one is displayed
+      _startPreloadingNextPages();
       return;
     }
-    if (noFilters && _wrCacheAll == null) {
-      print('[WRCache] Building cache for unfiltered data...');
-    }
+
     setState(() {
       _isLoading = true;
       _error = null;
-      if (noFilters && _wrCacheAll == null) _isCacheLoading = true;
     });
+
     Map<String, dynamic> filtersForFunction = {};
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
+
+    // Determine the cursor for the current page
+    final dynamic currentCursor = _currentPage > 0 ? _pageCursors[_currentPage] : null;
+
     try {
       final HttpsCallable callable = functions.httpsCallable('getWrModelStats');
       final result = await callable.call<Map<String, dynamic>>({
         'filters': filtersForFunction,
         'limit': _rowsPerPage,
-        'offset': _currentPage * _rowsPerPage,
         'orderBy': _sortColumn,
         'orderDirection': _sortAscending ? 'asc' : 'desc',
+        'cursor': currentCursor, // Pass the current page's cursor
       });
-      // For unfiltered, also fetch and cache the full set (up to 5000 rows)
-      if (noFilters && _wrCacheAll == null) {
-        final fullResult = await callable.call<Map<String, dynamic>>({
-          'filters': {},
-          'limit': 5000,
-          'offset': 0,
-          'orderBy': _sortColumn,
-          'orderDirection': _sortAscending ? 'asc' : 'desc',
-        });
-        final List<dynamic> fullData = fullResult.data['data'] ?? [];
-        _wrCacheAll = fullData.map((item) => Map<String, dynamic>.from(item)).toList();
-        _isCacheLoading = false;
-      }
+
       if (mounted) {
         setState(() {
           final List<dynamic> data = result.data['data'] ?? [];
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
+          _nextCursor = result.data['nextCursor']; // Get the cursor for the next page
+          debugPrint('Next cursor received from Firebase: $_nextCursor');
+
           if (_rawRows.isNotEmpty) {
-            // Use all keys from the first row as headers
             _headers = _rawRows.first.keys.toList();
             if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
               _newQueryField = _headers[0];
@@ -287,25 +290,26 @@ class _WRModelScreenState extends State<WRModelScreen> {
             }
           }
           _isLoading = false;
-          _isCacheLoading = false;
         });
       }
+      // Start preloading the next set of pages after this one is displayed
+      _startPreloadingNextPages();
+
     } on FirebaseFunctionsException catch (e) {
       print('FirebaseFunctionsException caught in Flutter client:');
-      print('Code: \\${e.code}');
-      print('Message: \\${e.message}');
-      print('Details: \\${e.details}');
+      print('Code: ${e.code}');
+      print('Message: ${e.message}');
+      print('Details: ${e.details}');
       if (mounted) {
         setState(() {
-          String displayError = 'Error fetching data: \\nCode: \\${e.code}\nMessage: \\${e.message}\nDetails: \\${e.details}';
+          String displayError = 'Error fetching data:\nCode: ${e.code}\nMessage: ${e.message}\nDetails: ${e.details}';
           if (e.code == 'failed-precondition') {
-            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: \\${e.message}';
+            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
           } else if (e.message != null && e.message!.toLowerCase().contains('index')){
-            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: \\${e.message}';
+            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
           }
           _error = displayError;
           _isLoading = false;
-          _isCacheLoading = false;
         });
       }
     } catch (e, stack) {
@@ -315,22 +319,76 @@ class _WRModelScreenState extends State<WRModelScreen> {
         setState(() {
           _error = 'An unexpected error occurred on the client: $e\n$stack';
           _isLoading = false;
-          _isCacheLoading = false;
         });
+      }
+    }
+  }
+
+  // Function to preload subsequent pages
+  Future<void> _startPreloadingNextPages() async {
+    if (_nextCursor == null) {
+      // No more pages to preload from current position
+      return;
+    }
+
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
+
+    dynamic currentPreloadCursor = _nextCursor; // Start preloading from the next page's cursor
+    int preloadPageIndex = _currentPage + 1;
+
+    for (int i = 0; i < _pagesToPreload; i++) {
+      if (currentPreloadCursor == null) {
+        break; // No more pages to preload
+      }
+
+      if (_preloadedPages.containsKey(preloadPageIndex)) {
+        // Skip if this page is already preloaded
+        currentPreloadCursor = _preloadedCursors[preloadPageIndex];
+        preloadPageIndex++;
+        continue;
+      }
+
+      try {
+        final HttpsCallable callable = functions.httpsCallable('getWrModelStats');
+        final result = await callable.call<Map<String, dynamic>>({
+          'filters': filtersForFunction,
+          'limit': _rowsPerPage,
+          'orderBy': _sortColumn,
+          'orderDirection': _sortAscending ? 'asc' : 'desc',
+          'cursor': currentPreloadCursor,
+        });
+
+        final List<dynamic> data = result.data['data'] ?? [];
+        final dynamic receivedNextCursor = result.data['nextCursor'];
+
+        if (data.isNotEmpty) {
+          if (mounted) {
+            _preloadedPages[preloadPageIndex] = data.map((item) => Map<String, dynamic>.from(item)).toList();
+            _preloadedCursors[preloadPageIndex] = receivedNextCursor;
+            debugPrint('[Preload] Preloaded page $preloadPageIndex. Next preload cursor: $receivedNextCursor');
+          }
+        }
+
+        currentPreloadCursor = receivedNextCursor;
+        preloadPageIndex++;
+      } catch (e) {
+        print('[Preload] Error preloading page $preloadPageIndex: $e');
+        currentPreloadCursor = null; // Stop preloading on error for this path
       }
     }
   }
 
   void _applyFiltersAndFetch() {
     _currentPage = 0;
-    // If filters are cleared, use cache next time
-    if (_queryConditions.isEmpty && _wrCacheAll != null) {
-      // No need to clear cache
-    } else if (_queryConditions.isNotEmpty) {
-      print('[WRCache] Invalidating cache due to filters.');
-      // If filters are applied, do not use cache
-      _wrCacheAll = null;
-    }
+    _pageCursors = [null]; // Reset cursors when filters change
+    _nextCursor = null; // Clear next cursor
+    _preloadedPages.clear(); // Clear preloaded data on filter change
+    _preloadedCursors.clear(); // Clear preloaded cursors on filter change
+    _wrCacheAll = null; // No longer needed for full cache, but ensure cleared
+    _isCacheLoading = false;
     _fetchDataFromFirebase();
   }
 
@@ -1069,21 +1127,54 @@ class _WRModelScreenState extends State<WRModelScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ElevatedButton(
-                      onPressed: _currentPage > 0
-                          ? () => this.setState(() { _currentPage--; _fetchDataFromFirebase(); })
-                          : null,
-                      child: const Text('Previous'),
-                    ),
+                    // Debugging for Previous button
+                    Builder(builder: (context) {
+                      final bool canGoPrevious = _currentPage > 0;
+                      debugPrint('Previous Button: _currentPage = \$_currentPage, onPressed = ${canGoPrevious ? 'enabled' : 'disabled'}');
+                      return ElevatedButton(
+                        onPressed: canGoPrevious
+                            ? () => this.setState(() {
+                                _currentPage--;
+                                _fetchDataFromFirebase(); // Re-fetch for previous page
+                              })
+                            : null,
+                        child: const Text('Previous'),
+                      );
+                    }),
                     const SizedBox(width: 16),
+                    // Display page number considering the total records
                     Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
                     const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
-                          ? () => this.setState(() { _currentPage++; _fetchDataFromFirebase(); })
-                          : null,
-                      child: const Text('Next'),
-                    ),
+                    // Debugging for Next button
+                    Builder(builder: (context) {
+                      final bool canGoNextFirebase = _nextCursor != null;
+                      final bool canGoNextCache = _queryConditions.isEmpty && (_currentPage + 1) * _rowsPerPage < _totalRecords;
+                      final bool canGoNext = canGoNextFirebase || canGoNextCache;
+                      debugPrint('Next Button: _nextCursor = \$_nextCursor, _queryConditions.isEmpty = \${_queryConditions.isEmpty}, (_currentPage + 1) * _rowsPerPage = \${(_currentPage + 1) * _rowsPerPage}, _totalRecords = \$_totalRecords, onPressed = ${canGoNext ? 'enabled' : 'disabled'}');
+                      return ElevatedButton(
+                        // Enable "Next" if nextCursor is available (from Firebase) or if more pages exist in cache (when no filters)
+                        onPressed: canGoNext
+                            ? () {
+                                setState(() {
+                                  _currentPage++;
+                                  // Add the next cursor to _pageCursors if it's a new one
+                                  // This handles both Firebase-provided nextCursor and preload-generated nextCursor
+                                  if (_pageCursors.length <= _currentPage) {
+                                    // Use _nextCursor if available, otherwise get from _preloadedCursors
+                                    final cursorToAdd = _nextCursor ?? _preloadedCursors[_currentPage];
+                                    if (cursorToAdd != null && cursorToAdd != 'cached_data_exists') { // Avoid adding the dummy value
+                                      _pageCursors.add(cursorToAdd);
+                                    } else if (_pageCursors.length > _currentPage) { // If next page is cached, and we don't have its cursor, add null placeholder
+                                       _pageCursors.add(null);
+                                    }
+                                  }
+                                  _fetchDataFromFirebase();
+                                });
+                              }
+                            : null,
+                        child: const Text('Next'),
+                      );
+                    }),
                   ],
                 ),
               ),

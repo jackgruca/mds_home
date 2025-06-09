@@ -1042,10 +1042,11 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
     console.log('getHistoricalMatchups called with full request data:', JSON.stringify(data, null, 2));
 
     const filters = data.filters || {};
-    const limit = data.limit ? parseInt(data.limit, 10) : 50;
-    const offset = data.offset ? parseInt(data.offset, 10) : 0;
-    let orderByField = data.orderBy || 'Date'; 
-    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    const limit = data.limit ? parseInt(data.limit, 10) : 25; // Default limit for pagination
+    // FORCING primary orderBy to 'gameID' for unique cursor generation.
+    const orderByField = 'gameID'; 
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc'; // Use client-provided direction for stability
+    const cursor = data.cursor; // The cursor for keyset pagination
 
     let query = db.collection('historicalMatchups');
 
@@ -1067,31 +1068,18 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
         const totalRecords = countSnapshot.data().count;
         console.log(`Total records found for filters: ${totalRecords}`);
 
-        orderByField = orderByField.replace(/\./g, '_').trim();
-        if (orderByField) {
-             console.log(`Applying orderBy: ${orderByField} ${orderDirection}`);
-             query = query.orderBy(orderByField, orderDirection);
-        } 
+        // Applying fixed orderBy: 'gameID' and documentId for guaranteed unique cursor pagination.
+        console.log(`Applying fixed orderBy: ${orderByField} ${orderDirection}, then documentId`);
+        query = query.orderBy(orderByField, orderDirection)
+                     .orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
 
-        if (offset > 0) {
-            console.warn(`Using offset (${offset}) will fetch ${offset + limit} docs and slice. Consider 'startAfter' for large offsets if performance is an issue on later pages.`);
-            // Fetch N documents to get to the correct starting point for the offset.
-            // This requires ordering to be consistent.
-            // This is still not the most optimal way for deep pagination but simpler than full cursor pagination for now.
-            let offsetQuery = query;
-            if (offset > 0) {
-                 // To implement offset correctly with Firestore when not using startAfter on a specific doc,
-                 // you need to fetch docs up to the offset + limit. 
-                 // However, query.offset() method exists and is simpler if it works for your firebase-admin version.
-                 // Let's try using the built-in offset if available, otherwise keep the manual slice logic as a fallback concept.
-                 // For count optimization, the most critical part was query.count().get().
-                 // The nodejs admin SDK does support .offset()
-                offsetQuery = offsetQuery.offset(offset);
-            }
-            query = offsetQuery.limit(limit);
-        } else {
-            query = query.limit(limit);
+        // Apply cursor-based pagination
+        if (cursor) {
+            console.log(`Applying startAfter cursor: ${JSON.stringify(cursor)}`);
+            query = query.startAfter(...cursor);
         }
+
+        query = query.limit(limit);
 
         const snapshot = await query.get();
 
@@ -1099,9 +1087,8 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
             console.log('No matching documents found for the current page/limit.');
             return {
                 data: [],
-                totalRecords: totalRecords, // Still return total count based on filters
-                limit: limit,
-                offset: offset,
+                totalRecords: totalRecords,
+                nextCursor: null, // No next page
                 message: 'No documents found for the current page/criteria.'
             };
         }
@@ -1113,15 +1100,32 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
                     docData[key] = docData[key].toDate().toISOString(); 
                 }
             }
-            return { id: doc.id, ...docData };
+            return { id: doc.id, ...docData }; // Include document ID for the cursor
         });
+
+        let nextCursor = null;
+        // Determine nextCursor: if we fetched a full page, the last document is the cursor for the next page
+        // This also handles the case where the last page has fewer than 'limit' documents.
+        if (snapshot.docs.length === limit) {
+            const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+            // EXPLICITLY use 'gameID' and documentId for the nextCursor to guarantee uniqueness.
+            const gameIdValue = lastDoc.get('gameID');
+            const docIdValue = lastDoc.id;
+
+            console.log(`Debug: lastDoc values - gameID: ${gameIdValue}, documentId: ${docIdValue}`);
+            
+            // The cursor MUST contain the values for all orderBy fields in order.
+            nextCursor = [gameIdValue, docIdValue]; // Now a 2-element cursor using gameID
+            console.log(`Generated nextCursor: ${JSON.stringify(nextCursor)}`);
+        } else {
+            console.log('Fewer docs than limit, indicating last page. nextCursor will be null.');
+        }
 
         console.log(`Returning ${matchups.length} documents for current page.`);
         return {
             data: matchups,
             totalRecords: totalRecords,
-            limit: limit,
-            offset: offset, 
+            nextCursor: nextCursor, // Send the cursor for the next page
             message: `Successfully fetched ${matchups.length} records.`
         };
 
@@ -1158,23 +1162,26 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
       });
     }
 
-    // Get total count for pagination
+    // Get total count for pagination (Firestore count() is efficient)
     const totalSnapshot = await query.count().get();
     const totalRecords = totalSnapshot.data().count;
     console.log('Total records for query:', totalRecords);
 
-    // Apply sorting if provided
-    if (data.orderBy) {
-      console.log(`Applying orderBy: ${data.orderBy} ${data.orderDirection || 'desc'}`);
-      query = query.orderBy(data.orderBy, data.orderDirection || 'desc');
+    // Apply sorting if provided, and always add documentId as secondary sort for stable pagination
+    let orderByField = data.orderBy || 'season'; // Default sort field
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    console.log(`Applying orderBy: ${orderByField} ${orderDirection}, then documentId`);
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      // The cursor will be an array: [orderByFieldValue, documentId]
+      console.log(`Applying startAfter cursor: ${JSON.stringify(data.cursor)}`);
+      query = query.startAfter(...data.cursor);
     }
 
-    // Apply pagination
     if (data.limit) {
       query = query.limit(data.limit);
-    }
-    if (data.offset) {
-      query = query.offset(data.offset);
     }
 
     // Execute query
@@ -1184,24 +1191,36 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
       return {
         data: [],
         totalRecords: totalRecords,
+        nextCursor: null, // No next page
         message: 'No WR model stats found for the current query.'
       };
     }
     const results = snapshot.docs.map(doc => {
-      const data = doc.data();
+      const docData = doc.data();
       // Convert any Firestore Timestamps to ISO strings
       Object.keys(data).forEach(key => {
         if (data[key] instanceof admin.firestore.Timestamp) {
           data[key] = data[key].toDate().toISOString();
         }
       });
-      return data;
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
     });
+
+    let nextCursor = null;
+    // Determine nextCursor: if we fetched a full page, the last document is the cursor for the next page
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+        console.log(`Generated nextCursor: ${JSON.stringify(nextCursor)}`);
+    } else {
+        console.log('Fewer docs than limit, indicating last page. nextCursor will be null.');
+    }
 
     console.log(`Returning ${results.length} WR model records.`);
     return {
       data: results,
-      totalRecords: totalRecords
+      totalRecords: totalRecords,
+      nextCursor: nextCursor // Send the cursor for the next page
     };
   } catch (error) {
     console.error('Error in getWrModelStats:', error);

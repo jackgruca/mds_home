@@ -70,7 +70,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   // Pagination state
   int _currentPage = 0;
   static const int _rowsPerPage = 25;
+  List<dynamic> _pageCursors = [null]; // Stores cursors for each page
+  dynamic _nextCursor; // Cursor for the next page, received from backend
   
+  // For preloading next pages
+  final Map<int, List<Map<String, dynamic>>> _preloadedPages = {};
+  final Map<int, dynamic> _preloadedCursors = {};
+  static const int _pagesToPreload = 2; // How many pages to preload ahead
+
   // Filter state
   DateTime? _startDate;
   DateTime? _endDate;
@@ -137,6 +144,21 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   }
 
   Future<void> _fetchDataFromFirebase() async {
+    if (_preloadedPages.containsKey(_currentPage)) {
+      print('[Preload] Using preloaded data for page $_currentPage');
+      setState(() {
+        _rawRows = _preloadedPages[_currentPage]!;
+        _nextCursor = _preloadedCursors[_currentPage];
+        // Clear this page from preloaded cache as it's now the current page
+        // KEEPING FOR DEBUGGING: _preloadedPages.remove(_currentPage);
+        // KEEPING FOR DEBUGGING: _preloadedCursors.remove(_currentPage);
+        _isLoading = false;
+      });
+      // Start preloading the next set of pages after this one is displayed
+      _startPreloadingNextPages();
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -148,14 +170,18 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       filtersForFunction[condition.field] = condition.value;
     }
 
+    // Determine the cursor for the current page
+    final dynamic currentCursor = _currentPage > 0 ? _pageCursors[_currentPage] : null;
+    debugPrint('Fetching page $_currentPage. Current cursor being sent: $currentCursor');
+
     try {
       final HttpsCallable callable = functions.httpsCallable('getHistoricalMatchups');
       final result = await callable.call<Map<String, dynamic>>({
         'filters': filtersForFunction,
         'limit': _rowsPerPage,
-        'offset': _currentPage * _rowsPerPage,
         'orderBy': _sortColumn,
         'orderDirection': _sortAscending ? 'asc' : 'desc',
+        'cursor': currentCursor, // Pass the cursor for the current page
       });
 
       if (mounted) {
@@ -164,6 +190,16 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
           _rawRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _matchupsForViz = _rawRows.map((row) => NFLMatchup.fromFirestoreMap(row)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
+          _nextCursor = result.data['nextCursor']; // Get the cursor for the next page
+          debugPrint('Next cursor received from Firebase: $_nextCursor');
+
+          // Store the next cursor for the following page in _pageCursors
+          // Ensure _pageCursors has enough capacity
+          while (_pageCursors.length <= _currentPage + 1) { // +1 because we are storing for the *next* page
+            _pageCursors.add(null);
+          }
+          _pageCursors[_currentPage + 1] = _nextCursor;
+          debugPrint('Updated _pageCursors: $_pageCursors');
 
           if (_rawRows.isNotEmpty) {
             _headers = _rawRows.first.keys.toList();
@@ -178,6 +214,8 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
           _isLoading = false;
         });
       }
+      // Start preloading the next set of pages after this one is displayed
+      _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
       print('FirebaseFunctionsException caught in Flutter client:');
       print('Code: ${e.code}');
@@ -185,7 +223,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       print('Details: ${e.details}');
       if (mounted) {
         setState(() {
-          String displayError = 'Error fetching data: ${e.message}';
+          String displayError = 'Error fetching data:\nCode: ${e.code}\nMessage: ${e.message}\nDetails: ${e.details}';
           if (e.code == 'failed-precondition') {
             displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
           } else if (e.message != null && e.message!.toLowerCase().contains('index')){
@@ -202,6 +240,65 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
           _error = 'An unexpected error occurred on the client: $e';
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  // Function to preload subsequent pages
+  Future<void> _startPreloadingNextPages() async {
+    if (_nextCursor == null) {
+      // No more pages to preload from current position
+      return;
+    }
+
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
+
+    dynamic currentPreloadCursor = _nextCursor; // Start preloading from the next page's cursor
+    int preloadPageIndex = _currentPage + 1;
+
+    for (int i = 0; i < _pagesToPreload; i++) {
+      if (currentPreloadCursor == null) {
+        break; // No more pages to preload
+      }
+
+      if (_preloadedPages.containsKey(preloadPageIndex)) {
+        // Skip if this page is already preloaded
+        currentPreloadCursor = _preloadedCursors[preloadPageIndex];
+        preloadPageIndex++;
+        continue;
+      }
+
+      debugPrint('[Preload] Attempting to preload page $preloadPageIndex with cursor: $currentPreloadCursor');
+
+      try {
+        final HttpsCallable callable = functions.httpsCallable('getHistoricalMatchups');
+        final result = await callable.call<Map<String, dynamic>>({
+          'filters': filtersForFunction,
+          'limit': _rowsPerPage,
+          'orderBy': _sortColumn,
+          'orderDirection': _sortAscending ? 'asc' : 'desc',
+          'cursor': currentPreloadCursor,
+        });
+
+        final List<dynamic> data = result.data['data'] ?? [];
+        final dynamic receivedNextCursor = result.data['nextCursor'];
+
+        if (data.isNotEmpty) {
+          if (mounted) {
+            _preloadedPages[preloadPageIndex] = data.map((item) => Map<String, dynamic>.from(item)).toList();
+            _preloadedCursors[preloadPageIndex] = receivedNextCursor;
+            debugPrint('[Preload] Preloaded page $preloadPageIndex. Next preload cursor: $receivedNextCursor');
+          }
+        }
+
+        currentPreloadCursor = receivedNextCursor;
+        preloadPageIndex++;
+      } catch (e) {
+        print('[Preload] Error preloading page $preloadPageIndex: $e');
+        currentPreloadCursor = null; // Stop preloading on error for this path
       }
     }
   }
@@ -299,6 +396,10 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   // When filters change, clear viz data so it reloads next time
   void _applyFiltersAndFetch() {
     _currentPage = 0;
+    _pageCursors = [null]; // Reset cursors when filters change
+    _nextCursor = null; // Clear next cursor
+    _preloadedPages.clear(); // Clear preloaded data on filter change
+    _preloadedCursors.clear(); // Clear preloaded cursors on filter change
     _allFilteredMatchups = [];
     _isVizLoading = false;
     _lastVizQueryHash = 0;
@@ -1155,7 +1256,10 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                   children: [
                     ElevatedButton(
                       onPressed: _currentPage > 0
-                          ? () => this.setState(() { _currentPage--; _fetchDataFromFirebase(); })
+                          ? () => this.setState(() {
+                              _currentPage--;
+                              _fetchDataFromFirebase(); // Re-fetch for previous page
+                            })
                           : null,
                       child: const Text('Previous'),
                     ),
@@ -1163,8 +1267,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
                     const SizedBox(width: 16),
                     ElevatedButton(
-                      onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords
-                          ? () => this.setState(() { _currentPage++; _fetchDataFromFirebase(); })
+                      onPressed: (_nextCursor != null || _preloadedPages.containsKey(_currentPage + 1))
+                          ? () {
+                              setState(() {
+                                _currentPage++;
+                                debugPrint('After Next button click, _currentPage incremented to: $_currentPage');
+                                _fetchDataFromFirebase();
+                              });
+                            }
                           : null,
                       child: const Text('Next'),
                     ),
