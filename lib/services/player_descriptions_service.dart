@@ -86,6 +86,8 @@ static Future<void> initialize({int year = 2025}) async {
     _isInitialized = true;
   } catch (e) {
     debugPrint("Error loading player descriptions: $e");
+    _playerDescriptions = {}; // Ensure it's an empty map on error
+    _allPlayerNames = []; // Clear names on error
     _isInitialized = true; // Mark as initialized to avoid repeated attempts
   }
 }

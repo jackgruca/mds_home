@@ -28,7 +28,7 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
   double _randomness = 0.4;
   final Set<String> _selectedTeams = {};
   int _selectedYear = 2025;
-  final List<int> _availableYears = [2023, 2024, 2025];
+  final List<int> _availableYears = [2023, 2024, 2025, 2026];
   double _tradeFrequency = 0.5;
   double _needVsValueBalance = 0.4;
 

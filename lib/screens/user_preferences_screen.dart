@@ -718,7 +718,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
                   ),
                   Wrap(
                     spacing: 8,
-                    children: [2023, 2024, 2025].map((year) {
+                    children: [2023, 2024, 2025, 2026].map((year) {
                       final isSelected = _defaultYear == year;
                       
                       return ElevatedButton(
