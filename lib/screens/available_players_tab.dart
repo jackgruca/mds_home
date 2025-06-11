@@ -1115,7 +1115,7 @@ return Card(
     },
     borderRadius: BorderRadius.circular(8.0),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       child: Row(
         children: [
           // Existing rank container remains the same

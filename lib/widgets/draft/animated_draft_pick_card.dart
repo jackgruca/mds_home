@@ -482,7 +482,7 @@ Color _getValueColor(double ratio) {
     }
     
     // Consistent height for all cards (important for scrolling calculation)
-    const double cardHeight = 72.0;
+    const double cardHeight = 56.0; // Adjusted height for matching player cards
     
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -510,10 +510,10 @@ Color _getValueColor(double ratio) {
                 ? () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!)
                 : null,
             borderRadius: BorderRadius.circular(8.0),
-            child: SizedBox(
-              height: cardHeight, // Fixed height for all cards!
+            child: SizedBox( // Apply fixed height here
+              height: cardHeight,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -544,8 +544,8 @@ Color _getValueColor(double ratio) {
                     _buildTeamLogo(widget.draftPick.teamName),
                     const SizedBox(width: 8.0),
                     
-                    // Player info or Team Needs
-                    Expanded(
+                    // Player info or Team Name (dynamic content)
+                    Expanded( // This Expanded now holds either player info or just team name
                       child: widget.draftPick.selectedPlayer != null ? 
                         // Show player info if a player is selected
                         Column(
@@ -592,8 +592,8 @@ Color _getValueColor(double ratio) {
                               ),
                           ],
                         ) :
-                        // Show team needs if no player selected
-                        Column(
+                        // Show team name if no player selected
+                        Column( // Keep this as a Column for potential future multi-line team info
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
@@ -608,47 +608,34 @@ Color _getValueColor(double ratio) {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            // Team needs
-                            if (widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
-                              Wrap(
-                                spacing: 4.0,
-                                children: widget.teamNeeds!.take(3).map((need) => 
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
-                                    margin: const EdgeInsets.only(top: 2.0),
-                                    decoration: BoxDecoration(
-                                      color: _getPositionColor(need).withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(3.0),
-                                      border: Border.all(
-                                        color: _getPositionColor(need).withOpacity(0.5),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      need,
-                                      style: TextStyle(
-                                        fontSize: 10.0,
-                                        fontWeight: FontWeight.bold,
-                                        color: _getPositionColor(need),
-                                      ),
-                                    ),
-                                  )
-                                ).toList(),
-                              )
-                            else
-                              Text(
-                                'No team needs data',
-                                style: TextStyle(
-                                  fontSize: 12.0,
-                                  fontStyle: FontStyle.italic,
-                                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                                ),
-                              ),
                           ],
                         )
                     ),
                     
-                    // Position badge for selected player
+                    // Team needs (moved outside the above Expanded and now its own Expanded)
+                    if (widget.draftPick.selectedPlayer == null && widget.teamNeeds != null && widget.teamNeeds!.isNotEmpty)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: SingleChildScrollView( // Added for horizontal scrolling
+                              scrollDirection: Axis.horizontal,
+                              child: Wrap(
+                                spacing: 4.0,
+                                runSpacing: 2.0,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                alignment: WrapAlignment.end,
+                                children: widget.teamNeeds!.map((need) =>
+                                  _buildNeedChip(context, need)
+                                ).toList(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    
+                    // Position badge for selected player (remains after the dynamic content)
                     if (widget.draftPick.selectedPlayer != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -688,21 +675,7 @@ Color _getValueColor(double ratio) {
                           ),
                         ),
                       ),
-                        
-                    // // Info icon for analysis (only show if player is selected)
-                    // if (widget.draftPick.selectedPlayer != null)
-                    //   IconButton(
-                    //     padding: EdgeInsets.zero,
-                    //     constraints: const BoxConstraints(),
-                    //     visualDensity: VisualDensity.compact,
-                    //     icon: Icon(
-                    //       Icons.info_outline,
-                    //       size: 16,
-                    //       color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    //     ),
-                    //     onPressed: () => _showPlayerDetails(context, widget.draftPick.selectedPlayer!),
-                    //   ),
-                    
+                      
                     // Show rank info for selected players
                     if (widget.draftPick.selectedPlayer != null)
                       Container(
@@ -941,26 +914,57 @@ void _showPlayerDetails(BuildContext context, Player player) {
     }
   }
   
-  Color _getPositionColor(String position) {
-  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-  
-  // Different colors for different position groups with dark mode adjustments
-  if (['QB', 'RB', 'FB'].contains(position)) {
-    return isDarkMode ? Colors.blue.shade400 : Colors.blue.shade700; // Backfield
-  } else if (['WR', 'TE'].contains(position)) {
-    return isDarkMode ? Colors.green.shade400 : Colors.green.shade700; // Receivers
-  } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
-    return isDarkMode ? Colors.purple.shade400 : Colors.purple.shade700; // Offensive line
-  } else if (['EDGE', 'IDL', 'DT', 'DE'].contains(position)) {
-    return isDarkMode ? Colors.red.shade400 : Colors.red.shade700; // Defensive line
-  } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-    return isDarkMode ? Colors.orange.shade400 : Colors.orange.shade700; // Linebackers
-  } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-    return isDarkMode ? Colors.teal.shade400 : Colors.teal.shade700; // Secondary
-  } else {
-    return isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700; // Special teams, etc.
+  Widget _buildNeedChip(BuildContext context, String need) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color color = _getPositionColor(need); // Use the existing helper for color
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDarkMode ? 0.3 : 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withOpacity(isDarkMode ? 0.6 : 0.4),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        need,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
   }
-}
+
+  Color _getPositionColor(String position) {
+    switch (position) {
+      case 'QB':
+        return Colors.red.shade700;
+      case 'RB':
+        return Colors.blue.shade700;
+      case 'WR':
+        return Colors.green.shade700;
+      case 'TE':
+        return Colors.purple.shade700;
+      case 'OT':
+      case 'IOL':
+      case 'C':
+      case 'G':
+        return Colors.brown.shade700;
+      case 'DL':
+      case 'EDGE':
+        return Colors.orange.shade700;
+      case 'LB':
+        return Colors.cyan.shade700;
+      case 'CB':
+      case 'S':
+        return Colors.deepOrange.shade700; // Adjusted for better visibility
+      default:
+        return Colors.grey.shade700;
+    }
+  }
   
   Color _getRankColor(int rank, int pickNumber) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
