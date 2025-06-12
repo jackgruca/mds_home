@@ -302,12 +302,21 @@ class _WRModelScreenState extends State<WRModelScreen> {
       print('Details: ${e.details}');
       if (mounted) {
         setState(() {
-          String displayError = 'Error fetching data:\nCode: ${e.code}\nMessage: ${e.message}\nDetails: ${e.details}';
-          if (e.code == 'failed-precondition') {
-            displayError = 'Query Error: A required Firestore index is missing. Please check the Firebase Functions logs for a link to create it. Details: ${e.message}';
-          } else if (e.message != null && e.message!.toLowerCase().contains('index')){
-            displayError = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
+          // Default friendly message, always shown to the user.
+          String displayError = "We're working on adding this. Stay tuned.";
+
+          if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
+            final Map<String, dynamic> details = e.details as Map<String, dynamic>;
+            final String? indexUrl = (details['originalError']?.toString() ?? '').contains('composite=')
+                ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
+                : null;
+            
+            // The backend now handles logging automatically. No client-side call needed.
+            // if (indexUrl != null && indexUrl.isNotEmpty) {
+            //   _logIndexRequestToFirestore(indexUrl, 'WRModelScreen');
+            // }
           }
+          // IMPORTANT: Always set the error to the friendly, non-technical message.
           _error = displayError;
           _isLoading = false;
         });

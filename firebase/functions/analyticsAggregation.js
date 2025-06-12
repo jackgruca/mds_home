@@ -1131,15 +1131,35 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
 
     } catch (error) {
         console.error('Error in getHistoricalMatchups Cloud Function:', error);
-        if (error.code === 'failed-precondition') {
-             console.error('Query failed, likely requires a Firestore index. Check Firestore console for index creation link in error logs from Functions.');
-            throw new functions.https.HttpsError(
-                'failed-precondition',
-                'Query requires a composite index. Please check server logs (Firebase Functions console) and create the required index in Firestore.',
-                error.message
-            );
+        // --- SUREFIRE FIX: Log index request directly from the backend ---
+        if (error.code === 'failed-precondition' && error.message) {
+            console.log("!!! FAILED PRECONDITION DETECTED. Logging index request automatically. !!!");
+            const db = admin.firestore();
+            // Extract the URL from the error message
+            const urlRegex = /(https:\/\/[^\s]+)/;
+            const match = error.message.match(urlRegex);
+            const indexUrl = match ? match[0] : 'Could not parse URL from error.';
+
+            // Create a simple description of the query that failed
+            const queryDetailsString = Object.entries(filters)
+                .map(([key, value]) => `${key} == ${value}`)
+                .join(', ');
+
+            try {
+                await db.collection('admin_index_requests').add({
+                    indexUrl: indexUrl,
+                    queryDetails: queryDetailsString,
+                    screen: 'HistoricalDataScreen',
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    status: 'pending',
+                    errorDetails: error.message,
+                });
+                console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
+            } catch (loggingError) {
+                console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
+            }
         }
-        // Throw a more specific error back to the client if possible
+        // --- END FIX ---
         throw new functions.https.HttpsError('internal', `Failed to fetch historical matchups: ${error.message}`, error.details || {originalError: error.toString()});
     }
 });
@@ -1224,44 +1244,37 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
     };
   } catch (error) {
     console.error('Error in getWrModelStats:', error);
+    // --- SUREFIRE FIX: Log index request directly from the backend ---
+    if (error.code === 'failed-precondition' && error.message) {
+        console.log("!!! FAILED PRECONDITION DETECTED. Logging index request automatically. !!!");
+        const db = admin.firestore();
+        const urlRegex = /(https:\/\/[^\s]+)/;
+        const match = error.message.match(urlRegex);
+        const indexUrl = match ? match[0] : 'Could not parse URL from error.';
+
+        const queryDetailsString = Object.entries(data.filters || {})
+            .map(([key, value]) => `${key} == ${value}`)
+            .join(', ');
+
+        try {
+            await db.collection('admin_index_requests').add({
+                indexUrl: indexUrl,
+                queryDetails: queryDetailsString,
+                screen: 'WRModelScreen',
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'pending',
+                errorDetails: error.message,
+            });
+            console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
+        } catch (loggingError) {
+            console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
+        }
+    }
+    // --- END FIX ---
     throw new functions.https.HttpsError(
       'internal',
       `Failed to fetch WR Model data: ${error.message}`,
       error
     );
-  }
-});
-
-// New Callable Function to log index requests from the client
-exports.logIndexRequest = functions.https.onCall(async (data, context) => {
-  // Optional: Authenticate context. If you only want logged-in users to trigger requests,
-  // if (!context.auth) {
-  //   throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
-  // }
-
-  const db = admin.firestore();
-  const indexUrl = data.indexUrl; // The pre-generated URL from Firestore error
-  const queryDetails = data.queryDetails; // Filter and sort parameters
-  const screen = data.screen; // e.g., HistoricalData, WRModel
-  const userId = context.auth ? context.auth.uid : 'anonymous';
-
-  if (!indexUrl || !queryDetails) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing indexUrl or queryDetails.');
-  }
-
-  try {
-    await db.collection('admin_index_requests').add({
-      indexUrl: indexUrl,
-      queryDetails: queryDetails,
-      screen: screen,
-      userId: userId,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      status: 'pending', // pending, created, dismissed
-    });
-    console.log(`New index request logged for user ${userId} on screen ${screen}.`);
-    return { success: true };
-  } catch (error) {
-    console.error('Error logging index request:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to log index request.', error.message);
   }
 });

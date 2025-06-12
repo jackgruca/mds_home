@@ -223,8 +223,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       print('Details: ${e.details}');
       if (mounted) {
         setState(() {
-          String displayError = 'Error fetching data:\nCode: ${e.code}\nMessage: ${e.message}\nDetails: ${e.details}';
-          String userFacingMessage = 'An unexpected error occurred.';
+          String displayError = "We're working on adding this. Stay tuned.";
 
           if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
             final Map<String, dynamic> details = e.details as Map<String, dynamic>;
@@ -232,17 +231,13 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                 ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
                 : null;
             
-            if (indexUrl != null && indexUrl.isNotEmpty) {
-              userFacingMessage = 'This advanced query requires a special setup for optimal performance. We\'ve logged this request and will build the necessary index to make it faster for everyone. Please try again in a few minutes, or try a simpler query.';
-              // Log the index request to Firestore via Cloud Function
-              _logIndexRequestToFirestore(indexUrl, 'HistoricalDataScreen');
-            } else {
-              userFacingMessage = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs.';
-            }
-            displayError = '$userFacingMessage\nDetails: ${e.message}';
-          } else if (e.message != null && e.message!.toLowerCase().contains('index')){
-            userFacingMessage = 'Query Error: There might be an issue with Firestore indexes. Please check Firebase Functions logs. Details: ${e.message}';
-            displayError = userFacingMessage;
+            // The backend now handles logging automatically. No client-side call needed.
+            // if (indexUrl != null && indexUrl.isNotEmpty) {
+            //   _logIndexRequestToFirestore(indexUrl, 'HistoricalDataScreen');
+            // }
+
+            // Always show the friendly message, never the URL or technical details
+            displayError = "We're working on adding this. Stay tuned.";
           }
           _error = displayError;
           _isLoading = false;
@@ -1300,24 +1295,5 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
         );
       }
     );
-  }
-
-  // Method to log index requests to Firestore via Cloud Function
-  Future<void> _logIndexRequestToFirestore(String indexUrl, String screen) async {
-    try {
-      final HttpsCallable callable = functions.httpsCallable('logIndexRequest');
-      await callable.call({
-        'indexUrl': indexUrl,
-        'queryDetails': {
-          'filters': _queryConditions.map((c) => {'field': c.field, 'operator': c.operator.toString(), 'value': c.value}).toList(),
-          'orderBy': _sortColumn,
-          'orderDirection': _sortAscending ? 'asc' : 'desc',
-        },
-        'screen': screen,
-      });
-      print('Index request successfully logged to Firestore.');
-    } catch (e) {
-      print('Error calling logIndexRequest Cloud Function: $e');
-    }
   }
 } 
