@@ -1325,83 +1325,63 @@ exports.getPlayerSeasonStats = functions.https.onCall(async (data, context) => {
   }
 });
 
-// New function for Betting Hub
+// A helper function to apply query conditions without pagination/ordering for counts
+const applyQueryConditions = (query, queryFilters) => {
+  let newQuery = query;
+  for (const field in queryFilters) {
+    const condition = queryFilters[field];
+    if (!condition.operator || condition.value === undefined) continue;
+    newQuery = newQuery.where(field, condition.operator, condition.value);
+  }
+  return newQuery;
+};
+
 exports.getBettingData = functions.https.onCall(async (data, context) => {
-  const {
-    filters = {},
-    limit = 25,
-    orderBy = "game_id",
-    orderDirection = "desc",
-    cursor,
-  } = data;
-
-  const collectionName = "betting_data";
-  const textSearchFields = ["home_team", "away_team", "favorite_team", "underdog_team", "location", "stadium"];
+  const { filters = {}, limit = 25, orderBy = 'gameday', orderDirection = 'desc', cursor } = data;
   const db = admin.firestore();
+  let query = db.collection('bettingData');
 
-  // Helper to apply query conditions from the client
-  const applyQueryConditions = (query, queryFilters) => {
-    let newQuery = query;
-    for (const field in queryFilters) {
-      const condition = queryFilters[field];
-      if (!condition.operator || condition.value === undefined) continue;
-      newQuery = newQuery.where(field, condition.operator, condition.value);
+  // Apply filters
+  query = applyQueryConditions(query, filters);
+  
+  // Apply sorting
+  query = query.orderBy(orderBy, orderDirection);
+
+  // Apply cursor for pagination
+  if (cursor) {
+    // We need to get the document snapshot of the cursor to start after it
+    const cursorDoc = await db.collection('bettingData').doc(cursor).get();
+    if (cursorDoc.exists) {
+        query = query.startAfter(cursorDoc);
     }
-    return newQuery;
-  };
+  }
+
+  query = query.limit(limit);
 
   try {
-    let query = db.collection(collectionName);
-
-    // Apply Filters
-    if (Object.keys(filters).length > 0) {
-      query = applyQueryConditions(query, filters);
-    }
-
-    // Apply Sorting
-    query = query.orderBy(orderBy, orderDirection);
-
-    // Apply Pagination (Cursor)
-    if (cursor) {
-      const cursorDoc = await db.collection(collectionName).doc(cursor).get();
-      if (cursorDoc.exists) {
-        query = query.startAfter(cursorDoc);
-      }
-    }
-
-    // Apply Limit
-    query = query.limit(limit);
-
-    // Execute query
     const snapshot = await query.get();
-
-    // Process results
-    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // For total records, we apply filters but not pagination or ordering
+    const totalRecordsQuery = applyQueryConditions(db.collection('bettingData'), filters);
+    const totalRecordsSnapshot = await totalRecordsQuery.count().get();
+    const totalRecords = totalRecordsSnapshot.data().count;
 
     // Determine the next cursor
     let nextCursor = null;
     if (snapshot.docs.length === limit) {
+      // The cursor should be the ID of the last document
       nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
     }
 
     return {
-      data: results,
-      nextCursor,
-      totalRecords: 0, // Keep this stable
+      data: records,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor,
     };
-
   } catch (error) {
-    console.error("Error fetching betting data:", error);
-    // Use the new helper for logging index requests
-    await logMissingIndexRequest(error, { filters, orderBy }, 'BettingHubScreen');
-    
-    if (error.code === 'failed-precondition') {
-       throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Query requires a composite index. Please create it in the Firebase console.",
-        { originalError: error.message }
-      );
-    }
-    throw new functions.https.HttpsError("internal", "An unexpected error occurred while fetching betting data.", error.message);
+    console.error('Error in getBettingData:', error);
+    await logMissingIndexRequest(error, { filters, limit, orderBy, orderDirection }, 'BettingAnalyticsScreen');
+    throw new functions.https.HttpsError('internal', 'Error fetching betting data.', { originalError: error.message });
   }
 });
