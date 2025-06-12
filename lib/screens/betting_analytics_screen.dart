@@ -212,7 +212,7 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
                   columns: displayFields.map((field) => DataColumn(
                     label: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                      child: Text(field.replaceAll('_', ' ').toUpperCase()),
+                      child: Text(_toTitleCase(field)),
                     ),
                     onSort: (i, asc) {
                       setState(() {
@@ -313,4 +313,13 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
       ],
     );
   }
+}
+
+String _toTitleCase(String text) {
+  if (text.isEmpty) return '';
+  return text.replaceAll('_', ' ').split(' ').map((word) {
+    if (word.isEmpty) return '';
+    if (word.toUpperCase() == word) return word; // Keep acronyms like 'QB'
+    return word[0].toUpperCase() + word.substring(1).toLowerCase();
+  }).join(' ');
 }

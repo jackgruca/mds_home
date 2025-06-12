@@ -103,14 +103,23 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
-  // Field groups for tabbed view - repurposed for stat categories
-  static final Map<String, List<String>> _statCategoryFieldGroups = {
-    'Standard': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds'],
-    'Advanced': ['player_name', 'season', 'games', 'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr'],
-    'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
+  // -- DYNAMICALLY GENERATED --
+  Map<String, List<String>> _statCategoryFieldGroups = {};
+  Set<String> _doubleFields = {};
+  // -- END DYNAMIC --
+
+  // Keywords to group fields into categories
+  static const Map<String, List<String>> _categoryKeywords = {
+    'Info': ['name', 'position', 'season', 'team', 'games', 'experience', 'college', 'height', 'weight', 'draft'],
+    'Passing': ['pass', 'completion', 'attempts', 'interceptions', 'cpoe', 'aggressiveness', 'air_yards'],
+    'Rushing': ['rush', 'carries'],
+    'Receiving': ['rec', 'targets', 'cushion', 'separation', 'yac'],
+    'Combine': ['forty', 'vertical', 'jump', 'cone', 'shuttle'],
+    'Fantasy': ['fantasy'],
+    'Tiers': ['tier'],
   };
   
-  String _selectedStatCategory = 'Standard';
+  String _selectedStatCategory = 'Info';
 
   // All operators for query
   final List<QueryOperator> _allOperators = [
@@ -137,19 +146,69 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     super.dispose();
   }
 
+  void _buildDynamicCategories(List<Map<String, dynamic>> data) {
+    if (data.isEmpty) return;
+
+    final allFields = data.first.keys.toSet();
+    final Map<String, List<String>> newGroups = {
+      for (var category in _categoryKeywords.keys) category: []
+    };
+    newGroups['Other'] = [];
+
+    for (final field in allFields) {
+      String? assignedCategory;
+      for (final entry in _categoryKeywords.entries) {
+        if (entry.value.any((keyword) => field.toLowerCase().contains(keyword))) {
+          assignedCategory = entry.key;
+          break;
+        }
+      }
+      newGroups[assignedCategory ?? 'Other']!.add(field);
+    }
+
+    // Ensure player_name and season are always in Info
+    if (newGroups['Info'] != null) {
+        if (!newGroups['Info']!.contains('player_name')) newGroups['Info']!.insert(0, 'player_name');
+        if (!newGroups['Info']!.contains('season')) newGroups['Info']!.insert(1, 'season');
+    }
+    
+    // Remove empty categories
+    newGroups.removeWhere((key, value) => value.isEmpty);
+
+    // Identify double fields dynamically
+    final Set<String> newDoubleFields = {};
+    final firstRow = data.first;
+    for (final field in allFields) {
+      if (firstRow[field] is double) {
+        newDoubleFields.add(field);
+      }
+    }
+    
+    setState(() {
+      _statCategoryFieldGroups = newGroups;
+      _doubleFields = newDoubleFields;
+      // If the previously selected category no longer exists, default to the first one
+      if (!_statCategoryFieldGroups.containsKey(_selectedStatCategory)) {
+        _selectedStatCategory = _statCategoryFieldGroups.keys.first;
+      }
+    });
+  }
+
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> doubleFields = {
       'passing_yards_per_attempt', 'passing_tds_per_attempt',
       'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
       'yards_per_reception', 'receiving_tds_per_reception',
-      'yards_per_touch', 'wopr'
+      'yards_per_touch', 'wopr', 'target_share', 'rush_share',
+      'completion_percentage_above_expectation', 'avg_yac_above_expectation', 'aggressiveness', 'avg_intended_air_yards', 'avg_cushion', 'avg_separation',
+      'forty_yd', 'vertical_jump', 'broad_jump', 'cone', 'shuttle'
     };
     const Set<String> intFields = {
       'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds',
       'interceptions', 'sacks', 'sack_yards', 'rushing_attempts', 'rushing_yards',
       'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds',
-      'fantasy_points', 'fantasy_points_ppr',
+      'fantasy_points', 'fantasy_points_ppr', 'years_experience', 'height', 'weight', 'draft_number',
     };
     if (doubleFields.contains(field)) return 'double';
     if (intFields.contains(field)) return 'int';
@@ -216,6 +275,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             if (_selectedFields.isEmpty) {
               _selectedFields = _headers;
             }
+            _buildDynamicCategories(_rawRows); // Build categories from data
           }
           _isLoading = false;
         });
@@ -329,6 +389,77 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     _applyFiltersAndFetch();
   }
 
+  void _showCustomizeColumnsDialog() {
+    List<String> tempSelected = List.from(_selectedFields);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Customize Columns'),
+              content: SizedBox(
+                width: 400,
+                child: ListView(
+                  children: _headers.map((header) {
+                    return CheckboxListTile(
+                      title: Text(_toTitleCase(header)),
+                      value: tempSelected.contains(header),
+                      onChanged: (checked) {
+                        setState(() {
+                          if (checked == true) {
+                            tempSelected.add(header);
+                          } else {
+                            tempSelected.remove(header);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    this.setState(() {
+                      _selectedFields = List.from(_headers);
+                    });
+                    Navigator.pop(context);
+                    // Re-show dialog with updated selections
+                    _showCustomizeColumnsDialog(); 
+                  },
+                  child: const Text('Select All'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    this.setState(() {
+                      _selectedFields = tempSelected;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return '';
+    return text.replaceAll('_', ' ').split(' ').map((word) {
+      if (word.isEmpty) return '';
+      if (word.toUpperCase() == word) return word; // Keep acronyms like 'QB'
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
@@ -368,11 +499,21 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Build Query',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Build Query',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Customize Columns'),
+                        onPressed: _showCustomizeColumnsDialog,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8.0),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -395,7 +536,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                               setState(() {
                                 _selectedPosition = value;
                                 // When position changes, reset category to standard
-                                _selectedStatCategory = 'Standard';
+                                _selectedStatCategory = 'Info';
                               });
                               _applyFiltersAndFetch();
                             }
@@ -561,31 +702,22 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       }
     }
 
-    final Set<String> doubleFields = {
-      'passing_yards_per_attempt', 'passing_tds_per_attempt',
-      'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
-      'yards_per_reception', 'receiving_tds_per_reception',
-      'yards_per_touch', 'wopr', 'fantasy_points', 'fantasy_points_ppr'
-    };
+    final Set<String> doubleFields = _doubleFields;
 
     List<String> getVisibleFieldsForCategory(String category, String position) {
       List<String> fields = _statCategoryFieldGroups[category] ?? [];
       
-      if (position == 'QB') {
-        return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-      }
-      if (position == 'RB') {
-         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-      }
-      if (position == 'WR' || position == 'TE') {
-         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-      }
+      // The new R script produces one big table, so filtering by position in the UI is less critical
+      // as the data is sparse (e.g. QBs have no receiving stats). We'll keep all fields for now.
+      // Filtering can be added back if needed.
       
       // 'All' position shows all fields for the category
       return fields;
     }
 
-    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, _selectedPosition);
+    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, _selectedPosition)
+        .where((field) => _selectedFields.contains(field))
+        .toList();
 
     return Column(
       children: [
@@ -642,7 +774,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     return DataColumn(
                       label: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                        child: Text(header.replaceAll('_', ' ').toUpperCase())
+                        child: Text(_toTitleCase(header))
                       ),
                       onSort: (columnIndex, ascending) {
                         setState(() {
