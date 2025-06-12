@@ -103,16 +103,14 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
-  // Field groups for tabbed view
-  static final Map<String, List<String>> fieldGroups = {
-    'All': [], // Will be populated dynamically
-    'QB': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'fantasy_points_ppr'],
-    'RB': ['player_name', 'season', 'games', 'rushing_attempts', 'rushing_yards', 'rushing_yards_per_attempt', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'fantasy_points_ppr'],
-    'WR': ['player_name', 'season', 'games', 'receptions', 'targets', 'receiving_yards', 'yards_per_reception', 'receiving_tds', 'wopr', 'fantasy_points_ppr'],
-    'TE': ['player_name', 'season', 'games', 'receptions', 'targets', 'receiving_yards', 'yards_per_reception', 'receiving_tds', 'fantasy_points_ppr'],
+  // Field groups for tabbed view - repurposed for stat categories
+  static final Map<String, List<String>> _statCategoryFieldGroups = {
+    'Standard': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds'],
+    'Advanced': ['player_name', 'season', 'games', 'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr'],
+    'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
   };
   
-  String _selectedStatCategory = 'All';
+  String _selectedStatCategory = 'Standard';
 
   // All operators for query
   final List<QueryOperator> _allOperators = [
@@ -131,7 +129,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   void initState() {
     super.initState();
     _fetchDataFromFirebase();
-    _selectedStatCategory = _positions.contains(_selectedPosition) ? _selectedPosition : 'All';
   }
 
   @override
@@ -221,12 +218,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             }
           }
           _isLoading = false;
-          // Set the default selected category based on position
-          if (_positions.contains(_selectedPosition)) {
-            _selectedStatCategory = _selectedPosition;
-          } else {
-            _selectedStatCategory = 'All';
-          }
         });
       }
       _startPreloadingNextPages();
@@ -307,12 +298,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     _nextCursor = null;
     _preloadedPages.clear();
     _preloadedCursors.clear();
-    // Reset stat category based on position
-    if (_positions.contains(_selectedPosition)) {
-      _selectedStatCategory = _selectedPosition;
-    } else {
-      _selectedStatCategory = 'All';
-    }
     _fetchDataFromFirebase();
   }
 
@@ -409,8 +394,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                             if (value != null) {
                               setState(() {
                                 _selectedPosition = value;
-                                // Update stat category when position changes
-                                _selectedStatCategory = value;
+                                // When position changes, reset category to standard
+                                _selectedStatCategory = 'Standard';
                               });
                               _applyFiltersAndFetch();
                             }
@@ -583,13 +568,24 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'yards_per_touch', 'wopr', 'fantasy_points', 'fantasy_points_ppr'
     };
 
-    final currentFieldGroup = Map.from(fieldGroups);
-    if (_selectedPosition != 'All' && !currentFieldGroup.containsKey(_selectedPosition)) {
-      _selectedStatCategory = 'All';
+    List<String> getVisibleFieldsForCategory(String category, String position) {
+      List<String> fields = _statCategoryFieldGroups[category] ?? [];
+      
+      if (position == 'QB') {
+        return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+      }
+      if (position == 'RB') {
+         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+      }
+      if (position == 'WR' || position == 'TE') {
+         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+      }
+      
+      // 'All' position shows all fields for the category
+      return fields;
     }
-    currentFieldGroup['All'] = _headers;
 
-    final List<String> displayFields = currentFieldGroup[_selectedStatCategory] ?? _headers;
+    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, _selectedPosition);
 
     return Column(
       children: [
@@ -598,25 +594,21 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: Row(
-            children: (currentFieldGroup.keys).map((category) {
-              // Only show tabs relevant to the selected position
-              if (_selectedPosition == 'All' || category == 'All' || category == _selectedPosition) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: ChoiceChip(
-                    label: Text(category),
-                    selected: _selectedStatCategory == category,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedStatCategory = category;
-                        });
-                      }
-                    },
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
+            children: (_statCategoryFieldGroups.keys).map((category) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: ChoiceChip(
+                  label: Text(category),
+                  selected: _selectedStatCategory == category,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedStatCategory = category;
+                      });
+                    }
+                  },
+                ),
+              );
             }).toList(),
           ),
         ),
@@ -626,72 +618,95 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.all(8.0),
-              child: DataTable(
-                sortColumnIndex:
-                    displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
-                sortAscending: _sortAscending,
-                headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-                headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                columns: displayFields.map((header) {
-                  return DataColumn(
-                    label: Text(header),
-                    onSort: (columnIndex, ascending) {
-                      setState(() {
-                        _sortColumn = displayFields[columnIndex];
-                        _sortAscending = ascending;
-                        _applyFiltersAndFetch();
-                      });
-                    },
-                  );
-                }).toList(),
-                rows: _rawRows.map((row) {
-                  return DataRow(
-                    cells: displayFields.map((header) {
-                      final value = row[header];
-                      String displayValue;
-                      Color? cellBackgroundColor;
-
-                      if (value == null) {
-                        displayValue = 'N/A';
-                      } else if (value is num && numericShadingColumns.contains(header)) {
-                        final percentile = columnPercentiles[header]?[value];
-                        if (percentile != null) {
-                          cellBackgroundColor = Color.fromRGBO(
-                            100, 140, 240, 0.1 + (percentile * 0.85)
-                          );
-                        }
-                        if (doubleFields.contains(header)) {
-                          displayValue = value.toStringAsFixed(2);
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  dataTableTheme: const DataTableThemeData(
+                    columnSpacing: 0,
+                    horizontalMargin: 0,
+                    dividerThickness: 0,
+                  ),
+                ),
+                child: DataTable(
+                  sortColumnIndex:
+                      displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
+                  sortAscending: _sortAscending,
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  dataRowHeight: 44,
+                  showCheckboxColumn: false,
+                  border: TableBorder.all(
+                    color: Colors.grey.shade300,
+                    width: 0.5,
+                  ),
+                  columns: displayFields.map((header) {
+                    return DataColumn(
+                      label: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                        child: Text(header.replaceAll('_', ' ').toUpperCase())
+                      ),
+                      onSort: (columnIndex, ascending) {
+                        setState(() {
+                          _sortColumn = displayFields[columnIndex];
+                          _sortAscending = ascending;
+                          _applyFiltersAndFetch();
+                        });
+                      },
+                    );
+                  }).toList(),
+                  rows: _rawRows.asMap().entries.map((entry) {
+                    final int rowIndex = entry.key;
+                    final Map<String, dynamic> row = entry.value;
+                    return DataRow(
+                      color: WidgetStateProperty.resolveWith<Color?>((states) => rowIndex.isEven ? Colors.grey.shade100 : Colors.white),
+                      cells: displayFields.map((header) {
+                        final value = row[header];
+                        String displayValue;
+                        Color? cellBackgroundColor;
+  
+                        if (value == null) {
+                          displayValue = 'N/A';
+                        } else if (value is num && numericShadingColumns.contains(header)) {
+                          final percentile = columnPercentiles[header]?[value];
+                          if (percentile != null) {
+                            cellBackgroundColor = Color.fromRGBO(
+                              100, 140, 240, 0.1 + (percentile * 0.85)
+                            );
+                          }
+                          if (doubleFields.contains(header)) {
+                            displayValue = value.toStringAsFixed(2);
+                          } else {
+                            displayValue = value.toInt().toString();
+                          }
                         } else {
-                          displayValue = value.toInt().toString();
+                          displayValue = value.toString();
                         }
-                      } else {
-                        displayValue = value.toString();
-                      }
-
-                      return DataCell(
-                        Container(
-                          color: cellBackgroundColor,
-                          alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: header == 'recent_team'
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    TeamLogoUtils.buildNFLTeamLogo(
-                                      value.toString(),
-                                      size: 24.0,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(displayValue),
-                                  ],
-                                )
-                              : Text(displayValue),
-                        ),
-                      );
-                    }).toList(),
-                  );
-                }).toList(),
+  
+                        return DataCell(
+                          Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: cellBackgroundColor,
+                            alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: header == 'recent_team'
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TeamLogoUtils.buildNFLTeamLogo(
+                                        value.toString(),
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(displayValue),
+                                    ],
+                                  )
+                                : Text(displayValue),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),

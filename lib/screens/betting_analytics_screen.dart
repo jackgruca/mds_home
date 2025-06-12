@@ -189,64 +189,90 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
             scrollDirection: Axis.vertical,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: DataTable(
-                sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
-                sortAscending: _sortAscending,
-                headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-                headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                columns: displayFields.map((field) => DataColumn(
-                  label: Text(field),
-                  onSort: (i, asc) {
-                    setState(() {
-                      _sortColumn = field;
-                      _sortAscending = asc;
-                      _applyFilters();
-                    });
-                  },
-                )).toList(),
-                rows: _rows.map((row) => DataRow(
-                  cells: displayFields.map((field) {
-                    final value = row[field];
-                    Color? cellColor;
-                    if (percentiles.containsKey(field) && value is num) {
-                      final p = percentiles[field]![value];
-                      if (p != null) {
-                        cellColor = Color.fromRGBO(100, 140, 240, 0.1 + (p * 0.85));
-                      }
-                    }
-
-                    String displayValue;
-                    if (value == null) {
-                      displayValue = 'N/A';
-                    } else if (value is num && (field.contains('line') || field.contains('moneyline'))) {
-                        displayValue = value.toStringAsFixed(1);
-                    } else if (value is num && (field.contains('covered') || field.contains('hit'))) {
-                        displayValue = '${(value * 100).toStringAsFixed(0)}%';
-                    } else if (value is int && (field == 'season')) {
-                        displayValue = value.toString();
-                    } else {
-                        displayValue = value.toString();
-                    }
-
-                    return DataCell(
-                      Container(
-                        color: cellColor,
-                        alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: (field == 'home_team' || field == 'away_team')
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TeamLogoUtils.buildNFLTeamLogo(value.toString(), size: 24.0),
-                                  const SizedBox(width: 8),
-                                  Text(displayValue),
-                                ],
-                              )
-                            : Text(displayValue),
-                      ),
+              padding: const EdgeInsets.all(8.0),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  dataTableTheme: const DataTableThemeData(
+                    columnSpacing: 0,
+                    horizontalMargin: 0,
+                    dividerThickness: 0,
+                  ),
+                ),
+                child: DataTable(
+                  sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
+                  sortAscending: _sortAscending,
+                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  dataRowHeight: 44,
+                  showCheckboxColumn: false,
+                  border: TableBorder.all(
+                    color: Colors.grey.shade300,
+                    width: 0.5,
+                  ),
+                  columns: displayFields.map((field) => DataColumn(
+                    label: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      child: Text(field.replaceAll('_', ' ').toUpperCase()),
+                    ),
+                    onSort: (i, asc) {
+                      setState(() {
+                        _sortColumn = field;
+                        _sortAscending = asc;
+                        _applyFilters();
+                      });
+                    },
+                  )).toList(),
+                  rows: _rows.asMap().entries.map((entry) {
+                    final int rowIndex = entry.key;
+                    final Map<String, dynamic> row = entry.value;
+                    return DataRow(
+                      color: WidgetStateProperty.resolveWith<Color?>((states) => rowIndex.isEven ? Colors.grey.shade100 : Colors.white),
+                      cells: displayFields.map((field) {
+                        final value = row[field];
+                        Color? cellColor;
+                        if (percentiles.containsKey(field) && value is num) {
+                          final p = percentiles[field]![value];
+                          if (p != null) {
+                            cellColor = Color.fromRGBO(100, 140, 240, 0.1 + (p * 0.85));
+                          }
+                        }
+  
+                        String displayValue;
+                        if (value == null) {
+                          displayValue = 'N/A';
+                        } else if (value is num && (field.contains('line') || field.contains('moneyline'))) {
+                            displayValue = value.toStringAsFixed(1);
+                        } else if (value is num && (field.contains('covered') || field.contains('hit'))) {
+                            displayValue = '${(value * 100).toStringAsFixed(0)}%';
+                        } else if (value is int && (field == 'season')) {
+                            displayValue = value.toString();
+                        } else {
+                            displayValue = value.toString();
+                        }
+  
+                        return DataCell(
+                          Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: cellColor,
+                            alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: (field == 'home_team' || field == 'away_team')
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TeamLogoUtils.buildNFLTeamLogo(value.toString(), size: 24.0),
+                                      const SizedBox(width: 8),
+                                      Text(displayValue),
+                                    ],
+                                  )
+                                : Text(displayValue),
+                          ),
+                        );
+                      }).toList(),
                     );
                   }).toList(),
-                )).toList(),
+                ),
               ),
             ),
           ),

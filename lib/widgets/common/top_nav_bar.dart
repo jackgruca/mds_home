@@ -53,7 +53,7 @@ final List<NavItem> topNavItems = [
     isPlaceholder: false, // Already false: Landing page exists (points to analytics)
     subItems: [
       // --- Implemented --- 
-      NavItem(title: 'Betting Analytics', route: '/betting', isPlaceholder: false), // Points to existing screen
+      // NavItem(title: 'Betting Analytics', route: '/betting', isPlaceholder: false), // This is being moved
       // --- Placeholders --- 
       // ANALYZE
       NavItem(title: 'Line Movement Tracker', route: '/betting/lines', isPlaceholder: true),
@@ -106,6 +106,7 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
       NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
+      NavItem(title: 'Betting Odds Data', route: '/betting', icon: Icons.paid, isPlaceholder: false), // Moved here
       // --- Placeholders ---
       NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
       NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),
