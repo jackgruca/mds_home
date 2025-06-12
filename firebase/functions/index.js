@@ -16,5 +16,6 @@ exports.getAnalyticsData = analyticsAggregation.getAnalyticsData;
 // Export the new function for historical matchups
 exports.getHistoricalMatchups = analyticsAggregation.getHistoricalMatchups;
 exports.getWrModelStats = analyticsAggregation.getWrModelStats;
+exports.getBettingData = analyticsAggregation.getBettingData;
 
 exports.logIndexRequest = analyticsAggregation.logIndexRequest;

@@ -1278,3 +1278,81 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
     );
   }
 });
+
+// New function for Betting Hub
+exports.getBettingData = functions.https.onCall(async (data, context) => {
+  const {
+    filters = {},
+    limit = 25,
+    orderBy = "game_id",
+    orderDirection = "desc",
+    cursor,
+  } = data;
+
+  const collectionName = "betting_data";
+  const textSearchFields = ["home_team", "away_team", "favorite_team", "underdog_team", "location", "stadium"];
+  const db = admin.firestore();
+
+  // Helper to apply query conditions from the client
+  const applyQueryConditions = (query, queryFilters) => {
+    let newQuery = query;
+    for (const field in queryFilters) {
+      const condition = queryFilters[field];
+      if (!condition.operator || condition.value === undefined) continue;
+      newQuery = newQuery.where(field, condition.operator, condition.value);
+    }
+    return newQuery;
+  };
+
+  try {
+    let query = db.collection(collectionName);
+
+    // Apply Filters
+    if (Object.keys(filters).length > 0) {
+      query = applyQueryConditions(query, filters);
+    }
+
+    // Apply Sorting
+    query = query.orderBy(orderBy, orderDirection);
+
+    // Apply Pagination (Cursor)
+    if (cursor) {
+      const cursorDoc = await db.collection(collectionName).doc(cursor).get();
+      if (cursorDoc.exists) {
+        query = query.startAfter(cursorDoc);
+      }
+    }
+
+    // Apply Limit
+    query = query.limit(limit);
+
+    // Execute query
+    const snapshot = await query.get();
+
+    // Process results
+    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Determine the next cursor
+    let nextCursor = null;
+    if (snapshot.docs.length === limit) {
+      nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
+    }
+
+    return {
+      data: results,
+      nextCursor,
+      totalRecords: 0, // Keep this stable
+    };
+
+  } catch (error) {
+    console.error("Error fetching betting data:", error);
+    if (error.code === 'failed-precondition') {
+       throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Query requires a composite index. Please create it in the Firebase console.",
+        { originalError: error.message }
+      );
+    }
+    throw new functions.https.HttpsError("internal", "An unexpected error occurred while fetching betting data.", error.message);
+  }
+});
