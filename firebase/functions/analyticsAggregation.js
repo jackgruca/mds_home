@@ -19,6 +19,35 @@ function parseQueryValue(value) {
   return value; // Return as string if not obviously a number or boolean
 }
 
+// Helper function to log missing index requests to Firestore
+async function logMissingIndexRequest(error, queryDetails, screenName) {
+    if (error.code === 'failed-precondition' && error.message) {
+        console.log(`!!! FAILED PRECONDITION DETECTED for ${screenName}. Logging index request automatically. !!!`);
+        const db = admin.firestore();
+        // Extract the URL from the error message
+        const urlRegex = /(https:\/\/[^\s]+)/;
+        const match = error.message.match(urlRegex);
+        const indexUrl = match ? match[0] : 'Could not parse URL from error.';
+
+        // Create a simple description of the query that failed
+        const queryDetailsString = JSON.stringify(queryDetails);
+
+        try {
+            await db.collection('admin_index_requests').add({
+                indexUrl: indexUrl,
+                queryDetails: queryDetailsString,
+                screen: screenName,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'pending',
+                errorDetails: error.message,
+            });
+            console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
+        } catch (loggingError) {
+            console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
+        }
+    }
+}
+
 exports.dailyAnalyticsAggregation = functions.runWith({
     timeoutSeconds: 300,  // Increase timeout to 5 minutes
     memory: '1GB'         // Increase memory allocation
@@ -1132,33 +1161,7 @@ exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => 
     } catch (error) {
         console.error('Error in getHistoricalMatchups Cloud Function:', error);
         // --- SUREFIRE FIX: Log index request directly from the backend ---
-        if (error.code === 'failed-precondition' && error.message) {
-            console.log("!!! FAILED PRECONDITION DETECTED. Logging index request automatically. !!!");
-            const db = admin.firestore();
-            // Extract the URL from the error message
-            const urlRegex = /(https:\/\/[^\s]+)/;
-            const match = error.message.match(urlRegex);
-            const indexUrl = match ? match[0] : 'Could not parse URL from error.';
-
-            // Create a simple description of the query that failed
-            const queryDetailsString = Object.entries(filters)
-                .map(([key, value]) => `${key} == ${value}`)
-                .join(', ');
-
-            try {
-                await db.collection('admin_index_requests').add({
-                    indexUrl: indexUrl,
-                    queryDetails: queryDetailsString,
-                    screen: 'HistoricalDataScreen',
-                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    status: 'pending',
-                    errorDetails: error.message,
-                });
-                console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
-            } catch (loggingError) {
-                console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
-            }
-        }
+        await logMissingIndexRequest(error, filters, 'HistoricalDataScreen');
         // --- END FIX ---
         throw new functions.https.HttpsError('internal', `Failed to fetch historical matchups: ${error.message}`, error.details || {originalError: error.toString()});
     }
@@ -1245,35 +1248,78 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
   } catch (error) {
     console.error('Error in getWrModelStats:', error);
     // --- SUREFIRE FIX: Log index request directly from the backend ---
-    if (error.code === 'failed-precondition' && error.message) {
-        console.log("!!! FAILED PRECONDITION DETECTED. Logging index request automatically. !!!");
-        const db = admin.firestore();
-        const urlRegex = /(https:\/\/[^\s]+)/;
-        const match = error.message.match(urlRegex);
-        const indexUrl = match ? match[0] : 'Could not parse URL from error.';
-
-        const queryDetailsString = Object.entries(data.filters || {})
-            .map(([key, value]) => `${key} == ${value}`)
-            .join(', ');
-
-        try {
-            await db.collection('admin_index_requests').add({
-                indexUrl: indexUrl,
-                queryDetails: queryDetailsString,
-                screen: 'WRModelScreen',
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                status: 'pending',
-                errorDetails: error.message,
-            });
-            console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
-        } catch (loggingError) {
-            console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
-        }
-    }
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'WRModelScreen');
     // --- END FIX ---
     throw new functions.https.HttpsError(
       'internal',
       `Failed to fetch WR Model data: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for Player Season Stats
+exports.getPlayerSeasonStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('playerSeasonStats');
+
+    console.log('getPlayerSeasonStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'season'; // Default sort field
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { data: [], totalRecords: totalRecords, nextCursor: null };
+    }
+    
+    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor
+    };
+  } catch (error) {
+    console.error('Error in getPlayerSeasonStats:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'PlayerSeasonStatsScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch Player Season Stats: ${error.message}`,
       error
     );
   }
@@ -1346,6 +1392,9 @@ exports.getBettingData = functions.https.onCall(async (data, context) => {
 
   } catch (error) {
     console.error("Error fetching betting data:", error);
+    // Use the new helper for logging index requests
+    await logMissingIndexRequest(error, { filters, orderBy }, 'BettingHubScreen');
+    
     if (error.code === 'failed-precondition') {
        throw new functions.https.HttpsError(
         "failed-precondition",

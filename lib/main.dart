@@ -13,6 +13,7 @@ import 'screens/hubs/betting_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
 import 'screens/wr_model_screen.dart';
+import 'screens/player_season_stats_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -149,7 +150,7 @@ class _MyAppState extends State<MyApp> {
               case '/data':
                 return MaterialPageRoute(builder: (_) => DataExplorerScreen());
               case '/betting':
-                return MaterialPageRoute(builder: (_) => BettingHubScreen());
+                return MaterialPageRoute(builder: (_) => const BettingHubScreen());
               case '/projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               case '/blog':
@@ -166,6 +167,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
               case '/wr-model':
                 return MaterialPageRoute(builder: (_) => const WRModelScreen());
+              case '/player-season-stats':
+                return MaterialPageRoute(builder: (_) => const PlayerSeasonStatsScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }

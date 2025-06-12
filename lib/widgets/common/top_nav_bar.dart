@@ -105,6 +105,7 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
       NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
+      NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
       // --- Placeholders ---
       NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
       NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),
