@@ -1,249 +1,149 @@
 # data_processing/get_player_season_stats.R
 
-# 1. SETUP & DEFENSIVE UTILITIES
-# ----------------------------------------------------------------------
+# 1. SETUP
+# ------------------------------------------------
 # Install packages if you don't have them
-# install.packages(c("nflreadr", "tidyverse", "jsonlite"))
+# install.packages("nflreadr")
+# install.packages("tidyverse")
+# install.packages("jsonlite")
 
 # Load libraries
 library(nflreadr)
 library(tidyverse)
 library(jsonlite)
 
-cat("Loaded libraries: nflreadr, tidyverse, jsonlite\n\n")
+cat("Loaded libraries: nflreadr, tidyverse, jsonlite\n")
 
-# --- Defensive Coding Utilities from Guide ---
+# Define seasons to load. nflreadr can be slow for many seasons.
+# Let's grab the last 5 years of data as a starting point.
+current_year <- as.numeric(format(Sys.Date(), "%Y"))
+seasons_to_load <- (current_year - 5):(current_year -1)
 
-# Utility to safely join dataframes, checking for keys first
-safe_join <- function(df1, df2, join_keys, join_type = "left") {
-  # Check if join keys exist in both datasets
-  missing_keys_df1 <- setdiff(join_keys, names(df1))
-  missing_keys_df2 <- setdiff(join_keys, names(df2))
-  
-  if (length(missing_keys_df1) > 0) {
-    cat(sprintf("⚠️ WARNING: Join keys missing from first dataset: %s. Skipping join.\n", paste(missing_keys_df1, collapse = ", ")))
-    return(df1)
-  }
-  if (length(missing_keys_df2) > 0) {
-    cat(sprintf("⚠️ WARNING: Join keys missing from second dataset: %s. Skipping join.\n", paste(missing_keys_df2, collapse = ", ")))
-    return(df1)
-  }
-  
-  # Perform join
-  cat(sprintf("-> Joining with keys: [ %s ]\n", paste(join_keys, collapse = ", ")))
-  result <- switch(join_type,
-    "left" = left_join(df1, df2, by = join_keys),
-    "inner" = inner_join(df1, df2, by = join_keys),
-    "full" = full_join(df1, df2, by = join_keys)
-  )
-  
-  cat(sprintf("   Join completed: %d rows in result\n", nrow(result)))
-  return(result)
-}
+cat("Fetching player stats for seasons:", paste(seasons_to_load, collapse=", "), "\n")
 
-# Utility to validate a loaded dataset
-validate_dataset <- function(df, dataset_name) {
-  cat(sprintf("\n🔍 Validating %s...\n", dataset_name))
-  if (is.null(df) || nrow(df) == 0) {
-    cat("   - ⚠️ WARNING: Dataset is empty or NULL.\n")
-    return(FALSE)
-  }
-  cat(sprintf("   - Rows: %d, Columns: %d\n", nrow(df), ncol(df)))
-  
-  key_cols <- c("player_id", "player_name", "player_display_name", "gsis_id", "pfr_id", "season")
-  available_keys <- intersect(key_cols, names(df))
-  cat(sprintf("   - Available join keys: [ %s ]\n", paste(available_keys, collapse = ", ")))
-  return(TRUE)
-}
+# 2. DATA FETCHING AND CLEANING
+# ------------------------------------------------
+# Load seasonal player stats from nflreadr
+player_stats <- nflreadr::load_player_stats(seasons = seasons_to_load)
 
-# Utility to safely export data to JSON
-export_to_json_safe <- function(data, filename = "player_stats.json") {
+cat("Successfully downloaded", nrow(player_stats), "player-season-week rows.\n")
+
+# Load additional datasets with error handling
+load_safe <- function(func, ..., dataset_name) {
   tryCatch({
-    cat(sprintf("\n-> Cleaning and exporting data to %s...\n", filename))
-    data_clean <- data %>%
-      mutate(across(where(is.factor), as.character)) %>%
-      mutate(across(where(~ any(is.infinite(.))), ~ ifelse(is.infinite(.), NA, .))) %>%
-      mutate_if(is.numeric, ~replace(., is.nan(.), NA))
-
-    jsonlite::write_json(data_clean, filename, pretty = TRUE, na = "null", auto_unbox = TRUE)
-    cat(sprintf("✅ Successfully exported %d rows and %d columns to %s\n", nrow(data_clean), ncol(data_clean), filename))
-    return(TRUE)
+    cat("Loading", dataset_name, "...\n")
+    result <- func(...)
+    cat("✅", dataset_name, "loaded:", nrow(result), "rows\n")
+    return(result)
   }, error = function(e) {
-    cat(sprintf("❌ JSON export failed: %s\n", e$message))
-    return(FALSE)
-  })
-}
-
-# 2. CONFIGURATION & DATA LOADING
-# ----------------------------------------------------------------------
-seasons_to_load <- 2021:nflreadr::most_recent_season()
-cat(paste("-> Preparing to load data for seasons:", paste(seasons_to_load, collapse=", "), "\n"))
-
-# Using a function to safely load data
-safe_load <- function(loader, ...) {
-  dataset_name <- deparse(substitute(loader))
-  tryCatch({
-    cat(paste("\n-- Loading:", dataset_name, "..."))
-    df <- loader(...)
-    cat(paste(" done.\n"))
-    return(df)
-  }, error = function(e) {
-    cat(paste("\n----> ❌ ERROR: Failed to load", dataset_name, ". Skipping. Error:", e$message, "\n"))
+    cat("⚠️", dataset_name, "failed to load:", e$message, "\n")
     return(NULL)
   })
 }
 
-# Load all required data sources safely
-player_stats_raw <- safe_load(load_player_stats, seasons = seasons_to_load)
-rosters          <- safe_load(load_rosters, seasons = seasons_to_load)
-snap_counts      <- safe_load(load_snap_counts, seasons = seasons_to_load)
-combine          <- safe_load(load_combine, seasons = 2000:nflreadr::most_recent_season())
+# Load additional datasets
+rosters <- load_safe(nflreadr::load_rosters, seasons = seasons_to_load, dataset_name = "Rosters")
+snap_counts <- load_safe(nflreadr::load_snap_counts, seasons = seasons_to_load, dataset_name = "Snap Counts")
+combine_data <- load_safe(nflreadr::load_combine, dataset_name = "Combine Data")
 
-# Validate loaded data
-validate_dataset(player_stats_raw, "Player Stats (Raw)")
-validate_dataset(rosters, "Rosters")
-validate_dataset(snap_counts, "Snap Counts")
-validate_dataset(combine, "Combine Data")
-
-# Halt if core data is missing
-if (is.null(player_stats_raw)) {
-  stop("❌ FATAL: Core data 'player_stats_raw' could not be loaded. Halting script.")
-}
-
-# 3. DATA AGGREGATION & PREPARATION
-# ----------------------------------------------------------------------
-cat("\n-> Aggregating and preparing data...\n")
-
-# First, let's inspect what join keys are actually available
-cat("\n🔍 Inspecting available join keys in each dataset:\n")
-if (!is.null(player_stats_raw)) {
-  cat("Player Stats keys:", paste(intersect(c("player_id", "player_display_name", "gsis_id"), names(player_stats_raw)), collapse = ", "), "\n")
-}
-if (!is.null(rosters)) {
-  cat("Rosters keys:", paste(intersect(c("player_id", "player_display_name", "gsis_id", "pfr_id"), names(rosters)), collapse = ", "), "\n")
-}
-if (!is.null(snap_counts)) {
-  cat("Snap Counts keys:", paste(intersect(c("player_id", "player_display_name", "pfr_id", "player"), names(snap_counts)), collapse = ", "), "\n")
-}
-if (!is.null(combine)) {
-  cat("Combine keys:", paste(intersect(c("player_name", "player_display_name"), names(combine)), collapse = ", "), "\n")
-}
-
-# Aggregate Player Stats (using correct player_id)
-stats_agg <- player_stats_raw %>%
-  group_by(player_id, player_display_name, season) %>%
+# Clean and process the main player stats data
+season_stats <- player_stats %>%
+  group_by(player_id, player_name, position, season, recent_team) %>%
   summarise(
+    # General
     games = n_distinct(week),
+
+    # Passing Stats
     completions = sum(completions, na.rm = TRUE),
     attempts = sum(attempts, na.rm = TRUE),
     passing_yards = sum(passing_yards, na.rm = TRUE),
     passing_tds = sum(passing_tds, na.rm = TRUE),
     interceptions = sum(interceptions, na.rm = TRUE),
+    sacks = sum(sacks, na.rm = TRUE),
+    sack_yards = sum(sack_yards, na.rm = TRUE),
+
+    # Rushing Stats
     rushing_attempts = sum(carries, na.rm = TRUE),
     rushing_yards = sum(rushing_yards, na.rm = TRUE),
     rushing_tds = sum(rushing_tds, na.rm = TRUE),
+
+    # Receiving Stats
     receptions = sum(receptions, na.rm = TRUE),
     targets = sum(targets, na.rm = TRUE),
     receiving_yards = sum(receiving_yards, na.rm = TRUE),
     receiving_tds = sum(receiving_tds, na.rm = TRUE),
+    
+    # Advanced Receiving
+    wopr = mean(wopr, na.rm = TRUE),
+
+    # Fantasy Points
     fantasy_points = sum(fantasy_points, na.rm = TRUE),
     fantasy_points_ppr = sum(fantasy_points_ppr, na.rm = TRUE),
+
     .groups = 'drop'
+  ) %>%
+  # Filter for relevant positions and players with activity
+  filter(
+    position %in% c('QB', 'RB', 'WR', 'TE') & (attempts > 0 | rushing_attempts > 0 | targets > 0)
+  ) %>%
+  # Create some useful rate stats. Avoid division by zero.
+  mutate(
+    passing_yards_per_attempt = ifelse(attempts > 0, passing_yards / attempts, 0),
+    passing_tds_per_attempt = ifelse(attempts > 0, passing_tds / attempts, 0),
+    rushing_yards_per_attempt = ifelse(rushing_attempts > 0, rushing_yards / rushing_attempts, 0),
+    rushing_tds_per_attempt = ifelse(rushing_attempts > 0, rushing_tds / rushing_attempts, 0),
+    yards_per_reception = ifelse(receptions > 0, receiving_yards / receptions, 0),
+    receiving_tds_per_reception = ifelse(receptions > 0, receiving_tds / receptions, 0),
+    yards_per_touch = ifelse((rushing_attempts + receptions) > 0, (rushing_yards + receiving_yards) / (rushing_attempts + receptions), 0)
   )
 
-cat("   - Player stats aggregated.\n")
+cat("Processed main player stats. Found", nrow(season_stats), "aggregated player-season records.\n")
 
-# 4. MASTER JOIN STRATEGY (FIXED)
-# ----------------------------------------------------------------------
-cat("\n-> Performing master join with corrected strategy...\n")
-
-# Start with aggregated stats as the base
-master_data <- stats_agg
-
-# JOIN 1: Add roster information
+# 3. ADD ROSTER DATA (Physical attributes, team info)
+# ------------------------------------------------
 if (!is.null(rosters)) {
-  cat("\n-> Step 1: Joining with rosters...\n")
+  cat("\n-> Adding roster data...\n")
   
-  tryCatch({
-    # First, let's see what columns are actually available in rosters
-    cat("🔍 Available roster columns:", paste(names(rosters), collapse = ", "), "\n")
+  # Check what columns are available in rosters
+  roster_cols_available <- names(rosters)
+  cat("Available roster columns:", paste(roster_cols_available[1:10], collapse = ", "), "...\n")
+  
+  # Select useful roster columns that exist
+  roster_cols_desired <- c("gsis_id", "season", "full_name", "position", "team", "height", "weight", "birth_date", "entry_year", "draft_number")
+  roster_cols_to_use <- intersect(roster_cols_desired, roster_cols_available)
+  
+  if (length(roster_cols_to_use) >= 2) {
+    rosters_clean <- rosters %>%
+      select(all_of(roster_cols_to_use)) %>%
+      # Rename gsis_id to player_id to match our main dataset
+      {if("gsis_id" %in% names(.)) rename(., player_id = gsis_id) else .} %>%
+      # Remove duplicates
+      {if(all(c("player_id", "season") %in% names(.))) distinct(., player_id, season, .keep_all = TRUE) else .}
     
-    # Create a clean rosters dataset with unique player-season combinations
-    # Only select columns that actually exist
-    available_roster_cols <- names(rosters)
-    desired_cols <- c("gsis_id", "season", "pfr_id", "full_name", "position", "team", "height", "weight", "birth_date", "entry_year", "draft_number")
-    cols_to_select <- intersect(desired_cols, available_roster_cols)
-    
-    cat("🔍 Desired columns:", paste(desired_cols, collapse = ", "), "\n")
-    cat("🔍 Columns to select from rosters:", paste(cols_to_select, collapse = ", "), "\n")
-    
-    if (length(cols_to_select) == 0) {
-      cat("❌ ERROR: No desired columns found in rosters dataset!\n")
-      return(master_data)
-    }
-    
-    # Step 1: Select available columns
-    cat("-> Selecting columns...\n")
-    rosters_selected <- rosters %>% select(all_of(cols_to_select))
-    cat(sprintf("✅ Selected %d columns, %d rows\n", ncol(rosters_selected), nrow(rosters_selected)))
-    cat("✅ Selected columns:", paste(names(rosters_selected), collapse = ", "), "\n")
-    
-    # Step 2: Rename gsis_id to player_id
-    if ("gsis_id" %in% names(rosters_selected)) {
-      cat("-> Renaming gsis_id to player_id...\n")
-      rosters_renamed <- rosters_selected %>% rename(player_id = gsis_id)
-      cat("✅ Renamed successfully. New columns:", paste(names(rosters_renamed), collapse = ", "), "\n")
+    # Join with main data
+    if ("player_id" %in% names(rosters_clean)) {
+      season_stats <- season_stats %>%
+        left_join(rosters_clean, by = c("player_id", "season"), suffix = c("", "_roster"))
+      cat("✅ Roster data joined successfully\n")
     } else {
-      cat("❌ ERROR: gsis_id not found in selected columns!\n")
-      return(master_data)
+      cat("⚠️ Could not join roster data - no matching player_id\n")
     }
-    
-    # Step 3: Remove duplicates
-    if ("player_id" %in% names(rosters_renamed) && "season" %in% names(rosters_renamed)) {
-      cat("-> Removing duplicates by player_id and season...\n")
-      rosters_clean <- rosters_renamed %>% distinct(player_id, season, .keep_all = TRUE)
-      cat(sprintf("✅ Removed duplicates: %d rows remaining\n", nrow(rosters_clean)))
-    } else {
-      cat("❌ ERROR: Required columns for deduplication not found!\n")
-      cat("Available columns after rename:", paste(names(rosters_renamed), collapse = ", "), "\n")
-      return(master_data)
-    }
-    
-    # Step 4: Perform the join
-    cat("-> Attempting join...\n")
-    cat("Master data columns before join:", paste(names(master_data), collapse = ", "), "\n")
-    cat("Rosters clean columns before join:", paste(names(rosters_clean), collapse = ", "), "\n")
-    
-    master_data <- safe_join(master_data, rosters_clean, c("player_id", "season"))
-    cat(sprintf("✅ After roster join: %d rows\n", nrow(master_data)))
-    
-  }, error = function(e) {
-    cat("❌ ERROR in roster join:", e$message, "\n")
-    cat("📊 Debug info:\n")
-    cat("- Original roster columns:", paste(names(rosters), collapse = ", "), "\n")
-    cat("- Desired columns:", paste(desired_cols, collapse = ", "), "\n")
-    if (exists("cols_to_select")) {
-      cat("- Columns to select:", paste(cols_to_select, collapse = ", "), "\n")
-    }
-    if (exists("rosters_selected")) {
-      cat("- After selection:", paste(names(rosters_selected), collapse = ", "), "\n")
-    }
-    if (exists("rosters_renamed")) {
-      cat("- After rename:", paste(names(rosters_renamed), collapse = ", "), "\n")
-    }
-    cat("Full error:\n")
-    print(e)
-  })
+  } else {
+    cat("⚠️ Not enough useful roster columns available\n")
+  }
 }
 
-# JOIN 2: Add snap count information
-if (!is.null(snap_counts) && "pfr_id" %in% names(master_data)) {
-  cat("\n-> Step 2: Joining with snap counts...\n")
+# 4. ADD SNAP COUNT DATA (Usage/workload info)
+# ------------------------------------------------
+if (!is.null(snap_counts)) {
+  cat("\n-> Adding snap count data...\n")
   
-  # Check what join key is available in snap_counts
-  # From your output, it looks like snap_counts has "player" as the key
-  if ("player" %in% names(snap_counts)) {
-    # Aggregate snap counts by player and season
+  # Check snap counts structure
+  snap_cols_available <- names(snap_counts)
+  cat("Available snap count columns:", paste(snap_cols_available[1:8], collapse = ", "), "...\n")
+  
+  # Aggregate snap counts by player and season
+  if (all(c("player", "season", "offense_snaps") %in% snap_cols_available)) {
     snaps_agg <- snap_counts %>%
       group_by(player, season) %>%
       summarise(
@@ -255,88 +155,105 @@ if (!is.null(snap_counts) && "pfr_id" %in% names(master_data)) {
         avg_st_pct = mean(st_pct, na.rm = TRUE),
         .groups = 'drop'
       ) %>%
-      # Only keep records with actual snap data
-      filter(!is.na(player) & (total_offense_snaps > 0 | total_defense_snaps > 0 | total_st_snaps > 0))
+      # Only keep records with meaningful snap data
+      filter(total_offense_snaps > 0 | total_defense_snaps > 0 | total_st_snaps > 0) %>%
+      # Rename player to match our join key
+      rename(player_name = player)
     
-    if (nrow(snaps_agg) > 0) {
-      # Try to join using player_display_name (most likely match)
-      if ("player_display_name" %in% names(master_data)) {
-        snaps_agg <- snaps_agg %>% rename(player_display_name = player)
-        master_data <- safe_join(master_data, snaps_agg, c("player_display_name", "season"))
-        cat(sprintf("   After snap counts join: %d rows\n", nrow(master_data)))
-      } else {
-        cat("   - ⚠️ Cannot join snap counts - no matching player identifier\n")
-      }
-    } else {
-      cat("   - ⚠️ No valid snap count data to join\n")
-    }
+    # Join with main data using player_name
+    season_stats <- season_stats %>%
+      left_join(snaps_agg, by = c("player_name", "season"), suffix = c("", "_snaps"))
+    
+    cat("✅ Snap count data joined successfully\n")
   } else {
-    cat("   - ⚠️ Snap counts missing expected 'player' column\n")
+    cat("⚠️ Could not process snap count data - missing expected columns\n")
   }
-} else {
-  cat("\n-> Step 2: Skipping snap counts join (requirements not met)\n")
 }
 
-# JOIN 3: Add combine information
-if (!is.null(combine) && "full_name" %in% names(master_data)) {
-  cat("\n-> Step 3: Joining with combine data...\n")
+# 5. ADD COMBINE DATA (Athletic measurements)
+# ------------------------------------------------
+if (!is.null(combine_data)) {
+  cat("\n-> Adding combine data...\n")
   
-  # Prepare combine data - use player_name as join key
-  combine_clean <- combine %>%
-    # Select relevant combine metrics
-    select(player_name, pos, forty, vertical, broad_jump, cone, shuttle) %>%
-    # Remove duplicates (some players may have multiple combine records)
-    group_by(player_name) %>%
-    summarise(
-      combine_position = first(pos),
-      forty_time = first(forty[!is.na(forty)]),
-      vertical_jump = first(vertical[!is.na(vertical)]),
-      broad_jump_inches = first(broad_jump[!is.na(broad_jump)]),
-      cone_drill = first(cone[!is.na(cone)]),
-      shuttle_time = first(shuttle[!is.na(shuttle)]),
-      .groups = 'drop'
-    ) %>%
-    # Rename player_name to match full_name from rosters
-    rename(full_name = player_name)
+  # Check combine data structure
+  combine_cols_available <- names(combine_data)
+  cat("Available combine columns:", paste(combine_cols_available[1:8], collapse = ", "), "...\n")
   
-  if (nrow(combine_clean) > 0) {
-    master_data <- safe_join(master_data, combine_clean, "full_name")
-    cat(sprintf("   After combine join: %d rows\n", nrow(master_data)))
+  # Select useful combine metrics
+  combine_cols_desired <- c("player_name", "forty", "vertical", "broad_jump", "cone", "shuttle", "bench")
+  combine_cols_to_use <- intersect(combine_cols_desired, combine_cols_available)
+  
+  if (length(combine_cols_to_use) >= 2) {
+    combine_clean <- combine_data %>%
+      select(all_of(combine_cols_to_use)) %>%
+      # Remove duplicates (keep first non-NA values)
+      group_by(player_name) %>%
+      summarise(across(everything(), ~first(.x[!is.na(.x)])), .groups = 'drop') %>%
+      # Rename combine metrics for clarity
+      rename_with(~paste0("combine_", .x), .cols = -player_name)
+    
+    # Join with main data
+    season_stats <- season_stats %>%
+      left_join(combine_clean, by = "player_name", suffix = c("", "_combine"))
+    
+    cat("✅ Combine data joined successfully\n")
   } else {
-    cat("   - ⚠️ No valid combine data to join\n")
+    cat("⚠️ Could not process combine data - not enough useful columns\n")
   }
-} else {
-  cat("\n-> Step 3: Skipping combine join (full_name not available or combine data missing)\n")
 }
 
-# 5. FINAL DATA CLEANUP
-# ----------------------------------------------------------------------
+# 6. FINAL CLEANUP AND COLUMN SELECTION
+# ------------------------------------------------
 cat("\n-> Final data cleanup...\n")
 
-# Rename columns for consistency
-final_data <- master_data %>%
-  # Standardize column names
-  rename_with(~"player_name", .cols = any_of(c("full_name"))) %>%
-  rename_with(~"recent_team", .cols = any_of(c("team"))) %>%
-  # Keep only players with meaningful activity
-  filter(
-    !is.na(games) & games > 0 |  # Has game appearances, OR
-    (!is.na(total_offense_snaps) & total_offense_snaps > 0) |  # Has offensive snaps, OR
-    (!is.na(total_defense_snaps) & total_defense_snaps > 0) |  # Has defensive snaps, OR
-    (!is.na(fantasy_points) & fantasy_points > 0)  # Has fantasy points
-  ) %>%
-  # Sort by season and fantasy points for consistency
-  arrange(desc(season), desc(fantasy_points_ppr))
+# Select and reorder columns for final output
+final_stats <- season_stats %>%
+  # Replace NaN with 0 for cleaner JSON
+  mutate_if(is.numeric, ~replace(., is.nan(.), 0)) %>%
+  # Select columns in logical order (keeping all the original ones plus new ones)
+  select(
+    # Identifiers
+    player_id, player_name, position, season, recent_team, games,
+    
+    # Physical attributes (from rosters, if available)
+    any_of(c("height", "weight", "birth_date", "entry_year", "draft_number")),
+    
+    # Passing
+    completions, attempts, passing_yards, passing_tds, interceptions, sacks, sack_yards,
+    passing_yards_per_attempt, passing_tds_per_attempt,
+    
+    # Rushing
+    rushing_attempts, rushing_yards, rushing_tds,
+    rushing_yards_per_attempt, rushing_tds_per_attempt,
+    
+    # Receiving
+    receptions, targets, receiving_yards, receiving_tds,
+    yards_per_reception, receiving_tds_per_reception,
+    
+    # Advanced
+    wopr, yards_per_touch,
+    
+    # Usage data (from snap counts, if available)
+    any_of(c("total_offense_snaps", "avg_offense_pct", "total_defense_snaps", "avg_defense_pct", "total_st_snaps", "avg_st_pct")),
+    
+    # Athletic measurements (from combine, if available)
+    any_of(c("combine_forty", "combine_vertical", "combine_broad_jump", "combine_cone", "combine_shuttle", "combine_bench")),
+    
+    # Fantasy
+    fantasy_points, fantasy_points_ppr
+  )
 
-cat(sprintf("   Final dataset: %d rows, %d columns\n", nrow(final_data), ncol(final_data)))
+cat("Final dataset prepared with", nrow(final_stats), "rows and", ncol(final_stats), "columns\n")
+cat("Final columns:", paste(names(final_stats), collapse = ", "), "\n")
 
-# Print column summary for debugging
-cat("\n📋 Final dataset columns:\n")
-cat(paste(names(final_data), collapse = ", "), "\n")
+# 7. EXPORT TO JSON
+# ------------------------------------------------
+# Define the output file path
+output_file <- "player_stats.json"
 
-# 6. FINAL EXPORT
-# ----------------------------------------------------------------------
-export_to_json_safe(final_data, "player_stats.json")
+# Convert the data frame to a JSON array format and write to file
+json_data <- toJSON(final_stats, pretty = TRUE, auto_unbox = TRUE)
+write(json_data, file = output_file)
 
-cat("\n\n✅ R script finished successfully.\n")
-cat("You can now use the 'upload_player_stats.js' script to upload 'player_stats.json' to Firestore.\n")
+cat("\n✅ Successfully exported data to", output_file, "\n")
+cat("You can now use the 'upload_player_stats.js' script to upload this file to Firestore.\n")
