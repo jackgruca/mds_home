@@ -9,7 +9,7 @@ const path = require('path');
 const SERVICE_ACCOUNT_PATH = path.join(__dirname, './serviceAccountKey.json'); // Assumes key is in the same directory
 const DATABASE_URL = 'https://sticktothemodel-d9049.firebaseio.com'; // Replace with your project's database URL if different
 const COLLECTION_NAME = 'playerSeasonStats';
-const INPUT_JSON_PATH = path.join(__dirname, './player_stats.json');
+const INPUT_JSON_PATH = path.join(__dirname, '../player_stats.json');
 
 // --- SCRIPT ---
 
@@ -37,6 +37,18 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const stats = JSON.parse(fs.readFileSync(INPUT_JSON_PATH, 'utf8'));
+
+// --- DIAGNOSTIC LOG ---
+console.log('--- Sample Record from JSON ---');
+// Check if stats exist and log the first record
+if (stats && stats.length > 0) {
+  console.log(stats[0]);
+} else {
+  console.log('JSON file is empty or does not contain an array of stats.');
+}
+console.log('-----------------------------');
+// --- END DIAGNOSTIC LOG ---
+
 const collectionRef = db.collection(COLLECTION_NAME);
 
 async function uploadStats() {
@@ -47,6 +59,7 @@ async function uploadStats() {
 
     console.log(`Found ${stats.length} records to upload to the '${COLLECTION_NAME}' collection.`);
     console.log('This will overwrite existing documents with the same ID.');
+    console.log('Data now includes NFL NextGen stats for passing, rushing, and receiving.');
 
     // Use a batched writer for efficient uploads
     let batch = db.batch();
@@ -83,6 +96,7 @@ async function uploadStats() {
     console.log('---------------------------------');
     console.log('✅ Upload complete!');
     console.log(`Successfully uploaded ${totalRecords} records to Firestore.`);
+    console.log('Each record now includes traditional stats and NextGen stats where available.');
     console.log('---------------------------------');
 }
 

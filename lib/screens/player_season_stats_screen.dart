@@ -106,7 +106,20 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   // Field groups for tabbed view - repurposed for stat categories
   static final Map<String, List<String>> _statCategoryFieldGroups = {
     'Standard': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds'],
-    'Advanced': ['player_name', 'season', 'games', 'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr'],
+    'Advanced': [
+      'player_name', 'season', 'games', 
+      'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr',
+      // NextGen Passing Stats
+      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
+      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
+      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+      // NextGen Rushing Stats
+      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+      'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
+      // NextGen Receiving Stats
+      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
+      'catch_percentage'
+    ],
     'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
   };
   
@@ -143,7 +156,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'passing_yards_per_attempt', 'passing_tds_per_attempt',
       'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
       'yards_per_reception', 'receiving_tds_per_reception',
-      'yards_per_touch', 'wopr'
+      'yards_per_touch', 'wopr',
+      // NextGen Passing Stats
+      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
+      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
+      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+      // NextGen Rushing Stats
+      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+      'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
+      // NextGen Receiving Stats
+      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
+      'catch_percentage'
     };
     const Set<String> intFields = {
       'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds',
@@ -222,10 +245,31 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       }
       _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) {
+      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null && e.message!.contains('The query requires an index')) {
+        // Extract the URL and log it to a new Firebase function
+        final indexUrlMatch = RegExp(r'https://console.firebase.google.com/project/[^\s]+').firstMatch(e.message!);        
+        if (indexUrlMatch != null) {
+          final missingIndexUrl = indexUrlMatch.group(0);
+          print('Missing index URL found: $missingIndexUrl');
+          // Call a new Cloud Function to log this URL
+          functions.httpsCallable('logMissingIndex').call({
+            'url': missingIndexUrl,
+            'timestamp': DateTime.now().toIso8601String(),
+          }).catchError((error) {
+            print('Error logging missing index: $error');
+          });
+        }
+        if (mounted) {
+          setState(() {
+            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
         setState(() {
           _error =
-              "Error: ${e.message}\nThis may require a new index in Firebase. The request has been logged.";
+              "An unexpected error occurred: ${e.message}"; // For other types of errors
           _isLoading = false;
         });
       }
@@ -565,7 +609,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'passing_yards_per_attempt', 'passing_tds_per_attempt',
       'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
       'yards_per_reception', 'receiving_tds_per_reception',
-      'yards_per_touch', 'wopr', 'fantasy_points', 'fantasy_points_ppr'
+      'yards_per_touch', 'wopr', 'fantasy_points', 'fantasy_points_ppr',
+      // NextGen Passing Stats
+      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
+      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
+      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+      // NextGen Rushing Stats
+      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+      'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
+      // NextGen Receiving Stats
+      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
+      'catch_percentage'
     };
 
     List<String> getVisibleFieldsForCategory(String category, String position) {

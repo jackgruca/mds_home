@@ -1221,9 +1221,9 @@ exports.getWrModelStats = functions.https.onCall(async (data, context) => {
     const results = snapshot.docs.map(doc => {
       const docData = doc.data();
       // Convert any Firestore Timestamps to ISO strings
-      Object.keys(data).forEach(key => {
-        if (data[key] instanceof admin.firestore.Timestamp) {
-          data[key] = data[key].toDate().toISOString();
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
         }
       });
       return { id: doc.id, ...docData }; // Include document ID for the cursor
@@ -1301,7 +1301,16 @@ exports.getPlayerSeasonStats = functions.https.onCall(async (data, context) => {
       return { data: [], totalRecords: totalRecords, nextCursor: null };
     }
     
-    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
 
     let nextCursor = null;
     if (snapshot.docs.length === data.limit) {
