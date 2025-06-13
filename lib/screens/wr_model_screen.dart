@@ -98,10 +98,10 @@ class _WRModelScreenState extends State<WRModelScreen> {
   // Only allow the 'Equals' operator for WR Model Stats queries
   final List<QueryOperator> _allowedOperators = [QueryOperator.equals]; // Will remove this if allowing all operators
 
-  // Updated field groups for user-requested organization, with new advanced stats
+  // Updated field groups for user-requested organization
   static const List<Map<String, dynamic>> fieldGroups = [
     {
-      'name': 'Player Info',
+      'name': 'Info',
       'fields': [
         'receiver_player_name', 'position', 'posteam', 'college_name',
         'height', 'weight', 'draft_number', 'draftround', 'entry_year',
@@ -110,18 +110,21 @@ class _WRModelScreenState extends State<WRModelScreen> {
       ]
     },
     {
-      'name': 'Basic Info',
+      'name': 'Basic Stats',
       'fields': [
-        'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 'numRushTD', 'points'
+        'receiver_player_name', 'posteam', 'season', 'numGames', 'wr_rank', 'playerYear', 
+        'numRec', 'tgtShare', 'seasonYards', 'numTD', 'seasonRushYards', 'runShare', 
+        'numRushTD', 'points'
       ]
     },
     {
       'name': 'Advanced Stats',
       'fields': [
         'receiver_player_name', 'posteam', 'season', 'passOffenseTier', 'qbTier', 'runOffenseTier',
-        'targets', 'receptions', 'air_yards', 'total_yac', 'total_epa', 'avg_epa', 'aDOT', 'explosive_plays', 'explosive_rate',
-        'total_yards', 'yac_per_reception', 'first_downs', 'first_down_rate', 'actual_catch_rate', 'avg_cpoe', 'catch_rate_over_expected',
-        'explosive_yards', 'explosive_yards_share', 'red_zone_targets'
+        'targets', 'receptions', 'air_yards', 'total_yac', 'total_epa', 'avg_epa', 
+        'aDOT', 'explosive_plays', 'explosive_rate', 'total_yards', 'yac_per_reception', 
+        'first_downs', 'first_down_rate', 'actual_catch_rate', 'avg_cpoe', 
+        'catch_rate_over_expected', 'explosive_yards', 'explosive_yards_share', 'red_zone_targets'
       ]
     },
     {
@@ -305,17 +308,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
           // Default friendly message, always shown to the user.
           String displayError = "We're working on adding this. Stay tuned.";
 
-          if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
-            final Map<String, dynamic> details = e.details as Map<String, dynamic>;
-            final String? indexUrl = (details['originalError']?.toString() ?? '').contains('composite=')
-                ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
-                : null;
-            
-            // The backend now handles logging automatically. No client-side call needed.
-            // if (indexUrl != null && indexUrl.isNotEmpty) {
-            //   _logIndexRequestToFirestore(indexUrl, 'WRModelScreen');
-            // }
-          }
           // IMPORTANT: Always set the error to the friendly, non-technical message.
           _error = displayError;
           _isLoading = false;
@@ -850,13 +842,25 @@ class _WRModelScreenState extends State<WRModelScreen> {
     return StatefulBuilder(
       builder: (context, setState) {
         // Get the current fields to display based on the selected group
-        List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
-            ? _selectedFields 
-            : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
+        List<String> displayFields;
+        const List<String> keyFields = ['receiver_player_name', 'posteam', 'season'];
+
+        if (selectedGroupIndex == fieldGroups.length - 1) { // Custom tab
+            displayFields = _selectedFields;
+        } else {
+            List<String> groupFields = List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
+            // Start with key fields, then add group fields, removing duplicates.
+            displayFields = [...keyFields, ...groupFields.where((f) => !keyFields.contains(f))];
+            
+            // For the 'Info' tab, which is not season-specific, we remove the 'season' column
+            if (selectedGroupIndex == 0) {
+              displayFields.remove('season');
+            }
+        }
 
         // If Player Info section, aggregate to one row per player (most recent season)
         List<Map<String, dynamic>> displayRows;
-        if (selectedGroupIndex == 0) { // Player Info
+        if (selectedGroupIndex == 0) { // Info
           final Map<String, Map<String, dynamic>> playerMap = {};
           for (final row in _rawRows) {
             final id = row['receiver_player_id'] ?? row['receiver_player_name'];
@@ -887,9 +891,6 @@ class _WRModelScreenState extends State<WRModelScreen> {
                         if (selected) {
                           setState(() {
                             selectedGroupIndex = index;
-                            if (index != fieldGroups.length - 1) {
-                              _selectedFields = List<String>.from(fieldGroups[index]['fields']);
-                            }
                           });
                         }
                       },

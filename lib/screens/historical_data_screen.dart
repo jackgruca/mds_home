@@ -920,47 +920,74 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       return const Center(child: Text('No data to display. Try adjusting your filters.'));
     }
     
+    // Header display names for user-friendly column titles
+    const Map<String, String> headerDisplayNames = {
+      'Team': 'Team',
+      'Date': 'Date',
+      'Opponent': 'Opp',
+      'Final': 'Final',
+      'Closing_spread': 'Spread',
+      'Actual_spread': 'Actual Spread',
+      'Spread_result': 'Spread Result',
+      'Closing_total': 'Total',
+      'Actual_total': 'Actual Total',
+      'Points_result': 'O/U Result',
+      'Pass_yards': 'Pass Yds',
+      'Rush_yards': 'Rush Yds',
+      'Total_yards': 'Tot Yds',
+      'Pass_att': 'Pass Att',
+      'Rush_att': 'Rush Att',
+      'TDs': 'TDs',
+      'Turnovers': 'TOs',
+      'VH': 'H/A',
+      'Season': 'Season',
+      'Week': 'Wk',
+      'stadium': 'Stadium',
+      'surface': 'Surface',
+      'temp': 'Temp',
+      'wind': 'Wind',
+      'setting': 'Setting',
+      'Outcome': 'Result',
+    };
+
     // Define common field groupings with descriptive tab names
     final List<Map<String, dynamic>> fieldGroups = [
       {
-        'name': 'Game Overview',
+        'name': 'Game Info',
         'fields': ['Team', 'Date', 'Opponent', 'Final', 'VH', 'Season', 'Week', 'stadium', 'Outcome']
       },
       {
-        'name': 'Betting',
+        'name': 'Betting Info',
         'fields': ['Team', 'Date', 'Opponent', 'Final', 'Closing_spread', 'Actual_spread', 'Spread_result', 'Closing_total', 'Actual_total', 'Points_result']
       },
       {
-        'name': 'Team Stats',
-        'fields': ['Team', 'Season', 'Week', 'Pass_yards', 'Rush_yards', 'Total_yards', 'Pass_att', 'Rush_att', 'TDs', 'Turnovers']
-      },
-      {
-        'name': 'Weather & Conditions',
+        'name': 'Venue & Weather',
         'fields': ['Team', 'Date', 'Opponent', 'stadium', 'surface', 'temp', 'wind', 'setting', 'Season', 'Week']
       },
       {
         'name': 'Custom',
-        'fields': _selectedFields
+        'fields': _selectedFields // This will be populated by the customize dialog
       },
     ];
 
-    // Filter field groups to include only available fields
+    // Filter field groups to include only available fields from the data
     for (var group in fieldGroups.where((g) => g['name'] != 'Custom')) {
       group['fields'] = (group['fields'] as List<String>).where((field) => _headers.contains(field)).toList();
     }
     
-    // Calculate percentiles for numeric columns
+    // Calculate percentiles for numeric columns that need shading
     Map<String, Map<dynamic, double>> columnPercentiles = {};
     
     // Fields to exclude from shading (non-numeric or identifier fields)
     final List<String> excludedFields = [
-      'Team', 'Opponent', 'Date', 'Season', 'Week', 'id', 'VH', 'stadium', 'surface', 'temp', 'setting'
+      'Team', 'Opponent', 'Date', 'Season', 'Week', 'id', 'VH', 'stadium', 'surface', 'setting', 'Outcome', 'Spread_result', 'Points_result'
     ];
     
     // Determine numeric columns dynamically
     List<String> numericShadingColumns = [];
     if (_rawRows.isNotEmpty) {
-      for (String field in _selectedFields) {
+      final allFields = _rawRows.first.keys.toList();
+      for (String field in allFields) {
         // Skip excluded fields
         if (excludedFields.contains(field)) continue;
         
@@ -982,31 +1009,14 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       return (below + 0.5 * equal) / values.length;
     }
     
-    // Get active season filter if any
-    String? seasonFilter;
-    for (var condition in _queryConditions) {
-      if (condition.field == 'Season') {
-        seasonFilter = condition.value;
-        break;
-      }
-    }
-    
     // Calculate percentiles for each column to be shaded
     for (var column in numericShadingColumns) {
       List<num> columnValues = [];
       
-      // Filter data by season if season filter is applied
+      // Use all rows for percentile calculation regardless of filters for consistency
       for (var row in _rawRows) {
         if (row[column] != null && row[column] is num) {
-          // Only include rows matching season filter if it exists
-          if (seasonFilter != null) {
-            if (row['Season'].toString() == seasonFilter) {
-              columnValues.add(row[column]);
-            }
-          } else {
-            // No season filter, use all values
             columnValues.add(row[column]);
-          }
         }
       }
       
@@ -1021,7 +1031,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       columnPercentiles[column] = valueToPercentile;
     }
     
-    // Define colors for styling
+    // Define colors for styling from wr_model_screen.dart
     final Color headerColor = Colors.blue.shade700; // Darker blue for header
     final Color evenRowColor = Colors.grey.shade100; // Light gray for even rows
     const Color oddRowColor = Colors.white; // White for odd rows
@@ -1029,8 +1039,11 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
     const TextStyle cellTextStyle = TextStyle(fontSize: 14);
     
     // Track the currently selected field group
-    int selectedGroupIndex = fieldGroups.length - 1; // Default to 'Custom'
+    int selectedGroupIndex = 0; // Default to 'Game Overview'
     
+    // Numeric fields that should be formatted as doubles
+    final Set<String> doubleFields = {'Closing_spread', 'Actual_spread', 'Closing_total', 'Actual_total'};
+
     return StatefulBuilder(
       builder: (context, setState) {
         // Get the current fields to display based on the selected group
@@ -1039,100 +1052,92 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
             : List<String>.from(fieldGroups[selectedGroupIndex]['fields']);
         
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Field group tabs
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                children: fieldGroups.asMap().entries.map((entry) {
-                  final int idx = entry.key;
-                  final String name = entry.value['name'];
-                  final bool isSelected = idx == selectedGroupIndex;
-                  
+            // Field group tabs (ChoiceChip style)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(fieldGroups.length, (index) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          selectedGroupIndex = idx;
-                          // If not the custom tab, update the displayed fields
-                          if (idx != fieldGroups.length - 1) {
-                            // No need to update _selectedFields here, just changing the view
-                          }
-                        });
+                    child: ChoiceChip(
+                      label: Text(fieldGroups[index]['name']),
+                      selected: selectedGroupIndex == index,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            selectedGroupIndex = index;
+                            // When a pre-defined group is selected, update _selectedFields to match
+                            // so the "Customize Columns" dialog starts with the right context.
+                            if (index != fieldGroups.length - 1) {
+                              _selectedFields = List<String>.from(fieldGroups[index]['fields']);
+                            }
+                          });
+                        }
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade200,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8.0),
-                            topRight: Radius.circular(8.0),
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ),
                     ),
                   );
-                }).toList(),
+                }),
               ),
             ),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  child: Text(
+            const SizedBox(height: 8),
+
+            // Row with action buttons and info
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
                     _rawRows.isEmpty
-                        ? 'No data to display for the current filters.'
+                        ? ''
                         : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-                    style: TextStyle(color: Colors.grey.shade700),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                   ),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Customize Columns'),
-                  onPressed: _showCustomizeColumnsDialog,
-                ),
-              ],
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Customize'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                        onPressed: _showCustomizeColumnsDialog,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Last Updated: ${DateFormat('M/d/yyyy').format(DateTime.now())}',
+                        style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             
             Expanded(
               child: SingleChildScrollView(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  padding: const EdgeInsets.all(8.0),
                   child: Theme(
-                    // Override default DataTable theme to remove cell spacing
                     data: Theme.of(context).copyWith(
                       dataTableTheme: const DataTableThemeData(
-                        columnSpacing: 0, // Remove spacing between columns
-                        horizontalMargin: 0, // Remove horizontal margin
-                        dividerThickness: 0, // Remove divider
+                        columnSpacing: 0,
+                        horizontalMargin: 0,
+                        dividerThickness: 0,
                       ),
                     ),
                     child: DataTable(
-                      headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
+                      headingRowColor: WidgetStateProperty.resolveWith<Color?>((_) => headerColor),
                       headingTextStyle: headerTextStyle,
-                      dataRowHeight: 44, // Fixed height for all rows
+                      dataRowHeight: 44,
                       showCheckboxColumn: false,
                       sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                       sortAscending: _sortAscending,
-                      border: TableBorder.all(
-                        color: Colors.white,
-                        width: 0.5,
-                        style: BorderStyle.solid,
-                      ),
+                      border: TableBorder.all(color: Colors.white, width: 0.5),
                       columns: displayFields.map((header) {
                         return DataColumn(
                           label: Container(
@@ -1140,7 +1145,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text(headerDisplayNames[header] ?? header),
                                 if (_sortColumn == header)
                                   Icon(
                                     _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
@@ -1157,102 +1162,99 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                               _applyFiltersAndFetch();
                             });
                           },
-                          tooltip: 'Sort by $header',
+                          tooltip: 'Sort by ${headerDisplayNames[header] ?? header}',
                         );
                       }).toList(),
-                      rows: _rawRows.isEmpty 
-                        ? [] 
-                        : _rawRows.asMap().entries.map((entry) {
-                            final int rowIndex = entry.key;
-                            final Map<String, dynamic> rowMap = entry.value;
-                            return DataRow(
-                              color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
-                                return rowIndex.isEven ? evenRowColor : oddRowColor;
-                              }),
-                              cells: displayFields.map((header) {
-                                final value = rowMap[header];
-                                String displayValue = 'N/A';
-                                Color? cellBackgroundColor;
-                                TextStyle cellStyle = cellTextStyle;
-                                
-                                if (value != null) {
-                                  if (value is num && numericShadingColumns.contains(header)) {
-                                    // Apply percentile-based shading for numeric fields
-                                    double? percentile = columnPercentiles[header]?[value];
-                                    if (percentile != null) {
-                                      // Blue shade based on percentile (higher percentile = deeper blue)
-                                      cellBackgroundColor = Color.fromRGBO(
-                                        100,  // Red
-                                        140,  // Green
-                                        240,  // Blue
-                                        0.1 + (percentile * 0.85)  // Alpha (10% to 95%)
-                                      );
-                                      
-                                      // Make text bold for high percentiles
-                                      if (percentile > 0.85) {
-                                        cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
-                                      }
-                                    }
-                                    
-                                    // Format numeric value
-                                    if (value is double) {
-                                      displayValue = value.toStringAsFixed(1);
-                                    } else {
-                                      displayValue = value.toString();
-                                    }
-                                  } else if (value is String && (header == 'Date' || header.endsWith('_date'))) {
-                                    try {
-                                      displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
-                                    } catch (e) {
-                                      displayValue = value;
-                                    }
-                                  } else {
-                                    displayValue = value.toString();
+                      rows: _rawRows.asMap().entries.map((entry) {
+                        final int rowIndex = entry.key;
+                        final Map<String, dynamic> rowMap = entry.value;
+                        return DataRow(
+                          color: WidgetStateProperty.resolveWith<Color?>((_) {
+                            return rowIndex.isEven ? evenRowColor : oddRowColor;
+                          }),
+                          cells: displayFields.map((header) {
+                            final value = rowMap[header];
+                            String displayValue = 'N/A';
+                            Color? cellBackgroundColor;
+                            TextStyle cellStyle = cellTextStyle;
+                            
+                            if (value != null) {
+                              if (value is num && numericShadingColumns.contains(header)) {
+                                double? percentile = columnPercentiles[header]?[value];
+                                if (percentile != null) {
+                                  cellBackgroundColor = Color.fromRGBO(
+                                    100, 140, 240, 0.1 + (percentile * 0.85)
+                                  );
+                                  if (percentile > 0.85) {
+                                    cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
                                   }
                                 }
-                                
-                                return DataCell(
-                                  Container(
-                                    // Fill the entire cell
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    color: cellBackgroundColor,
-                                    alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                    child: (header == 'Team' || header == 'Opponent')
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TeamLogoUtils.buildNFLTeamLogo(
-                                              value.toString(),
-                                              size: 24.0,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              value.toString(),
-                                              style: cellStyle,
-                                            ),
-                                          ],
-                                        )
-                                      : Text(
-                                          displayValue,
-                                          style: cellStyle,
+                              }
+                              
+                              if (header == 'Date') {
+                                DateTime? date = DateTime.tryParse(value.toString());
+                                if (date != null) {
+                                  displayValue = DateFormat('MM/dd/yy').format(date);
+                                } else {
+                                  displayValue = value.toString();
+                                }
+                              } else if (doubleFields.contains(header) && value is num) {
+                                displayValue = value.toStringAsFixed(1);
+                              } else if (value is num) {
+                                displayValue = value.toInt().toString();
+                              } else {
+                                displayValue = value.toString();
+                              }
+                            }
+                            
+                            // Cell coloring for categorical results
+                            if (header == 'Outcome') {
+                              if (value == 'W') cellBackgroundColor = Colors.green.shade100;
+                              if (value == 'L') cellBackgroundColor = Colors.red.shade100;
+                            } else if (header == 'Spread_result') {
+                               if (value == 'W') cellBackgroundColor = Colors.green.shade100;
+                               if (value == 'L') cellBackgroundColor = Colors.red.shade100;
+                               if (value == 'P') cellBackgroundColor = Colors.grey.shade300;
+                            } else if (header == 'Points_result') {
+                               if (value == 'O') cellBackgroundColor = Colors.blue.shade100;
+                               if (value == 'U') cellBackgroundColor = Colors.purple.shade100;
+                               if (value == 'P') cellBackgroundColor = Colors.grey.shade300;
+                            }
+
+                            return DataCell(
+                              Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: cellBackgroundColor,
+                                alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                child: (header == 'Team' || header == 'Opponent')
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TeamLogoUtils.buildNFLTeamLogo(
+                                          value.toString(),
+                                          size: 24.0,
                                         ),
-                                  ),
-                                  // Allow sorting on this column
-                                  onTap: () {
-                                    if (displayFields.contains(header)) {
-                                      this.setState(() {
-                                        _sortColumn = header;
-                                        _sortAscending = !_sortAscending;
-                                        _applyFiltersAndFetch();
-                                      });
-                                    }
-                                  },
-                                );
-                              }).toList(),
+                                        const SizedBox(width: 8),
+                                        Text(displayValue, style: cellStyle),
+                                      ],
+                                    )
+                                  : Text(displayValue, style: cellStyle),
+                              ),
+                              onTap: () {
+                                if (displayFields.contains(header)) {
+                                  this.setState(() {
+                                    _sortColumn = header;
+                                    _sortAscending = !_sortAscending;
+                                    _applyFiltersAndFetch();
+                                  });
+                                }
+                              },
                             );
                           }).toList(),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
@@ -1268,7 +1270,7 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       onPressed: _currentPage > 0
                           ? () => this.setState(() {
                               _currentPage--;
-                              _fetchDataFromFirebase(); // Re-fetch for previous page
+                              _fetchDataFromFirebase();
                             })
                           : null,
                       child: const Text('Previous'),
@@ -1277,11 +1279,10 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                     Text('Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1,9999)}'),
                     const SizedBox(width: 16),
                     ElevatedButton(
-                      onPressed: (_nextCursor != null || _preloadedPages.containsKey(_currentPage + 1))
+                      onPressed: _nextCursor != null
                           ? () {
                               setState(() {
                                 _currentPage++;
-                                debugPrint('After Next button click, _currentPage incremented to: $_currentPage');
                                 _fetchDataFromFirebase();
                               });
                             }
