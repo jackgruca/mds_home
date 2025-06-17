@@ -296,28 +296,45 @@ class _WRModelScreenState extends State<WRModelScreen> {
       _startPreloadingNextPages();
 
     } on FirebaseFunctionsException catch (e) {
-      print('FirebaseFunctionsException caught in Flutter client:');
-      print('Code: ${e.code}');
-      print('Message: ${e.message}');
-      print('Details: ${e.details}');
-      if (mounted) {
-        setState(() {
-          // Default friendly message, always shown to the user.
-          String displayError = "We're working on adding this. Stay tuned.";
-
-          if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
-            final Map<String, dynamic> details = e.details as Map<String, dynamic>;
-            final String? indexUrl = (details['originalError']?.toString() ?? '').contains('composite=')
-                ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
-                : null;
-            
-            // The backend now handles logging automatically. No client-side call needed.
-            // if (indexUrl != null && indexUrl.isNotEmpty) {
-            //   _logIndexRequestToFirestore(indexUrl, 'WRModelScreen');
-            // }
+      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null && e.message!.contains('The query requires an index')) {
+        // Extract the URL and log it to a new Firebase function
+        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        if (indexUrlMatch != null) {
+          final missingIndexUrl = indexUrlMatch.group(0);
+          print('Missing index URL found: $missingIndexUrl');
+          
+          // Call a new Cloud Function to log this URL
+          print('Attempting to call logMissingIndex Cloud Function...');
+          try {
+            final result = await functions.httpsCallable('logMissingIndex').call({
+              'url': missingIndexUrl,
+              'timestamp': DateTime.now().toIso8601String(),
+              'screenName': 'WrModelScreen',
+              'queryDetails': {
+                'filters': filtersForFunction,
+                'orderBy': _sortColumn,
+                'orderDirection': _sortAscending ? 'asc' : 'desc',
+              },
+              'errorMessage': e.message,
+            });
+            print('logMissingIndex function call succeeded: ${result.data}');
+          } catch (functionError) {
+            print('Error calling logMissingIndex function: $functionError');
+            // This error is caught here to prevent it from affecting the UI
           }
-          // IMPORTANT: Always set the error to the friendly, non-technical message.
-          _error = displayError;
+        } else {
+          print('No index URL found in error message: ${e.message}');
+        }
+        if (mounted) {
+          setState(() {
+            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
+        setState(() {
+          _error = "An unexpected error occurred: ${e.message}";
           _isLoading = false;
         });
       }

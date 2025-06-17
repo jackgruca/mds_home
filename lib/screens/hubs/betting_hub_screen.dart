@@ -210,7 +210,9 @@ class _BettingHubScreenState extends State<BettingHubScreen> {
       };
     }
 
+    print('[BettingHub] Filters being sent: $filtersForFunction');
     final String? currentCursor = _currentPage > 0 && _pageCursors.length > _currentPage ? _pageCursors[_currentPage] : null;
+    print('[BettingHub] Current cursor: $currentCursor');
 
     try {
       final HttpsCallable callable = functions.httpsCallable('getBettingData');
@@ -229,6 +231,10 @@ class _BettingHubScreenState extends State<BettingHubScreen> {
           _totalRecords = result.data['totalRecords'] ?? 0;
           _nextCursor = result.data['nextCursor'];
 
+          print('[BettingHub] Raw data received (first 5 rows): ${_rawRows.take(5).toList()}');
+          print('[BettingHub] Total records received: $_totalRecords');
+          print('[BettingHub] Next cursor received: $_nextCursor');
+
           if (_rawRows.isNotEmpty && _headers.isEmpty) {
             final allKeys = _rawRows
                 .expand((row) => row.keys)
@@ -241,9 +247,45 @@ class _BettingHubScreenState extends State<BettingHubScreen> {
         });
       }
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) {
+      print('[BettingHub] FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null && e.message!.contains('The query requires an index')) {
+        // Extract the URL and log it to a new Firebase function
+        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        if (indexUrlMatch != null) {
+          final missingIndexUrl = indexUrlMatch.group(0);
+          print('Missing index URL found: $missingIndexUrl');
+          
+          // Call a new Cloud Function to log this URL
+          print('Attempting to call logMissingIndex Cloud Function...');
+          try {
+            final result = await functions.httpsCallable('logMissingIndex').call({
+              'url': missingIndexUrl,
+              'timestamp': DateTime.now().toIso8601String(),
+              'screenName': 'BettingHubScreen',
+              'queryDetails': {
+                'filters': filtersForFunction,
+                'orderBy': _sortColumn,
+                'orderDirection': _sortAscending ? 'asc' : 'desc',
+              },
+              'errorMessage': e.message,
+            });
+            print('logMissingIndex function call succeeded: ${result.data}');
+          } catch (functionError) {
+            print('Error calling logMissingIndex function: $functionError');
+            // This error is caught here to prevent it from affecting the UI
+          }
+        } else {
+          print('No index URL found in error message: ${e.message}');
+        }
+        if (mounted) {
+          setState(() {
+            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
         setState(() {
-          _error = "Error: ${e.message}";
+          _error = "An unexpected error occurred: ${e.message}";
           _isLoading = false;
         });
       }
@@ -474,6 +516,49 @@ class _BettingHubScreenState extends State<BettingHubScreen> {
   Widget _buildDataTable() {
     int selectedGroupIndex = fieldGroups.indexWhere((g) => g['name'] == 'Custom');
 
+    // Define fields that should be formatted as doubles
+    final Set<String> doubleFields = {'spread_line', 'total_line'};
+    
+    // Define fields that should be displayed as integers
+    final Set<String> intFields = {'season', 'week', 'result', 'total', 'away_score', 'home_score', 
+                                  'away_moneyline', 'home_moneyline', 'temp', 'wind'};
+    
+    // Determine numeric columns for shading
+    final List<String> numericShadingColumns = [];
+    if (_rawRows.isNotEmpty) {
+      for (final field in _rawRows.first.keys) {
+        if (field != 'game_id' && field != 'home_team' && field != 'away_team' && 
+            field != 'gameday' && field != 'kickoff_time' && field != 'stadium' &&
+            field != 'favorite_team' && field != 'underdog_team' && field != 'location' &&
+            field != 'roof' && field != 'surface' &&
+            _rawRows.any((row) => row[field] != null && row[field] is num)) {
+          numericShadingColumns.add(field);
+        }
+      }
+    }
+    
+    // Calculate percentiles for numeric columns
+    final Map<String, Map<num, double>> columnPercentiles = {};
+    for (final column in numericShadingColumns) {
+      final List<num> values = _rawRows
+          .map((row) => row[column])
+          .whereType<num>()
+          .toList();
+      
+      if (values.isNotEmpty) {
+        values.sort();
+        columnPercentiles[column] = {};
+        for (final row in _rawRows) {
+          final value = row[column];
+          if (value is num && columnPercentiles[column]![value] == null) {
+            final rank = values.where((v) => v < value).length;
+            final count = values.where((v) => v == value).length;
+            columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
+          }
+        }
+      }
+    }
+
     return StatefulBuilder(
       builder: (context, setState) {
         List<String> displayFields = selectedGroupIndex == fieldGroups.length - 1 
@@ -535,55 +620,102 @@ class _BettingHubScreenState extends State<BettingHubScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.all(8.0),
-                  child: DataTable(
-                    sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
-                    sortAscending: _sortAscending,
-                    columns: displayFields.map((header) {
-                      return DataColumn(
-                        label: Text(headerDisplayNames[header] ?? header, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        onSort: (columnIndex, ascending) {
-                          this.setState(() {
-                            _sortColumn = displayFields[columnIndex];
-                            _sortAscending = ascending;
-                            _applyFiltersAndFetch();
-                          });
-                        },
-                      );
-                    }).toList(),
-                    rows: _rawRows.map((row) {
-                      return DataRow(
-                        cells: displayFields.map((header) {
-                          final value = row[header];
-                          String displayValue = value?.toString() ?? 'N/A';
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      dataTableTheme: const DataTableThemeData(
+                        columnSpacing: 0,
+                        horizontalMargin: 0,
+                        dividerThickness: 0,
+                      ),
+                    ),
+                    child: DataTable(
+                      sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
+                      sortAscending: _sortAscending,
+                      headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+                      headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      dataRowHeight: 44,
+                      showCheckboxColumn: false,
+                      border: TableBorder.all(
+                        color: Colors.grey.shade300,
+                        width: 0.5,
+                      ),
+                      columns: displayFields.map((header) {
+                        return DataColumn(
+                          label: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                            child: Text(headerDisplayNames[header] ?? header, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                          onSort: (columnIndex, ascending) {
+                            this.setState(() {
+                              _sortColumn = displayFields[columnIndex];
+                              _sortAscending = ascending;
+                              _applyFiltersAndFetch();
+                            });
+                          },
+                        );
+                      }).toList(),
+                      rows: _rawRows.asMap().entries.map((entry) {
+                        final int rowIndex = entry.key;
+                        final Map<String, dynamic> row = entry.value;
+                        
+                        return DataRow(
+                          color: WidgetStateProperty.resolveWith<Color?>((states) => 
+                            rowIndex.isEven ? Colors.grey.shade100 : Colors.white
+                          ),
+                          cells: displayFields.map((header) {
+                            final value = row[header];
+                            String displayValue = value?.toString() ?? 'N/A';
+                            Color? cellBackgroundColor;
 
-                          if (value != null) {
-                            if (header == 'spread_line') {
-                              displayValue = value > 0 ? '+$value' : value.toString();
-                            } else if (header == 'gameday' && value is String) {
-                               DateTime? date = DateTime.tryParse(value);
-                               if (date != null) {
-                                 displayValue = '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
-                               }
-                            } else if (value is double) {
-                              displayValue = value.toStringAsFixed(2);
+                            if (value != null) {
+                              // Apply percentile-based shading for numeric fields
+                              if (value is num && numericShadingColumns.contains(header)) {
+                                final percentile = columnPercentiles[header]?[value];
+                                if (percentile != null) {
+                                  cellBackgroundColor = Color.fromRGBO(
+                                    100, 140, 240, 0.1 + (percentile * 0.85)
+                                  );
+                                }
+                              }
+                              
+                              // Format different field types
+                              if (header == 'spread_line') {
+                                displayValue = value > 0 ? '+$value' : value.toString();
+                              } else if (header == 'gameday' && value is String) {
+                                DateTime? date = DateTime.tryParse(value);
+                                if (date != null) {
+                                  displayValue = '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
+                                }
+                              } else if (intFields.contains(header) && value is num) {
+                                displayValue = value.toInt().toString();
+                              } else if (doubleFields.contains(header) && value is num) {
+                                displayValue = value.toStringAsFixed(2);
+                              }
                             }
-                          }
 
-                          return DataCell(
-                            (header == 'home_team' || header == 'away_team' || header == 'favorite_team' || header == 'underdog_team')
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (value != null) TeamLogoUtils.buildNFLTeamLogo(value.toString(), size: 24),
-                                    const SizedBox(width: 8),
-                                    Text(displayValue),
-                                  ],
-                                )
-                              : Text(displayValue)
-                          );
-                        }).toList(),
-                      );
-                    }).toList(),
+                            return DataCell(
+                              Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: cellBackgroundColor,
+                                alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                child: (header == 'home_team' || header == 'away_team' || header == 'favorite_team' || header == 'underdog_team')
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (value != null) TeamLogoUtils.buildNFLTeamLogo(value.toString(), size: 24),
+                                        const SizedBox(width: 8),
+                                        Text(displayValue),
+                                      ],
+                                    )
+                                  : Text(displayValue)
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),

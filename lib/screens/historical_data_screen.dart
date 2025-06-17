@@ -125,6 +125,19 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
   List<NFLMatchup>? _vizCacheAll; // Cache for unfiltered visualization data
   bool _isVizCacheLoading = false; // Track cache loading state
 
+  // Field types for formatting
+  final Set<String> doubleFields = {
+    'spread', 'total', 'home_score', 'away_score', 'point_differential',
+    'win_probability', 'win_probability_vegas', 'over_probability',
+    'home_win_pct', 'away_win_pct', 'home_cover_pct', 'away_cover_pct',
+    'over_pct', 'under_pct', 'yards_per_play', 'yards_per_pass',
+    'yards_per_rush', 'turnover_margin'
+  };
+  
+  // For percentile-based shading
+  List<String> numericShadingColumns = [];
+  Map<String, Map<num, double>> columnPercentiles = {};
+
   @override
   void initState() {
     super.initState();
@@ -210,6 +223,37 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
             if (_selectedFields.isEmpty && _headers.isNotEmpty) {
               _selectedFields = _headers.take(5).toList();
             }
+            
+            // Determine numeric columns for shading
+            numericShadingColumns = [];
+            for (final field in _headers) {
+              if (field != 'id' && field != 'team' && field != 'opponent' && field != 'season' && field != 'week' && field != 'date' &&
+                  _rawRows.any((row) => row[field] != null && row[field] is num)) {
+                numericShadingColumns.add(field);
+              }
+            }
+            
+            // Calculate percentiles for numeric columns
+            columnPercentiles = {};
+            for (final column in numericShadingColumns) {
+              final List<num> values = _rawRows
+                  .map((row) => row[column])
+                  .whereType<num>()
+                  .toList();
+              
+              if (values.isNotEmpty) {
+                values.sort();
+                columnPercentiles[column] = {};
+                for (final row in _rawRows) {
+                  final value = row[column];
+                  if (value is num && columnPercentiles[column]![value] == null) {
+                    final rank = values.where((v) => v < value).length;
+                    final count = values.where((v) => v == value).length;
+                    columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
+                  }
+                }
+              }
+            }
           }
           _isLoading = false;
         });
@@ -217,29 +261,45 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
       // Start preloading the next set of pages after this one is displayed
       _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
-      print('FirebaseFunctionsException caught in Flutter client:');
-      print('Code: ${e.code}');
-      print('Message: ${e.message}');
-      print('Details: ${e.details}');
-      if (mounted) {
-        setState(() {
-          String displayError = "We're working on adding this. Stay tuned.";
-
-          if (e.code == 'failed-precondition' && e.details != null && e.details is Map) {
-            final Map<String, dynamic> details = e.details as Map<String, dynamic>;
-            final String? indexUrl = (details['originalError']?.toString() ?? '').contains('composite=')
-                ? (details['originalError']?.toString() ?? '').split(' ').firstWhere((s) => s.contains('https://console.firebase.google.com/'), orElse: () => '')
-                : null;
-            
-            // The backend now handles logging automatically. No client-side call needed.
-            // if (indexUrl != null && indexUrl.isNotEmpty) {
-            //   _logIndexRequestToFirestore(indexUrl, 'HistoricalDataScreen');
-            // }
-
-            // Always show the friendly message, never the URL or technical details
-            displayError = "We're working on adding this. Stay tuned.";
+      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null && e.message!.contains('The query requires an index')) {
+        // Extract the URL and log it to a new Firebase function
+        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        if (indexUrlMatch != null) {
+          final missingIndexUrl = indexUrlMatch.group(0);
+          print('Missing index URL found: $missingIndexUrl');
+          
+          // Call a new Cloud Function to log this URL
+          print('Attempting to call logMissingIndex Cloud Function...');
+          try {
+            final result = await functions.httpsCallable('logMissingIndex').call({
+              'url': missingIndexUrl,
+              'timestamp': DateTime.now().toIso8601String(),
+              'screenName': 'HistoricalDataScreen',
+              'queryDetails': {
+                'filters': filtersForFunction,
+                'orderBy': _sortColumn,
+                'orderDirection': _sortAscending ? 'asc' : 'desc',
+              },
+              'errorMessage': e.message,
+            });
+            print('logMissingIndex function call succeeded: ${result.data}');
+          } catch (functionError) {
+            print('Error calling logMissingIndex function: $functionError');
+            // This error is caught here to prevent it from affecting the UI
           }
-          _error = displayError;
+        } else {
+          print('No index URL found in error message: ${e.message}');
+        }
+        if (mounted) {
+          setState(() {
+            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
+        setState(() {
+          _error = "An unexpected error occurred: ${e.message}";
           _isLoading = false;
         });
       }
@@ -1122,33 +1182,21 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                       ),
                     ),
                     child: DataTable(
-                      headingRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) => headerColor),
-                      headingTextStyle: headerTextStyle,
+                      headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+                      headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                       dataRowHeight: 44, // Fixed height for all rows
                       showCheckboxColumn: false,
                       sortColumnIndex: displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                       sortAscending: _sortAscending,
                       border: TableBorder.all(
-                        color: Colors.white,
+                        color: Colors.grey.shade300,
                         width: 0.5,
-                        style: BorderStyle.solid,
                       ),
                       columns: displayFields.map((header) {
                         return DataColumn(
                           label: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(header, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                if (_sortColumn == header)
-                                  Icon(
-                                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                              ],
-                            ),
+                            child: Text(header.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
                           ),
                           onSort: (columnIndex, ascending) {
                             this.setState(() {
@@ -1167,59 +1215,39 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                             final Map<String, dynamic> rowMap = entry.value;
                             return DataRow(
                               color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
-                                return rowIndex.isEven ? evenRowColor : oddRowColor;
+                                return rowIndex.isEven ? Colors.grey.shade100 : Colors.white;
                               }),
                               cells: displayFields.map((header) {
                                 final value = rowMap[header];
-                                String displayValue = 'N/A';
+                                String displayValue;
                                 Color? cellBackgroundColor;
-                                TextStyle cellStyle = cellTextStyle;
                                 
-                                if (value != null) {
-                                  if (value is num && numericShadingColumns.contains(header)) {
-                                    // Apply percentile-based shading for numeric fields
-                                    double? percentile = columnPercentiles[header]?[value];
-                                    if (percentile != null) {
-                                      // Blue shade based on percentile (higher percentile = deeper blue)
-                                      cellBackgroundColor = Color.fromRGBO(
-                                        100,  // Red
-                                        140,  // Green
-                                        240,  // Blue
-                                        0.1 + (percentile * 0.85)  // Alpha (10% to 95%)
-                                      );
-                                      
-                                      // Make text bold for high percentiles
-                                      if (percentile > 0.85) {
-                                        cellStyle = cellTextStyle.copyWith(fontWeight: FontWeight.bold);
-                                      }
-                                    }
-                                    
-                                    // Format numeric value
-                                    if (value is double) {
-                                      displayValue = value.toStringAsFixed(1);
-                                    } else {
-                                      displayValue = value.toString();
-                                    }
-                                  } else if (value is String && (header == 'Date' || header.endsWith('_date'))) {
-                                    try {
-                                      displayValue = DateFormat('MM/dd/yyyy').format(DateTime.parse(value));
-                                    } catch (e) {
-                                      displayValue = value;
-                                    }
-                                  } else {
-                                    displayValue = value.toString();
+                                if (value == null) {
+                                  displayValue = 'N/A';
+                                } else if (value is num && numericShadingColumns.contains(header)) {
+                                  final percentile = columnPercentiles[header]?[value];
+                                  if (percentile != null) {
+                                    cellBackgroundColor = Color.fromRGBO(
+                                      100, 140, 240, 0.1 + (percentile * 0.85)
+                                    );
                                   }
+                                  if (doubleFields.contains(header)) {
+                                    displayValue = value.toStringAsFixed(2);
+                                  } else {
+                                    displayValue = value.toInt().toString();
+                                  }
+                                } else {
+                                  displayValue = value.toString();
                                 }
-                                
+
                                 return DataCell(
                                   Container(
-                                    // Fill the entire cell
                                     width: double.infinity,
                                     height: double.infinity,
                                     color: cellBackgroundColor,
-                                    alignment: value is num ? Alignment.centerRight : Alignment.centerLeft,
+                                    alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
                                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                                    child: (header == 'Team' || header == 'Opponent')
+                                    child: header == 'team' || header == 'opponent'
                                       ? Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -1228,27 +1256,11 @@ class _HistoricalDataScreenState extends State<HistoricalDataScreen> with Single
                                               size: 24.0,
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(
-                                              value.toString(),
-                                              style: cellStyle,
-                                            ),
+                                            Text(displayValue),
                                           ],
                                         )
-                                      : Text(
-                                          displayValue,
-                                          style: cellStyle,
-                                        ),
+                                      : Text(displayValue),
                                   ),
-                                  // Allow sorting on this column
-                                  onTap: () {
-                                    if (displayFields.contains(header)) {
-                                      this.setState(() {
-                                        _sortColumn = header;
-                                        _sortAscending = !_sortAscending;
-                                        _applyFiltersAndFetch();
-                                      });
-                                    }
-                                  },
                                 );
                               }).toList(),
                             );

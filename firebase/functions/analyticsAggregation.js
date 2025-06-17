@@ -1337,10 +1337,18 @@ exports.getPlayerSeasonStats = functions.https.onCall(async (data, context) => {
 // A helper function to apply query conditions without pagination/ordering for counts
 const applyQueryConditions = (query, queryFilters) => {
   let newQuery = query;
+  console.log(`[getBettingData] Applying query conditions: ${JSON.stringify(queryFilters)}`);
   for (const field in queryFilters) {
     const condition = queryFilters[field];
-    if (!condition.operator || condition.value === undefined) continue;
-    newQuery = newQuery.where(field, condition.operator, condition.value);
+    if (!condition || condition.operator === undefined || condition.value === undefined) {
+      console.warn(`[getBettingData] Skipping invalid filter condition for field: ${field}`, condition);
+      continue;
+    }
+    const operator = condition.operator;
+    const value = parseQueryValue(condition.value); // Use parseQueryValue for consistency
+    
+    console.log(`[getBettingData] Applying filter: ${field} ${operator} ${value} (Type: ${typeof value})`);
+    newQuery = newQuery.where(field, operator, value);
   }
   return newQuery;
 };
@@ -1348,49 +1356,74 @@ const applyQueryConditions = (query, queryFilters) => {
 exports.getBettingData = functions.https.onCall(async (data, context) => {
   const { filters = {}, limit = 25, orderBy = 'gameday', orderDirection = 'desc', cursor } = data;
   const db = admin.firestore();
-  let query = db.collection('bettingData');
+  const collectionName = 'bettingData';
+  let query = db.collection(collectionName);
+
+  console.log(`[getBettingData] Incoming request data: ${JSON.stringify(data)}`);
+  console.log(`[getBettingData] Querying collection: ${collectionName}`);
 
   // Apply filters
   query = applyQueryConditions(query, filters);
+  console.log(`[getBettingData] Query after filters: (structure not fully inspectable here, but filters applied)`);
   
+  // Get total count for pagination (apply filters, but not ordering/pagination yet)
+  const totalRecordsQueryForCount = applyQueryConditions(db.collection(collectionName), filters);
+  const totalRecordsSnapshot = await totalRecordsQueryForCount.count().get();
+  const totalRecords = totalRecordsSnapshot.data().count;
+  console.log(`[getBettingData] Total records (after filters, before limit/order): ${totalRecords}`);
+
   // Apply sorting
-  query = query.orderBy(orderBy, orderDirection);
+  query = query.orderBy(orderBy, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+  console.log(`[getBettingData] Sorting by: ${orderBy} ${orderDirection}, then documentId`);
 
   // Apply cursor for pagination
   if (cursor) {
-    // We need to get the document snapshot of the cursor to start after it
-    const cursorDoc = await db.collection('bettingData').doc(cursor).get();
+    console.log(`[getBettingData] Attempting to apply cursor: ${cursor}`);
+    const cursorDoc = await db.collection(collectionName).doc(cursor).get();
     if (cursorDoc.exists) {
         query = query.startAfter(cursorDoc);
+        console.log(`[getBettingData] Cursor document found and applied.`);
+    } else {
+        console.warn(`[getBettingData] Cursor document '${cursor}' does not exist. This might mean the document was deleted or cursor is invalid. Starting from the beginning of the page.`);
     }
   }
 
   query = query.limit(limit);
+  console.log(`[getBettingData] Limit set to: ${limit}`);
 
   try {
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(`[getBettingData] Fetched ${snapshot.docs.length} documents for the current page.`);
+    const records = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData };
+    });
     
-    // For total records, we apply filters but not pagination or ordering
-    const totalRecordsQuery = applyQueryConditions(db.collection('bettingData'), filters);
-    const totalRecordsSnapshot = await totalRecordsQuery.count().get();
-    const totalRecords = totalRecordsSnapshot.data().count;
+    // Total records count is already calculated above
 
     // Determine the next cursor
     let nextCursor = null;
     if (snapshot.docs.length === limit) {
-      // The cursor should be the ID of the last document
       nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
+      console.log(`[getBettingData] Generated nextCursor: ${nextCursor}`);
+    } else {
+      console.log(`[getBettingData] Fewer docs (${snapshot.docs.length}) than limit (${limit}), indicating last page. nextCursor will be null.`);
     }
 
+    console.log(`[getBettingData] Returning ${records.length} records and totalRecords ${totalRecords} to client.`);
     return {
       data: records,
       totalRecords: totalRecords,
       nextCursor: nextCursor,
     };
   } catch (error) {
-    console.error('Error in getBettingData:', error);
-    await logMissingIndexRequest(error, { filters, limit, orderBy, orderDirection }, 'BettingAnalyticsScreen');
+    console.error('[getBettingData] Caught error during query execution:', error);
+    await logMissingIndexRequest(error, { filters, limit, orderBy, orderDirection }, 'BettingHubScreen');
     throw new functions.https.HttpsError('internal', 'Error fetching betting data.', { originalError: error.message });
   }
 });

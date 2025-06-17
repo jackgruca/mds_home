@@ -22,22 +22,27 @@ exports.getBettingData = analyticsAggregation.getBettingData;
 exports.logMissingIndex = functions.https.onCall(async (data, context) => {
     const url = data.url;
     const timestamp = data.timestamp; // This will be an ISO string from Flutter
+    const screenName = data.screenName || 'Unknown Screen';
 
-    if (!url || !timestamp) {
+    if (!url) {
         throw new functions.https.HttpsError(
             'invalid-argument',
-            'The function must be called with "url" and "timestamp" arguments.'
+            'The function must be called with at least a "url" argument.'
         );
     }
 
     try {
         const db = admin.firestore();
-        const collectionRef = db.collection('missingIndexLogs'); // This is the new collection
+        // Use the existing collection name 'admin_index_requests' that's already in your system
+        const collectionRef = db.collection('admin_index_requests');
 
         await collectionRef.add({
-            url: url,
-            timestamp: admin.firestore.Timestamp.fromDate(new Date(timestamp)), // Convert ISO string back to Timestamp
-            loggedAt: admin.firestore.FieldValue.serverTimestamp(), // Firestore server timestamp
+            indexUrl: url,
+            queryDetails: JSON.stringify(data.queryDetails || {}),
+            screen: screenName,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            status: 'pending',
+            errorDetails: data.errorMessage || 'No error details provided',
         });
 
         console.log('Missing index URL logged successfully:', url);

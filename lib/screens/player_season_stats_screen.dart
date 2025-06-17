@@ -121,6 +121,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'catch_percentage'
     ],
     'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
+    'Custom': [], // Added Custom category
   };
   
   String _selectedStatCategory = 'Standard';
@@ -248,17 +249,32 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
       if (e.message != null && e.message!.contains('The query requires an index')) {
         // Extract the URL and log it to a new Firebase function
-        final indexUrlMatch = RegExp(r'https://console.firebase.google.com/project/[^\s]+').firstMatch(e.message!);        
+        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
         if (indexUrlMatch != null) {
           final missingIndexUrl = indexUrlMatch.group(0);
           print('Missing index URL found: $missingIndexUrl');
+          
           // Call a new Cloud Function to log this URL
-          functions.httpsCallable('logMissingIndex').call({
-            'url': missingIndexUrl,
-            'timestamp': DateTime.now().toIso8601String(),
-          }).catchError((error) {
-            print('Error logging missing index: $error');
-          });
+          print('Attempting to call logMissingIndex Cloud Function...');
+          try {
+            final result = await functions.httpsCallable('logMissingIndex').call({
+              'url': missingIndexUrl,
+              'timestamp': DateTime.now().toIso8601String(),
+              'screenName': 'PlayerSeasonStatsScreen',
+              'queryDetails': {
+                'filters': filtersForFunction,
+                'orderBy': _sortColumn,
+                'orderDirection': _sortAscending ? 'asc' : 'desc',
+              },
+              'errorMessage': e.message,
+            });
+            print('logMissingIndex function call succeeded: ${result.data}');
+          } catch (functionError) {
+            print('Error calling logMissingIndex function: $functionError');
+            // This error is caught here to prevent it from affecting the UI
+          }
+        } else {
+          print('No index URL found in error message: ${e.message}');
         }
         if (mounted) {
           setState(() {
@@ -371,6 +387,98 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       _queryConditions.clear();
     });
     _applyFiltersAndFetch();
+  }
+
+  void _showCustomizeColumnsDialog() {
+    // Create a temporary list to hold selected fields until confirmed
+    List<String> tempSelected = List.from(_selectedFields);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Customize Columns'),
+              content: SizedBox(
+                width: 400,
+                height: 500, // Set explicit height to make it scrollable
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Search Fields',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            // No need to change anything here, just trigger a rebuild
+                          });
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView(
+                        children: _headers
+                            .where((header) => header.toLowerCase().contains(''))
+                            .map((header) {
+                              return CheckboxListTile(
+                                title: Text(header),
+                                value: tempSelected.contains(header),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      tempSelected.add(header);
+                                    } else {
+                                      tempSelected.remove(header);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // Select all fields
+                    setState(() {
+                      tempSelected = List.from(_headers);
+                    });
+                  },
+                  child: const Text('Select All'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Apply changes and close dialog
+                    this.setState(() {
+                      _selectedFields = List.from(tempSelected);
+                      // Switch to Custom category when customizing fields
+                      _selectedStatCategory = 'Custom';
+                      // Update the Custom category fields
+                      _statCategoryFieldGroups['Custom'] = _selectedFields;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
   }
 
   @override
@@ -623,16 +731,24 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     };
 
     List<String> getVisibleFieldsForCategory(String category, String position) {
-      List<String> fields = _statCategoryFieldGroups[category] ?? [];
+      List<String> fields;
       
-      if (position == 'QB') {
-        return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-      }
-      if (position == 'RB') {
-         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-      }
-      if (position == 'WR' || position == 'TE') {
-         return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+      if (category == 'Custom') {
+        // For Custom category, use the selected fields
+        fields = _selectedFields;
+      } else {
+        // For predefined categories, use the fields from the category
+        fields = _statCategoryFieldGroups[category] ?? [];
+        
+        if (position == 'QB') {
+          return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+        }
+        if (position == 'RB') {
+           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+        }
+        if (position == 'WR' || position == 'TE') {
+           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+        }
       }
       
       // 'All' position shows all fields for the category
@@ -666,6 +782,32 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             }).toList(),
           ),
         ),
+        
+        // Add row with action buttons
+        Padding(
+          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
+            children: [
+              Text(
+                _rawRows.isEmpty
+                    ? '' // Show nothing if no data for pagination info
+                    : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Customize Columns'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 13),
+                ),
+                onPressed: _showCustomizeColumnsDialog,
+              ),
+            ],
+          ),
+        ),
+        
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,

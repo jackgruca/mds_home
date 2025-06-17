@@ -46,6 +46,18 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
   
   List<String> _headers = [];
 
+  // Field types for formatting
+  final Set<String> doubleFields = {
+    'spread', 'total', 'home_score', 'away_score', 'point_differential',
+    'win_probability', 'win_probability_vegas', 'over_probability',
+    'home_win_pct', 'away_win_pct', 'home_cover_pct', 'away_cover_pct',
+    'over_pct', 'under_pct'
+  };
+  
+  // For percentile-based shading
+  List<String> numericShadingColumns = [];
+  Map<String, Map<num, double>> columnPercentiles = {};
+
   @override
   void initState() {
     super.initState();
@@ -78,7 +90,81 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
               _headers = _rows.first.keys.toList();
               _newQueryField = _headers.first;
           }
+          
+          // Determine numeric columns for shading
+          numericShadingColumns = [];
+          for (final field in _headers) {
+            if (field != 'id' && field != 'team' && field != 'opponent' && field != 'season' && field != 'week' && field != 'date' &&
+                _rows.any((row) => row[field] != null && row[field] is num)) {
+              numericShadingColumns.add(field);
+            }
+          }
+          
+          // Calculate percentiles for numeric columns
+          columnPercentiles = {};
+          for (final column in numericShadingColumns) {
+            final List<num> values = _rows
+                .map((row) => row[column])
+                .whereType<num>()
+                .toList();
+            
+            if (values.isNotEmpty) {
+              values.sort();
+              columnPercentiles[column] = {};
+              for (final row in _rows) {
+                final value = row[column];
+                if (value is num && columnPercentiles[column]![value] == null) {
+                  final rank = values.where((v) => v < value).length;
+                  final count = values.where((v) => v == value).length;
+                  columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
+                }
+              }
+            }
+          }
 
+          _isLoading = false;
+        });
+      }
+    } on FirebaseFunctionsException catch (e) {
+      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null && e.message!.contains('The query requires an index')) {
+        // Extract the URL and log it to a new Firebase function
+        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        if (indexUrlMatch != null) {
+          final missingIndexUrl = indexUrlMatch.group(0);
+          print('Missing index URL found: $missingIndexUrl');
+          
+          // Call a new Cloud Function to log this URL
+          print('Attempting to call logMissingIndex Cloud Function...');
+          try {
+            final result = await _functions.httpsCallable('logMissingIndex').call({
+              'url': missingIndexUrl,
+              'timestamp': DateTime.now().toIso8601String(),
+              'screenName': 'BettingAnalyticsScreen',
+              'queryDetails': {
+                'filters': { for (var c in _queryConditions) c.field: c.value },
+                'orderBy': _sortColumn,
+                'orderDirection': _sortAscending ? 'asc' : 'desc',
+              },
+              'errorMessage': e.message,
+            });
+            print('logMissingIndex function call succeeded: ${result.data}');
+          } catch (functionError) {
+            print('Error calling logMissingIndex function: $functionError');
+            // This error is caught here to prevent it from affecting the UI
+          }
+        } else {
+          print('No index URL found in error message: ${e.message}');
+        }
+        if (mounted) {
+          setState(() {
+            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
+        setState(() {
+          _error = "An unexpected error occurred: ${e.message}";
           _isLoading = false;
         });
       }
@@ -229,44 +315,47 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
                       color: WidgetStateProperty.resolveWith<Color?>((states) => rowIndex.isEven ? Colors.grey.shade100 : Colors.white),
                       cells: displayFields.map((field) {
                         final value = row[field];
-                        Color? cellColor;
-                        if (percentiles.containsKey(field) && value is num) {
-                          final p = percentiles[field]![value];
-                          if (p != null) {
-                            cellColor = Color.fromRGBO(100, 140, 240, 0.1 + (p * 0.85));
-                          }
-                        }
-  
                         String displayValue;
+                        Color? cellBackgroundColor;
+                        
                         if (value == null) {
                           displayValue = 'N/A';
-                        } else if (value is num && (field.contains('line') || field.contains('moneyline'))) {
-                            displayValue = value.toStringAsFixed(1);
-                        } else if (value is num && (field.contains('covered') || field.contains('hit'))) {
-                            displayValue = '${(value * 100).toStringAsFixed(0)}%';
-                        } else if (value is int && (field == 'season')) {
-                            displayValue = value.toString();
+                        } else if (value is num && numericShadingColumns.contains(field)) {
+                          final percentile = columnPercentiles[field]?[value];
+                          if (percentile != null) {
+                            cellBackgroundColor = Color.fromRGBO(
+                              100, 140, 240, 0.1 + (percentile * 0.85)
+                            );
+                          }
+                          if (doubleFields.contains(field)) {
+                            displayValue = value.toStringAsFixed(2);
+                          } else {
+                            displayValue = value.toInt().toString();
+                          }
                         } else {
-                            displayValue = value.toString();
+                          displayValue = value.toString();
                         }
-  
+                        
                         return DataCell(
                           Container(
                             width: double.infinity,
                             height: double.infinity,
-                            color: cellColor,
+                            color: cellBackgroundColor,
                             alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
                             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: (field == 'home_team' || field == 'away_team')
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TeamLogoUtils.buildNFLTeamLogo(value.toString(), size: 24.0),
-                                      const SizedBox(width: 8),
-                                      Text(displayValue),
-                                    ],
-                                  )
-                                : Text(displayValue),
+                            child: field == 'team' || field == 'opponent'
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TeamLogoUtils.buildNFLTeamLogo(
+                                      value.toString(),
+                                      size: 24.0,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(displayValue),
+                                  ],
+                                )
+                              : Text(displayValue),
                           ),
                         );
                       }).toList(),
