@@ -1356,7 +1356,7 @@ const applyQueryConditions = (query, queryFilters) => {
 exports.getBettingData = functions.https.onCall(async (data, context) => {
   const { filters = {}, limit = 25, orderBy = 'gameday', orderDirection = 'desc', cursor } = data;
   const db = admin.firestore();
-  const collectionName = 'bettingData';
+  const collectionName = 'betting_data';
   let query = db.collection(collectionName);
 
   console.log(`[getBettingData] Incoming request data: ${JSON.stringify(data)}`);
