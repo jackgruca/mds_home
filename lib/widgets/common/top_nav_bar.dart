@@ -47,32 +47,6 @@ final List<NavItem> topNavItems = [
     ],
   ),
   NavItem(
-    title: 'Betting Hub',
-    route: '/betting', // Landing page route
-    icon: Icons.paid,
-    isPlaceholder: false, // Already false: Landing page exists (points to analytics)
-    subItems: [
-      // --- Implemented --- 
-      // NavItem(title: 'Betting Analytics', route: '/betting', isPlaceholder: false), // This is being moved
-      // --- Placeholders --- 
-      // ANALYZE
-      NavItem(title: 'Line Movement Tracker', route: '/betting/lines', isPlaceholder: true),
-      NavItem(title: 'Historical Matchup Analysis', route: '/betting/matchups', isPlaceholder: true),
-      NavItem(title: 'Advanced Stats Breakdown', route: '/betting/stats', isPlaceholder: true),
-      NavItem(title: 'Weather Impact Tool', route: '/betting/weather', isPlaceholder: true),
-      // DISCOVER
-      NavItem(title: 'Betting Angles Dashboard', route: '/betting/angles', isPlaceholder: true),
-      NavItem(title: 'Under-the-Radar Values', route: '/betting/value', isPlaceholder: true),
-      NavItem(title: 'Public vs. Sharp Money', route: '/betting/money', isPlaceholder: true),
-      NavItem(title: 'Situational Spots Finder', route: '/betting/spots', isPlaceholder: true),
-      // MY BETTING
-      NavItem(title: 'Custom Indicators Builder', route: '/betting/indicators', isPlaceholder: true),
-      NavItem(title: 'Saved Angles', route: '/betting/saved-angles', isPlaceholder: true),
-      NavItem(title: 'Performance Tracker', route: '/betting/performance', isPlaceholder: true),
-      NavItem(title: 'Betting Journal', route: '/betting/journal', isPlaceholder: true),
-    ],
-  ),
-   NavItem(
     title: 'Fantasy Hub',
     route: '/fantasy', // Landing page route
     icon: Icons.sports_football,
@@ -107,7 +81,6 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'Betting Odds Data', route: '/betting', icon: Icons.paid, isPlaceholder: false), // Moved here
       // --- Placeholders ---
       NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
       NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),

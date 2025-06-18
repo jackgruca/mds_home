@@ -17,7 +17,6 @@ exports.getAnalyticsData = analyticsAggregation.getAnalyticsData;
 exports.getHistoricalMatchups = analyticsAggregation.getHistoricalMatchups;
 exports.getWrModelStats = analyticsAggregation.getWrModelStats;
 exports.getPlayerSeasonStats = analyticsAggregation.getPlayerSeasonStats;
-exports.getBettingData = analyticsAggregation.getBettingData;
 exports.getHistoricalGameData = analyticsAggregation.getHistoricalGameData;
 
 exports.logMissingIndex = functions.https.onCall(async (data, context) => {

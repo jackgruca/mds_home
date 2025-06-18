@@ -106,7 +106,6 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   // Field groups for tabbed view - game data categories
   static final Map<String, List<String>> _gameDataCategoryFieldGroups = {
     'Basic': ['game_id', 'season', 'week', 'game_type', 'game_date', 'weekday', 'away_team', 'home_team', 'away_score', 'home_score', 'total_points', 'point_differential', 'result', 'overtime'],
-    'Betting': ['game_id', 'season', 'week', 'away_team', 'home_team', 'away_moneyline', 'home_moneyline', 'spread_line', 'away_spread_odds', 'home_spread_odds', 'total_line', 'under_odds', 'over_odds', 'favorite_covered', 'over_hit', 'under_hit'],
     'Weather': ['game_id', 'season', 'week', 'away_team', 'home_team', 'stadium', 'roof', 'surface', 'temp', 'wind', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'],
     'Context': ['game_id', 'season', 'week', 'away_team', 'home_team', 'prime_time', 'playoff_game', 'div_game', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'away_rest', 'home_rest', 'rest_advantage'],
     'Personnel': ['game_id', 'season', 'week', 'away_team', 'home_team', 'away_qb_name', 'home_qb_name', 'away_coach', 'home_coach', 'referee'],
@@ -130,7 +129,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
 
   // Field types for formatting
   final Set<String> doubleFields = {
-    'spread_line', 'total_line', 'temp', 'wind'
+    'temp', 'wind'
   };
 
   // Helper function to format header names prettily with abbreviations
@@ -162,18 +161,6 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
       'early_season': 'Early',
       'mid_season': 'Mid',
       'late_season': 'Late',
-      'away_moneyline': 'Away ML',
-      'home_moneyline': 'Home ML',
-      'spread_line': 'Spread',
-      'away_spread_odds': 'Away Spr',
-      'home_spread_odds': 'Home Spr',
-      'total_line': 'O/U',
-      'under_odds': 'Under',
-      'over_odds': 'Over',
-      'favorite_covered': 'Fav Cvr',
-      'over_hit': 'Over Hit',
-      'under_hit': 'Under Hit',
-      'total_push': 'Push',
       'stadium': 'Stadium',
       'stadium_id': 'Venue ID',
       'roof': 'Roof',
@@ -228,15 +215,13 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> doubleFields = {
-      'spread_line', 'total_line', 'temp', 'wind'
+      'temp', 'wind'
     };
     const Set<String> intFields = {
       'season', 'week', 'away_score', 'home_score', 'total_points', 'point_differential',
-      'result', 'away_moneyline', 'home_moneyline', 'away_spread_odds', 'home_spread_odds',
-      'under_odds', 'over_odds', 'away_rest', 'home_rest', 'rest_advantage', 'prime_time',
+      'result', 'away_rest', 'home_rest', 'rest_advantage', 'prime_time',
       'overtime', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'div_game',
-      'playoff_game', 'favorite_covered', 'over_hit', 'under_hit', 'total_push',
-      'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'
+      'playoff_game', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'
     };
     if (doubleFields.contains(field)) return 'double';
     if (intFields.contains(field)) return 'int';

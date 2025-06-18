@@ -4,12 +4,10 @@ import 'package:mds_home/screens/blog/blog_list_screen.dart';
 import 'package:mds_home/screens/home_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
-import 'screens/betting_analytics_screen.dart';
 import 'screens/player_projections_screen.dart';
 import 'screens/team_selection_screen.dart';
 import 'screens/historical_data_screen.dart';
 import 'screens/hubs/gm_hub_screen.dart';
-import 'screens/hubs/betting_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
 import 'screens/wr_model_screen.dart';
@@ -150,8 +148,6 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
                 return MaterialPageRoute(builder: (_) => DataExplorerScreen());
-              case '/betting':
-                return MaterialPageRoute(builder: (_) => const BettingHubScreen());
               case '/projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               case '/blog':
