@@ -77,8 +77,8 @@ final List<NavItem> topNavItems = [
     icon: Icons.analytics,
     isPlaceholder: false, // Landing page exists
     subItems: [
-      NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
-      NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
+      // NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
+      // NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', icon: Icons.sports_football, isPlaceholder: false),
       // --- Placeholders ---

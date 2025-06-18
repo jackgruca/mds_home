@@ -100,6 +100,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController =
       TextEditingController();
+  bool _isQueryBuilderExpanded = false; // Initially collapsed
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
@@ -663,141 +664,159 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
         children: [
           Card(
             margin: const EdgeInsets.all(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: ExpansionTile(
+              title: Row(
                 children: [
-                  Text('Build Query',
+                  Icon(Icons.tune, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text('Query Builder',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8.0),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Season Dropdown
-                      Expanded(
-                        flex: 1,
-                        child: DropdownButtonFormField<String>(
-                          decoration:
-                              const InputDecoration(labelText: 'Season'),
-                          value: _selectedSeason,
-                          items: _seasons
-                              .map((season) => DropdownMenuItem(
-                                    value: season,
-                                    child: Text(season),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedSeason = value!;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Field Dropdown
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          decoration:
-                              const InputDecoration(labelText: 'Field'),
-                          value: _newQueryField,
-                          items: _headers
-                              .map((field) => DropdownMenuItem(
-                                    value: field,
-                                    child: Text(field),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _newQueryField = value;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Operator Dropdown
-                      Expanded(
-                        flex: 1,
-                        child: DropdownButtonFormField<QueryOperator>(
-                          decoration:
-                              const InputDecoration(labelText: 'Operator'),
-                          value: _newQueryOperator,
-                          items: _allOperators
-                              .map((op) => DropdownMenuItem(
-                                    value: op,
-                                    child: Text(queryOperatorToString(op)),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _newQueryOperator = value;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Value TextField
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _newQueryValueController,
-                          decoration: const InputDecoration(labelText: 'Value'),
-                          keyboardType: _newQueryField != null
-                              ? (getFieldType(_newQueryField!) == 'int' ||
-                                      getFieldType(_newQueryField!) == 'double')
-                                  ? TextInputType.number
-                                  : TextInputType.text
-                              : TextInputType.text,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Add Condition Button
-                      ElevatedButton(
-                        onPressed: _addQueryCondition,
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12.0),
-                  // Display current query conditions
-                  if (_queryConditions.isNotEmpty) ...[
-                    const Text('Current Conditions:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4.0),
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 4.0,
-                      children: _queryConditions.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final condition = entry.value;
-                        return Chip(
-                          label: Text(condition.toString()),
-                          deleteIcon: const Icon(Icons.close, size: 18),
-                          onDeleted: () => _removeQueryCondition(index),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8.0),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: _applyFiltersAndFetch,
-                          child: const Text('Apply Filters'),
-                        ),
-                        const SizedBox(width: 8.0),
-                        TextButton(
-                          onPressed: _clearAllQueryConditions,
-                          child: const Text('Clear All'),
-                        ),
-                      ],
-                    ),
-                  ],
+                  const Spacer(),
+                  Text(_isQueryBuilderExpanded ? 'Collapse' : 'Expand',
+                      style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
+              initiallyExpanded: _isQueryBuilderExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isQueryBuilderExpanded = expanded;
+                });
+              },
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Season Dropdown
+                          Expanded(
+                            flex: 1,
+                            child: DropdownButtonFormField<String>(
+                              decoration:
+                                  const InputDecoration(labelText: 'Season'),
+                              value: _selectedSeason,
+                              items: _seasons
+                                  .map((season) => DropdownMenuItem(
+                                        value: season,
+                                        child: Text(season),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedSeason = value!;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Field Dropdown
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              decoration:
+                                  const InputDecoration(labelText: 'Field'),
+                              value: _newQueryField,
+                              items: _headers
+                                  .map((field) => DropdownMenuItem(
+                                        value: field,
+                                        child: Text(field),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _newQueryField = value;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Operator Dropdown
+                          Expanded(
+                            flex: 1,
+                            child: DropdownButtonFormField<QueryOperator>(
+                              decoration:
+                                  const InputDecoration(labelText: 'Operator'),
+                              value: _newQueryOperator,
+                              items: _allOperators
+                                  .map((op) => DropdownMenuItem(
+                                        value: op,
+                                        child: Text(queryOperatorToString(op)),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _newQueryOperator = value;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Value TextField
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _newQueryValueController,
+                              decoration: const InputDecoration(labelText: 'Value'),
+                              keyboardType: _newQueryField != null
+                                  ? (getFieldType(_newQueryField!) == 'int' ||
+                                          getFieldType(_newQueryField!) == 'double')
+                                      ? TextInputType.number
+                                      : TextInputType.text
+                                  : TextInputType.text,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Add Condition Button
+                          ElevatedButton(
+                            onPressed: _addQueryCondition,
+                            child: const Text('Add'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12.0),
+                      // Display current query conditions
+                      if (_queryConditions.isNotEmpty) ...[
+                        const Text('Current Conditions:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4.0),
+                        Wrap(
+                          spacing: 8.0,
+                          runSpacing: 4.0,
+                          children: _queryConditions.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final condition = entry.value;
+                            return Chip(
+                              label: Text(condition.toString()),
+                              deleteIcon: const Icon(Icons.close, size: 18),
+                              onDeleted: () => _removeQueryCondition(index),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8.0),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: _applyFiltersAndFetch,
+                              child: const Text('Apply Filters'),
+                            ),
+                            const SizedBox(width: 8.0),
+                            TextButton(
+                              onPressed: _clearAllQueryConditions,
+                              child: const Text('Clear All'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           // Category Selection Tabs

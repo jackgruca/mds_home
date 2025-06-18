@@ -127,6 +127,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController =
       TextEditingController();
+  bool _isQueryBuilderExpanded = false; // Initially collapsed
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
@@ -764,142 +765,160 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
         children: [
           Card(
             margin: const EdgeInsets.all(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: ExpansionTile(
+              title: Row(
                 children: [
-                  Text('Build Query',
+                  Icon(Icons.tune, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text('Query Builder',
                       style: Theme.of(context)
                           .textTheme
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8.0),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Position Dropdown
-                      Expanded(
-                        flex: 1,
-                        child: DropdownButtonFormField<String>(
-                          decoration:
-                              const InputDecoration(labelText: 'Position'),
-                          value: _selectedPosition,
-                          items: _positions
-                              .map((pos) => DropdownMenuItem(
-                                    value: pos,
-                                    child: Text(pos),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedPosition = value;
-                                // Don't reset category when position changes in the new system
-                              });
-                              _applyFiltersAndFetch();
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      // Field Dropdown
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Field'),
-                          value: _headers.contains(_newQueryField)
-                              ? _newQueryField
-                              : null,
-                          items: _headers
-                              .map((header) => DropdownMenuItem(
-                                    value: header,
-                                    child: Text(header,
-                                        overflow: TextOverflow.ellipsis),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _newQueryField = value;
-                              _newQueryOperator = null;
-                              _newQueryValueController.clear();
-                            });
-                          },
-                          isExpanded: true,
-                        ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      // Operator Dropdown
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<QueryOperator>(
-                          decoration: const InputDecoration(labelText: 'Operator'),
-                          value: _newQueryOperator,
-                          items: _allOperators
-                              .map((op) => DropdownMenuItem(
-                                    value: op,
-                                    child: Text(queryOperatorToString(op)),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() => _newQueryOperator = value);
-                          },
-                          isExpanded: true,
-                        ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      // Value Input
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _newQueryValueController,
-                          decoration: const InputDecoration(labelText: 'Value'),
-                          keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
-                              ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
-                              : TextInputType.text,
-                        ),
-                      ),
-                      const SizedBox(width: 8.0),
-                      ElevatedButton(
-                        onPressed: _addQueryCondition,
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8.0),
-                  if (_queryConditions.isNotEmpty) ...[
-                    Text('Current Conditions:',
-                        style: Theme.of(context).textTheme.bodySmall),
-                    Wrap(
-                      spacing: 6.0,
-                      runSpacing: 2.0,
-                      children: _queryConditions
-                          .asMap()
-                          .entries
-                          .map((entry) => Chip(
-                                label: Text(entry.value.toString()),
-                                onDeleted: () =>
-                                    _removeQueryCondition(entry.key),
-                              ))
-                          .toList(),
-                    ),
-                  ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: _clearAllQueryConditions,
-                        child: const Text('Clear All'),
-                      ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.filter_alt_outlined),
-                        label: const Text('Apply Queries'),
-                        onPressed: _applyFiltersAndFetch,
-                      ),
-                    ],
-                  ),
+                  const Spacer(),
+                  Text(_isQueryBuilderExpanded ? 'Collapse' : 'Expand',
+                      style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
+              initiallyExpanded: _isQueryBuilderExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isQueryBuilderExpanded = expanded;
+                });
+              },
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Position Dropdown
+                          Expanded(
+                            flex: 1,
+                            child: DropdownButtonFormField<String>(
+                              decoration:
+                                  const InputDecoration(labelText: 'Position'),
+                              value: _selectedPosition,
+                              items: _positions
+                                  .map((pos) => DropdownMenuItem(
+                                        value: pos,
+                                        child: Text(pos),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedPosition = value;
+                                    // Don't reset category when position changes in the new system
+                                  });
+                                  _applyFiltersAndFetch();
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          // Field Dropdown
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(labelText: 'Field'),
+                              value: _headers.contains(_newQueryField)
+                                  ? _newQueryField
+                                  : null,
+                              items: _headers
+                                  .map((header) => DropdownMenuItem(
+                                        value: header,
+                                        child: Text(header,
+                                            overflow: TextOverflow.ellipsis),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _newQueryField = value;
+                                  _newQueryOperator = null;
+                                  _newQueryValueController.clear();
+                                });
+                              },
+                              isExpanded: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          // Operator Dropdown
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<QueryOperator>(
+                              decoration: const InputDecoration(labelText: 'Operator'),
+                              value: _newQueryOperator,
+                              items: _allOperators
+                                  .map((op) => DropdownMenuItem(
+                                        value: op,
+                                        child: Text(queryOperatorToString(op)),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() => _newQueryOperator = value);
+                              },
+                              isExpanded: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          // Value Input
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _newQueryValueController,
+                              decoration: const InputDecoration(labelText: 'Value'),
+                              keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
+                                  ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
+                                  : TextInputType.text,
+                            ),
+                          ),
+                          const SizedBox(width: 8.0),
+                          ElevatedButton(
+                            onPressed: _addQueryCondition,
+                            child: const Text('Add'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8.0),
+                      if (_queryConditions.isNotEmpty) ...[
+                        Text('Current Conditions:',
+                            style: Theme.of(context).textTheme.bodySmall),
+                        Wrap(
+                          spacing: 6.0,
+                          runSpacing: 2.0,
+                          children: _queryConditions
+                              .asMap()
+                              .entries
+                              .map((entry) => Chip(
+                                    label: Text(entry.value.toString()),
+                                    onDeleted: () =>
+                                        _removeQueryCondition(entry.key),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: _clearAllQueryConditions,
+                            child: const Text('Clear All'),
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.filter_alt_outlined),
+                            label: const Text('Apply Queries'),
+                            onPressed: _applyFiltersAndFetch,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(

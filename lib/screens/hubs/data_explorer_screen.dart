@@ -27,8 +27,8 @@ final NavItem? _dataExplorerNavItem = topNavItems.firstWhereOrNull((item) => ite
 
 // Define the curated list of tools for Data Explorer preview
 final List<Map<String, dynamic>> _previewTools = [
-  _findAndFormatTool(_dataExplorerNavItem, '/data/historical', desc: 'Query historical NFL game results.', icon: Icons.history), // Historical Game Results
-  _findAndFormatTool(_dataExplorerNavItem, '/wr-model', desc: 'Explore WR season-level model stats.', icon: Icons.analytics), // WR Season Stats
+  // _findAndFormatTool(_dataExplorerNavItem, '/data/historical', desc: 'Query historical NFL game results.', icon: Icons.history), // Historical Game Results
+  // _findAndFormatTool(_dataExplorerNavItem, '/wr-model', desc: 'Explore WR season-level model stats.', icon: Icons.analytics), // WR Season Stats
   _findAndFormatTool(_dataExplorerNavItem, '/data/player-stats', desc: 'Explore detailed player career statistics.', icon: Icons.person_pin), // Player Career Stats*
   _findAndFormatTool(_dataExplorerNavItem, '/data/team-trends', desc: 'Analyze team performance trends over time.', icon: Icons.timeline), // Team Performance Trends*
   _findAndFormatTool(_dataExplorerNavItem, '/data/metrics', desc: 'Access our database of advanced metrics.', icon: Icons.storage), // Advanced Metrics DB*
