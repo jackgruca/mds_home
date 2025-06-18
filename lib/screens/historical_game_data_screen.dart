@@ -105,14 +105,16 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
 
   // Field groups for tabbed view - game data categories
   static final Map<String, List<String>> _gameDataCategoryFieldGroups = {
-    'Basic': ['game_id', 'season', 'week', 'game_type', 'game_date', 'weekday', 'away_team', 'home_team', 'away_score', 'home_score', 'total_points', 'point_differential', 'result', 'overtime'],
-    'Weather': ['game_id', 'season', 'week', 'away_team', 'home_team', 'stadium', 'roof', 'surface', 'temp', 'wind', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'],
-    'Context': ['game_id', 'season', 'week', 'away_team', 'home_team', 'prime_time', 'playoff_game', 'div_game', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'away_rest', 'home_rest', 'rest_advantage'],
-    'Personnel': ['game_id', 'season', 'week', 'away_team', 'home_team', 'away_qb_name', 'home_qb_name', 'away_coach', 'home_coach', 'referee'],
-    'Custom': [], // Added Custom category
+    'Game Basics': ['home_team', 'away_team', 'season', 'week', 'game_id', 'game_date', 'weekday', 'away_score', 'home_score', 'total_points', 'point_differential', 'result', 'overtime'],
+    'Fantasy Edge': ['home_team', 'away_team', 'season', 'week', 'away_qb_name', 'home_qb_name', 'temp', 'wind', 'dome_game', 'outdoor_game', 'away_rest', 'home_rest', 'rest_advantage', 'high_scoring', 'low_scoring', 'blowout', 'close_game'],
+    'Betting Angles': ['home_team', 'away_team', 'season', 'week', 'prime_time', 'playoff_game', 'div_game', 'away_rest', 'home_rest', 'rest_advantage', 'referee', 'cold_weather', 'hot_weather', 'windy_conditions', 'surface', 'roof'],
+    'Game Context': ['home_team', 'away_team', 'season', 'week', 'prime_time', 'playoff_game', 'div_game', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'early_season', 'mid_season', 'late_season'],
+    'Environment': ['home_team', 'away_team', 'season', 'week', 'stadium', 'roof', 'surface', 'temp', 'wind', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'],
+    'Personnel': ['home_team', 'away_team', 'season', 'week', 'away_qb_name', 'home_qb_name', 'away_coach', 'home_coach', 'referee'],
+    'Custom': ['home_team', 'away_team', 'season', 'week'], // User-defined category with basic identifiers
   };
   
-  String _selectedGameDataCategory = 'Basic';
+  String _selectedGameDataCategory = 'Game Basics';
 
   // All operators for query
   final List<QueryOperator> _allOperators = [
@@ -199,6 +201,59 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
         .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
         .join(' ');
   }
+
+  // Field definitions for the key/legend
+  static final Map<String, String> _fieldDefinitions = {
+    // Game Basics
+    'home_team': 'Home Team',
+    'away_team': 'Away Team',
+    'season': 'NFL Season Year',
+    'week': 'Week Number',
+    'game_id': 'Unique Game Identifier',
+    'game_date': 'Date of Game',
+    'weekday': 'Day of Week',
+    'away_score': 'Away Team Final Score',
+    'home_score': 'Home Team Final Score',
+    'total_points': 'Combined Score',
+    'point_differential': 'Margin of Victory',
+    'result': 'Game Result (W/L)',
+    'overtime': 'Overtime Game (1=Yes, 0=No)',
+    
+    // Fantasy Edge
+    'away_qb_name': 'Away Team Starting QB',
+    'home_qb_name': 'Home Team Starting QB',
+    'temp': 'Temperature (°F)',
+    'wind': 'Wind Speed (mph)',
+    'dome_game': 'Indoor/Dome Game (1=Yes, 0=No)',
+    'outdoor_game': 'Outdoor Game (1=Yes, 0=No)',
+    'away_rest': 'Away Team Days of Rest',
+    'home_rest': 'Home Team Days of Rest',
+    'rest_advantage': 'Rest Advantage (Home - Away)',
+    'high_scoring': 'High Scoring Game (1=Yes, 0=No)',
+    'low_scoring': 'Low Scoring Game (1=Yes, 0=No)',
+    'blowout': 'Blowout Game (1=Yes, 0=No)',
+    'close_game': 'Close Game (1=Yes, 0=No)',
+    
+    // Game Context
+    'prime_time': 'Prime Time Game (1=Yes, 0=No)',
+    'playoff_game': 'Playoff Game (1=Yes, 0=No)',
+    'div_game': 'Division Game (1=Yes, 0=No)',
+    'roof': 'Stadium Roof Type',
+    'surface': 'Playing Surface',
+    'stadium': 'Stadium Name',
+    'neutral_site': 'Neutral Site Game (1=Yes, 0=No)',
+    
+    // Environment
+    'cold_weather': 'Cold Weather Game (1=Yes, 0=No)',
+    'hot_weather': 'Hot Weather Game (1=Yes, 0=No)',
+    'windy_conditions': 'Windy Conditions (1=Yes, 0=No)',
+    'precipitation': 'Precipitation Present (1=Yes, 0=No)',
+    
+    // Personnel
+    'referee': 'Head Referee',
+    'away_coach': 'Away Team Head Coach',
+    'home_coach': 'Home Team Head Coach',
+  };
 
   @override
   void initState() {
@@ -523,6 +578,52 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
               ],
             );
           }
+        );
+      },
+    );
+  }
+
+  void _showFieldDefinitions() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Field Definitions'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _fieldDefinitions.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(entry.value),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
         );
       },
     );
@@ -898,14 +999,27 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords games.',
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Customize Columns'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-                onPressed: _showCustomizeColumnsDialog,
+              Row(
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.help_outline, size: 16),
+                    label: const Text('Field Key'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue[600],
+                    ),
+                    onPressed: _showFieldDefinitions,
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Customize Columns'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 13),
+                    ),
+                    onPressed: _showCustomizeColumnsDialog,
+                  ),
+                ],
               ),
             ],
           ),

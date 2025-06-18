@@ -90,6 +90,33 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   // Position Filter
   String _selectedPosition = 'All'; // Default position filter
   final List<String> _positions = ['All', 'QB', 'RB', 'WR', 'TE'];
+  
+  // New: Position-aware filtering state
+  bool _showAllPositionsInTab = false; // Toggle to show all positions in position-specific tabs
+  
+  // Helper method to get the position filter for the current tab
+  String _getEffectivePositionFilter() {
+    if (_showAllPositionsInTab) {
+      return _selectedPosition; // Use the dropdown filter when showing all positions
+    }
+    
+    // Auto-filter by position based on the selected tab
+    switch (_selectedStatCategory) {
+      case 'QB Stats':
+        return 'QB';
+      case 'RB Stats':
+        return 'RB';
+      case 'WR/TE Stats':
+        return 'WR'; // We'll handle TE separately in the filter logic
+      default:
+        return _selectedPosition; // For other tabs, use the dropdown filter
+    }
+  }
+  
+  // Helper method to determine if we should include TE in WR/TE Stats
+  bool _shouldIncludeTE() {
+    return _selectedStatCategory == 'WR/TE Stats' && !_showAllPositionsInTab;
+  }
 
   List<String> _headers = [];
   List<String> _selectedFields = []; // Initially empty, populated from data
@@ -103,16 +130,24 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
-  // Field groups for tabbed view - repurposed for stat categories
+  // Field groups for tabbed view - enhanced with position and situational categories
   static final Map<String, List<String>> _statCategoryFieldGroups = {
-    'Standard': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds'],
-    'Advanced': [
-      'player_name', 'season', 'games', 
-      'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr',
+    // Position-Based Categories
+    'QB Stats': ['player_name', 'recent_team', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'completion_percentage', 'passer_rating', 'qbr', 'rushing_attempts', 'rushing_yards', 'rushing_tds'],
+    'RB Stats': ['player_name', 'recent_team', 'season', 'games', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'yards_per_carry', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'fantasy_points', 'fantasy_points_ppr'],
+    'WR/TE Stats': ['player_name', 'recent_team', 'position', 'season', 'games', 'targets', 'receptions', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'target_share', 'air_yards_share', 'wopr', 'avg_depth_of_target', 'fantasy_points', 'fantasy_points_ppr'],
+    // Efficiency & Advanced Categories  
+    'Efficiency Metrics': [
+      'player_name', 'recent_team', 'position', 'season', 'games',
+      'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'yards_per_touch',
+      'completion_percentage', 'passer_rating', 'target_share', 'air_yards_share', 'wopr', 'racr'
+    ],
+    'NextGen Stats': [
+      'player_name', 'recent_team', 'position', 'season', 'games',
       // NextGen Passing Stats
       'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
       'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
-      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+      'completion_percentage_above_expectation',
       // NextGen Rushing Stats
       'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
       'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
@@ -120,11 +155,11 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
       'catch_percentage'
     ],
-    'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
-    'Custom': [], // Added Custom category
+    'Fantasy Focus': ['player_name', 'recent_team', 'position', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr', 'fantasy_points_per_game', 'targets', 'target_share', 'red_zone_targets', 'wopr'],
+    'Custom': [], // User-defined category
   };
   
-  String _selectedStatCategory = 'Standard';
+  String _selectedStatCategory = 'QB Stats';
 
   // All operators for query
   final List<QueryOperator> _allOperators = [
@@ -141,14 +176,26 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   // Field types for formatting
   final Set<String> doubleFields = {
-    'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'receiving_yards_per_reception', 
+    'passing_yards_per_attempt', 'passing_tds_per_attempt',
+    'rushing_yards_per_attempt', 'rushing_tds_per_attempt', 
+    'receiving_yards_per_reception', 'receiving_tds_per_reception',
     'completion_percentage', 'passer_rating', 'qbr', 'yards_per_carry', 'yards_per_reception',
-    'target_share', 'air_yards_share', 'wopr', 'racr', 'avg_depth_of_target'
+    'target_share', 'air_yards_share', 'wopr', 'racr', 'avg_depth_of_target',
+    'yards_per_touch', 'catch_percentage',
+    // NextGen Passing Stats
+    'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
+    'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
+    'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+    // NextGen Rushing Stats
+    'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+    'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
+    // NextGen Receiving Stats
+    'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards'
   };
 
   // Helper function to format header names prettily with abbreviations
   String _formatHeaderName(String header) {
-    // Define abbreviations and pretty names
+    // Define abbreviations and pretty names - expanded for new categories
     final Map<String, String> headerMap = {
       'player_name': 'Player',
       'recent_team': 'Team',
@@ -156,6 +203,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'season': 'Year',
       'games': 'G',
       'games_started': 'GS',
+      // Passing Stats
       'completions': 'Cmp',
       'attempts': 'Att',
       'passing_yards': 'Pass Yds',
@@ -165,24 +213,51 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       'completion_percentage': 'Cmp%',
       'passer_rating': 'Rate',
       'qbr': 'QBR',
+      // Rushing Stats
       'rushing_attempts': 'Rush Att',
       'rushing_yards': 'Rush Yds',
       'rushing_tds': 'Rush TD',
       'rushing_yards_per_attempt': 'Y/C',
+      'yards_per_carry': 'Y/C',
+      // Receiving Stats
       'targets': 'Tgt',
       'receptions': 'Rec',
       'receiving_yards': 'Rec Yds',
       'receiving_tds': 'Rec TD',
       'receiving_yards_per_reception': 'Y/R',
-      'yards_per_carry': 'Y/C',
       'yards_per_reception': 'Y/R',
       'target_share': 'Tgt%',
       'air_yards_share': 'Air%',
       'wopr': 'WOPR',
       'racr': 'RACR',
       'avg_depth_of_target': 'aDOT',
+      // Fantasy Stats
       'fantasy_points': 'Fpts',
+      'fantasy_points_ppr': 'PPR Pts',
       'fantasy_points_per_game': 'Fpts/G',
+      'red_zone_targets': 'RZ Tgt',
+      'yards_per_touch': 'Y/Touch',
+      // NextGen Passing
+      'avg_time_to_throw': 'Avg TTT',
+      'avg_completed_air_yards': 'CAY',
+      'avg_intended_air_yards': 'IAY', 
+      'avg_air_yards_differential': 'AYD',
+      'aggressiveness': 'AGG%',
+      'max_completed_air_distance': 'MCAD',
+      'completion_percentage_above_expectation': 'CPOE',
+      // NextGen Rushing
+      'rush_efficiency': 'Rush Eff',
+      'pct_attempts_vs_eight_plus': '8+ Box%',
+      'avg_time_to_los': 'TLOS',
+      'rush_yards_over_expected': 'RYOE',
+      'rush_yards_over_expected_per_att': 'RYOE/Att',
+      'rush_pct_over_expected': 'Rush%+',
+      // NextGen Receiving
+      'avg_cushion': 'Cushion',
+      'avg_separation': 'Sep',
+      'rec_avg_intended_air_yards': 'Rec IAY',
+      'percent_share_of_intended_air_yards': 'IAY%',
+      'catch_percentage': 'Catch%',
     };
 
     // Return mapped name if exists, otherwise format the original
@@ -197,6 +272,80 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
         .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
         .join(' ');
   }
+
+  // Field definitions for the key/legend
+  static final Map<String, String> _fieldDefinitions = {
+    // Basic Info
+    'player_name': 'Player Name',
+    'recent_team': 'Most Recent Team',
+    'position': 'Position (QB, RB, WR, TE)',
+    'season': 'NFL Season Year',
+    'games': 'Games Played',
+    
+    // Passing Stats
+    'completions': 'Pass Completions',
+    'attempts': 'Pass Attempts',
+    'passing_yards': 'Passing Yards',
+    'passing_tds': 'Passing Touchdowns',
+    'interceptions': 'Interceptions Thrown',
+    'completion_percentage': 'Completion Percentage',
+    'passer_rating': 'NFL Passer Rating (0-158.3)',
+    'qbr': 'ESPN QBR (0-100)',
+    'sacks': 'Times Sacked',
+    'sack_yards': 'Yards Lost to Sacks',
+    
+    // Rushing Stats
+    'rushing_attempts': 'Rushing Attempts',
+    'rushing_yards': 'Rushing Yards',
+    'rushing_tds': 'Rushing Touchdowns',
+    'yards_per_carry': 'Yards Per Carry (Y/C)',
+    
+    // Receiving Stats
+    'receptions': 'Receptions',
+    'targets': 'Targets',
+    'receiving_yards': 'Receiving Yards',
+    'receiving_tds': 'Receiving Touchdowns',
+    'yards_per_reception': 'Yards Per Reception',
+    'target_share': 'Target Share (%)',
+    'catch_rate': 'Catch Rate (%)',
+    
+    // Advanced Receiving
+    'air_yards_share': 'Air Yards Share (%)',
+    'avg_depth_of_target': 'Average Depth of Target',
+    'racr': 'Receiver Air Conversion Ratio',
+    'wopr': 'Weighted Opportunity Rating',
+    
+    // Fantasy Stats
+    'fantasy_points': 'Fantasy Points (Standard)',
+    'fantasy_points_ppr': 'Fantasy Points (PPR)',
+    'fantasy_points_per_game': 'Fantasy Points Per Game',
+    
+    // NextGen Passing
+    'avg_time_to_throw': 'Average Time to Throw (seconds)',
+    'avg_completed_air_yards': 'Average Completed Air Yards',
+    'avg_intended_air_yards': 'Average Intended Air Yards',
+    'avg_air_yards_differential': 'Air Yards Differential',
+    'aggressiveness': 'Aggressiveness (%)',
+    'max_completed_air_distance': 'Max Completed Air Distance',
+    'avg_air_distance': 'Average Air Distance',
+    'avg_air_yards_to_sticks': 'Average Air Yards to Sticks',
+    'completion_percentage_above_expectation': 'Completion % Above Expectation',
+    
+    // NextGen Rushing
+    'rush_efficiency': 'Rushing Efficiency',
+    'pct_attempts_vs_eight_plus': '8+ Defenders in Box (%)',
+    'avg_time_to_los': 'Average Time to Line of Scrimmage',
+    'rush_yards_over_expected': 'Rush Yards Over Expected',
+    'rush_yards_over_expected_per_att': 'Rush Yards Over Expected Per Attempt',
+    'rush_pct_over_expected': 'Rush % Over Expected',
+    
+    // NextGen Receiving
+    'avg_cushion': 'Average Cushion (yards)',
+    'avg_separation': 'Average Separation (yards)',
+    'rec_avg_intended_air_yards': 'Average Intended Air Yards (Receiving)',
+    'percent_share_of_intended_air_yards': 'Share of Intended Air Yards (%)',
+    'catch_percentage': 'Catch Percentage (%)',
+  };
 
   @override
   void initState() {
@@ -263,9 +412,16 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    // Add position filter
-    if (_selectedPosition != 'All') {
-      filtersForFunction['position'] = _selectedPosition;
+    
+    // Intelligent position filtering
+    String effectivePositionFilter = _getEffectivePositionFilter();
+    if (effectivePositionFilter != 'All') {
+      if (_shouldIncludeTE()) {
+        // For WR/TE Stats tab, include both WR and TE
+        filtersForFunction['position_in'] = ['WR', 'TE'];
+      } else {
+        filtersForFunction['position'] = effectivePositionFilter;
+      }
     }
 
     final dynamic currentCursor =
@@ -365,10 +521,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    if (_selectedPosition != 'All') {
-      filtersForFunction['position'] = _selectedPosition;
+    
+    // Use the same intelligent position filtering for preloading
+    String effectivePositionFilter = _getEffectivePositionFilter();
+    if (effectivePositionFilter != 'All') {
+      if (_shouldIncludeTE()) {
+        // For WR/TE Stats tab, include both WR and TE
+        filtersForFunction['position_in'] = ['WR', 'TE'];
+      } else {
+        filtersForFunction['position'] = effectivePositionFilter;
+      }
     }
-
 
     dynamic currentPreloadCursor = _nextCursor;
     int preloadPageIndex = _currentPage + 1;
@@ -540,6 +703,33 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     );
   }
 
+  void _showFieldDefinitions() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Field Definitions'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: _fieldDefinitions.entries.map((entry) {
+                return ListTile(
+                  title: Text(entry.key),
+                  trailing: Text(entry.value),
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
@@ -605,8 +795,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                             if (value != null) {
                               setState(() {
                                 _selectedPosition = value;
-                                // When position changes, reset category to standard
-                                _selectedStatCategory = 'Standard';
+                                // Don't reset category when position changes in the new system
                               });
                               _applyFiltersAndFetch();
                             }
@@ -816,7 +1005,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     if (selected) {
                       setState(() {
                         _selectedStatCategory = category;
+                        // Reset the toggle when switching tabs
+                        _showAllPositionsInTab = false;
                       });
+                      _applyFiltersAndFetch();
                     }
                   },
                 ),
@@ -824,6 +1016,40 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             }).toList(),
           ),
         ),
+        
+        // Position-aware toggle for position-specific tabs
+        if (_isPositionSpecificTab()) 
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Icon(Icons.filter_list, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Text(
+                  _showAllPositionsInTab 
+                    ? 'Showing: ${_selectedPosition == 'All' ? 'All Positions' : '$_selectedPosition Only'}'
+                    : 'Showing: ${_getPositionDisplayText()} Only',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+                const SizedBox(width: 12),
+                Switch(
+                  value: _showAllPositionsInTab,
+                  onChanged: (value) {
+                    setState(() {
+                      _showAllPositionsInTab = value;
+                    });
+                    _applyFiltersAndFetch();
+                  },
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Show All Positions',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
         
         // Add row with action buttons
         Padding(
@@ -837,14 +1063,27 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Customize Columns'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  textStyle: const TextStyle(fontSize: 13),
-                ),
-                onPressed: _showCustomizeColumnsDialog,
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _showFieldDefinitions,
+                    icon: const Icon(Icons.help_outline, size: 16),
+                    label: const Text('Field Key'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue[600],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Customize Columns'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 13),
+                    ),
+                    onPressed: _showCustomizeColumnsDialog,
+                  ),
+                ],
               ),
             ],
           ),
@@ -983,5 +1222,24 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
           ),
       ],
     );
+  }
+
+  // Helper method to determine if current tab is position-specific
+  bool _isPositionSpecificTab() {
+    return ['QB Stats', 'RB Stats', 'WR/TE Stats'].contains(_selectedStatCategory);
+  }
+  
+  // Helper method to get display text for current position filter
+  String _getPositionDisplayText() {
+    switch (_selectedStatCategory) {
+      case 'QB Stats':
+        return 'QB';
+      case 'RB Stats':
+        return 'RB';
+      case 'WR/TE Stats':
+        return 'WR/TE';
+      default:
+        return _selectedPosition;
+    }
   }
 } 

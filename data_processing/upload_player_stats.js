@@ -9,7 +9,7 @@ const path = require('path');
 const SERVICE_ACCOUNT_PATH = path.join(__dirname, './serviceAccountKey.json'); // Assumes key is in the same directory
 const DATABASE_URL = 'https://sticktothemodel-d9049.firebaseio.com'; // Replace with your project's database URL if different
 const COLLECTION_NAME = 'playerSeasonStats';
-const INPUT_JSON_PATH = path.join(__dirname, '../player_stats.json');
+const INPUT_JSON_PATH = path.join(__dirname, './player_stats.json');
 
 // --- SCRIPT ---
 
