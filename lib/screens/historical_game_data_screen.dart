@@ -6,7 +6,7 @@ import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 
-// Enum for Query Operators (reusing from historical_data_screen.dart)
+// Enum for Query Operators
 enum QueryOperator {
   equals,
   notEquals,
@@ -58,15 +58,15 @@ class QueryCondition {
   }
 }
 
-class PlayerSeasonStatsScreen extends StatefulWidget {
-  const PlayerSeasonStatsScreen({super.key});
+class HistoricalGameDataScreen extends StatefulWidget {
+  const HistoricalGameDataScreen({super.key});
 
   @override
-  State<PlayerSeasonStatsScreen> createState() =>
-      _PlayerSeasonStatsScreenState();
+  State<HistoricalGameDataScreen> createState() =>
+      _HistoricalGameDataScreenState();
 }
 
-class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
+class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
@@ -84,12 +84,12 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   static const int _pagesToPreload = 2; // How many pages to preload ahead
 
   // Sort state
-  String _sortColumn = 'season';
+  String _sortColumn = 'game_date';
   bool _sortAscending = false;
 
-  // Position Filter
-  String _selectedPosition = 'All'; // Default position filter
-  final List<String> _positions = ['All', 'QB', 'RB', 'WR', 'TE'];
+  // Season Filter
+  String _selectedSeason = 'All'; // Default season filter
+  final List<String> _seasons = ['All', '2024', '2023', '2022', '2021', '2020'];
 
   List<String> _headers = [];
   List<String> _selectedFields = []; // Initially empty, populated from data
@@ -103,28 +103,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
-  // Field groups for tabbed view - repurposed for stat categories
-  static final Map<String, List<String>> _statCategoryFieldGroups = {
-    'Standard': ['player_name', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds'],
-    'Advanced': [
-      'player_name', 'season', 'games', 
-      'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'yards_per_reception', 'wopr',
-      // NextGen Passing Stats
-      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
-      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
-      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
-      // NextGen Rushing Stats
-      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
-      'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
-      // NextGen Receiving Stats
-      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
-      'catch_percentage'
-    ],
-    'Fantasy': ['player_name', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr'],
+  // Field groups for tabbed view - game data categories
+  static final Map<String, List<String>> _gameDataCategoryFieldGroups = {
+    'Basic': ['game_id', 'season', 'week', 'game_type', 'game_date', 'weekday', 'away_team', 'home_team', 'away_score', 'home_score', 'total_points', 'point_differential', 'result', 'overtime'],
+    'Betting': ['game_id', 'season', 'week', 'away_team', 'home_team', 'away_moneyline', 'home_moneyline', 'spread_line', 'away_spread_odds', 'home_spread_odds', 'total_line', 'under_odds', 'over_odds', 'favorite_covered', 'over_hit', 'under_hit'],
+    'Weather': ['game_id', 'season', 'week', 'away_team', 'home_team', 'stadium', 'roof', 'surface', 'temp', 'wind', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'],
+    'Context': ['game_id', 'season', 'week', 'away_team', 'home_team', 'prime_time', 'playoff_game', 'div_game', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'away_rest', 'home_rest', 'rest_advantage'],
+    'Personnel': ['game_id', 'season', 'week', 'away_team', 'home_team', 'away_qb_name', 'home_qb_name', 'away_coach', 'home_coach', 'referee'],
     'Custom': [], // Added Custom category
   };
   
-  String _selectedStatCategory = 'Standard';
+  String _selectedGameDataCategory = 'Basic';
 
   // All operators for query
   final List<QueryOperator> _allOperators = [
@@ -141,48 +130,74 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   // Field types for formatting
   final Set<String> doubleFields = {
-    'passing_yards_per_attempt', 'rushing_yards_per_attempt', 'receiving_yards_per_reception', 
-    'completion_percentage', 'passer_rating', 'qbr', 'yards_per_carry', 'yards_per_reception',
-    'target_share', 'air_yards_share', 'wopr', 'racr', 'avg_depth_of_target'
+    'spread_line', 'total_line', 'temp', 'wind'
   };
 
   // Helper function to format header names prettily with abbreviations
   String _formatHeaderName(String header) {
-    // Define abbreviations and pretty names
+    // Define abbreviations and pretty names for game data
     final Map<String, String> headerMap = {
-      'player_name': 'Player',
-      'recent_team': 'Team',
-      'position': 'Pos',
-      'season': 'Year',
-      'games': 'G',
-      'games_started': 'GS',
-      'completions': 'Cmp',
-      'attempts': 'Att',
-      'passing_yards': 'Pass Yds',
-      'passing_tds': 'Pass TD',
-      'interceptions': 'Int',
-      'passing_yards_per_attempt': 'Y/A',
-      'completion_percentage': 'Cmp%',
-      'passer_rating': 'Rate',
-      'qbr': 'QBR',
-      'rushing_attempts': 'Rush Att',
-      'rushing_yards': 'Rush Yds',
-      'rushing_tds': 'Rush TD',
-      'rushing_yards_per_attempt': 'Y/C',
-      'targets': 'Tgt',
-      'receptions': 'Rec',
-      'receiving_yards': 'Rec Yds',
-      'receiving_tds': 'Rec TD',
-      'receiving_yards_per_reception': 'Y/R',
-      'yards_per_carry': 'Y/C',
-      'yards_per_reception': 'Y/R',
-      'target_share': 'Tgt%',
-      'air_yards_share': 'Air%',
-      'wopr': 'WOPR',
-      'racr': 'RACR',
-      'avg_depth_of_target': 'aDOT',
-      'fantasy_points': 'Fpts',
-      'fantasy_points_per_game': 'Fpts/G',
+      'game_id': 'Game ID',
+      'season': 'Season',
+      'week': 'Week',
+      'game_type': 'Type',
+      'game_date': 'Date',
+      'weekday': 'Day',
+      'gametime': 'Time',
+      'prime_time': 'Prime',
+      'away_team': 'Away',
+      'away_score': 'Away Pts',
+      'home_team': 'Home',
+      'home_score': 'Home Pts',
+      'total_points': 'Total',
+      'point_differential': 'Diff',
+      'result': 'Result',
+      'overtime': 'OT',
+      'blowout': 'Blowout',
+      'close_game': 'Close',
+      'high_scoring': 'High Scr',
+      'low_scoring': 'Low Scr',
+      'div_game': 'Div',
+      'playoff_game': 'Playoff',
+      'early_season': 'Early',
+      'mid_season': 'Mid',
+      'late_season': 'Late',
+      'away_moneyline': 'Away ML',
+      'home_moneyline': 'Home ML',
+      'spread_line': 'Spread',
+      'away_spread_odds': 'Away Spr',
+      'home_spread_odds': 'Home Spr',
+      'total_line': 'O/U',
+      'under_odds': 'Under',
+      'over_odds': 'Over',
+      'favorite_covered': 'Fav Cvr',
+      'over_hit': 'Over Hit',
+      'under_hit': 'Under Hit',
+      'total_push': 'Push',
+      'stadium': 'Stadium',
+      'stadium_id': 'Venue ID',
+      'roof': 'Roof',
+      'surface': 'Surface',
+      'temp': 'Temp',
+      'wind': 'Wind',
+      'cold_weather': 'Cold',
+      'hot_weather': 'Hot',
+      'windy_conditions': 'Windy',
+      'dome_game': 'Dome',
+      'outdoor_game': 'Outdoor',
+      'away_rest': 'Away Rest',
+      'home_rest': 'Home Rest',
+      'rest_advantage': 'Rest Adv',
+      'away_rest_advantage': 'Away Rest+',
+      'home_rest_advantage': 'Home Rest+',
+      'away_qb_name': 'Away QB',
+      'home_qb_name': 'Home QB',
+      'away_coach': 'Away Coach',
+      'home_coach': 'Home Coach',
+      'referee': 'Referee',
+      'old_game_id': 'Old ID',
+      'espn': 'ESPN ID',
+      'pfr': 'PFR ID',
     };
 
     // Return mapped name if exists, otherwise format the original
@@ -213,26 +228,15 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> doubleFields = {
-      'passing_yards_per_attempt', 'passing_tds_per_attempt',
-      'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
-      'yards_per_reception', 'receiving_tds_per_reception',
-      'yards_per_touch', 'wopr',
-      // NextGen Passing Stats
-      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
-      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
-      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
-      // NextGen Rushing Stats
-      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
-      'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
-      // NextGen Receiving Stats
-      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
-      'catch_percentage'
+      'spread_line', 'total_line', 'temp', 'wind'
     };
     const Set<String> intFields = {
-      'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds',
-      'interceptions', 'sacks', 'sack_yards', 'rushing_attempts', 'rushing_yards',
-      'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds',
-      'fantasy_points', 'fantasy_points_ppr',
+      'season', 'week', 'away_score', 'home_score', 'total_points', 'point_differential',
+      'result', 'away_moneyline', 'home_moneyline', 'away_spread_odds', 'home_spread_odds',
+      'under_odds', 'over_odds', 'away_rest', 'home_rest', 'rest_advantage', 'prime_time',
+      'overtime', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'div_game',
+      'playoff_game', 'favorite_covered', 'over_hit', 'under_hit', 'total_push',
+      'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'
     };
     if (doubleFields.contains(field)) return 'double';
     if (intFields.contains(field)) return 'int';
@@ -263,9 +267,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    // Add position filter
-    if (_selectedPosition != 'All') {
-      filtersForFunction['position'] = _selectedPosition;
+    // Add season filter
+    if (_selectedSeason != 'All') {
+      filtersForFunction['season'] = int.parse(_selectedSeason);
     }
 
     final dynamic currentCursor =
@@ -273,7 +277,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
     try {
       final HttpsCallable callable =
-          functions.httpsCallable('getPlayerSeasonStats');
+          functions.httpsCallable('getHistoricalGameData');
       final result = await callable.call<Map<String, dynamic>>({
         'filters': filtersForFunction,
         'limit': _rowsPerPage,
@@ -319,7 +323,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             final result = await functions.httpsCallable('logMissingIndex').call({
               'url': missingIndexUrl,
               'timestamp': DateTime.now().toIso8601String(),
-              'screenName': 'PlayerSeasonStatsScreen',
+              'screenName': 'HistoricalGameDataScreen',
               'queryDetails': {
                 'filters': filtersForFunction,
                 'orderBy': _sortColumn,
@@ -365,10 +369,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    if (_selectedPosition != 'All') {
-      filtersForFunction['position'] = _selectedPosition;
+    if (_selectedSeason != 'All') {
+      filtersForFunction['season'] = int.parse(_selectedSeason);
     }
-
 
     dynamic currentPreloadCursor = _nextCursor;
     int preloadPageIndex = _currentPage + 1;
@@ -383,7 +386,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
       try {
         final HttpsCallable callable =
-            functions.httpsCallable('getPlayerSeasonStats');
+            functions.httpsCallable('getHistoricalGameData');
         final result = await callable.call<Map<String, dynamic>>({
           'filters': filtersForFunction,
           'limit': _rowsPerPage,
@@ -524,9 +527,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     this.setState(() {
                       _selectedFields = List.from(tempSelected);
                       // Switch to Custom category when customizing fields
-                      _selectedStatCategory = 'Custom';
+                      _selectedGameDataCategory = 'Custom';
                       // Update the Custom category fields
-                      _statCategoryFieldGroups['Custom'] = _selectedFields;
+                      _gameDataCategoryFieldGroups['Custom'] = _selectedFields;
                     });
                     Navigator.pop(context);
                   },
@@ -588,63 +591,54 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // Position Dropdown
+                      // Season Dropdown
                       Expanded(
                         flex: 1,
                         child: DropdownButtonFormField<String>(
                           decoration:
-                              const InputDecoration(labelText: 'Position'),
-                          value: _selectedPosition,
-                          items: _positions
-                              .map((pos) => DropdownMenuItem(
-                                    value: pos,
-                                    child: Text(pos),
+                              const InputDecoration(labelText: 'Season'),
+                          value: _selectedSeason,
+                          items: _seasons
+                              .map((season) => DropdownMenuItem(
+                                    value: season,
+                                    child: Text(season),
                                   ))
                               .toList(),
                           onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedPosition = value;
-                                // When position changes, reset category to standard
-                                _selectedStatCategory = 'Standard';
-                              });
-                              _applyFiltersAndFetch();
-                            }
+                            setState(() {
+                              _selectedSeason = value!;
+                            });
                           },
                         ),
                       ),
-                      const SizedBox(width: 8.0),
+                      const SizedBox(width: 12),
                       // Field Dropdown
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Field'),
-                          value: _headers.contains(_newQueryField)
-                              ? _newQueryField
-                              : null,
+                          decoration:
+                              const InputDecoration(labelText: 'Field'),
+                          value: _newQueryField,
                           items: _headers
-                              .map((header) => DropdownMenuItem(
-                                    value: header,
-                                    child: Text(header,
-                                        overflow: TextOverflow.ellipsis),
+                              .map((field) => DropdownMenuItem(
+                                    value: field,
+                                    child: Text(field),
                                   ))
                               .toList(),
                           onChanged: (value) {
                             setState(() {
                               _newQueryField = value;
-                              _newQueryOperator = null;
-                              _newQueryValueController.clear();
                             });
                           },
-                          isExpanded: true,
                         ),
                       ),
-                      const SizedBox(width: 8.0),
+                      const SizedBox(width: 12),
                       // Operator Dropdown
                       Expanded(
-                        flex: 2,
+                        flex: 1,
                         child: DropdownButtonFormField<QueryOperator>(
-                          decoration: const InputDecoration(labelText: 'Operator'),
+                          decoration:
+                              const InputDecoration(labelText: 'Operator'),
                           value: _newQueryOperator,
                           items: _allOperators
                               .map((op) => DropdownMenuItem(
@@ -653,86 +647,203 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                                   ))
                               .toList(),
                           onChanged: (value) {
-                            setState(() => _newQueryOperator = value);
+                            setState(() {
+                              _newQueryOperator = value;
+                            });
                           },
-                          isExpanded: true,
                         ),
                       ),
-                      const SizedBox(width: 8.0),
-                      // Value Input
+                      const SizedBox(width: 12),
+                      // Value TextField
                       Expanded(
                         flex: 2,
                         child: TextField(
                           controller: _newQueryValueController,
                           decoration: const InputDecoration(labelText: 'Value'),
-                          keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
-                              ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
+                          keyboardType: _newQueryField != null
+                              ? (getFieldType(_newQueryField!) == 'int' ||
+                                      getFieldType(_newQueryField!) == 'double')
+                                  ? TextInputType.number
+                                  : TextInputType.text
                               : TextInputType.text,
                         ),
                       ),
-                      const SizedBox(width: 8.0),
+                      const SizedBox(width: 12),
+                      // Add Condition Button
                       ElevatedButton(
                         onPressed: _addQueryCondition,
                         child: const Text('Add'),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8.0),
+                  const SizedBox(height: 12.0),
+                  // Display current query conditions
                   if (_queryConditions.isNotEmpty) ...[
-                    Text('Current Conditions:',
-                        style: Theme.of(context).textTheme.bodySmall),
+                    const Text('Current Conditions:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4.0),
                     Wrap(
-                      spacing: 6.0,
-                      runSpacing: 2.0,
-                      children: _queryConditions
-                          .asMap()
-                          .entries
-                          .map((entry) => Chip(
-                                label: Text(entry.value.toString()),
-                                onDeleted: () =>
-                                    _removeQueryCondition(entry.key),
-                              ))
-                          .toList(),
+                      spacing: 8.0,
+                      runSpacing: 4.0,
+                      children: _queryConditions.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final condition = entry.value;
+                        return Chip(
+                          label: Text(condition.toString()),
+                          deleteIcon: const Icon(Icons.close, size: 18),
+                          onDeleted: () => _removeQueryCondition(index),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8.0),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: _applyFiltersAndFetch,
+                          child: const Text('Apply Filters'),
+                        ),
+                        const SizedBox(width: 8.0),
+                        TextButton(
+                          onPressed: _clearAllQueryConditions,
+                          child: const Text('Clear All'),
+                        ),
+                      ],
                     ),
                   ],
+                ],
+              ),
+            ),
+          ),
+          // Category Selection Tabs
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton(
-                        onPressed: _clearAllQueryConditions,
-                        child: const Text('Clear All'),
-                      ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.filter_alt_outlined),
-                        label: const Text('Apply Queries'),
-                        onPressed: _applyFiltersAndFetch,
+                      Text('Data Categories',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: _showCustomizeColumnsDialog,
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Customize'),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8.0),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _gameDataCategoryFieldGroups.keys.map((category) {
+                        final isSelected = _selectedGameDataCategory == category;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: FilterChip(
+                            label: Text(category),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              if (selected) {
+                                setState(() {
+                                  _selectedGameDataCategory = category;
+                                  _selectedFields = List.from(_gameDataCategoryFieldGroups[category]!);
+                                });
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
+          // Data Table
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(_error!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 16),
-                            textAlign: TextAlign.center),
-                      ))
-                    : _buildDataTable(),
+            child: Card(
+              margin: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  // Summary header
+                  Container(
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Historical Game Data',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!_isLoading)
+                          Text(
+                            'Showing ${_rawRows.length} of $_totalRecords games',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Table content
+                  Expanded(
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _error != null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline,
+                                      size: 64,
+                                      color: theme.colorScheme.error,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Error loading data',
+                                      style: theme.textTheme.titleLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _error!,
+                                      textAlign: TextAlign.center,
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: _fetchDataFromFirebase,
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _rawRows.isEmpty
+                                ? const Center(
+                                    child: Text('No data available'),
+                                  )
+                                : _buildStyledDataTable(),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDataTable() {
+  Widget _buildStyledDataTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
       return const Center(
           child: Text('No data found. Try adjusting your filters.',
@@ -743,14 +854,19 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     final List<String> numericShadingColumns = [];
     if (_rawRows.isNotEmpty) {
       for (final field in _rawRows.first.keys) {
-        if (field != 'player_id' && field != 'player_name' && field != 'position' && field != 'recent_team' && field != 'season' &&
+        // Exclude text fields and identifiers from shading
+        if (field != 'game_id' && field != 'home_team' && field != 'away_team' && 
+            field != 'season' && field != 'week' && field != 'game_type' &&
+            field != 'game_date' && field != 'stadium' && field != 'surface' &&
+            field != 'roof' && field != 'weather_description' && field != 'div_game' &&
+            field != 'playoff' && field != 'neutral_site' &&
             _rawRows.any((row) => row[field] != null && row[field] is num)) {
           numericShadingColumns.add(field);
         }
       }
     }
     
-    // Calculate percentiles
+    // Calculate percentiles for numeric columns
     final Map<String, Map<num, double>> columnPercentiles = {};
     for (final column in numericShadingColumns) {
       final List<num> values = _rawRows
@@ -772,69 +888,29 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       }
     }
 
-    List<String> getVisibleFieldsForCategory(String category, String position) {
-      List<String> fields;
-      
-      if (category == 'Custom') {
-        // For Custom category, use the selected fields
-        fields = _selectedFields;
-      } else {
-        // For predefined categories, use the fields from the category
-        fields = _statCategoryFieldGroups[category] ?? [];
-        
-        if (position == 'QB') {
-          return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-        }
-        if (position == 'RB') {
-           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-        }
-        if (position == 'WR' || position == 'TE') {
-           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-        }
-      }
-      
-      // 'All' position shows all fields for the category
-      return fields;
-    }
+    final List<String> displayFields = _selectedFields
+        .where((field) => _headers.contains(field))
+        .toList();
 
-    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, _selectedPosition);
+    // Ensure we always have at least one column to prevent DataTable assertion error
+    if (displayFields.isEmpty && _headers.isNotEmpty) {
+      displayFields.add(_headers.first);
+    }
 
     return Column(
       children: [
-        // Stat Category Tabs
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Row(
-            children: (_statCategoryFieldGroups.keys).map((category) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                child: ChoiceChip(
-                  label: Text(category),
-                  selected: _selectedStatCategory == category,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        _selectedStatCategory = category;
-                      });
-                    }
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
+        // Category Tabs (already implemented above)
         
-        // Add row with action buttons
+        // Add row with action buttons and pagination info
         Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 _rawRows.isEmpty
-                    ? '' // Show nothing if no data for pagination info
-                    : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                    ? ''
+                    : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords games.',
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
               ),
               TextButton.icon(
@@ -870,7 +946,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                   sortAscending: _sortAscending,
                   headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
                   headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                  dataRowHeight: 44,
+                  dataRowMinHeight: 44,
+                  dataRowMaxHeight: 44,
                   showCheckboxColumn: false,
                   border: TableBorder.all(
                     color: Colors.grey.shade300,
@@ -926,7 +1003,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                             color: cellBackgroundColor,
                             alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
                             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: header == 'recent_team'
+                            child: (header == 'home_team' || header == 'away_team')
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -949,6 +1026,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             ),
           ),
         ),
+        
         // Pagination Controls
         if (_rawRows.isNotEmpty)
           Padding(

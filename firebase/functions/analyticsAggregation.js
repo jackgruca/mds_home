@@ -1362,12 +1362,26 @@ exports.getBettingData = functions.https.onCall(async (data, context) => {
   console.log(`[getBettingData] Incoming request data: ${JSON.stringify(data)}`);
   console.log(`[getBettingData] Querying collection: ${collectionName}`);
 
-  // Apply filters
-  query = applyQueryConditions(query, filters);
+  // Apply filters - but convert simple filters to the expected format
+  const formattedFilters = {};
+  for (const field in filters) {
+    if (filters[field] && typeof filters[field] === 'object' && filters[field].operator) {
+      // Already in the correct format from betting_hub_screen
+      formattedFilters[field] = filters[field];
+    } else {
+      // Simple value from betting_analytics_screen - convert to operator format
+      formattedFilters[field] = {
+        operator: '==',
+        value: filters[field]
+      };
+    }
+  }
+  
+  query = applyQueryConditions(query, formattedFilters);
   console.log(`[getBettingData] Query after filters: (structure not fully inspectable here, but filters applied)`);
   
   // Get total count for pagination (apply filters, but not ordering/pagination yet)
-  const totalRecordsQueryForCount = applyQueryConditions(db.collection(collectionName), filters);
+  const totalRecordsQueryForCount = applyQueryConditions(db.collection(collectionName), formattedFilters);
   const totalRecordsSnapshot = await totalRecordsQueryForCount.count().get();
   const totalRecords = totalRecordsSnapshot.data().count;
   console.log(`[getBettingData] Total records (after filters, before limit/order): ${totalRecords}`);
@@ -1376,15 +1390,27 @@ exports.getBettingData = functions.https.onCall(async (data, context) => {
   query = query.orderBy(orderBy, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
   console.log(`[getBettingData] Sorting by: ${orderBy} ${orderDirection}, then documentId`);
 
-  // Apply cursor for pagination
+  // Apply cursor for pagination - NOW USING ARRAY FORMAT LIKE OTHER FUNCTIONS
   if (cursor) {
-    console.log(`[getBettingData] Attempting to apply cursor: ${cursor}`);
-    const cursorDoc = await db.collection(collectionName).doc(cursor).get();
-    if (cursorDoc.exists) {
-        query = query.startAfter(cursorDoc);
-        console.log(`[getBettingData] Cursor document found and applied.`);
+    console.log(`[getBettingData] Attempting to apply cursor: ${JSON.stringify(cursor)}, type: ${typeof cursor}`);
+    if (Array.isArray(cursor) && cursor.length === 2) {
+      // New format: [fieldValue, documentId]
+      const fieldValue = cursor[0];
+      const docId = cursor[1];
+      console.log(`[getBettingData] Array cursor values: fieldValue=${fieldValue} (${typeof fieldValue}), docId=${docId} (${typeof docId})`);
+      query = query.startAfter(fieldValue, docId);
+      console.log(`[getBettingData] Array cursor applied successfully`);
+    } else if (typeof cursor === 'string') {
+      // Fallback for old string format (for backward compatibility)
+      const cursorDoc = await db.collection(collectionName).doc(cursor).get();
+      if (cursorDoc.exists) {
+          query = query.startAfter(cursorDoc);
+          console.log(`[getBettingData] String cursor document found and applied.`);
+      } else {
+          console.warn(`[getBettingData] Cursor document '${cursor}' does not exist. Starting from beginning.`);
+      }
     } else {
-        console.warn(`[getBettingData] Cursor document '${cursor}' does not exist. This might mean the document was deleted or cursor is invalid. Starting from the beginning of the page.`);
+      console.warn(`[getBettingData] Invalid cursor format: ${JSON.stringify(cursor)}. Expected array [fieldValue, docId] or string docId.`);
     }
   }
 
@@ -1403,14 +1429,15 @@ exports.getBettingData = functions.https.onCall(async (data, context) => {
       });
       return { id: doc.id, ...docData };
     });
-    
-    // Total records count is already calculated above
 
-    // Determine the next cursor
+    // Determine the next cursor - NOW USING ARRAY FORMAT LIKE OTHER FUNCTIONS
     let nextCursor = null;
     if (snapshot.docs.length === limit) {
-      nextCursor = snapshot.docs[snapshot.docs.length - 1].id;
-      console.log(`[getBettingData] Generated nextCursor: ${nextCursor}`);
+      const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      const orderByValue = lastDoc.get(orderBy);
+      const docId = lastDoc.id;
+      nextCursor = [orderByValue, docId];
+      console.log(`[getBettingData] Generated nextCursor: ${JSON.stringify(nextCursor)}`);
     } else {
       console.log(`[getBettingData] Fewer docs (${snapshot.docs.length}) than limit (${limit}), indicating last page. nextCursor will be null.`);
     }
@@ -1424,6 +1451,82 @@ exports.getBettingData = functions.https.onCall(async (data, context) => {
   } catch (error) {
     console.error('[getBettingData] Caught error during query execution:', error);
     await logMissingIndexRequest(error, { filters, limit, orderBy, orderDirection }, 'BettingHubScreen');
-    throw new functions.https.HttpsError('internal', 'Error fetching betting data.', { originalError: error.message });
+    throw new functions.https.HttpsError('internal', `Error fetching betting data: ${error.message}`, error);
+  }
+});
+
+// New function for Historical Game Data
+exports.getHistoricalGameData = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('historicalGameData');
+
+    console.log('getHistoricalGameData called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'game_date'; // Default sort by game date
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { data: [], totalRecords: totalRecords, nextCursor: null };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor
+    };
+  } catch (error) {
+    console.error('Error in getHistoricalGameData:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'HistoricalGameDataScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch Historical Game Data: ${error.message}`,
+      error
+    );
   }
 });

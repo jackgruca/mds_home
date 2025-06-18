@@ -20,10 +20,17 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
   String? _error;
   List<Map<String, dynamic>> _rows = [];
   int _totalRecords = 0;
-  String? _nextCursor;
+  
+  // Pagination state
   int _currentPage = 0;
-  final int _rowsPerPage = 25;
-  List<String?> _pageCursors = [null];
+  static const int _rowsPerPage = 25;
+  List<dynamic> _pageCursors = [null]; // Stores cursors for each page
+  dynamic _nextCursor; // Cursor for the next page, received from backend
+
+  // For preloading next pages - ADDED FROM PLAYER SEASON STATS
+  final Map<int, List<Map<String, dynamic>>> _preloadedPages = {};
+  final Map<int, dynamic> _preloadedCursors = {};
+  static const int _pagesToPreload = 2; // How many pages to preload ahead
 
   String _sortColumn = 'gameday';
   bool _sortAscending = false;
@@ -48,15 +55,58 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
 
   // Field types for formatting
   final Set<String> doubleFields = {
-    'spread', 'total', 'home_score', 'away_score', 'point_differential',
+    'spread_line', 'total_line', 'home_score', 'away_score', 'point_differential',
     'win_probability', 'win_probability_vegas', 'over_probability',
     'home_win_pct', 'away_win_pct', 'home_cover_pct', 'away_cover_pct',
-    'over_pct', 'under_pct'
+    'over_pct', 'under_pct', 'total_actual'
   };
   
   // For percentile-based shading
   List<String> numericShadingColumns = [];
   Map<String, Map<num, double>> columnPercentiles = {};
+
+  // Helper function to format header names prettily with abbreviations
+  String _formatHeaderName(String header) {
+    // Define abbreviations and pretty names for betting data
+    final Map<String, String> headerMap = {
+      'gameday': 'Date',
+      'home_team': 'Home',
+      'away_team': 'Away',
+      'spread_line': 'Spread',
+      'total_line': 'Total',
+      'home_moneyline': 'Home ML',
+      'away_moneyline': 'Away ML',
+      'home_score': 'Home Pts',
+      'away_score': 'Away Pts',
+      'total_actual': 'Final Total',
+      'point_differential': 'Diff',
+      'home_team_covered': 'Home Cover',
+      'away_team_covered': 'Away Cover',
+      'over_hit': 'Over',
+      'under_hit': 'Under',
+      'win_probability': 'Win Prob',
+      'win_probability_vegas': 'Vegas Prob',
+      'over_probability': 'Over Prob',
+      'home_win_pct': 'Home Win%',
+      'away_win_pct': 'Away Win%',
+      'home_cover_pct': 'Home Cover%',
+      'away_cover_pct': 'Away Cover%',
+      'over_pct': 'Over%',
+      'under_pct': 'Under%',
+    };
+
+    // Return mapped name if exists, otherwise format the original
+    if (headerMap.containsKey(header)) {
+      return headerMap[header]!;
+    }
+    
+    // For unmapped headers, convert snake_case to Title Case
+    return header
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
+  }
 
   @override
   void initState() {
@@ -65,84 +115,130 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
   }
 
   Future<void> _fetchData() async {
+    // Check if the requested page is already preloaded
+    if (_preloadedPages.containsKey(_currentPage)) {
+      print('[Preload] Using preloaded data for page $_currentPage');
+      setState(() {
+        _rows = _preloadedPages[_currentPage]!;
+        _nextCursor = _preloadedCursors[_currentPage];
+        _preloadedPages.remove(_currentPage);
+        _preloadedCursors.remove(_currentPage);
+        _isLoading = false;
+      });
+      _startPreloadingNextPages();
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
+
+    // Get cursor for current page - ensure it's properly formatted
+    dynamic currentCursor;
+    if (_currentPage > 0 && _pageCursors.length > _currentPage && _pageCursors[_currentPage] != null) {
+      currentCursor = _pageCursors[_currentPage];
+      // Ensure cursor is in proper array format
+      if (currentCursor is List) {
+        // Already in correct format
+        print('[BettingAnalytics] Using array cursor: $currentCursor');
+      } else {
+        // Convert to null if not proper format
+        print('[BettingAnalytics] Invalid cursor format, setting to null');
+        currentCursor = null;
+      }
+    } else {
+      currentCursor = null;
+      print('[BettingAnalytics] No cursor for page $_currentPage');
+    }
+
     try {
       final callable = _functions.httpsCallable('getBettingData');
       final result = await callable.call<Map<String, dynamic>>({
+        'filters': filtersForFunction,
         'limit': _rowsPerPage,
         'orderBy': _sortColumn,
         'orderDirection': _sortAscending ? 'asc' : 'desc',
-        'cursor': _pageCursors[_currentPage],
-        'filters': { for (var c in _queryConditions) c.field: c.value },
+        'cursor': currentCursor,
       });
 
       if (mounted) {
         setState(() {
-          _rows = List<Map<String, dynamic>>.from(result.data['data'] ?? []);
+          final List<dynamic> data = result.data['data'] ?? [];
+          _rows = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _totalRecords = result.data['totalRecords'] ?? 0;
-          _nextCursor = result.data['nextCursor'];
           
-          if (_rows.isNotEmpty && _headers.isEmpty) {
-              _headers = _rows.first.keys.toList();
-              _newQueryField = _headers.first;
+          // Handle nextCursor properly - ensure it's stored as received from Firebase
+          final rawNextCursor = result.data['nextCursor'];
+          if (rawNextCursor != null && rawNextCursor is List && rawNextCursor.length == 2) {
+            _nextCursor = rawNextCursor;
+            print('[BettingAnalytics] NextCursor received: $rawNextCursor');
+          } else {
+            _nextCursor = null;
+            print('[BettingAnalytics] No valid nextCursor received');
           }
-          
-          // Determine numeric columns for shading
-          numericShadingColumns = [];
-          for (final field in _headers) {
-            if (field != 'id' && field != 'team' && field != 'opponent' && field != 'season' && field != 'week' && field != 'date' &&
-                _rows.any((row) => row[field] != null && row[field] is num)) {
-              numericShadingColumns.add(field);
+
+          if (_rows.isNotEmpty) {
+            _headers = _rows.first.keys.toList();
+            if (!_headers.contains(_newQueryField) && _headers.isNotEmpty) {
+              _newQueryField = _headers[0];
             }
-          }
-          
-          // Calculate percentiles for numeric columns
-          columnPercentiles = {};
-          for (final column in numericShadingColumns) {
-            final List<num> values = _rows
-                .map((row) => row[column])
-                .whereType<num>()
-                .toList();
             
-            if (values.isNotEmpty) {
-              values.sort();
-              columnPercentiles[column] = {};
-              for (final row in _rows) {
-                final value = row[column];
-                if (value is num && columnPercentiles[column]![value] == null) {
-                  final rank = values.where((v) => v < value).length;
-                  final count = values.where((v) => v == value).length;
-                  columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
+            // Determine numeric columns for shading
+            numericShadingColumns = [];
+            for (final field in _headers) {
+              if (field != 'id' && field != 'home_team' && field != 'away_team' && field != 'gameday' && field != 'result' &&
+                  _rows.any((row) => row[field] != null && row[field] is num)) {
+                numericShadingColumns.add(field);
+              }
+            }
+            
+            // Calculate percentiles for numeric columns
+            columnPercentiles = {};
+            for (final column in numericShadingColumns) {
+              final List<num> values = _rows
+                  .map((row) => row[column])
+                  .whereType<num>()
+                  .toList();
+              
+              if (values.isNotEmpty) {
+                values.sort();
+                columnPercentiles[column] = {};
+                for (final row in _rows) {
+                  final value = row[column];
+                  if (value is num && columnPercentiles[column]![value] == null) {
+                    final rank = values.where((v) => v < value).length;
+                    final count = values.where((v) => v == value).length;
+                    columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
+                  }
                 }
               }
             }
           }
-
           _isLoading = false;
         });
       }
+      _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
-      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      print('FirebaseFunctionsException: ${e.message}');
       if (e.message != null && e.message!.contains('The query requires an index')) {
-        // Extract the URL and log it to a new Firebase function
         final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
         if (indexUrlMatch != null) {
           final missingIndexUrl = indexUrlMatch.group(0);
           print('Missing index URL found: $missingIndexUrl');
           
-          // Call a new Cloud Function to log this URL
-          print('Attempting to call logMissingIndex Cloud Function...');
           try {
             final result = await _functions.httpsCallable('logMissingIndex').call({
               'url': missingIndexUrl,
               'timestamp': DateTime.now().toIso8601String(),
               'screenName': 'BettingAnalyticsScreen',
               'queryDetails': {
-                'filters': { for (var c in _queryConditions) c.field: c.value },
+                'filters': filtersForFunction,
                 'orderBy': _sortColumn,
                 'orderDirection': _sortAscending ? 'asc' : 'desc',
               },
@@ -151,10 +247,7 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
             print('logMissingIndex function call succeeded: ${result.data}');
           } catch (functionError) {
             print('Error calling logMissingIndex function: $functionError');
-            // This error is caught here to prevent it from affecting the UI
           }
-        } else {
-          print('No index URL found in error message: ${e.message}');
         }
         if (mounted) {
           setState(() {
@@ -168,12 +261,70 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print('Error in _fetchData: $e');
+      print('Stack trace: $stack');
       if (mounted) {
         setState(() {
-          _error = 'Error fetching data: ${e.toString()}';
+          _error = 'An unexpected error occurred: $e';
           _isLoading = false;
         });
+      }
+    }
+  }
+  
+  Future<void> _startPreloadingNextPages() async {
+    if (_nextCursor == null) return;
+
+    Map<String, dynamic> filtersForFunction = {};
+    for (var condition in _queryConditions) {
+      filtersForFunction[condition.field] = condition.value;
+    }
+
+    dynamic currentPreloadCursor = _nextCursor;
+    int preloadPageIndex = _currentPage + 1;
+
+    for (int i = 0; i < _pagesToPreload; i++) {
+      if (currentPreloadCursor == null) break;
+      if (_preloadedPages.containsKey(preloadPageIndex)) {
+        currentPreloadCursor = _preloadedCursors[preloadPageIndex];
+        preloadPageIndex++;
+        continue;
+      }
+
+      try {
+        final HttpsCallable callable = _functions.httpsCallable('getBettingData');
+        final result = await callable.call<Map<String, dynamic>>({
+          'filters': filtersForFunction,
+          'limit': _rowsPerPage,
+          'orderBy': _sortColumn,
+          'orderDirection': _sortAscending ? 'asc' : 'desc',
+          'cursor': currentPreloadCursor,
+        });
+
+        final List<dynamic> data = result.data['data'] ?? [];
+        final preloadedRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
+        
+        // Handle nextCursor properly for preloading
+        final rawNextCursor = result.data['nextCursor'];
+        dynamic nextPreloadCursor;
+        if (rawNextCursor != null && rawNextCursor is List && rawNextCursor.length == 2) {
+          nextPreloadCursor = rawNextCursor;
+        } else {
+          nextPreloadCursor = null;
+        }
+
+        if (preloadedRows.isNotEmpty) {
+          _preloadedPages[preloadPageIndex] = preloadedRows;
+          _preloadedCursors[preloadPageIndex] = nextPreloadCursor;
+          print('[Preload] Preloaded page $preloadPageIndex with ${preloadedRows.length} rows');
+        }
+
+        currentPreloadCursor = nextPreloadCursor;
+        preloadPageIndex++;
+      } catch (e) {
+        print('[Preload] Error preloading page $preloadPageIndex: $e');
+        break;
       }
     }
   }
@@ -181,6 +332,9 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
   void _applyFilters() {
     _currentPage = 0;
     _pageCursors = [null];
+    _nextCursor = null;
+    _preloadedPages.clear();
+    _preloadedCursors.clear();
     _fetchData();
   }
 
@@ -270,6 +424,23 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
             }).toList(),
           ),
         ),
+        
+        // Add row with pagination info
+        if (_rows.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                ),
+                const SizedBox(), // Empty space to balance the row
+              ],
+            ),
+          ),
+        
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,
@@ -298,7 +469,7 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
                   columns: displayFields.map((field) => DataColumn(
                     label: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                      child: Text(field.replaceAll('_', ' ').toUpperCase()),
+                      child: Text(_formatHeaderName(field)),
                     ),
                     onSort: (i, asc) {
                       setState(() {
@@ -343,7 +514,7 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
                             color: cellBackgroundColor,
                             alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
                             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: field == 'team' || field == 'opponent'
+                            child: (field == 'home_team' || field == 'away_team')
                               ? Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -366,6 +537,7 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
             ),
           ),
         ),
+        // Pagination Controls
         if (_rows.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -373,16 +545,14 @@ class _BettingAnalyticsScreenState extends State<BettingAnalyticsScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _currentPage > 0 ? () {
-                    setState(() {
-                      _currentPage--;
-                      _fetchData();
-                    });
-                  } : null,
+                  onPressed: _currentPage > 0 ? () => setState(() {
+                    _currentPage--;
+                    _fetchData();
+                  }) : null,
                   child: const Text('Previous'),
                 ),
                 const SizedBox(width: 16),
-                Text('Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil()}'),
+                Text('Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}'),
                 const SizedBox(width: 16),
                 ElevatedButton(
                   onPressed: _nextCursor != null ? () {
