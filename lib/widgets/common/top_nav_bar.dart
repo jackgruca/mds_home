@@ -81,6 +81,7 @@ final List<NavItem> topNavItems = [
       // NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', icon: Icons.sports_football, isPlaceholder: false),
+      NavItem(title: 'NFL Rosters', route: '/nfl-rosters', icon: Icons.groups, isPlaceholder: false),
       // --- Placeholders ---
       NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
       NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),

@@ -1374,7 +1374,12 @@ exports.getHistoricalGameData = functions.https.onCall(async (data, context) => 
 
     const snapshot = await query.get();
     if (snapshot.empty) {
-      return { data: [], totalRecords: totalRecords, nextCursor: null };
+      return { 
+        data: [], 
+        totalRecords: totalRecords, 
+        nextCursor: null,
+        message: 'No historical game data found for the current query.'
+      };
     }
     
     const results = snapshot.docs.map(doc => {
@@ -1394,10 +1399,12 @@ exports.getHistoricalGameData = functions.https.onCall(async (data, context) => 
         nextCursor = [lastDoc.get(orderByField), lastDoc.id];
     }
 
+    console.log(`Returning ${results.length} historical game data records.`);
     return {
       data: results,
       totalRecords: totalRecords,
-      nextCursor: nextCursor
+      nextCursor: nextCursor,
+      message: `Successfully fetched ${results.length} historical game records.`
     };
   } catch (error) {
     console.error('Error in getHistoricalGameData:', error);
@@ -1405,6 +1412,89 @@ exports.getHistoricalGameData = functions.https.onCall(async (data, context) => 
     throw new functions.https.HttpsError(
       'internal',
       `Failed to fetch Historical Game Data: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for NFL Rosters
+exports.getNflRosters = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('nflRosters');
+
+    console.log('getNflRosters called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'season'; // Default sort by season
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { 
+        data: [], 
+        totalRecords: totalRecords, 
+        nextCursor: null,
+        message: 'No NFL roster data found for the current query.'
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    console.log(`Returning ${results.length} NFL roster records.`);
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor,
+      message: `Successfully fetched ${results.length} NFL roster records.`
+    };
+  } catch (error) {
+    console.error('Error in getNflRosters:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'NflRostersScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch NFL Roster data: ${error.message}`,
       error
     );
   }

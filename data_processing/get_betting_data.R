@@ -3,9 +3,7 @@
 # 1. SETUP
 # ------------------------------------------------
 # Install packages if you don't have them
-# install.packages("nflreadr")
-# install.packages("tidyverse")
-# install.packages("jsonlite")
+install.packages(c("nflreadr", "tidyverse", "jsonlite"))
 
 # Load libraries
 library(nflreadr)

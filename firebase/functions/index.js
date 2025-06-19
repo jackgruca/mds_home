@@ -18,6 +18,7 @@ exports.getHistoricalMatchups = analyticsAggregation.getHistoricalMatchups;
 exports.getWrModelStats = analyticsAggregation.getWrModelStats;
 exports.getPlayerSeasonStats = analyticsAggregation.getPlayerSeasonStats;
 exports.getHistoricalGameData = analyticsAggregation.getHistoricalGameData;
+exports.getNflRosters = analyticsAggregation.getNflRosters;
 
 exports.logMissingIndex = functions.https.onCall(async (data, context) => {
     const url = data.url;
