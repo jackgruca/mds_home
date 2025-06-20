@@ -56,6 +56,7 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'Fantasy Draft Simulator', route: '/draft/fantasy', isPlaceholder: false),
       NavItem(title: 'Rest-of-Season Projections', route: '/projections', isPlaceholder: false),
       NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
+      NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
        // --- Placeholders --- 
       // PREPARE
       NavItem(title: 'Player Rankings', route: '/fantasy/rankings', isPlaceholder: true),

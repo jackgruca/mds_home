@@ -28,6 +28,7 @@ import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'screens/fantasy/big_board_screen.dart';
+import 'screens/fantasy/player_comparison_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
 
@@ -159,6 +160,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => FantasyHubScreen());
               case '/fantasy/big-board':
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+              case '/fantasy/player-comparison':
+                return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
               case '/data/historical':
                 return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
               case '/historical-data':

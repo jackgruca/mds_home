@@ -219,10 +219,14 @@ season_stats_with_nextgen <- season_stats %>%
     rec_avg_intended_air_yards = as.numeric(ifelse(is.finite(rec_avg_intended_air_yards), rec_avg_intended_air_yards, 0)),
     percent_share_of_intended_air_yards = as.numeric(ifelse(is.finite(percent_share_of_intended_air_yards), percent_share_of_intended_air_yards, 0))
   ) %>%
+  # Add lowercase player name for search functionality
+  mutate(
+    player_display_name_lower = tolower(player_display_name)
+  ) %>%
   # Select and reorder columns for clarity
   select(
     # Identifiers
-    player_id, player_name, player_display_name, position, season, recent_team, games,
+    player_id, player_name, player_display_name, player_display_name_lower, position, season, recent_team, games,
     # Passing
     completions, attempts, passing_yards, passing_tds, interceptions, sacks, sack_yards,
     completion_percentage, passer_rating, passing_yards_per_attempt, passing_tds_per_attempt,

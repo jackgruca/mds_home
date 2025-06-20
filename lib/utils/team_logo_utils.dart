@@ -9,18 +9,28 @@ class TeamLogoUtils {
     double size = 30.0,
     Widget Function(String)? placeholderBuilder,
   }) {
-    // Try to find the abbreviation in the mapping
-    String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName];
-    
-    // If we can't find it in the mapping, check if it's already an abbreviation
-    if (abbr == null && teamName.length <= 3) {
-      abbr = teamName;
+    // Handle null, empty, or whitespace-only team names
+    if (teamName.trim().isEmpty) {
+      return _buildPlaceholderLogo(
+        'NFL',
+        size: size,
+        color: Colors.grey.shade600,
+        customBuilder: placeholderBuilder,
+      );
     }
     
-    // If we still don't have an abbreviation, create a placeholder
-    if (abbr == null) {
+    // Try to find the abbreviation in the mapping
+    String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName.trim()];
+    
+    // If we can't find it in the mapping, check if it's already an abbreviation
+    if (abbr == null && teamName.trim().length <= 3) {
+      abbr = teamName.trim();
+    }
+    
+    // If we still don't have an abbreviation or it's empty, create a placeholder
+    if (abbr == null || abbr.trim().isEmpty) {
       return _buildPlaceholderLogo(
-        teamName,
+        teamName.isNotEmpty ? teamName : 'NFL',
         size: size,
         color: Colors.blue.shade700,
         customBuilder: placeholderBuilder,
@@ -28,7 +38,7 @@ class TeamLogoUtils {
     }
     
     // Convert abbreviation to lowercase for URL
-    final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png';
+    final logoUrl = 'https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.trim().toLowerCase()}.png';
     
     // Handle the image with error fallback
     return SizedBox(

@@ -19,6 +19,8 @@ exports.getWrModelStats = analyticsAggregation.getWrModelStats;
 exports.getPlayerSeasonStats = analyticsAggregation.getPlayerSeasonStats;
 exports.getHistoricalGameData = analyticsAggregation.getHistoricalGameData;
 exports.getNflRosters = analyticsAggregation.getNflRosters;
+exports.getPlayerStats = analyticsAggregation.getPlayerStats;
+exports.getTopPlayersByPosition = analyticsAggregation.getTopPlayersByPosition;
 
 exports.logMissingIndex = functions.https.onCall(async (data, context) => {
     const url = data.url;

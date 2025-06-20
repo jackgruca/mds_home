@@ -1499,3 +1499,159 @@ exports.getNflRosters = functions.https.onCall(async (data, context) => {
     );
   }
 });
+
+// New function for Player Stats (for comparison tool)
+exports.getPlayerStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('playerSeasonStats');
+
+    console.log('getPlayerStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Apply search query if provided (search by player name)
+    if (data.searchQuery && data.searchQuery.trim() !== '') {
+      const searchTerm = data.searchQuery.trim().toLowerCase();
+      console.log(`Applying search for: ${searchTerm}`);
+      
+      // Create a range query for player name search
+      const searchStart = searchTerm;
+      const searchEnd = searchTerm + '\uf8ff'; // Unicode character for range queries
+      
+      query = query.where('player_display_name_lower', '>=', searchStart)
+                   .where('player_display_name_lower', '<=', searchEnd);
+    }
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'fantasy_points_ppr'; // Default sort by fantasy points
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    
+    // If we're doing a search, we need to order by the search field first
+    if (data.searchQuery && data.searchQuery.trim() !== '') {
+      query = query.orderBy('player_display_name_lower', 'asc');
+      if (orderByField !== 'player_display_name_lower') {
+        query = query.orderBy(orderByField, orderDirection);
+      }
+    } else {
+      query = query.orderBy(orderByField, orderDirection);
+    }
+    
+    // Always add document ID for consistent pagination
+    query = query.orderBy(admin.firestore.FieldPath.documentId(), 'asc');
+
+    // Apply limit
+    const limit = data.limit || 50;
+    query = query.limit(limit);
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { 
+        data: [], 
+        message: 'No players found for the current search criteria.'
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData };
+    });
+
+    console.log(`Returning ${results.length} player stats records for comparison.`);
+    return {
+      data: results,
+      message: `Successfully found ${results.length} players matching your search.`
+    };
+  } catch (error) {
+    console.error('Error in getPlayerStats:', error);
+    await logMissingIndexRequest(error, { 
+      filters: data.filters, 
+      searchQuery: data.searchQuery,
+      orderBy: data.orderBy 
+    }, 'PlayerComparisonScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to search player stats: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function to get top players by position for defaults
+exports.getTopPlayersByPosition = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    const { position, season, limit = 10 } = data;
+    
+    console.log(`getTopPlayersByPosition called for position: ${position}, season: ${season}, limit: ${limit}`);
+
+    let query = db.collection('playerSeasonStats');
+    
+    // Filter by position if provided
+    if (position && position !== 'All') {
+      query = query.where('position', '==', position);
+    }
+    
+    // Filter by season if provided
+    if (season) {
+      query = query.where('season', '==', parseInt(season));
+    }
+    
+    // Order by fantasy points PPR (descending) to get top performers
+    query = query.orderBy('fantasy_points_ppr', 'desc')
+                 .limit(limit);
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      console.log(`No players found for position: ${position}, season: ${season}`);
+      return { 
+        data: [], 
+        message: `No players found for ${position} in ${season}.`
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData };
+    });
+
+    console.log(`Returning top ${results.length} ${position} players for ${season}.`);
+    return {
+      data: results,
+      message: `Successfully found top ${results.length} ${position} players for ${season}.`
+    };
+  } catch (error) {
+    console.error('Error in getTopPlayersByPosition:', error);
+    await logMissingIndexRequest(error, { 
+      position: data.position,
+      season: data.season,
+      limit: data.limit
+    }, 'PlayerComparisonScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to get top players by position: ${error.message}`,
+      error
+    );
+  }
+});

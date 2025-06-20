@@ -16,6 +16,12 @@ class FantasyHubScreen extends StatelessWidget {
   // --- Placeholder Data ---
   final List<Map<String, String>> _slides = [
     {
+      'title': 'Compare Players Side-by-Side',
+      'desc': 'Analyze and compare fantasy players with detailed stats.',
+      'image': 'assets/images/blog/player_projections_blog.jpg',
+      'route': '/fantasy/player-comparison',
+    },
+    {
       'title': 'Create Your Fantasy Big Board',
       'desc': 'Compare rankings across major platforms and create your own.',
       'image': 'assets/images/blog/player_projections_blog.jpg',
@@ -26,12 +32,6 @@ class FantasyHubScreen extends StatelessWidget {
       'desc': 'Practice your strategy against realistic opponents.',
       'image': 'assets/images/blog/player_projections_blog.jpg', 
       'route': '/draft/fantasy',
-    },
-    {
-      'title': 'Check Player Projections',
-      'desc': 'See updated projections for the upcoming week.',
-      'image': 'assets/images/placeholder/fantasy_projections.png',
-      'route': '/projections',
     },
   ];
 
