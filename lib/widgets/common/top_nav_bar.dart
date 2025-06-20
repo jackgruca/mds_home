@@ -47,6 +47,26 @@ final List<NavItem> topNavItems = [
     ],
   ),
   NavItem(
+    title: 'Rankings',
+    route: '/rankings',
+    icon: Icons.leaderboard,
+    isPlaceholder: true, // Landing page to be created
+    subItems: [
+      // OFFENSE
+      NavItem(title: 'QB Rankings', route: '/rankings/qb', icon: Icons.sports_football, isPlaceholder: false),
+      NavItem(title: 'RB Rankings', route: '/rankings/rb', icon: Icons.sports_football, isPlaceholder: true),
+      NavItem(title: 'WR Rankings', route: '/rankings/wr', icon: Icons.sports_football, isPlaceholder: true),
+      NavItem(title: 'TE Rankings', route: '/rankings/te', icon: Icons.sports_football, isPlaceholder: true),
+      NavItem(title: 'OL Rankings', route: '/rankings/ol', icon: Icons.sports_football, isPlaceholder: true),
+      // DEFENSE
+      NavItem(title: 'DL Rankings', route: '/rankings/dl', icon: Icons.shield, isPlaceholder: true),
+      NavItem(title: 'LB Rankings', route: '/rankings/lb', icon: Icons.shield, isPlaceholder: true),
+      NavItem(title: 'Secondary Rankings', route: '/rankings/secondary', icon: Icons.shield, isPlaceholder: true),
+      // SPECIAL
+      NavItem(title: 'Coaching Rankings', route: '/rankings/coaching', icon: Icons.person_pin, isPlaceholder: true),
+    ],
+  ),
+  NavItem(
     title: 'Fantasy Hub',
     route: '/fantasy', // Landing page route
     icon: Icons.sports_football,

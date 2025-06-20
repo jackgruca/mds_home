@@ -16,6 +16,16 @@ service cloud.firestore {
       allow read: if true;
     }
     
+    // Allow read access to QB rankings
+    match /qbRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to team QB tiers
+    match /teamQbTiers/{document} {
+      allow read: if true;
+    }
+    
     // Allow read access to other analytics collections
     match /analyticsResults/{document} {
       allow read: if true;

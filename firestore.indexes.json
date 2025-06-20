@@ -39,6 +39,38 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "qbRankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank_number",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "qbRankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qb_tier",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank_number",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

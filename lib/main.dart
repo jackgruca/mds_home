@@ -31,6 +31,8 @@ import 'screens/fantasy/big_board_screen.dart';
 import 'screens/fantasy/player_comparison_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
+import 'screens/rankings/rankings_placeholder_screen.dart';
+import 'screens/rankings/qb_rankings_screen.dart';
 
 // Secret tap counter for admin access
 
@@ -162,6 +164,27 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/fantasy/player-comparison':
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+              // Rankings section - placeholder routes
+              case '/rankings':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
+              case '/rankings/qb':
+                return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
+              case '/rankings/rb':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'RB Rankings'));
+              case '/rankings/wr':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'WR Rankings'));
+              case '/rankings/te':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'TE Rankings'));
+              case '/rankings/ol':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'OL Rankings'));
+              case '/rankings/dl':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'DL Rankings'));
+              case '/rankings/lb':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'LB Rankings'));
+              case '/rankings/secondary':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Secondary Rankings'));
+              case '/rankings/coaching':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Coaching Rankings'));
               case '/data/historical':
                 return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
               case '/historical-data':
