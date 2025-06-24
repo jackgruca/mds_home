@@ -33,6 +33,7 @@ import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
 import 'screens/rankings/rankings_placeholder_screen.dart';
 import 'screens/rankings/qb_rankings_screen.dart';
+import 'screens/depth_charts_screen.dart';
 
 // Secret tap counter for admin access
 
@@ -197,6 +198,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const NflRostersScreen());
               case '/historical-game-data':
                 return MaterialPageRoute(builder: (_) => const HistoricalGameDataScreen());
+              case '/depth-charts':
+                return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }
