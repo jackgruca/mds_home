@@ -84,27 +84,27 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   final List<Map<String, String>> _blogPosts = [
-    {
-      'title': 'NFL Draft Surprises & Sleepers',
-      'excerpt': 'Unpacking the most unexpected picks and hidden gems from the recent NFL draft...',
-      'date': '2024-04-28',
-      'imageUrl': 'assets/images/blog/draft_analysis_blog.jpg',
-      'route': '/blog/draft-surprises'
-    },
-    {
-      'title': 'Advanced Metrics for Betting Success',
-      'excerpt': 'Leverage cutting-edge analytics to gain an edge in NFL betting markets this season...',
-      'date': '2024-04-25',
-      'imageUrl': 'assets/images/blog/betting_metrics_blog.jpg',
-      'route': '/blog/betting-metrics'
-    },
-    {
-      'title': 'Breakout Player Projections 2024',
-      'excerpt': 'Identifying the players poised for a significant leap in performance in the upcoming season...',
-      'date': '2024-04-22',
-      'imageUrl': 'assets/images/blog/player_projections_blog.jpg',
-      'route': '/blog/breakout-players'
-    },
+    // {
+    //   'title': 'NFL Draft Surprises & Sleepers',
+    //   'excerpt': 'Unpacking the most unexpected picks and hidden gems from the recent NFL draft...',
+    //   'date': '2024-04-28',
+    //   'imageUrl': 'assets/images/blog/draft_analysis_blog.jpg',
+    //   'route': '/blog/draft-surprises'
+    // },
+    // {
+    //   'title': 'Advanced Metrics for Betting Success',
+    //   'excerpt': 'Leverage cutting-edge analytics to gain an edge in NFL betting markets this season...',
+    //   'date': '2024-04-25',
+    //   'imageUrl': 'assets/images/blog/betting_metrics_blog.jpg',
+    //   'route': '/blog/betting-metrics'
+    // },
+    // {
+    //   'title': 'Breakout Player Projections 2024',
+    //   'excerpt': 'Identifying the players poised for a significant leap in performance in the upcoming season...',
+    //   'date': '2024-04-22',
+    //   'imageUrl': 'assets/images/blog/player_projections_blog.jpg',
+    //   'route': '/blog/breakout-players'
+    // },
   ];
 
   @override

@@ -30,6 +30,7 @@ final List<Map<String, dynamic>> _previewTools = [
   _findAndFormatTool(_fantasyHubNavItem, '/draft/fantasy', desc: 'Practice your fantasy draft strategy.', icon: Icons.sports_football), // Fantasy Draft Simulator
   _findAndFormatTool(_fantasyHubNavItem, '/projections', desc: 'View rest-of-season player projections.', icon: Icons.trending_up), // RoS Projections
   _findAndFormatTool(_fantasyHubNavItem, '/fantasy/rankings', desc: 'Customize player rankings and big boards.', icon: Icons.leaderboard), // Player Rankings*
+  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/trends', desc: 'Analyze recent player performance shifts.', icon: Icons.show_chart),
   _findAndFormatTool(_fantasyHubNavItem, '/fantasy/trade', desc: 'Analyze potential fantasy trades.', icon: Icons.swap_horiz), // Trade Analyzer*
   _findAndFormatTool(_fantasyHubNavItem, '/fantasy/waiver', desc: 'Get waiver wire recommendations.', icon: Icons.pan_tool), // Waiver Wire Assistant*
   _findAndFormatTool(_fantasyHubNavItem, '/fantasy/start-sit', desc: 'Optimize your weekly lineup decisions.', icon: Icons.check_circle_outline), // Start/Sit Optimizer*

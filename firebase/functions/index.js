@@ -8,6 +8,7 @@ if (!admin.apps.length) {
 
 // Import analytics aggregation functions
 const analyticsAggregation = require('./analyticsAggregation');
+const playerTrendsService = require('./player_trends_service');
 
 // Export the functions
 exports.dailyAnalyticsAggregation = analyticsAggregation.dailyAnalyticsAggregation;
@@ -21,6 +22,7 @@ exports.getHistoricalGameData = analyticsAggregation.getHistoricalGameData;
 exports.getNflRosters = analyticsAggregation.getNflRosters;
 exports.getPlayerStats = analyticsAggregation.getPlayerStats;
 exports.getTopPlayersByPosition = analyticsAggregation.getTopPlayersByPosition;
+exports.getPlayerTrends = playerTrendsService.getPlayerTrends;
 
 exports.logMissingIndex = functions.https.onCall(async (data, context) => {
     const url = data.url;
@@ -36,7 +38,6 @@ exports.logMissingIndex = functions.https.onCall(async (data, context) => {
 
     try {
         const db = admin.firestore();
-        // Use the existing collection name 'admin_index_requests' that's already in your system
         const collectionRef = db.collection('admin_index_requests');
 
         await collectionRef.add({

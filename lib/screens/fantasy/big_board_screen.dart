@@ -155,8 +155,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
             aValue = col.values[a.id];
             bValue = col.values[b.id];
           } else {
-            aValue = a.name;
-            bValue = b.name;
+          aValue = a.name;
+          bValue = b.name;
           }
       }
       if (aValue == null && bValue == null) return 0;
@@ -198,7 +198,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
       final newCol = CustomColumn(title: title);
       for (final player in _rankings) {
         final consensusRank = player.rank; // Use main rank now
-        newCol.values[player.id] = consensusRank;
+          newCol.values[player.id] = consensusRank;
       }
       setState(() {
         _customColumns.add(newCol);
@@ -435,17 +435,17 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
                       icon: const Icon(Icons.add),
                       label: const Text('Add Column'),
                     ),
-                    const SizedBox(width: 8),
+                      const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () {}, // Was _onUpdateRanks
                       icon: const Icon(Icons.refresh),
                       label: const Text('Update Ranks'),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _onImportCSV,
-                      child: const Text('Import CSV'),
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _onImportCSV,
+                        child: const Text('Import CSV'),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),

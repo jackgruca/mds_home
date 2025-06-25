@@ -57,39 +57,41 @@ class BlogPreviewCard extends StatelessWidget {
             ),
             
             // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    formattedDate,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                    const SizedBox(height: 8),
+                    Text(
+                      formattedDate,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    excerpt,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                    const SizedBox(height: 8),
+                    Text(
+                      excerpt,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

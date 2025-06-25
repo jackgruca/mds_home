@@ -34,6 +34,7 @@ import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
 import 'screens/rankings/rankings_placeholder_screen.dart';
 import 'screens/rankings/qb_rankings_screen.dart';
 import 'screens/depth_charts_screen.dart';
+import 'screens/fantasy/player_trends_screen.dart';
 
 // Secret tap counter for admin access
 
@@ -165,6 +166,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/fantasy/player-comparison':
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+              case '/fantasy/trends':
+                return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
