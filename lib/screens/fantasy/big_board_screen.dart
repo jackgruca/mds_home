@@ -4,6 +4,7 @@ import '../../services/fantasy/csv_rankings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import '../../utils/team_logo_utils.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -23,7 +24,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
   List<PlayerRanking> _rankings = [];
   List<PlayerRanking> _filteredRankings = [];
   int? _sortColumnIndex;
-  bool _sortAscending = true;
+  final bool _sortAscending = true;
   final CSVRankingsService _csvService = CSVRankingsService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -76,8 +77,13 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
         player.name.toLowerCase().contains(_searchQuery) ||
         player.position.toLowerCase().contains(_searchQuery) ||
         player.rank.toString().contains(_searchQuery) ||
-        (player.additionalRanks['FantasyPro']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['PFF']?.toString() ?? '').contains(_searchQuery) ||
         (player.additionalRanks['CBS']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['ESPN']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['FFToday']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['FootballGuys']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['Yahoo']?.toString() ?? '').contains(_searchQuery) ||
+        (player.additionalRanks['NFL']?.toString() ?? '').contains(_searchQuery) ||
         (player.additionalRanks['Consensus']?.toString() ?? '').contains(_searchQuery) ||
         (player.additionalRanks['Consensus Rank']?.toString() ?? '').contains(_searchQuery) ||
         _customColumns.any((col) => (col.values[player.id]?.toString() ?? '').contains(_searchQuery));
@@ -99,33 +105,59 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
           aValue = a.position;
           bValue = b.position;
           break;
-        case 'ESPN Rank':
-          aValue = a.rank;
-          bValue = b.rank;
+        case 'Team':
+          aValue = a.team;
+          bValue = b.team;
           break;
-        case 'FantasyPro Rank':
-          aValue = a.additionalRanks['FantasyPro'];
-          bValue = b.additionalRanks['FantasyPro'];
+        case 'ESPN':
+          aValue = a.additionalRanks['ESPN'];
+          bValue = b.additionalRanks['ESPN'];
           break;
-        case 'CBS Rank':
+        case 'PFF':
+          aValue = a.additionalRanks['PFF'];
+          bValue = b.additionalRanks['PFF'];
+          break;
+        case 'CBS':
           aValue = a.additionalRanks['CBS'];
           bValue = b.additionalRanks['CBS'];
+          break;
+        case 'FFToday':
+          aValue = a.additionalRanks['FFToday'];
+          bValue = b.additionalRanks['FFToday'];
+          break;
+        case 'FootballGuys':
+          aValue = a.additionalRanks['FootballGuys'];
+          bValue = b.additionalRanks['FootballGuys'];
+          break;
+        case 'Yahoo':
+          aValue = a.additionalRanks['Yahoo'];
+          bValue = b.additionalRanks['Yahoo'];
+          break;
+        case 'NFL':
+          aValue = a.additionalRanks['NFL'];
+          bValue = b.additionalRanks['NFL'];
           break;
         case 'Consensus':
           aValue = a.additionalRanks['Consensus'];
           bValue = b.additionalRanks['Consensus'];
           break;
         case 'Consensus Rank':
-          aValue = a.additionalRanks['Consensus Rank'];
-          bValue = b.additionalRanks['Consensus Rank'];
+          aValue = a.rank; // Main rank is consensus
+          bValue = b.rank;
           break;
-        case 'Custom Rank':
-          aValue = _customColumns.last.values[a.id];
-          bValue = _customColumns.last.values[b.id];
+        case 'Bye':
+          aValue = a.additionalRanks['Bye'];
+          bValue = b.additionalRanks['Bye'];
           break;
         default:
-          aValue = a.name;
-          bValue = b.name;
+          if (_customColumns.any((c) => c.title == column)) {
+            final col = _customColumns.firstWhere((c) => c.title == column);
+            aValue = col.values[a.id];
+            bValue = col.values[b.id];
+          } else {
+            aValue = a.name;
+            bValue = b.name;
+          }
       }
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return ascending ? 1 : -1;
@@ -165,10 +197,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
     if (title != null && title.isNotEmpty) {
       final newCol = CustomColumn(title: title);
       for (final player in _rankings) {
-        final consensusRank = player.additionalRanks['Consensus Rank'];
-        if (consensusRank != null) {
-          newCol.values[player.id] = consensusRank;
-        }
+        final consensusRank = player.rank; // Use main rank now
+        newCol.values[player.id] = consensusRank;
       }
       setState(() {
         _customColumns.add(newCol);
@@ -287,15 +317,75 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
     }
   }
 
+  List<DataColumn> _getColumns() {
+    return [
+      DataColumn(label: const Text('Name'), onSort: (i, asc) => setState(() => _sortData('Name', asc))),
+      DataColumn(label: const Text('Pos'), onSort: (i, asc) => setState(() => _sortData('Position', asc))),
+      DataColumn(label: const Text('Team'), onSort: (i, asc) => setState(() => _sortData('Team', asc))),
+      DataColumn(label: const Text('Bye'), onSort: (i, asc) => setState(() => _sortData('Bye', asc))),
+      DataColumn(label: const Text('PFF'), onSort: (i, asc) => setState(() => _sortData('PFF', asc))),
+      DataColumn(label: const Text('CBS'), onSort: (i, asc) => setState(() => _sortData('CBS', asc))),
+      DataColumn(label: const Text('ESPN'), onSort: (i, asc) => setState(() => _sortData('ESPN', asc))),
+      DataColumn(label: const Text('FFToday'), onSort: (i, asc) => setState(() => _sortData('FFToday', asc))),
+      DataColumn(label: const Text('FG'), onSort: (i, asc) => setState(() => _sortData('FootballGuys', asc))),
+      DataColumn(label: const Text('Yahoo'), onSort: (i, asc) => setState(() => _sortData('Yahoo', asc))),
+      DataColumn(label: const Text('NFL'), onSort: (i, asc) => setState(() => _sortData('NFL', asc))),
+      ..._customColumns.map((col) => DataColumn(
+            label: Row(
+              children: [
+                Text(col.title),
+                IconButton(
+                  icon: const Icon(Icons.delete, size: 16),
+                  onPressed: () => _onRemoveCustomColumn(_customColumns.indexOf(col)),
+                )
+              ],
+            ),
+            onSort: (i, asc) => setState(() => _sortData(col.title, asc)),
+          )),
+      DataColumn(label: const Text('Cons. Rk'), onSort: (i, asc) => setState(() => _sortData('Consensus Rank', asc))),
+    ];
+  }
+
+  List<DataRow> _getRows() {
+    return _visibleRankings.map((player) {
+      return DataRow(cells: [
+        DataCell(Text(player.name)),
+        DataCell(Text(player.position)),
+        DataCell(
+          Row(
+            children: [
+              if (player.team.isNotEmpty)
+                TeamLogoUtils.buildNFLTeamLogo(player.team, size: 20),
+              const SizedBox(width: 5),
+              Text(player.team),
+            ],
+          ),
+        ),
+        DataCell(Text(player.additionalRanks['Bye']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['PFF']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['CBS']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['ESPN']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['FFToday']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['FootballGuys']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['Yahoo']?.toString() ?? '-')),
+        DataCell(Text(player.additionalRanks['NFL']?.toString() ?? '-')),
+        ..._customColumns.map((col) {
+          return DataCell(
+            Text(col.values[player.id]?.toString() ?? '-'),
+            showEditIcon: true,
+            onTap: () => _editCustomRank(context, player.id, col.values[player.id], _customColumns.indexOf(col)),
+          );
+        }),
+        DataCell(Text(player.rank.toString())),
+      ]);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color headerColor = Colors.blue.shade700;
     final Color evenRowColor = Colors.blue.shade50;
     const Color oddRowColor = Colors.white;
-    const headerTextStyle = TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-    );
     final cellTextStyle = TextStyle(
       color: Theme.of(context).brightness == Brightness.dark 
           ? Colors.white 
@@ -340,22 +430,22 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    ElevatedButton(
+                    ElevatedButton.icon(
                       onPressed: _onAddCustomColumn,
-                      child: const Text('Add Custom Column'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Column'),
                     ),
-                    if (_customColumns.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _onUpdateRanks,
-                        child: const Text('Update Ranks'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _onImportCSV,
-                        child: const Text('Import CSV'),
-                      ),
-                    ],
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {}, // Was _onUpdateRanks
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Update Ranks'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _onImportCSV,
+                      child: const Text('Import CSV'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -397,7 +487,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
                         ),
                         child: DataTable(
                           headingRowColor: WidgetStateProperty.all(headerColor),
-                          headingTextStyle: headerTextStyle,
+                          headingTextStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                           dataRowHeight: 44,
                           showCheckboxColumn: false,
                           sortColumnIndex: _sortColumnIndex,
@@ -407,195 +500,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
                             width: 0.5,
                             style: BorderStyle.solid,
                           ),
-                          columns: [
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('Name'),
-                              ),
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('Name', ascending);
-                                });
-                              },
-                            ),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('Position'),
-                              ),
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('Position', ascending);
-                                });
-                              },
-                            ),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('ESPN Rank'),
-                              ),
-                              numeric: true,
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('ESPN Rank', ascending);
-                                });
-                              },
-                            ),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('FantasyPro Rank'),
-                              ),
-                              numeric: true,
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('FantasyPro Rank', ascending);
-                                });
-                              },
-                            ),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('CBS Rank'),
-                              ),
-                              numeric: true,
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('CBS Rank', ascending);
-                                });
-                              },
-                            ),
-                            // Custom columns
-                            ..._customColumns.asMap().entries.map((entry) {
-                              final colIndex = entry.key;
-                              final col = entry.value;
-                              return DataColumn(
-                                label: Stack(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Row(
-                                        children: [
-                                          Text(col.title),
-                                        ],
-                                      ),
-                                    ),
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      child: GestureDetector(
-                                        onTap: () => _onRemoveCustomColumn(colIndex),
-                                        child: const Icon(Icons.close, size: 16, color: Colors.red),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                numeric: true,
-                                onSort: (columnIndex, ascending) {
-                                  setState(() {
-                                    _sortColumnIndex = columnIndex;
-                                    _sortAscending = ascending;
-                                    _sortData(col.title, ascending);
-                                  });
-                                },
-                              );
-                            }),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('Consensus'),
-                              ),
-                              numeric: true,
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('Consensus', ascending);
-                                });
-                              },
-                            ),
-                            DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                child: const Text('Consensus Rank'),
-                              ),
-                              numeric: true,
-                              onSort: (columnIndex, ascending) {
-                                setState(() {
-                                  _sortColumnIndex = columnIndex;
-                                  _sortAscending = ascending;
-                                  _sortData('Consensus Rank', ascending);
-                                });
-                              },
-                            ),
-                          ],
-                          rows: _visibleRankings.asMap().entries.map((entry) {
-                            final int rowIndex = entry.key;
-                            final PlayerRanking player = entry.value;
-                            return DataRow(
-                              color: WidgetStateProperty.all(
-                                rowIndex.isEven ? evenRowColor : oddRowColor
-                              ),
-                              cells: [
-                                DataCell(Text(player.name, style: cellTextStyle)),
-                                DataCell(Text(player.position, style: cellTextStyle)),
-                                DataCell(Text(player.rank > 0 ? player.rank.toString() : '-', style: cellTextStyle)),
-                                DataCell(Text(
-                                  (player.additionalRanks['FantasyPro'] != null) ? player.additionalRanks['FantasyPro'].toString() : '-',
-                                  style: cellTextStyle
-                                )),
-                                DataCell(Text(
-                                  (player.additionalRanks['CBS'] != null) ? player.additionalRanks['CBS'].toString() : '-',
-                                  style: cellTextStyle
-                                )),
-                                // Custom columns
-                                ..._customColumns.asMap().entries.map((colEntry) {
-                                  final colIndex = colEntry.key;
-                                  final col = colEntry.value;
-                                  final customRank = col.values[player.id];
-                                  return DataCell(
-                                    GestureDetector(
-                                      onTap: () => _editCustomRank(context, player.id, customRank, colIndex),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            customRank != null ? customRank.toString() : '-',
-                                            style: cellTextStyle.copyWith(
-                                              decoration: TextDecoration.underline,
-                                              color: Theme.of(context).colorScheme.primary,
-                                            ),
-                                            textAlign: TextAlign.right,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Icon(Icons.edit, size: 16, color: Colors.blueGrey),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }),
-                                DataCell(Text(
-                                  (player.additionalRanks['Consensus'] != null) ? player.additionalRanks['Consensus'].toString() : '-',
-                                  style: cellTextStyle
-                                )),
-                                DataCell(Text(
-                                  (player.additionalRanks['Consensus Rank'] != null) ? player.additionalRanks['Consensus Rank'].toString() : '-',
-                                  style: cellTextStyle
-                                )),
-                              ],
-                            );
-                          }).toList(),
+                          columns: _getColumns(),
+                          rows: _getRows(),
                         ),
                       ),
                     ),

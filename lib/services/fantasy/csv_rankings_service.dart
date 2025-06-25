@@ -8,7 +8,14 @@ class CSVRankingsService {
   num? _parseNum(dynamic value) {
     if (value == null) return null;
     final str = value.toString().trim();
-    if (str == '#N/A' || str.isEmpty) return null;
+    if (str == 'NA' || str == '#N/A' || str.isEmpty) return null;
+    return num.tryParse(str);
+  }
+
+  num? _parseAuction(dynamic value) {
+    if (value == null) return null;
+    final str = value.toString().trim().replaceAll('"', '').replaceAll('\$', '');
+    if (str == 'N/A' || str.isEmpty) return null;
     return num.tryParse(str);
   }
 
@@ -16,21 +23,31 @@ class CSVRankingsService {
     try {
       final String rawData = await rootBundle.loadString(_csvPath);
       final List<List<dynamic>> listData = const CsvToListConverter().convert(rawData);
-      // Header: Name,Position,ESPN Rank,FantasyPro Rank,CBS Rank,Consensus,Consensus Rank
+      
+      // Headers: "","Name","Team Abbreviation","Position","consensus_rank","PFF_rank","cbs_rank","espn_rank","fftoday_rank","footballguys_rank","yahoo_rank","nfl_rank","Position Rank","Bye Week","ADP","Projected Points","Auction Value"
       return listData.skip(1).map((row) {
         return PlayerRanking(
-          id: row[0].toString(),
-          name: row[0].toString(),
-          position: row[1].toString(),
-          team: '', // No team in CSV
-          rank: _parseNum(row[2])?.toInt() ?? 0, // ESPN Rank
-          source: 'ESPN',
+          id: row[1].toString(), // Name
+          name: row[1].toString(),
+          team: row[2].toString(),
+          position: row[3].toString(),
+          rank: _parseNum(row[4])?.toInt() ?? 0, // consensus_rank
+          source: 'Consensus', 
           lastUpdated: DateTime.now(),
           additionalRanks: {
-            'FantasyPro': _parseNum(row[3]),
-            'CBS': _parseNum(row[4]),
-            'Consensus': _parseNum(row[5]),
-            'Consensus Rank': _parseNum(row[6])?.toInt(),
+            'Consensus': _parseNum(row[4]),
+            'Consensus Rank': _parseNum(row[4])?.toInt(),
+            'PFF': _parseNum(row[5]),
+            'CBS': _parseNum(row[6]),
+            'ESPN': _parseNum(row[7]),
+            'FFToday': _parseNum(row[8]),
+            'FootballGuys': _parseNum(row[9]),
+            'Yahoo': _parseNum(row[10]),
+            'NFL': _parseNum(row[11]),
+            'Pos. Rank': _parseNum(row[12])?.toInt(),
+            'Bye': _parseNum(row[13])?.toInt(),
+            'ADP': _parseNum(row[14]),
+            'Auction Value': _parseAuction(row[16]),
           },
         );
       }).toList();
