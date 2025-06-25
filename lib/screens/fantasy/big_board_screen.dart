@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/common/custom_app_bar.dart';
+import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import '../../models/fantasy/player_ranking.dart';
 import '../../services/fantasy/csv_rankings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -383,6 +385,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
     final Color headerColor = Colors.blue.shade700;
     final Color evenRowColor = Colors.blue.shade50;
     const Color oddRowColor = Colors.white;
@@ -395,8 +398,14 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
     final List<String> positions = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'D/ST'];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fantasy Big Board'),
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

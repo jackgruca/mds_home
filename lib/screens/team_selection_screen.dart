@@ -1,5 +1,7 @@
 // lib/screens/team_selection_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/widgets/common/custom_app_bar.dart';
+import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import '../providers/auth_provider.dart';
 import '../services/analytics_service.dart';
 import '../utils/constants.dart';
@@ -181,17 +183,17 @@ Future<void> _loadUserPreferences() async {
     final Color nfcColor = isDarkMode ? const Color(0xFF4D90E8) : const Color(0xFF002244);  // Brighter blue for dark mode
     
     // Background and text colors based on theme
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
     
     return Scaffold(
-    appBar: AppBar(
-      title: const Text(
-        'NFL Draft Simulator',
-        style: TextStyle(fontSize: TextConstants.kAppBarTitleSize),
-      ),
-      toolbarHeight: 48,
-      centerTitle: true,
-      titleSpacing: 8,
-      elevation: 0,
+    appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
       actions: [
         // Tutorial
         Consumer<ThemeManager>(
@@ -1159,6 +1161,7 @@ Future<void> _loadUserPreferences() async {
   Navigator.push(
     context,
     MaterialPageRoute(
+      settings: RouteSettings(name: ModalRoute.of(context)?.settings.name),
       builder: (context) => DraftApp(
         randomnessFactor: _randomness,
         numberOfRounds: _numberOfRounds,

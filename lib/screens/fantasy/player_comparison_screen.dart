@@ -191,133 +191,45 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF1a237e), // Dark blue background like reference
-      body: Column(
-        children: [
-          // Compact Header with season selector
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1a237e),
-            ),
-            child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                        onPressed: () => Navigator.of(context).pop(),
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Fantasy Player Comparison',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Season Selector
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: DropdownButton<String>(
-                          value: selectedSeason,
-                          dropdownColor: const Color(0xFF1a237e),
-                          underline: const SizedBox(),
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                selectedSeason = newValue;
-                                selectedPlayers.clear();
-                              });
-                              _loadDefaultPlayers();
-                            }
-                          },
-                          items: seasons.map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (errorMessage.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 16),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              errorMessage,
-                              style: const TextStyle(color: Colors.red, fontSize: 12),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                errorMessage = '';
-                              });
-                              _loadDefaultPlayers();
-                            },
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: Size.zero,
-                            ),
-                            child: const Text('Retry', style: TextStyle(color: Colors.red, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton(
+              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
               ),
+              child: const Text('Sign In / Sign Up'),
             ),
           ),
+        ],
+      ),
+      drawer: const AppDrawer(),
+      backgroundColor: Colors.grey[50],
+      body: Column(
+        children: [
+          // Player Comparison Cards
+          Container(
+            color: const Color(0xFF1a237e),
+            child: _buildPlayerComparisonCards(),
+          ),
 
-          // Main Content
+          // Stats Comparison
           Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                      children: [
-                        // Player Comparison Cards
-                        Container(
-                          color: const Color(0xFF1a237e),
-                          child: _buildPlayerComparisonCards(),
-                        ),
-                        
-                        // Stats Comparison
-                        Expanded(
-                          child: _buildStatsComparison(),
-                        ),
-                      ],
-                    ),
-            ),
+            child: _buildStatsComparison(),
           ),
         ],
       ),
@@ -329,6 +241,78 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
         children: [
+          // Season Selector
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: DropdownButton<String>(
+                  value: selectedSeason,
+                  dropdownColor: const Color(0xFF1a237e),
+                  underline: const SizedBox(),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        selectedSeason = newValue;
+                        selectedPlayers.clear();
+                      });
+                      _loadDefaultPlayers();
+                    }
+                  },
+                  items: seasons.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (errorMessage.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        errorMessage = '';
+                      });
+                      _loadDefaultPlayers();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text('Retry', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           // Player Selection/Search Bar
           if (activeSearchIndex >= 0) ...[
             Container(
@@ -804,7 +788,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.grey[50]),
+          headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+          headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           columnSpacing: 32,
           dataRowMinHeight: 36,
           dataRowMaxHeight: 48,

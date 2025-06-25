@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mds_home/widgets/common/custom_app_bar.dart';
+import 'package:mds_home/widgets/common/top_nav_bar.dart';
+import 'package:mds_home/widgets/common/app_drawer.dart';
+
 import '../models/ff_draft_settings.dart';
 import '../models/ff_team.dart';
 import '../models/ff_draft_pick.dart';
@@ -73,17 +77,16 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
     return ChangeNotifierProvider.value(
       value: _draftProvider,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text('${widget.settings.platform} ${widget.settings.scoringSystem} Draft'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                // TODO: Show draft settings dialog
-              },
-            ),
-          ],
+        appBar: CustomAppBar(
+          titleWidget: Row(
+            children: [
+              const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 20),
+              Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+            ],
+          ),
         ),
+        drawer: const AppDrawer(),
         body: isMobile
             ? _buildMobileDraft(context)
             : _buildDesktopDraft(context),

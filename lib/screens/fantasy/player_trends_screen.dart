@@ -3,6 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'dart:math';
 
+import '../../widgets/common/custom_app_bar.dart';
+import '../../widgets/common/app_drawer.dart';
+import '../../widgets/common/top_nav_bar.dart';
+import '../../widgets/auth/auth_dialog.dart';
+
 class PlayerTrendsScreen extends StatefulWidget {
   const PlayerTrendsScreen({super.key});
 
@@ -224,10 +229,33 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Player Usage Trends'),
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton(
+              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+              ),
+              child: const Text('Sign In / Sign Up'),
+            ),
+          ),
+        ],
       ),
+      drawer: const AppDrawer(),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Card(
@@ -318,10 +346,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           data: Theme.of(context).copyWith(
             dividerColor: Colors.grey.shade300,
             dataTableTheme: DataTableThemeData(
-              headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
+              headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
               headingTextStyle: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
           ),

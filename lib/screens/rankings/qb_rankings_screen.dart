@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../widgets/common/app_drawer.dart';
+import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 
@@ -392,6 +393,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
     final filteredData = _filteredAndSortedData;
     
     // Calculate percentiles for density coloring
@@ -401,10 +403,14 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('QB Rankings'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

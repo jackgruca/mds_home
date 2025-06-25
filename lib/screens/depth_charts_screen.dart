@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/common/app_drawer.dart';
 import '../utils/team_logo_utils.dart';
+import '../widgets/common/custom_app_bar.dart';
+import '../widgets/common/top_nav_bar.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -330,13 +332,18 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
     return Scaffold(
       backgroundColor: const Color(0xFF0A1628),
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        title: const Text('Depth Charts'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
       ),
       body: Column(
         children: [
