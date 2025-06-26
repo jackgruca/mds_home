@@ -292,22 +292,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
   
   Widget _buildStatsSection(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+    // Use a blue gradient background and gold text for the header
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDarkMode 
-            ? [
-                ThemeConfig.darkNavy,
-                ThemeConfig.darkNavy.withOpacity(0.8),
-              ]
-            : [
-                ThemeConfig.brightRed.withOpacity(0.1),
-                ThemeConfig.brightRed.withOpacity(0.05),
-              ],
+          colors: [
+            ThemeConfig.darkNavy,
+            ThemeConfig.darkNavy.withOpacity(0.85),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -327,18 +321,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
-              color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.darkNavy,
+              color: ThemeConfig.gold,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
           ResponsiveLayoutBuilder(
             mobile: (context) => Column(
-              children: _buildStatItems(context),
+              children: _buildStatItems(context, textColor: Colors.white),
             ),
             desktop: (context) => Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _buildStatItems(context),
+              children: _buildStatItems(context, textColor: Colors.white),
             ),
           ),
         ],
@@ -346,14 +340,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
-  List<Widget> _buildStatItems(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  List<Widget> _buildStatItems(BuildContext context, {Color textColor = Colors.white}) {
     final stats = [
       {'number': '300K+', 'label': 'Mock Drafts Run'},
       {'number': '25K+', 'label': 'Active Users'},
       {'number': '24/7', 'label': 'Expert Support'},
     ];
-    
     return stats.map((stat) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -363,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               stat['number']!,
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: isDarkMode ? Colors.white : ThemeConfig.darkNavy,
+                color: textColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -371,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               stat['label']!,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.7),
+                color: textColor.withOpacity(0.8),
               ),
             ),
           ],
@@ -381,28 +373,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
+    // Use a blue gradient background and white text, matching the hero section's gradient
     return Container(
       margin: const EdgeInsets.only(top: 32),
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDarkMode 
-            ? [
-                ThemeConfig.darkNavy.withOpacity(0.3),
-                ThemeConfig.darkNavy.withOpacity(0.1),
-              ]
-            : [
-                ThemeConfig.brightRed.withOpacity(0.1),
-                ThemeConfig.brightRed.withOpacity(0.05),
-              ],
+          colors: [
+            ThemeConfig.darkNavy,
+            ThemeConfig.darkNavy.withOpacity(0.85),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         border: Border(
           top: BorderSide(
-            color: isDarkMode
-                ? ThemeConfig.brightRed.withOpacity(0.3)
-                : ThemeConfig.brightRed.withOpacity(0.2),
+            color: ThemeConfig.brightRed.withOpacity(0.2),
             width: 2,
           ),
         ),
@@ -412,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Text(
             'Ready to elevate your football IQ?',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
+              color: Colors.white,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
@@ -422,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Text(
             'Join our community of data-driven football minds and get full access to all our premium tools.',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              color: Colors.white.withOpacity(0.85),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -434,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             shadowColor: ThemeConfig.brightRed.withOpacity(0.4),
             child: ElevatedButton(
               onPressed: () {
-                HapticFeedback.lightImpact(); // Add haptic feedback
+                HapticFeedback.lightImpact();
                 showDialog(context: context, builder: (_) => const AuthDialog());
               },
               style: ElevatedButton.styleFrom(
