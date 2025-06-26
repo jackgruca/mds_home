@@ -129,8 +129,8 @@ class _MyAppState extends State<MyApp> {
           navigatorObservers: [AnalyticsRouteObserver()],
           debugShowCheckedModeBanner: false,
           title: 'StickToTheModel',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: themeManager.lightTheme,
+          darkTheme: themeManager.darkTheme,
           themeMode: themeManager.themeMode,
           home: const HomeScreen(),
           onGenerateRoute: (settings) {

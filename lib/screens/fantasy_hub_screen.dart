@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
@@ -8,6 +10,7 @@ import 'package:mds_home/widgets/home/home_slideshow.dart';
 import 'package:mds_home/widgets/home/stacked_tool_links.dart';
 import 'package:mds_home/widgets/home/blog_section.dart';
 import 'package:collection/collection.dart';
+import '../utils/theme_config.dart';
 
 class FantasyHubScreen extends StatelessWidget {
   // Constructor without const
@@ -123,47 +126,94 @@ class FantasyHubScreen extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                textStyle: const TextStyle(fontSize: 14),
+            child:             Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(24),
+              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+              child: ElevatedButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact(); // Add haptic feedback
+                  showDialog(context: context, builder: (_) => const AuthDialog());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text('Sign In / Sign Up'),
               ),
-              child: const Text('Sign In / Sign Up'),
             ),
           ),
         ],
       ),
       drawer: const AppDrawer(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: ResponsiveLayoutBuilder(
-                 mobile: (context) => Column(
-                  children: [
-                    HomeSlideshow(slides: _slides, isMobile: true),
-                    const SizedBox(height: 24),
-                    StackedToolLinks(tools: hubTools),
-                  ],
-                ),
-                desktop: (context) => Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
-                    const SizedBox(width: 32),
-                    Expanded(flex: 1, child: StackedToolLinks(tools: hubTools)),
-                  ],
+      body: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 800),
+        child: FadeInAnimation(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+            AnimationConfiguration.staggeredList(
+              position: 0,
+              duration: const Duration(milliseconds: 600),
+              child: SlideAnimation(
+                verticalOffset: 40.0,
+                child: FadeInAnimation(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: ResponsiveLayoutBuilder(
+                       mobile: (context) => Column(
+                        children: [
+                          HomeSlideshow(slides: _slides, isMobile: true),
+                          const SizedBox(height: 24),
+                          StackedToolLinks(tools: hubTools),
+                        ],
+                      ),
+                      desktop: (context) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
+                          const SizedBox(width: 32),
+                          Expanded(flex: 1, child: StackedToolLinks(tools: hubTools)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            BlogSection(blogPosts: _blogPosts, title: 'Latest Fantasy Insights'),
+            AnimationConfiguration.staggeredList(
+              position: 1,
+              duration: const Duration(milliseconds: 600),
+              child: SlideAnimation(
+                verticalOffset: 30.0,
+                child: FadeInAnimation(
+                  child: BlogSection(blogPosts: _blogPosts, title: 'Latest Fantasy Insights'),
+                ),
+              ),
+            ),
           ],
         ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolLink(BuildContext context, String title, String description, IconData icon, String routeName) {
+    return InkWell(
+      onTap: () {
+        Navigator.pushNamed(context, routeName);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        // ... existing code ...
       ),
     );
   }

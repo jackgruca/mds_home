@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for haptic feedback
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Added for animations
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
+import '../../utils/theme_config.dart'; // Added for theme colors
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -302,7 +305,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     final bool isNegativeStat = field == 'ints_per_game';
     final adjustedPercentile = isNegativeStat ? (1.0 - percentile) : percentile;
     
-    // Use dark blue color scheme
+    // Use blue color scheme for density cells
     return Colors.blue.shade700.withOpacity(0.1 + (adjustedPercentile * 0.6));
   }
 
@@ -381,8 +384,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     final colors = [
       Colors.green.shade700,    // Tier 1 - Elite
       Colors.green.shade500,    // Tier 2 - Excellent  
-      Colors.blue.shade600,     // Tier 3 - Very Good
-      Colors.blue.shade400,     // Tier 4 - Good
+          ThemeConfig.darkNavy,     // Tier 3 - Very Good
+    ThemeConfig.darkNavy.withOpacity(0.8),     // Tier 4 - Good
       Colors.orange.shade600,   // Tier 5 - Average
       Colors.orange.shade400,   // Tier 6 - Below Average
       Colors.red.shade400,      // Tier 7 - Poor
@@ -396,7 +399,6 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     final filteredData = _filteredAndSortedData;
     
-    // Calculate percentiles for density coloring
     final Map<String, Map<String, double>> fieldPercentiles = {};
     for (final field in _densityColoredFields) {
       fieldPercentiles[field] = _calculatePercentiles(filteredData, field);
@@ -412,268 +414,232 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchData,
-            tooltip: 'Refresh Data',
+          Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(20),
+            shadowColor: ThemeConfig.gold.withOpacity(0.2),
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _fetchData();
+              },
+              tooltip: 'Refresh Data',
+              style: IconButton.styleFrom(
+                backgroundColor: ThemeConfig.darkNavy,
+                foregroundColor: ThemeConfig.gold,
+                padding: const EdgeInsets.all(8),
+              ),
+            ),
           ),
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
-          // Filters and Controls
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            color: Colors.grey.shade50,
-            child: Column(
-              children: [
-                // Season and Tier Filters
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          labelText: 'Season',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        value: _selectedSeason,
-                        items: _seasonOptions.map((season) => DropdownMenuItem(
-                          value: season,
-                          child: Text(season),
-                        )).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedSeason = value!;
-                          });
-                        },
+      body: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 400),
+        child: Column(
+          children: [
+            // Filters and Controls
+            SlideAnimation(
+              verticalOffset: -50,
+              child: FadeInAnimation(
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.grey.shade300,
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          labelText: 'Tier Filter',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        value: _selectedTier,
-                        items: _tierOptions.map((tier) => DropdownMenuItem(
-                          value: tier,
-                          child: Text(tier),
-                        )).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedTier = value!;
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _isQueryBuilderExpanded = !_isQueryBuilderExpanded;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade700,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: Icon(_isQueryBuilderExpanded ? Icons.expand_less : Icons.expand_more),
-                      label: const Text('Query Builder'),
-                    ),
-                  ],
-                ),
-                
-                // Query Builder (Expandable)
-                if (_isQueryBuilderExpanded) ...[
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  
-                  // Add Query Condition Row
-                  Row(
+                  ),
+                  child: Column(
                     children: [
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'Field',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            isDense: true,
+                      // Season and Tier Filters
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Season',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              value: _selectedSeason,
+                              items: _seasonOptions.map((season) => DropdownMenuItem(
+                                value: season,
+                                child: Text(season),
+                              )).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedSeason = value!;
+                                });
+                              },
+                            ),
                           ),
-                          value: _allFields.contains(_newQueryField) ? _newQueryField : null,
-                          items: _allFields.map((field) => DropdownMenuItem(
-                            value: field,
-                            child: Text(_formatFieldName(field), overflow: TextOverflow.ellipsis),
-                          )).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _newQueryField = value;
-                              _newQueryOperator = null;
-                              _newQueryValueController.clear();
-                            });
-                          },
-                          isExpanded: true,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<QueryOperator>(
-                          decoration: const InputDecoration(
-                            labelText: 'Operator',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            isDense: true,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Tier Filter',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              value: _selectedTier,
+                              items: _tierOptions.map((tier) => DropdownMenuItem(
+                                value: tier,
+                                child: Text(tier),
+                              )).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedTier = value!;
+                                });
+                              },
+                            ),
                           ),
-                          value: _newQueryOperator,
-                          items: _allOperators.map((op) => DropdownMenuItem(
-                            value: op,
-                            child: Text(queryOperatorToString(op)),
-                          )).toList(),
-                          onChanged: (value) {
-                            setState(() => _newQueryOperator = value);
-                          },
-                          isExpanded: true,
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          controller: _newQueryValueController,
-                          decoration: const InputDecoration(
-                            labelText: 'Value',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            isDense: true,
+                      const SizedBox(height: 16),
+                      // Query Builder Expander
+                      ExpansionTile(
+                        title: const Text('Query Builder'),
+                        initiallyExpanded: _isQueryBuilderExpanded,
+                        onExpansionChanged: (isExpanded) {
+                          setState(() {
+                            _isQueryBuilderExpanded = isExpanded;
+                          });
+                        },
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Column(
+                              children: [
+                                // Query conditions list
+                                if (_queryConditions.isNotEmpty)
+                                  Wrap(
+                                    spacing: 8.0,
+                                    runSpacing: 4.0,
+                                    children: List.generate(_queryConditions.length, (index) {
+                                      return Chip(
+                                        label: Text(_queryConditions[index].toString()),
+                                        deleteIcon: const Icon(Icons.close, size: 16),
+                                        onDeleted: () => _removeQueryCondition(index),
+                                        backgroundColor: ThemeConfig.gold.withOpacity(0.1),
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (_queryConditions.isNotEmpty)
+                                  const SizedBox(height: 8),
+                                // Query input fields
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: DropdownButtonFormField<String>(
+                                        decoration: const InputDecoration(labelText: 'Field', border: OutlineInputBorder()),
+                                        items: _allFields.map((field) => DropdownMenuItem(value: field, child: Text(_formatFieldName(field)))).toList(),
+                                        onChanged: (value) => setState(() => _newQueryField = value),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: DropdownButtonFormField<QueryOperator>(
+                                        decoration: const InputDecoration(labelText: 'Operator', border: OutlineInputBorder()),
+                                        items: _allOperators.map((op) => DropdownMenuItem(value: op, child: Text(queryOperatorToString(op)))).toList(),
+                                        onChanged: (value) => setState(() => _newQueryOperator = value),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 3,
+                                      child: TextField(
+                                        controller: _newQueryValueController,
+                                        decoration: const InputDecoration(labelText: 'Value', border: OutlineInputBorder()),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                // Action buttons for query
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if (_queryConditions.isNotEmpty)
+                                      TextButton(
+                                        onPressed: _clearAllQueryConditions,
+                                        child: const Text('Clear All'),
+                                      ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton.icon(
+                                      onPressed: _addQueryCondition,
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Add Condition'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _addQueryCondition,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade700,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Add'),
+                        ],
                       ),
                     ],
                   ),
-                  
-                  // Display Current Query Conditions
-                  if (_queryConditions.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: _queryConditions.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final condition = entry.value;
-                        return Chip(
-                          label: Text(
-                            condition.toString(),
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () => _removeQueryCondition(index),
-                          backgroundColor: Colors.blue.shade100,
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        TextButton.icon(
-                          onPressed: _clearAllQueryConditions,
-                          icon: const Icon(Icons.clear_all),
-                          label: const Text('Clear All'),
-                          style: TextButton.styleFrom(foregroundColor: Colors.red),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'Showing ${filteredData.length} QBs',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
-          
-          // Data Table
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                            const SizedBox(height: 16),
-                            Text('Error: $_error'),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _fetchData,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : filteredData.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.search_off, size: 64, color: Colors.grey),
-                                SizedBox(height: 16),
-                                Text('No QBs match your current filters'),
-                              ],
-                            ),
-                          )
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SingleChildScrollView(
-                              child: Theme(
-                                data: Theme.of(context).copyWith(
-                                  dataTableTheme: const DataTableThemeData(
-                                    columnSpacing: 0,
-                                    horizontalMargin: 0,
-                                    dividerThickness: 0,
+            // Data Table
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(child: Text('Error: $_error'))
+                      : filteredData.isEmpty
+                          ? const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_off, size: 64, color: Colors.grey),
+                                  SizedBox(height: 16),
+                                  Text('No QBs match your current filters.'),
+                                ],
+                              ),
+                            )
+                          : SlideAnimation(
+                              verticalOffset: 50,
+                              child: FadeInAnimation(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: DataTable(
+                                      sortColumnIndex: _getSortColumnIndex(),
+                                      sortAscending: _sortAscending,
+                                      headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                                      headingTextStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      dataRowMinHeight: 44,
+                                      dataRowMaxHeight: 44,
+                                      showCheckboxColumn: false,
+                                      border: TableBorder.all(
+                                        color: Colors.grey.shade300,
+                                        width: 0.5,
+                                      ),
+                                      columns: _buildDataColumns(),
+                                      rows: _buildDataRows(filteredData, fieldPercentiles),
+                                    ),
                                   ),
-                                ),
-                                child: DataTable(
-                                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-                                  headingTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                  dataRowMinHeight: 44,
-                                  dataRowMaxHeight: 44,
-                                  showCheckboxColumn: false,
-                                  sortColumnIndex: _getSortColumnIndex(),
-                                  sortAscending: _sortAscending,
-                                  border: TableBorder.all(
-                                    color: Colors.grey.shade300,
-                                    width: 0.5,
-                                  ),
-                                  columns: _buildDataColumns(),
-                                  rows: _buildDataRows(filteredData, fieldPercentiles),
                                 ),
                               ),
                             ),
-                          ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -708,11 +674,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     return columns.map((field) {
       return DataColumn(
         label: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Text(
-            _formatFieldName(field),
-            style: const TextStyle(fontSize: 13),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          child: Text(_formatFieldName(field)),
         ),
         onSort: (columnIndex, ascending) {
           setState(() {
@@ -785,7 +748,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
               alignment: (value is num && field != 'qb_tier' && field != 'team_qb_tier' && field != 'rank_number' && field != 'team_rank_number') 
                 ? Alignment.centerRight 
                 : Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
               child: cellContent,
             ),
           );

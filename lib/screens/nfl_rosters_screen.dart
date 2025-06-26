@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for haptic feedback
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Added for animations
 import '../widgets/common/custom_app_bar.dart';
 import '../widgets/common/app_drawer.dart';
 import '../widgets/common/top_nav_bar.dart';
 import '../widgets/auth/auth_dialog.dart';
 import '../utils/team_logo_utils.dart';
+import '../utils/theme_config.dart'; // Added for theme colors
 
 class NflRostersScreen extends StatefulWidget {
   const NflRostersScreen({super.key});
@@ -306,41 +309,69 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
     required ValueChanged<String?> onChanged,
   }) {
     final theme = Theme.of(context);
+    final bool isActive = value != 'All';
     
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: value != 'All' ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: value != 'All' ? theme.colorScheme.primary : theme.colorScheme.outline.withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      child: DropdownButton<String>(
-        value: value,
-        underline: const SizedBox(),
-        isDense: true,
-        style: const TextStyle(
-          color: Colors.black, // Changed to black for all dropdowns
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        icon: Icon(
-          Icons.keyboard_arrow_down,
-          size: 18,
-          color: value != 'All' ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface,
-        ),
-        items: options.map((option) {
-          return DropdownMenuItem(
-            value: option,
-            child: Text(
-              label == 'Season' ? option : (option == 'All' ? '$label: $option' : option), // Remove label prefix for team and position when not "All"
-              style: const TextStyle(color: Colors.black), // Ensure dropdown items are also black
+    return AnimationConfiguration.staggeredList(
+      position: 0,
+      duration: const Duration(milliseconds: 375),
+      child: SlideAnimation(
+        verticalOffset: 20.0,
+        child: FadeInAnimation(
+          child: Material(
+            elevation: isActive ? 2 : 0,
+            borderRadius: BorderRadius.circular(24),
+            shadowColor: isActive ? ThemeConfig.gold.withOpacity(0.3) : Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: isActive 
+                  ? LinearGradient(
+                      colors: [ThemeConfig.gold, ThemeConfig.gold.withOpacity(0.8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+                color: !isActive ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.7) : null,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isActive ? ThemeConfig.gold : theme.colorScheme.outline.withOpacity(0.3),
+                  width: isActive ? 1.5 : 1,
+                ),
+              ),
+              child: DropdownButton<String>(
+                value: value,
+                underline: const SizedBox(),
+                isDense: true,
+                style: TextStyle(
+                  color: isActive ? ThemeConfig.darkNavy : theme.colorScheme.onSurface,
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                ),
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: isActive ? ThemeConfig.darkNavy : theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+                items: options.map((option) {
+                  return DropdownMenuItem(
+                    value: option,
+                    child: Text(
+                      label == 'Season' ? option : (option == 'All' ? '$label: $option' : option),
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  HapticFeedback.lightImpact(); // Add haptic feedback
+                  onChanged(newValue);
+                },
+              ),
             ),
-          );
-        }).toList(),
-        onChanged: onChanged,
+          ),
+        ),
       ),
     );
   }
@@ -376,8 +407,11 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
+      body: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 800),
+        child: FadeInAnimation(
+          child: Column(
+            children: [
           // Header with title and controls
           Container(
             padding: const EdgeInsets.all(24.0),
@@ -579,9 +613,26 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _fetchDataFromFirebase,
-                              child: const Text('Retry'),
+                            Material(
+                              elevation: 2,
+                              borderRadius: BorderRadius.circular(32),
+                              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  HapticFeedback.lightImpact(); // Add haptic feedback
+                                  _fetchDataFromFirebase();
+                                },
+                                icon: const Icon(Icons.refresh_rounded, size: 20),
+                                label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ThemeConfig.darkNavy,
+                                  foregroundColor: ThemeConfig.gold,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(32),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -605,62 +656,89 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
                               ],
                             ),
                           )
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.all(16.0),
-                              child: DataTable(
-                                sortColumnIndex: _headers.contains(_sortColumn) ? _headers.indexOf(_sortColumn) : null,
-                                sortAscending: _sortAscending,
-                                headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-                                headingTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                                dataRowHeight: 56,
-                                showCheckboxColumn: false,
-                                columnSpacing: 32,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                columns: _headers.map((header) {
-                                  return DataColumn(
-                                    label: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-                                      child: Text(_formatHeaderName(header)),
+                        : AnimationLimiter(
+                            child: FadeInAnimation(
+                              duration: const Duration(milliseconds: 600),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: DataTable(
+                                    sortColumnIndex: _headers.contains(_sortColumn) ? _headers.indexOf(_sortColumn) : null,
+                                    sortAscending: _sortAscending,
+                                    headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                                    headingTextStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
-                                    onSort: (columnIndex, ascending) {
-                                      setState(() {
-                                        _sortColumn = _headers[columnIndex];
-                                        _sortAscending = ascending;
-                                        _applyFiltersAndFetch();
-                                      });
-                                    },
-                                  );
-                                }).toList(),
-                                rows: _rawRows.map((row) {
-                                  return DataRow(
-                                    color: WidgetStateProperty.resolveWith<Color?>(
-                                      (Set<WidgetState> states) {
-                                        if (states.contains(WidgetState.hovered)) {
-                                          return theme.colorScheme.surfaceContainerHighest.withOpacity(0.5);
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    cells: _headers.map((header) {
-                                      return DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-                                          child: _formatCellValue(row[header], header),
+                                    dataRowHeight: 64,
+                                    showCheckboxColumn: false,
+                                    columnSpacing: 32,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: ThemeConfig.gold.withOpacity(0.2),
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: ThemeConfig.darkNavy.withOpacity(0.1),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
                                         ),
+                                      ],
+                                    ),
+                                    columns: _headers.map((header) {
+                                      return DataColumn(
+                                        label: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                                          child: Text(_formatHeaderName(header)),
+                                        ),
+                                        onSort: (columnIndex, ascending) {
+                                          HapticFeedback.lightImpact(); // Add haptic feedback
+                                          setState(() {
+                                            _sortColumn = _headers[columnIndex];
+                                            _sortAscending = ascending;
+                                            _applyFiltersAndFetch();
+                                          });
+                                        },
                                       );
                                     }).toList(),
-                                  );
-                                }).toList(),
+                                    rows: _rawRows.asMap().entries.map((entry) {
+                                      final index = entry.key;
+                                      final row = entry.value;
+                                      return DataRow(
+                                        color: WidgetStateProperty.resolveWith<Color?>(
+                                          (Set<WidgetState> states) {
+                                            if (states.contains(WidgetState.hovered)) {
+                                              return ThemeConfig.gold.withOpacity(0.1);
+                                            }
+                                            return index.isEven 
+                                              ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.3)
+                                              : null;
+                                          },
+                                        ),
+                                        cells: _headers.map((header) {
+                                          return DataCell(
+                                            AnimationConfiguration.staggeredList(
+                                              position: index,
+                                              duration: const Duration(milliseconds: 375),
+                                              child: SlideAnimation(
+                                                verticalOffset: 20.0,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+                                                  child: _formatCellValue(row[header], header),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -677,52 +755,95 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: _currentPage > 0 ? () {
-                      setState(() {
-                        _currentPage--;
-                      });
-                      _fetchDataFromFirebase();
-                    } : null,
-                    icon: const Icon(Icons.chevron_left),
-                    label: const Text('Previous'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      foregroundColor: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil()}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onPrimaryContainer,
+                  Material(
+                    elevation: _currentPage > 0 ? 2 : 0,
+                    borderRadius: BorderRadius.circular(32),
+                    child: ElevatedButton.icon(
+                      onPressed: _currentPage > 0 ? () {
+                        setState(() {
+                          _currentPage--;
+                        });
+                        _fetchDataFromFirebase();
+                      } : null,
+                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                      label: const Text('Previous'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _currentPage > 0 
+                          ? ThemeConfig.darkNavy 
+                          : theme.colorScheme.surfaceContainerHighest,
+                        foregroundColor: _currentPage > 0 
+                          ? ThemeConfig.gold 
+                          : theme.colorScheme.onSurface.withOpacity(0.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32),
+                        ),
                       ),
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords ? () {
-                      setState(() {
-                        _currentPage++;
-                      });
-                      _fetchDataFromFirebase();
-                    } : null,
-                    icon: const Icon(Icons.chevron_right),
-                    label: const Text('Next'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      foregroundColor: theme.colorScheme.onSurface,
+                  Material(
+                    elevation: 1,
+                    borderRadius: BorderRadius.circular(24),
+                    shadowColor: ThemeConfig.gold.withOpacity(0.3),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            ThemeConfig.gold.withOpacity(0.1),
+                            ThemeConfig.gold.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: ThemeConfig.gold.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        'Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil()}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: ThemeConfig.darkNavy,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Material(
+                    elevation: (_currentPage + 1) * _rowsPerPage < _totalRecords ? 2 : 0,
+                    borderRadius: BorderRadius.circular(32),
+                    child: ElevatedButton.icon(
+                      onPressed: (_currentPage + 1) * _rowsPerPage < _totalRecords ? () {
+                        setState(() {
+                          _currentPage++;
+                        });
+                        _fetchDataFromFirebase();
+                      } : null,
+                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                      label: const Text('Next'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: (_currentPage + 1) * _rowsPerPage < _totalRecords 
+                          ? ThemeConfig.darkNavy 
+                          : theme.colorScheme.surfaceContainerHighest,
+                        foregroundColor: (_currentPage + 1) * _rowsPerPage < _totalRecords 
+                          ? ThemeConfig.gold 
+                          : theme.colorScheme.onSurface.withOpacity(0.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
         ],
+        ),
+        ),
       ),
     );
   }

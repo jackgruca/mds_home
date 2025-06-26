@@ -63,9 +63,9 @@ class _UserFeedbackBannerState extends State<UserFeedbackBanner> {
               OutlinedButton(
                 onPressed: _showContactForm,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  side: BorderSide(
-                    color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                                          foregroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+                        side: BorderSide(
+                          color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   minimumSize: const Size(0, 32),

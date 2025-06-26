@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import '../../models/fantasy/player_ranking.dart';
@@ -7,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import '../../utils/team_logo_utils.dart';
+import '../../utils/theme_config.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -386,8 +389,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
-    final Color headerColor = Colors.blue.shade700;
-    final Color evenRowColor = Colors.blue.shade50;
+    const Color headerColor = ThemeConfig.darkNavy;
+    final Color evenRowColor = ThemeConfig.darkNavy.withOpacity(0.05);
     const Color oddRowColor = Colors.white;
     final cellTextStyle = TextStyle(
       color: Theme.of(context).brightness == Brightness.dark 
@@ -407,116 +410,150 @@ class _BigBoardScreenState extends State<BigBoardScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchRankings,
-            tooltip: 'Refresh Rankings',
+          Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(20),
+            shadowColor: ThemeConfig.gold.withOpacity(0.2),
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _fetchRankings();
+              },
+              tooltip: 'Refresh Rankings',
+              style: IconButton.styleFrom(
+                backgroundColor: ThemeConfig.darkNavy,
+                foregroundColor: ThemeConfig.gold,
+                padding: const EdgeInsets.all(8),
+              ),
+            ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search bar and custom ranks controls
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+      body: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 800),
+        child: FadeInAnimation(
+          child: Column(
+            children: [
+              // Search bar and custom ranks controls
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search players...',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search players...',
+                              prefixIcon: const Icon(Icons.search),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            onChanged: _filterRankings,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
-                        onChanged: _filterRankings,
+                        const SizedBox(width: 16),
+                        Material(
+                          elevation: 1,
+                          borderRadius: BorderRadius.circular(20),
+                          shadowColor: ThemeConfig.gold.withOpacity(0.2),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              _onAddCustomColumn();
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Column'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ThemeConfig.darkNavy,
+                              foregroundColor: ThemeConfig.gold,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
+                          const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {}, // Was _onUpdateRanks
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Update Ranks'),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: _onImportCSV,
+                            child: const Text('Import CSV'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: positions.map((pos) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: ChoiceChip(
+                            label: Text(pos),
+                            selected: _positionFilter == pos,
+                            onSelected: (_) {
+                              setState(() {
+                                _positionFilter = pos;
+                              });
+                            },
+                          ),
+                        )).toList(),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    ElevatedButton.icon(
-                      onPressed: _onAddCustomColumn,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Column'),
-                    ),
-                      const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () {}, // Was _onUpdateRanks
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Update Ranks'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _onImportCSV,
-                        child: const Text('Import CSV'),
-                      ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: positions.map((pos) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: ChoiceChip(
-                        label: Text(pos),
-                        selected: _positionFilter == pos,
-                        onSelected: (_) {
-                          setState(() {
-                            _positionFilter = pos;
-                          });
-                        },
-                      ),
-                    )).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Table
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          dataTableTheme: const DataTableThemeData(
-                            columnSpacing: 0,
-                            horizontalMargin: 0,
-                            dividerThickness: 0,
+              ),
+              
+              // Table
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              dataTableTheme: const DataTableThemeData(
+                                columnSpacing: 0,
+                                horizontalMargin: 0,
+                                dividerThickness: 0,
+                              ),
+                            ),
+                            child: DataTable(
+                              headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                              headingTextStyle: const TextStyle(
+                                color: Colors.white, 
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              dataRowHeight: 44,
+                              showCheckboxColumn: false,
+                              sortColumnIndex: _sortColumnIndex,
+                              sortAscending: _sortAscending,
+                              border: TableBorder.all(
+                                color: Colors.white,
+                                width: 0.5,
+                                style: BorderStyle.solid,
+                              ),
+                              columns: _getColumns(),
+                              rows: _getRows(),
+                            ),
                           ),
                         ),
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(headerColor),
-                          headingTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          dataRowHeight: 44,
-                          showCheckboxColumn: false,
-                          sortColumnIndex: _sortColumnIndex,
-                          sortAscending: _sortAscending,
-                          border: TableBorder.all(
-                            color: Colors.white,
-                            width: 0.5,
-                            style: BorderStyle.solid,
-                          ),
-                          columns: _getColumns(),
-                          rows: _getRows(),
-                        ),
                       ),
-                    ),
-                  ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

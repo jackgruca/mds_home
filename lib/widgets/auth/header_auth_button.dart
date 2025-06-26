@@ -60,7 +60,7 @@ class HeaderAuthButton extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 14,
-                    backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                    backgroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                     child: Text(
                       user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
                       style: const TextStyle(

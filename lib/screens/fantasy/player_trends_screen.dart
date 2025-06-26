@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'dart:math';
@@ -7,6 +9,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
+import '../../utils/theme_config.dart';
 
 class PlayerTrendsScreen extends StatefulWidget {
   const PlayerTrendsScreen({super.key});
@@ -230,7 +233,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -244,13 +246,26 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
+            child: Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(24),
+              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+              child: ElevatedButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  showDialog(context: context, builder: (_) => const AuthDialog());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text('Sign In / Sign Up'),
               ),
-              child: const Text('Sign In / Sign Up'),
             ),
           ),
         ],
@@ -344,13 +359,16 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         scrollDirection: Axis.horizontal,
         child: Theme(
           data: Theme.of(context).copyWith(
-            dividerColor: Colors.grey.shade300,
             dataTableTheme: DataTableThemeData(
-              headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
+              headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
               headingTextStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
                 color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
+              dataRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                return null; // Use default
+              }),
             ),
           ),
           child: DataTable(

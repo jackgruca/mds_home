@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import '../utils/theme_manager.dart';
+import '../utils/theme_config.dart';
 import '../widgets/auth/auth_dialog.dart';
 import '../widgets/common/responsive_layout_builder.dart';
 import '../widgets/common/app_drawer.dart';
@@ -126,79 +129,165 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                textStyle: const TextStyle(fontSize: 14),
+            child:             Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(24),
+              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+              child: ElevatedButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact(); // Add haptic feedback
+                  showDialog(context: context, builder: (_) => const AuthDialog());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text('Sign In / Sign Up'),
               ),
-              child: const Text('Sign In / Sign Up'),
             ),
           ),
         ],
       ),
       drawer: const AppDrawer(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: ResponsiveLayoutBuilder(
-                mobile: (context) => Column(
-                  children: [
-                    HomeSlideshow(slides: _slides, isMobile: true),
-                    const SizedBox(height: 24),
-                    StackedToolLinks(tools: _tools),
-                  ],
-                ),
-                desktop: (context) => Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
-                    const SizedBox(width: 32),
-                    Expanded(flex: 1, child: StackedToolLinks(tools: _tools)),
-                  ],
+      body: AnimationConfiguration.synchronized(
+        duration: const Duration(milliseconds: 800),
+        child: FadeInAnimation(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+            AnimationConfiguration.staggeredList(
+              position: 0,
+              duration: const Duration(milliseconds: 600),
+              child: SlideAnimation(
+                verticalOffset: 40.0,
+                child: FadeInAnimation(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                    child: ResponsiveLayoutBuilder(
+                      mobile: (context) => Column(
+                        children: [
+                          HomeSlideshow(slides: _slides, isMobile: true),
+                          const SizedBox(height: 24),
+                          StackedToolLinks(tools: _tools),
+                        ],
+                      ),
+                      desktop: (context) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
+                          const SizedBox(width: 32),
+                          Expanded(flex: 1, child: StackedToolLinks(tools: _tools)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-            BlogSection(blogPosts: _blogPosts),
+            AnimationConfiguration.staggeredList(
+              position: 1,
+              duration: const Duration(milliseconds: 600),
+              child: SlideAnimation(
+                verticalOffset: 30.0,
+                child: FadeInAnimation(
+                  child: BlogSection(blogPosts: _blogPosts),
+                ),
+              ),
+            ),
             _buildFooterSignup(context, isDarkMode),
           ],
+        ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      color: isDarkMode ? Theme.of(context).colorScheme.surface.withOpacity(0.1) : Colors.blue.shade50,
-      child: Column(
-        children: [
-          Text(
-            'Want personalized NFL updates and insights?',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onSurface),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 15),
-          Text(
-            'Sign up for full access to all our tools and get the latest insights delivered to your inbox.',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 25),
-          ElevatedButton(
-            onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              textStyle: Theme.of(context).textTheme.titleMedium,
+    return AnimationConfiguration.staggeredList(
+      position: 0,
+      duration: const Duration(milliseconds: 600),
+      child: SlideAnimation(
+        verticalOffset: 30.0,
+        child: FadeInAnimation(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDarkMode 
+                  ? [
+                      ThemeConfig.darkNavy.withOpacity(0.3),
+                      ThemeConfig.darkNavy.withOpacity(0.1),
+                    ]
+                  : [
+                      ThemeConfig.gold.withOpacity(0.1),
+                      ThemeConfig.gold.withOpacity(0.05),
+                    ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: ThemeConfig.gold.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
             ),
-            child: const Text('Get Started Now'),
+            child: Column(
+              children: [
+                Text(
+                  'Want personalized NFL updates and insights?',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Sign up for full access to all our tools and get the latest insights delivered to your inbox.',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(32),
+                  shadowColor: ThemeConfig.gold.withOpacity(0.4),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact(); // Add haptic feedback
+                      showDialog(context: context, builder: (_) => const AuthDialog());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ThemeConfig.darkNavy,
+                      foregroundColor: ThemeConfig.gold,
+                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
+                      textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: const Text('Get Started Now'),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
 import '../../widgets/auth/auth_dialog.dart';
@@ -6,8 +7,8 @@ import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/home/home_slideshow.dart';
 import '../../widgets/home/stacked_tool_links.dart';
-// import '../../models/nav_item_data.dart'; // Removed - defining helper locally for now
 import 'package:collection/collection.dart'; // For firstWhereOrNull
+import '../../utils/theme_config.dart';
 
 
 // Helper function to find a specific sub-item (tool) within a NavItem hub
@@ -17,7 +18,7 @@ Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route, {String? de
   final item = hub!.subItems!.firstWhereOrNull((i) => i.route == route);
   if (item == null) return null;
   return {
-    'icon': icon ?? Icons.build_circle_outlined,
+    'icon': icon ?? item.icon ?? Icons.build_circle_outlined,
     'title': item.title,
     'desc': desc ?? 'Access the ${item.title} tool.',
     'route': item.route,
@@ -179,6 +180,74 @@ class GmHubScreen extends StatelessWidget {
             child: const Text('Unlock GM Hub'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToolCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final String? route;
+  final bool isPlaceholder;
+
+  const _ToolCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    this.route,
+    this.isPlaceholder = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool canNavigate = route != null && !isPlaceholder;
+    final Color contentColor = isPlaceholder
+        ? theme.colorScheme.onSurface.withOpacity(0.4)
+        : theme.colorScheme.onSurface;
+
+    return Card(
+      elevation: isPlaceholder ? 0 : 4,
+      shadowColor: theme.colorScheme.primary.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isPlaceholder
+            ? BorderSide(color: theme.dividerColor, width: 1.5)
+            : BorderSide.none,
+      ),
+      color: isPlaceholder
+          ? theme.colorScheme.surface.withOpacity(0.5)
+          : theme.cardColor,
+      child: InkWell(
+        onTap: canNavigate ? () => Navigator.pushNamed(context, route!) : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 36, color: isPlaceholder ? contentColor : theme.colorScheme.primary),
+              const Spacer(),
+              Text(
+                title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: contentColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(color: contentColor.withOpacity(0.8)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

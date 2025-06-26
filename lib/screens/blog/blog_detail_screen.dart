@@ -123,7 +123,7 @@ void initState() {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             height: 240,
-                            color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed.withOpacity(0.1),
+                            color: isDarkMode ? ThemeConfig.darkNavy : ThemeConfig.deepRed.withOpacity(0.1),
                             child: Center(
                               child: Icon(
                                 Icons.image_not_supported,

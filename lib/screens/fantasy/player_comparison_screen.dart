@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../widgets/common/custom_app_bar.dart';
@@ -6,6 +8,7 @@ import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/team_logo_utils.dart';
+import '../../utils/theme_config.dart';
 
 class PlayerComparisonScreen extends StatefulWidget {
   const PlayerComparisonScreen({Key? key}) : super(key: key);
@@ -206,13 +209,26 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
+            child: Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(24),
+              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+              child: ElevatedButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  showDialog(context: context, builder: (_) => const AuthDialog());
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text('Sign In / Sign Up'),
               ),
-              child: const Text('Sign In / Sign Up'),
             ),
           ),
         ],
@@ -223,7 +239,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         children: [
           // Player Comparison Cards
           Container(
-            color: const Color(0xFF1a237e),
+            color: ThemeConfig.darkNavy,
             child: _buildPlayerComparisonCards(),
           ),
 
@@ -253,10 +269,10 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                 ),
                 child: DropdownButton<String>(
                   value: selectedSeason,
-                  dropdownColor: const Color(0xFF1a237e),
+                  dropdownColor: ThemeConfig.darkNavy,
                   underline: const SizedBox(),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+                  style: const TextStyle(color: ThemeConfig.gold, fontSize: 14),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: ThemeConfig.gold, size: 16),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       setState(() {
@@ -269,7 +285,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   items: seasons.map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
-                      child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      child: Text(value, style: const TextStyle(color: ThemeConfig.gold, fontSize: 14)),
                     );
                   }).toList(),
                 ),
@@ -788,14 +804,20 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-          headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
           columnSpacing: 32,
           dataRowMinHeight: 36,
           dataRowMaxHeight: 48,
           columns: [
             const DataColumn(
-              label: Text('Statistic', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: Text(
+                'STAT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
             ...selectedPlayers.map((player) => DataColumn(
               label: SizedBox(
@@ -808,13 +830,13 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       (player['player_display_name']?.toString() ?? 'Unknown').length > 15 
                           ? '${(player['player_display_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
                           : player['player_display_name']?.toString() ?? 'Unknown',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                     ),
                     Text(
                       '${player['team']} ${player['position']}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 10),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 10),
                       textAlign: TextAlign.center,
                     ),
                   ],

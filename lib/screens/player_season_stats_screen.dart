@@ -5,6 +5,7 @@ import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
+import 'package:mds_home/utils/theme_config.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -1089,7 +1090,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     icon: const Icon(Icons.help_outline, size: 16),
                     label: const Text('Field Key'),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.blue[600],
+                      foregroundColor: ThemeConfig.darkNavy,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1117,17 +1118,22 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
               child: Theme(
                 data: Theme.of(context).copyWith(
                   dataTableTheme: const DataTableThemeData(
-                    columnSpacing: 0,
-                    horizontalMargin: 0,
-                    dividerThickness: 0,
+                    headingRowColor: WidgetStatePropertyAll(ThemeConfig.darkNavy),
+                    headingTextStyle: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    columnSpacing: 8,
+                    horizontalMargin: 8,
                   ),
                 ),
                 child: DataTable(
                   sortColumnIndex:
                       displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                   sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(Colors.blue.shade700),
-                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                  headingTextStyle: const TextStyle(color: ThemeConfig.gold, fontWeight: FontWeight.bold, fontSize: 15),
                   dataRowHeight: 44,
                   showCheckboxColumn: false,
                   border: TableBorder.all(

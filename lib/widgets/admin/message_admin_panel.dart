@@ -267,12 +267,12 @@ class _MessageAdminPanelState extends State<MessageAdminPanel> {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed.withOpacity(0.1),
+                      color: isDarkMode ? ThemeConfig.darkNavy : ThemeConfig.deepRed.withOpacity(0.1),
                       child: Text(
                         '${_messages.length} Message${_messages.length != 1 ? 's' : ''} Found',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : AppTheme.deepRed,
+                                                      color: isDarkMode ? Colors.white : ThemeConfig.deepRed,
                         ),
                       ),
                     ),
