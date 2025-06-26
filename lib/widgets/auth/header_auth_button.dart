@@ -153,8 +153,11 @@ class HeaderAuthButton extends StatelessWidget {
             onPressed: () => _showAuthDialog(context),
             icon: const Icon(Icons.login, size: 16),
             label: const Text('Members'),
-            style: TextButton.styleFrom(
-              foregroundColor: isDarkMode ? Colors.white : Colors.white,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              textStyle: const TextStyle(fontSize: 14),
             ),
           );
         }

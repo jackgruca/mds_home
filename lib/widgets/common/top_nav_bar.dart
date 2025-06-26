@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart'; // For firstWhereOrNull
+import '../../utils/theme_config.dart'; // Added import for ThemeConfig
 
 // Define the structure for navigation items
 class NavItem {
@@ -144,7 +145,7 @@ class TopNavBarContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const Color activeColor = Colors.amber; // Gold color for active item
+    const activeColor = ThemeConfig.gold; // Keep gold for active navigation items
     const Color inactiveColor = Colors.white; // White color for inactive items
 
     // Find the active top-level item (hub) using the updated helper function

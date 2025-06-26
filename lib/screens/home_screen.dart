@@ -8,8 +8,8 @@ import '../widgets/auth/auth_dialog.dart';
 import '../widgets/common/responsive_layout_builder.dart';
 import '../widgets/common/app_drawer.dart';
 import '../widgets/common/top_nav_bar.dart';
-import '../widgets/home/home_slideshow.dart';
-import '../widgets/home/stacked_tool_links.dart';
+import '../widgets/home/hero_section.dart';
+import '../widgets/home/feature_section.dart';
 import '../widgets/home/blog_section.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,70 +19,56 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final List<Map<String, String>> _slides = [
-    {
-      'title': 'Mock Draft Simulator',
-      'desc': 'Simulate the NFL draft with real-time analytics and team-building tools.',
-      'image': 'assets/images/GM/PIT Draft.png',
-      'route': '/draft',
-    },
-    {
-      'title': 'Data Hub',
-      'desc': 'Explore advanced NFL data, stats, and analytics.',
-      'image': 'assets/images/data/moneyBall.jpeg',
-      'route': '/data',
-    },
-    {
-      'title': 'Player Big Boards',
-      'desc': 'View and customize player rankings from multiple sources.',
-      'image': 'assets/images/FF/shiva.png',
-      'route': '/fantasy/big-board',
-    },
-    {
-      'title': 'Fantasy Football Mock Draft',
-      'desc': 'Practice your fantasy draft strategy and get ready for your league.',
-      'image': 'assets/images/GM/big board.png',
-      'route': '/draft/fantasy',
-    },
-  ];
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  // Animation controller for scroll-triggered animations
+  late AnimationController _scrollAnimationController;
+  final ScrollController _scrollController = ScrollController();
+  
+  // Global key for scrolling to tools section
+  final GlobalKey _toolsSectionKey = GlobalKey();
 
   final List<Map<String, dynamic>> _tools = [
     {
       'icon': Icons.format_list_numbered,
       'title': 'Mock Draft Simulator',
-      'desc': 'Simulate the NFL draft with real-time analytics.',
+      'desc': 'Build your team with our interactive NFL draft simulator featuring real-time analytics and team needs.',
       'route': '/draft',
+      'image': 'assets/images/GM/PIT Draft.png',
     },
     {
       'icon': Icons.sports_football,
-      'title': 'Fantasy Football Mock Drafts',
-      'desc': 'Practice your fantasy draft strategy.',
+      'title': 'Fantasy Draft Lab',
+      'desc': 'Dominate your fantasy league with our AI-powered mock draft simulator and strategic insights.',
       'route': '/draft/fantasy',
+      'image': 'assets/images/FF/shiva.png',
     },
     {
       'icon': Icons.leaderboard,
-      'title': 'Player Big Boards',
-      'desc': 'View and customize player rankings.',
+      'title': 'Player Rankings',
+      'desc': 'Access and customize comprehensive player big boards from multiple expert sources.',
       'route': '/fantasy/big-board',
-    },
-    {
-      'icon': Icons.calendar_today,
-      'title': 'Games This Week',
-      'desc': 'See matchups, odds, and projections for this week.',
-      'route': '/data',
+      'image': 'assets/images/GM/big board.png',
     },
     {
       'icon': Icons.trending_up,
-      'title': 'Player Analytics',
-      'desc': 'Projections, stats, and fantasy insights.',
+      'title': 'Advanced Analytics',
+      'desc': 'Dive into player projections, performance metrics, and statistical models that reveal hidden value.',
       'route': '/wr-model',
+      'image': 'assets/images/data/moneyBall.jpeg',
     },
     {
       'icon': Icons.paid,
-      'title': 'Betting Analytics',
-      'desc': 'Odds, trends, and historical ATS data.',
+      'title': 'Betting Intelligence',
+      'desc': 'Make smarter bets with historical trends, odds analysis, and proprietary betting models.',
       'route': '/data/historical',
+      'image': null,
+    },
+    {
+      'icon': Icons.calendar_today,
+      'title': 'Game Center',
+      'desc': 'Get matchup insights, odds, and projections for this week\'s games all in one place.',
+      'route': '/data',
+      'image': null,
     },
   ];
 
@@ -94,21 +80,36 @@ class _HomeScreenState extends State<HomeScreen> {
     //   'imageUrl': 'assets/images/blog/draft_analysis_blog.jpg',
     //   'route': '/blog/draft-surprises'
     // },
-    // {
-    //   'title': 'Advanced Metrics for Betting Success',
-    //   'excerpt': 'Leverage cutting-edge analytics to gain an edge in NFL betting markets this season...',
-    //   'date': '2024-04-25',
-    //   'imageUrl': 'assets/images/blog/betting_metrics_blog.jpg',
-    //   'route': '/blog/betting-metrics'
-    // },
-    // {
-    //   'title': 'Breakout Player Projections 2024',
-    //   'excerpt': 'Identifying the players poised for a significant leap in performance in the upcoming season...',
-    //   'date': '2024-04-22',
-    //   'imageUrl': 'assets/images/blog/player_projections_blog.jpg',
-    //   'route': '/blog/breakout-players'
-    // },
   ];
+  
+  @override
+  void initState() {
+    super.initState();
+    _scrollAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    
+    _scrollController.addListener(_onScroll);
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _scrollAnimationController.dispose();
+    super.dispose();
+  }
+  
+  void _onScroll() {
+    // Update animation controller based on scroll position
+    final scrollPosition = _scrollController.position.pixels;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    
+    // Normalize the scroll position to a value between 0 and 1
+    final scrollFraction = (scrollPosition / 500).clamp(0.0, 1.0);
+    _scrollAnimationController.value = scrollFraction;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,10 +130,10 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
-            child:             Material(
+            child: Material(
               elevation: 2,
               borderRadius: BorderRadius.circular(24),
-              shadowColor: ThemeConfig.gold.withOpacity(0.3),
+              shadowColor: ThemeConfig.brightRed.withOpacity(0.3),
               child: ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact(); // Add haptic feedback
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeConfig.darkNavy,
-                  foregroundColor: ThemeConfig.gold,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   shape: RoundedRectangleBorder(
@@ -154,140 +155,304 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: AnimationConfiguration.synchronized(
-        duration: const Duration(milliseconds: 800),
-        child: FadeInAnimation(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-            AnimationConfiguration.staggeredList(
-              position: 0,
-              duration: const Duration(milliseconds: 600),
-              child: SlideAnimation(
-                verticalOffset: 40.0,
-                child: FadeInAnimation(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: ResponsiveLayoutBuilder(
-                      mobile: (context) => Column(
-                        children: [
-                          HomeSlideshow(slides: _slides, isMobile: true),
-                          const SizedBox(height: 24),
-                          StackedToolLinks(tools: _tools),
-                        ],
-                      ),
-                      desktop: (context) => Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
-                          const SizedBox(width: 32),
-                          Expanded(flex: 1, child: StackedToolLinks(tools: _tools)),
-                        ],
-                      ),
+      body: AnimatedBuilder(
+        animation: _scrollAnimationController,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              // Background design element that changes with scroll
+              Positioned(
+                top: -100 + (_scrollAnimationController.value * 50),
+                right: -50,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        ThemeConfig.brightRed.withOpacity(0.2),
+                        ThemeConfig.brightRed.withOpacity(0.0),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ),
-            AnimationConfiguration.staggeredList(
-              position: 1,
-              duration: const Duration(milliseconds: 600),
-              child: SlideAnimation(
-                verticalOffset: 30.0,
-                child: FadeInAnimation(
-                  child: BlogSection(blogPosts: _blogPosts),
+              Positioned(
+                bottom: -150,
+                left: -100,
+                child: Container(
+                  width: 400,
+                  height: 400,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        ThemeConfig.darkNavy.withOpacity(0.2),
+                        ThemeConfig.darkNavy.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-            _buildFooterSignup(context, isDarkMode),
-          ],
-        ),
-          ),
-        ),
+              
+              // Main content
+              SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Hero Section
+                    AnimationConfiguration.synchronized(
+                      duration: const Duration(milliseconds: 800),
+                      child: FadeInAnimation(
+                        child: SlideAnimation(
+                          verticalOffset: 30.0,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                            child: HeroSection(
+                              featuredTools: const [], // Empty since we're not using featured tool chips anymore
+                              onGetStarted: () {
+                                // Scroll to the tools section
+                                Scrollable.ensureVisible(
+                                  _toolsSectionKey.currentContext!,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Feature Section
+                    AnimationConfiguration.synchronized(
+                      duration: const Duration(milliseconds: 800),
+                      child: FadeInAnimation(
+                        child: SlideAnimation(
+                          verticalOffset: 30.0,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildToolsSection(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Stats section
+                    AnimationConfiguration.synchronized(
+                      duration: const Duration(milliseconds: 800),
+                      child: FadeInAnimation(
+                        child: SlideAnimation(
+                          verticalOffset: 30.0,
+                          child: _buildStatsSection(context),
+                        ),
+                      ),
+                    ),
+                    
+                    // Blog Section (if there are blog posts)
+                    if (_blogPosts.isNotEmpty)
+                      AnimationConfiguration.synchronized(
+                        duration: const Duration(milliseconds: 800),
+                        child: FadeInAnimation(
+                          child: SlideAnimation(
+                            verticalOffset: 30.0,
+                            child: BlogSection(blogPosts: _blogPosts),
+                          ),
+                        ),
+                      ),
+                    
+                    // Footer Signup
+                    AnimationConfiguration.synchronized(
+                      duration: const Duration(milliseconds: 800),
+                      child: FadeInAnimation(
+                        child: SlideAnimation(
+                          verticalOffset: 30.0,
+                          child: _buildFooterSignup(context, isDarkMode),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
-    return AnimationConfiguration.staggeredList(
-      position: 0,
-      duration: const Duration(milliseconds: 600),
-      child: SlideAnimation(
-        verticalOffset: 30.0,
-        child: FadeInAnimation(
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDarkMode 
-                  ? [
-                      ThemeConfig.darkNavy.withOpacity(0.3),
-                      ThemeConfig.darkNavy.withOpacity(0.1),
-                    ]
-                  : [
-                      ThemeConfig.gold.withOpacity(0.1),
-                      ThemeConfig.gold.withOpacity(0.05),
-                    ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: ThemeConfig.gold.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Want personalized NFL updates and insights?',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Sign up for full access to all our tools and get the latest insights delivered to your inbox.',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(32),
-                  shadowColor: ThemeConfig.gold.withOpacity(0.4),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact(); // Add haptic feedback
-                      showDialog(context: context, builder: (_) => const AuthDialog());
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ThemeConfig.darkNavy,
-                      foregroundColor: ThemeConfig.gold,
-                      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
-                      textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                    ),
-                    child: const Text('Get Started Now'),
-                  ),
-                ),
+  Widget _buildToolsSection() {
+    return Container(
+      key: _toolsSectionKey,
+      padding: const EdgeInsets.only(top: 40),
+      child: FeatureSection(features: _tools),
+    );
+  }
+  
+  Widget _buildStatsSection(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode 
+            ? [
+                ThemeConfig.darkNavy,
+                ThemeConfig.darkNavy.withOpacity(0.8),
+              ]
+            : [
+                ThemeConfig.brightRed.withOpacity(0.1),
+                ThemeConfig.brightRed.withOpacity(0.05),
               ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'TRUSTED BY SERIOUS FOOTBALL MINDS',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.darkNavy,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 40),
+          ResponsiveLayoutBuilder(
+            mobile: (context) => Column(
+              children: _buildStatItems(context),
+            ),
+            desktop: (context) => Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _buildStatItems(context),
             ),
           ),
+        ],
+      ),
+    );
+  }
+  
+  List<Widget> _buildStatItems(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final stats = [
+      {'number': '300K+', 'label': 'Mock Drafts Run'},
+      {'number': '25K+', 'label': 'Active Users'},
+      {'number': '24/7', 'label': 'Expert Support'},
+    ];
+    
+    return stats.map((stat) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
+          children: [
+            Text(
+              stat['number']!,
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: isDarkMode ? Colors.white : ThemeConfig.darkNavy,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              stat['label']!,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.7),
+              ),
+            ),
+          ],
         ),
+      );
+    }).toList();
+  }
+
+  Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
+    return Container(
+      margin: const EdgeInsets.only(top: 32),
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDarkMode 
+            ? [
+                ThemeConfig.darkNavy.withOpacity(0.3),
+                ThemeConfig.darkNavy.withOpacity(0.1),
+              ]
+            : [
+                ThemeConfig.brightRed.withOpacity(0.1),
+                ThemeConfig.brightRed.withOpacity(0.05),
+              ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border(
+          top: BorderSide(
+            color: isDarkMode
+                ? ThemeConfig.brightRed.withOpacity(0.3)
+                : ThemeConfig.brightRed.withOpacity(0.2),
+            width: 2,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Ready to elevate your football IQ?',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Join our community of data-driven football minds and get full access to all our premium tools.',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(32),
+            shadowColor: ThemeConfig.brightRed.withOpacity(0.4),
+            child: ElevatedButton(
+              onPressed: () {
+                HapticFeedback.lightImpact(); // Add haptic feedback
+                showDialog(context: context, builder: (_) => const AuthDialog());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ThemeConfig.brightRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
+                textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                ),
+              ),
+              child: const Text('Get Started Now'),
+            ),
+          ),
+        ],
       ),
     );
   }

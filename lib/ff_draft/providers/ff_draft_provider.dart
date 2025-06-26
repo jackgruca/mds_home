@@ -6,6 +6,8 @@ import '../models/ff_team.dart';
 import '../models/ff_player.dart';
 import '../models/ff_draft_pick.dart';
 import '../models/ff_platform_ranks.dart';
+import '../../services/fantasy/csv_rankings_service.dart';
+import '../../models/fantasy/player_ranking.dart';
 import 'dart:math';
 
 class _PlayerScore {
@@ -49,52 +51,41 @@ class FFDraftProvider extends ChangeNotifier {
         isUserTeam: index == userTeamIndex,
       ),
     );
-    await _loadPlayersFromCSV();
+    await _loadPlayers();
     draftPicks = _generateDraftPicks();
     notifyListeners();
   }
 
-  Future<void> _loadPlayersFromCSV() async {
+  Future<void> _loadPlayers() async {
     try {
-      final rawData = await rootBundle.loadString('assets/2025/FF_ranks.csv');
-      final List<List<dynamic>> listData = const CsvToListConverter().convert(rawData);
-      if (listData.isEmpty) return;
-      final header = listData.first;
-      final nameIdx = header.indexOf('Name');
-      final posIdx = header.indexOf('Position');
-      final espnIdx = header.indexOf('ESPN Rank');
-      final fpIdx = header.indexOf('FantasyPro Rank');
-      final cbsIdx = header.indexOf('CBS Rank');
-      final consensusIdx = header.indexOf('Consensus');
-      final consensusRankIdx = header.indexOf('Consensus Rank');
+      final rankingsService = CSVRankingsService();
+      final List<PlayerRanking> playerRankings = await rankingsService.fetchRankings();
 
-      availablePlayers = listData.skip(1).where((row) => row.length > consensusRankIdx).map((row) {
-        final name = row[nameIdx].toString();
-        final position = row[posIdx].toString();
-        final espnRank = int.tryParse(row[espnIdx].toString()) ?? 0;
-        final fpRank = int.tryParse(row[fpIdx].toString()) ?? 0;
-        final cbsRank = int.tryParse(row[cbsIdx].toString()) ?? 0;
-        final consensus = double.tryParse(row[consensusIdx].toString()) ?? 0.0;
-        final consensusRank = int.tryParse(row[consensusRankIdx].toString()) ?? 0;
+      availablePlayers = playerRankings.map((ranking) {
         return FFPlayer(
-          id: name,
-          name: name,
-          position: position,
-          team: '',
+          id: ranking.id,
+          name: ranking.name,
+          position: ranking.position,
+          team: ranking.team,
+          byeWeek: ranking.additionalRanks['Bye']?.toString(),
+          rank: ranking.rank,
+          consensusRank: ranking.rank,
           stats: {
-            'espnRank': espnRank,
-            'fpRank': fpRank,
-            'cbsRank': cbsRank,
-            'consensus': consensus,
-            'rank': consensusRank,
+            'rank': ranking.rank,
+            'adp': ranking.additionalRanks['ADP'],
+            'projectedPoints': ranking.additionalRanks['Projected Points'],
+            'auctionValue': ranking.additionalRanks['Auction Value'],
+            ...ranking.additionalRanks,
           },
-          rank: consensusRank,
           platformRanks: {
-            'ESPN': espnRank,
-            'FantasyPro': fpRank,
-            'CBS': cbsRank,
-          },
-          consensusRank: consensusRank,
+            'PFF': ranking.additionalRanks['PFF']?.toInt(),
+            'CBS': ranking.additionalRanks['CBS']?.toInt(),
+            'ESPN': ranking.additionalRanks['ESPN']?.toInt(),
+            'FFToday': ranking.additionalRanks['FFToday']?.toInt(),
+            'FootballGuys': ranking.additionalRanks['FootballGuys']?.toInt(),
+            'Yahoo': ranking.additionalRanks['Yahoo']?.toInt(),
+            'NFL': ranking.additionalRanks['NFL']?.toInt(),
+          }.map((key, value) => MapEntry(key, value ?? 0)),
         );
       }).toList();
 
@@ -103,7 +94,8 @@ class FFDraftProvider extends ChangeNotifier {
         final rankB = b.rank ?? 9999;
         return rankA.compareTo(rankB);
       });
-      debugPrint('Loaded [32m${availablePlayers.length}[0m players from CSV');
+
+      debugPrint('Loaded ${availablePlayers.length} players');
     } catch (e) {
       debugPrint('Error loading players: $e');
       availablePlayers = [];

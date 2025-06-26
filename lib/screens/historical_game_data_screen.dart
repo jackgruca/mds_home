@@ -1069,7 +1069,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                       displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                   sortAscending: _sortAscending,
                   headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-                  headingTextStyle: const TextStyle(color: ThemeConfig.gold, fontWeight: FontWeight.bold, fontSize: 15),
+                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                   dataRowMinHeight: 44,
                   dataRowMaxHeight: 44,
                   showCheckboxColumn: false,

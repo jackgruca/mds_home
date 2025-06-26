@@ -7,6 +7,7 @@ class ThemeConfig {
   static const Color darkNavy = Color(0xFF1A1A2E);
   static const Color gold = Color(0xFFFFD700);
   static const Color deepRed = Color(0xFF8B0000);
+  static const Color brightRed = Color(0xFFCF0A0A); // Brighter red for better visibility as secondary
   static const Color successGreen = Color(0xFF4CAF50);
   
   // Additional supporting colors
@@ -25,12 +26,12 @@ class ThemeConfig {
       // Color Scheme
       colorScheme: const ColorScheme.light(
         primary: darkNavy,
-        secondary: gold,
-        tertiary: deepRed,
+        secondary: brightRed, // Changed from gold to red
+        tertiary: gold, // Gold moved to tertiary (accent)
         surface: white,
         onPrimary: white,
-        onSecondary: darkNavy,
-        onTertiary: white,
+        onSecondary: white, // Changed to white for contrast with red
+        onTertiary: darkNavy,
         onSurface: darkNavy,
         error: deepRed,
         onError: white,
@@ -170,7 +171,7 @@ class ThemeConfig {
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: darkNavy,
+          foregroundColor: brightRed, // Changed from darkNavy to brightRed
           textStyle: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -190,7 +191,7 @@ class ThemeConfig {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: darkNavy, width: 2),
+          borderSide: const BorderSide(color: brightRed, width: 2), // Changed from darkNavy to brightRed
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -208,13 +209,13 @@ class ThemeConfig {
       
       // Color Scheme
       colorScheme: const ColorScheme.dark(
-        primary: gold,
-        secondary: darkNavy,
-        tertiary: deepRed,
+        primary: darkNavy, // Changed from gold to darkNavy
+        secondary: brightRed, // Changed from darkNavy to brightRed
+        tertiary: gold, // Gold as accent
         surface: Color(0xFF2A2A2A),
-        onPrimary: darkNavy,
+        onPrimary: white, // Changed for contrast with darkNavy
         onSecondary: white,
-        onTertiary: white,
+        onTertiary: darkNavy,
         onSurface: white,
         error: deepRed,
         onError: white,
@@ -329,8 +330,8 @@ class ThemeConfig {
       // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: gold,
-          foregroundColor: darkNavy,
+          backgroundColor: brightRed, // Changed from gold to brightRed
+          foregroundColor: white, // Changed for contrast with red
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -345,7 +346,7 @@ class ThemeConfig {
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: gold,
+          foregroundColor: brightRed, // Changed from gold to brightRed
           textStyle: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -365,7 +366,7 @@ class ThemeConfig {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: gold, width: 2),
+          borderSide: const BorderSide(color: brightRed, width: 2), // Changed from gold to brightRed
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

@@ -88,7 +88,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             children: [
               Icon(
                 Icons.lock_reset,
-                color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+                color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -162,7 +162,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           ElevatedButton(
             onPressed: _isSubmitting ? null : _requestReset,
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+              backgroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -184,7 +184,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             style: TextButton.styleFrom(
-              foregroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+              foregroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
             ),
             child: const Text('Back to Sign In'),
           ),

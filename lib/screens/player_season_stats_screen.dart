@@ -1133,7 +1133,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                       displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                   sortAscending: _sortAscending,
                   headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-                  headingTextStyle: const TextStyle(color: ThemeConfig.gold, fontWeight: FontWeight.bold, fontSize: 15),
+                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                   dataRowHeight: 44,
                   showCheckboxColumn: false,
                   border: TableBorder.all(
