@@ -58,6 +58,17 @@ service cloud.firestore {
       allow read: if true;
     }
     
+    // Allow read access to bust evaluation data
+    match /bust_evaluation/{document} {
+      allow read: if true;
+    }
+    match /bust_evaluation_timeline/{document} {
+      allow read: if true;
+    }
+    match /bust_evaluation_context/{document} {
+      allow read: if true;
+    }
+    
     // Allow read access to blog posts
     match /blogPosts/{document} {
       allow read: if true;

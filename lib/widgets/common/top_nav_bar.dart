@@ -93,6 +93,7 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'League Analyzer', route: '/fantasy/league', isPlaceholder: true),
       NavItem(title: 'Historical Comparisons', route: '/fantasy/historical', isPlaceholder: true),
       NavItem(title: 'Player Trends', route: '/fantasy/trends', icon: Icons.show_chart, isPlaceholder: false),
+      NavItem(title: 'Bust or Brilliant?', route: '/fantasy/bust-evaluation', icon: Icons.psychology, isPlaceholder: false),
    ]),
    NavItem(
     title: 'Data Explorer',

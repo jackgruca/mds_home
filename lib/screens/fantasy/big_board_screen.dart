@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
+import '../../utils/theme_aware_colors.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -1042,9 +1043,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           scrollDirection: Axis.horizontal,
           child: AnimationLimiter(
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-              headingTextStyle: const TextStyle(
-                color: Colors.white,
+              headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
+              headingTextStyle: TextStyle(
+                color: ThemeAwareColors.getTableHeaderTextColor(context),
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 letterSpacing: 0.5,
@@ -1201,7 +1202,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                     child: Icon(
                       Icons.close_rounded,
                       size: 16,
-                      color: Colors.white.withOpacity(0.7),
+                      color: ThemeAwareColors.getTableHeaderTextColor(context).withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -1225,9 +1226,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           if (states.contains(WidgetState.hovered)) {
             return ThemeConfig.gold.withOpacity(0.1);
           }
-          return index.isEven 
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3)
-            : null;
+          return ThemeAwareColors.getTableRowColor(context, index);
         }),
         cells: [
           // Rank cell with badge

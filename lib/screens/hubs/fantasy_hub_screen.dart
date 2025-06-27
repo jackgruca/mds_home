@@ -1,72 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:mds_home/widgets/common/custom_app_bar.dart';
-import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:mds_home/models/bust_evaluation.dart';
+import 'package:mds_home/services/bust_evaluation_service.dart';
+import 'package:mds_home/utils/team_logo_utils.dart';
+import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/home/home_slideshow.dart';
-import '../../widgets/home/stacked_tool_links.dart';
-import 'package:collection/collection.dart'; // For firstWhereOrNull
+import '../../widgets/auth/auth_dialog.dart';
+import '../../widgets/design_system/index.dart';
+import 'package:collection/collection.dart';
 
-// Helper function (can be extracted later)
-Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route, {String? desc, IconData? icon}) {
-  if (hub?.subItems == null) return null;
-  final item = hub!.subItems!.firstWhereOrNull((i) => i.route == route);
-  if (item == null) return null;
-  return {
-    'icon': icon ?? item.icon ?? Icons.build_circle_outlined,
-    'title': item.title,
-    'desc': desc ?? 'Access the ${item.title} tool.',
-    'route': item.route,
-    'isPlaceholder': item.isPlaceholder,
-  };
+class FantasyHubScreen extends StatefulWidget {
+  const FantasyHubScreen({super.key});
+
+  @override
+  _FantasyHubScreenState createState() => _FantasyHubScreenState();
 }
 
-// Find the Fantasy Hub NavItem
-final NavItem? _fantasyHubNavItem = topNavItems.firstWhereOrNull((item) => item.route == '/fantasy');
+class _FantasyHubScreenState extends State<FantasyHubScreen> {
+  Future<Map<String, BustEvaluationPlayer?>>? _featuredPlayersFuture;
 
-// Define the curated list of tools for Fantasy Hub preview
-final List<Map<String, dynamic>> _previewTools = [
-  _findAndFormatTool(_fantasyHubNavItem, '/draft/fantasy', desc: 'Practice your fantasy draft strategy.', icon: Icons.sports_football), // Fantasy Draft Simulator
-  _findAndFormatTool(_fantasyHubNavItem, '/projections', desc: 'View rest-of-season player projections.', icon: Icons.trending_up), // RoS Projections
-  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/rankings', desc: 'Customize player rankings and big boards.', icon: Icons.leaderboard), // Player Rankings*
-  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/trends', desc: 'Analyze recent player performance shifts.', icon: Icons.show_chart),
-  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/trade', desc: 'Analyze potential fantasy trades.', icon: Icons.swap_horiz), // Trade Analyzer*
-  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/waiver', desc: 'Get waiver wire recommendations.', icon: Icons.pan_tool), // Waiver Wire Assistant*
-  _findAndFormatTool(_fantasyHubNavItem, '/fantasy/start-sit', desc: 'Optimize your weekly lineup decisions.', icon: Icons.check_circle_outline), // Start/Sit Optimizer*
-].whereNotNull().toList();
+  @override
+  void initState() {
+    super.initState();
+    _featuredPlayersFuture = _loadFeaturedPlayers();
+  }
 
-class FantasyHubScreen extends StatelessWidget {
-  // Removed const
-  FantasyHubScreen({super.key});
+  Future<Map<String, BustEvaluationPlayer?>> _loadFeaturedPlayers() async {
+    try {
+      // Ensure data is cached before trying to access it
+      await BustEvaluationService.getAllPlayers();
+      
+      // Get random controversial/interesting players instead of static top performers
+      final controversialPlayers = await BustEvaluationService.getRandomControversialPlayers();
+      
+      // Filter for different positions to show variety
+      final randomWr = controversialPlayers.where((p) => p.position == 'WR').take(1).firstOrNull;
+      final randomQb = controversialPlayers.where((p) => p.position == 'QB').take(1).firstOrNull;
+      final randomRb = controversialPlayers.where((p) => p.position == 'RB').take(1).firstOrNull;
+      
+      // Fallback to any controversial player if position-specific ones aren't available
+      final randomPlayer1 = randomWr ?? controversialPlayers.take(1).firstOrNull;
+      final randomPlayer2 = randomQb ?? randomRb ?? controversialPlayers.skip(1).take(1).firstOrNull;
+      
+      return {'randomPlayer1': randomPlayer1, 'randomPlayer2': randomPlayer2};
+    } catch (e) {
+      print("Error loading featured players: $e");
+      // In case of error, return a map with null values to avoid crashing the UI
+      return {'randomPlayer1': null, 'randomPlayer2': null};
+    }
+  }
 
-  // Placeholder slide data (replace with actual Fantasy Hub relevant slides)
-  final List<Map<String, String>> _slides = [
-    {
-      'title': 'Dominate Your Fantasy League',
-      'desc': 'Draft better, trade smarter, and set winning lineups.',
-      'image': 'assets/images/placeholder/fantasy_hub_slide_1.png', // Placeholder
-      'route': '/fantasy/rankings',
-    },
-    {
-      'title': 'Ace Your Fantasy Draft',
-      'desc': 'Prepare with mock drafts, rankings, and strategy tools.',
-      'image': 'assets/images/FF/shiva.png', // Use FF shiva image
-      'route': '/draft/fantasy',
-    },
-     {
-      'title': 'In-Season Management Tools',
-      'desc': 'Optimize trades, waivers, and start/sit decisions weekly.',
-      'image': 'assets/images/placeholder/fantasy_hub_slide_3.png', // Placeholder
-      'route': '/fantasy/trade',
-    },
-  ];
-
- @override
+  @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
     final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -94,67 +82,350 @@ class FantasyHubScreen extends StatelessWidget {
         ],
       ),
       drawer: const AppDrawer(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: ResponsiveLayoutBuilder(
-                mobile: (context) => Column(
-                  children: [
-                    HomeSlideshow(slides: _slides, isMobile: true),
-                    const SizedBox(height: 24),
-                    // Use the curated preview tools list
-                    StackedToolLinks(tools: _previewTools),
-                  ],
-                ),
-                desktop: (context) => Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
-                    const SizedBox(width: 32),
-                    // Use the curated preview tools list
-                    Expanded(flex: 1, child: StackedToolLinks(tools: _previewTools)),
-                  ],
-                ),
-              ),
+      body: FutureBuilder<Map<String, BustEvaluationPlayer?>>(
+        future: _featuredPlayersFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+           if (snapshot.hasError || !snapshot.hasData) {
+            return const Center(child: Text('Could not load featured players.'));
+          }
+
+          final randomPlayer1 = snapshot.data?['randomPlayer1'];
+          final randomPlayer2 = snapshot.data?['randomPlayer2'];
+
+          return AnimationLimiter(
+            child: CustomScrollView(
+              slivers: [
+                _Header(),
+                _FeaturedToolCard(),
+                _DynamicPlayersSection(topWr: randomPlayer1, biggestBust: randomPlayer2),
+                _ToolGrid(),
+              ],
             ),
-            _buildFooterSignup(context, isDarkMode), // Use the footer
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.all(24.0),
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Fantasy Hub',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your command center for dominating your fantasy league.',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  // Footer Signup Widget (Adjust text for Fantasy Hub)
-  Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      color: isDarkMode ? Theme.of(context).colorScheme.surface.withOpacity(0.1) : Colors.blue.shade50,
-      child: Column(
-        children: [
-          Text(
-            'Ready for fantasy glory?',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onSurface),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 15),
-          Text(
-            'Sign up for full access to Fantasy Hub tools and crush your league.',
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 25),
-          ElevatedButton(
-            onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              textStyle: Theme.of(context).textTheme.titleMedium,
+class _FeaturedToolCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      sliver: SliverToBoxAdapter(
+        child: AnimationConfiguration.staggeredList(
+          position: 0,
+          duration: const Duration(milliseconds: 375),
+          child: SlideAnimation(
+            verticalOffset: 50.0,
+            child: FadeInAnimation(
+              child: MdsCard(
+                type: MdsCardType.feature,
+                onTap: () => Navigator.of(context).pushNamed('/fantasy/bust-evaluation'),
+                gradientColors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                ],
+                child: SizedBox(
+                  height: 160,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Icon(Icons.psychology, color: Colors.white, size: 32),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bust or Brilliant?',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Evaluate players against their draft-day expectations.',
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                      const Row(
+                        children: [
+                          Text('Explore the Tool', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: const Text('Unlock Fantasy Hub'),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DynamicPlayersSection extends StatelessWidget {
+  final BustEvaluationPlayer? topWr;
+  final BustEvaluationPlayer? biggestBust;
+
+  const _DynamicPlayersSection({
+    required this.topWr,
+    required this.biggestBust,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Daily Discoveries',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (topWr != null)
+                  Expanded(
+                    child: _DynamicPlayerCard(
+                      player: topWr!,
+                      title: 'Random Spotlight',
+                      subtitle: 'Fresh insights daily',
+                      gradientColors: [Colors.blue.shade600, Colors.purple.shade600],
+                    ),
+                  ),
+                if (topWr != null && biggestBust != null) const SizedBox(width: 16),
+                if (biggestBust != null)
+                  Expanded(
+                    child: _DynamicPlayerCard(
+                      player: biggestBust!,
+                      title: 'Wild Card Pick',
+                      subtitle: 'Controversial choice',
+                      gradientColors: [Colors.orange.shade600, Colors.red.shade600],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DynamicPlayerCard extends StatelessWidget {
+  final BustEvaluationPlayer player;
+  final String title;
+  final String subtitle;
+  final List<Color> gradientColors;
+
+  const _DynamicPlayerCard({
+    required this.player,
+    required this.title,
+    required this.subtitle,
+    required this.gradientColors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimationConfiguration.staggeredGrid(
+        position: 0,
+        duration: const Duration(milliseconds: 375),
+        columnCount: 2,
+        child: ScaleAnimation(
+          child: FadeInAnimation(
+            child: MdsPlayerCard(
+              type: MdsPlayerCardType.featured,
+              playerName: player.playerName,
+              team: player.team,
+              position: player.position,
+              teamColor: gradientColors[0],
+              primaryStat: 'Performance Score',
+              primaryStatValue: player.performanceScore != null 
+                ? '${(player.performanceScore! * 100).toStringAsFixed(0)}%'
+                : 'N/A',
+              secondaryStat: 'Category',
+              secondaryStatValue: player.bustCategory,
+              showBadge: true,
+              badgeText: title,
+              badgeColor: gradientColors[0],
+              onTap: () {
+                Navigator.of(context).pushNamed(
+                  '/fantasy/bust-evaluation',
+                  arguments: player,
+                );
+              },
+            ),
+          ),
+        ));
+  }
+}
+
+class _ToolGrid extends StatelessWidget {
+  static final List<Map<String, dynamic>> _tools = [
+    {
+      'icon': Icons.psychology,
+      'title': 'Bust or Brilliant?',
+      'subtitle': 'Draft pick evaluations',
+      'route': '/fantasy/bust-evaluation',
+    },
+    {
+      'icon': Icons.leaderboard,
+      'title': 'Big Board',
+      'subtitle': 'Player rankings & tiers',
+      'route': '/fantasy/big-board',
+    },
+    {
+      'icon': Icons.compare,
+      'title': 'Player Comparison',
+      'subtitle': 'Head-to-head analysis',
+      'route': '/fantasy/player-comparison',
+    },
+    {
+      'icon': Icons.trending_up,
+      'title': 'Player Trends',
+      'subtitle': 'Performance analytics',
+      'route': '/fantasy/trends',
+    },
+    {
+      'icon': Icons.sports_football,
+      'title': 'Mock Draft',
+      'subtitle': 'Fantasy draft simulator',
+      'route': '/ff-draft',
+    },
+    {
+      'icon': Icons.assessment,
+      'title': 'Draft Setup',
+      'subtitle': 'Configure your league',
+      'route': '/ff-draft/setup',
+    },
+    {
+      'icon': Icons.analytics,
+      'title': 'Player Stats',
+      'subtitle': 'Season-by-season data',
+      'route': '/player-season-stats',
+    },
+    {
+      'icon': Icons.groups,
+      'title': 'NFL Rosters',
+      'subtitle': 'Team depth charts',
+      'route': '/nfl-rosters',
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      sliver: SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Fantasy Tools',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 16.0,
+                crossAxisSpacing: 16.0,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: _tools.length,
+              itemBuilder: (context, index) {
+                final tool = _tools[index];
+                return AnimationConfiguration.staggeredGrid(
+                  position: index,
+                  duration: const Duration(milliseconds: 375),
+                  columnCount: 2,
+                  child: ScaleAnimation(
+                    child: FadeInAnimation(
+                      child: MdsCard(
+                        type: MdsCardType.elevated,
+                        onTap: () => Navigator.pushNamed(context, tool['route'] as String),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              tool['icon'] as IconData,
+                              size: 32,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              tool['title'] as String,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              tool['subtitle'] as String,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

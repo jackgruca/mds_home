@@ -8,6 +8,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart'; // Added for theme colors
+import '../../utils/theme_aware_colors.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -446,10 +447,10 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: ThemeAwareColors.getSurfaceColor(context),
                     border: Border(
                       bottom: BorderSide(
-                        color: Colors.grey.shade300,
+                        color: ThemeAwareColors.getDividerColor(context),
                         width: 1,
                       ),
                     ),
@@ -461,10 +462,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Season',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                border: const OutlineInputBorder(),
+                                fillColor: ThemeAwareColors.getInputFillColor(context),
+                                filled: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               ),
                               value: _selectedSeason,
                               items: _seasonOptions.map((season) => DropdownMenuItem(
@@ -481,10 +484,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'Tier Filter',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                border: const OutlineInputBorder(),
+                                fillColor: ThemeAwareColors.getInputFillColor(context),
+                                filled: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               ),
                               value: _selectedTier,
                               items: _tierOptions.map((tier) => DropdownMenuItem(
@@ -537,7 +542,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: DropdownButtonFormField<String>(
-                                        decoration: const InputDecoration(labelText: 'Field', border: OutlineInputBorder()),
+                                        decoration: InputDecoration(
+                                          labelText: 'Field', 
+                                          border: const OutlineInputBorder(),
+                                          fillColor: ThemeAwareColors.getInputFillColor(context),
+                                          filled: true,
+                                        ),
                                         items: _allFields.map((field) => DropdownMenuItem(value: field, child: Text(_formatFieldName(field)))).toList(),
                                         onChanged: (value) => setState(() => _newQueryField = value),
                                       ),
@@ -546,7 +556,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: DropdownButtonFormField<QueryOperator>(
-                                        decoration: const InputDecoration(labelText: 'Operator', border: OutlineInputBorder()),
+                                        decoration: InputDecoration(
+                                          labelText: 'Operator', 
+                                          border: const OutlineInputBorder(),
+                                          fillColor: ThemeAwareColors.getInputFillColor(context),
+                                          filled: true,
+                                        ),
                                         items: _allOperators.map((op) => DropdownMenuItem(value: op, child: Text(queryOperatorToString(op)))).toList(),
                                         onChanged: (value) => setState(() => _newQueryOperator = value),
                                       ),
@@ -556,7 +571,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                                       flex: 3,
                                       child: TextField(
                                         controller: _newQueryValueController,
-                                        decoration: const InputDecoration(labelText: 'Value', border: OutlineInputBorder()),
+                                        decoration: InputDecoration(
+                                          labelText: 'Value', 
+                                          border: const OutlineInputBorder(),
+                                          fillColor: ThemeAwareColors.getInputFillColor(context),
+                                          filled: true,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -617,9 +637,9 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                                     child: DataTable(
                                       sortColumnIndex: _getSortColumnIndex(),
                                       sortAscending: _sortAscending,
-                                      headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-                                      headingTextStyle: const TextStyle(
-                                        color: Colors.white,
+                                      headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
+                                      headingTextStyle: TextStyle(
+                                        color: ThemeAwareColors.getTableHeaderTextColor(context),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
                                       ),
@@ -627,7 +647,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
                                       dataRowMaxHeight: 44,
                                       showCheckboxColumn: false,
                                       border: TableBorder.all(
-                                        color: Colors.grey.shade300,
+                                        color: ThemeAwareColors.getDividerColor(context),
                                         width: 0.5,
                                       ),
                                       columns: _buildDataColumns(),

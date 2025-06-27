@@ -6,6 +6,7 @@ import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
+import 'package:mds_home/utils/theme_aware_colors.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -1017,7 +1018,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                 _rawRows.isEmpty
                     ? ''
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords games.',
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context), fontSize: 13),
               ),
               Row(
                 children: [
@@ -1052,11 +1053,11 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.all(8.0),
               child: Theme(
-                data: Theme.of(context).copyWith(
-                  dataTableTheme: const DataTableThemeData(
-                    headingRowColor: WidgetStatePropertyAll(ThemeConfig.darkNavy),
+                                  data: Theme.of(context).copyWith(
+                    dataTableTheme: DataTableThemeData(
+                                       headingRowColor: WidgetStatePropertyAll(ThemeAwareColors.getTableHeaderColor(context)),
                     headingTextStyle: TextStyle(
-                      color: Colors.white,
+                     color: ThemeAwareColors.getTableHeaderTextColor(context),
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -1068,13 +1069,13 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                   sortColumnIndex:
                       displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                   sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
+                  headingTextStyle: TextStyle(color: ThemeAwareColors.getTableHeaderTextColor(context), fontWeight: FontWeight.bold, fontSize: 15),
                   dataRowMinHeight: 44,
                   dataRowMaxHeight: 44,
                   showCheckboxColumn: false,
                   border: TableBorder.all(
-                    color: Colors.grey.shade300,
+                    color: ThemeAwareColors.getDividerColor(context),
                     width: 0.5,
                   ),
                   columns: displayFields.map((header) {
@@ -1096,7 +1097,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                     final int rowIndex = entry.key;
                     final Map<String, dynamic> row = entry.value;
                     return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>((states) => rowIndex.isEven ? Colors.grey.shade100 : Colors.white),
+                      color: WidgetStateProperty.resolveWith<Color?>((states) => ThemeAwareColors.getTableRowColor(context, rowIndex)),
                       cells: displayFields.map((header) {
                         final value = row[header];
                         String displayValue;

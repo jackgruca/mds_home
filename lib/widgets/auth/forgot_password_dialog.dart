@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme_config.dart';
+import '../design_system/mds_button.dart';
 import 'reset_password_dialog.dart';
 
 class ForgotPasswordDialog extends StatefulWidget {
@@ -159,34 +160,19 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           const SizedBox(height: 24),
           
           // Submit button
-          ElevatedButton(
+          MdsButton(
             onPressed: _isSubmitting ? null : _requestReset,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Send Reset Instructions'),
+            text: 'Send Reset Instructions',
+            isLoading: _isSubmitting,
           ),
           
           const SizedBox(height: 16),
           
           // Back to sign in
-          TextButton(
+          MdsButton(
             onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
-            ),
-            child: const Text('Back to Sign In'),
+            text: 'Back to Sign In',
+            type: MdsButtonType.text,
           ),
         ],
       ),
@@ -216,17 +202,15 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        ElevatedButton(
+        MdsButton(
           onPressed: _proceedToReset,
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          child: const Text('Enter Reset Code'),
+          text: 'Enter Reset Code',
         ),
         const SizedBox(height: 8),
-        TextButton(
+        MdsButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          text: 'Close',
+          type: MdsButtonType.text,
         ),
       ],
     );

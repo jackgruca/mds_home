@@ -6,6 +6,7 @@ import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
+import 'package:mds_home/utils/theme_aware_colors.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -930,8 +931,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                         child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Text(_error!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 16),
+                                                          style: TextStyle(
+                                 color: ThemeAwareColors.getErrorColor(context), fontSize: 16),
                             textAlign: TextAlign.center),
                       ))
                     : _buildDataTable(),
@@ -1043,13 +1044,13 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
-                Icon(Icons.filter_list, size: 16, color: Colors.grey.shade600),
+                Icon(Icons.filter_list, size: 16, color: ThemeAwareColors.getSecondaryTextColor(context)),
                 const SizedBox(width: 8),
                 Text(
                   _showAllPositionsInTab 
                     ? 'Showing: ${_selectedPosition == 'All' ? 'All Positions' : '$_selectedPosition Only'}'
                     : 'Showing: ${_getPositionDisplayText()} Only',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
                 ),
                 const SizedBox(width: 12),
                 Switch(
@@ -1065,7 +1066,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Show All Positions',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
                 ),
               ],
             ),
@@ -1081,7 +1082,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                 _rawRows.isEmpty
                     ? '' // Show nothing if no data for pagination info
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context), fontSize: 13),
               ),
               Row(
                 children: [
@@ -1117,10 +1118,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Theme(
                 data: Theme.of(context).copyWith(
-                  dataTableTheme: const DataTableThemeData(
-                    headingRowColor: WidgetStatePropertyAll(ThemeConfig.darkNavy),
+                  dataTableTheme: DataTableThemeData(
+                    headingRowColor: WidgetStatePropertyAll(ThemeAwareColors.getTableHeaderColor(context)),
                     headingTextStyle: TextStyle(
-                      color: Colors.white,
+                      color: ThemeAwareColors.getTableHeaderTextColor(context),
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -1132,12 +1133,12 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                   sortColumnIndex:
                       displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
                   sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-                  headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
+                  headingTextStyle: TextStyle(color: ThemeAwareColors.getTableHeaderTextColor(context), fontWeight: FontWeight.bold, fontSize: 15),
                   dataRowHeight: 44,
                   showCheckboxColumn: false,
                   border: TableBorder.all(
-                    color: Colors.grey.shade300,
+                    color: ThemeAwareColors.getDividerColor(context),
                     width: 0.5,
                   ),
                   columns: displayFields.map((header) {
@@ -1159,7 +1160,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                     final int rowIndex = entry.key;
                     final Map<String, dynamic> row = entry.value;
                     return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>((states) => rowIndex.isEven ? Colors.grey.shade100 : Colors.white),
+                      color: WidgetStateProperty.resolveWith<Color?>((states) => ThemeAwareColors.getTableRowColor(context, rowIndex)),
                       cells: displayFields.map((header) {
                         final value = row[header];
                         String displayValue;
