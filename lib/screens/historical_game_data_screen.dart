@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/utils/theme_aware_colors.dart';
+import 'package:mds_home/widgets/design_system/mds_table.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -272,9 +273,6 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
 
   // Helper to determine field type for query input
   String getFieldType(String field) {
-    const Set<String> doubleFields = {
-      'temp', 'wind'
-    };
     const Set<String> intFields = {
       'season', 'week', 'away_score', 'home_score', 'total_points', 'point_differential',
       'result', 'away_rest', 'home_rest', 'rest_advantage', 'prime_time',
@@ -939,7 +937,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                                 ? const Center(
                                     child: Text('No data available'),
                                   )
-                                : _buildStyledDataTable(),
+                                : _buildMdsTable(),
                   ),
                 ],
               ),
@@ -950,7 +948,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     );
   }
 
-  Widget _buildStyledDataTable() {
+  Widget _buildMdsTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
       return const Center(
           child: Text('No data found. Try adjusting your filters.',
@@ -972,28 +970,6 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
         }
       }
     }
-    
-    // Calculate percentiles for numeric columns
-    final Map<String, Map<num, double>> columnPercentiles = {};
-    for (final column in numericShadingColumns) {
-      final List<num> values = _rawRows
-          .map((row) => row[column])
-          .whereType<num>()
-          .toList();
-      
-      if (values.isNotEmpty) {
-        values.sort();
-        columnPercentiles[column] = {};
-        for (final row in _rawRows) {
-          final value = row[column];
-          if (value is num && columnPercentiles[column]![value] == null) {
-            final rank = values.where((v) => v < value).length;
-            final count = values.where((v) => v == value).length;
-            columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
-          }
-        }
-      }
-    }
 
     final List<String> displayFields = _selectedFields
         .where((field) => _headers.contains(field))
@@ -1006,8 +982,6 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
 
     return Column(
       children: [
-        // Category Tabs (already implemented above)
-        
         // Add row with action buttons and pagination info
         Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
@@ -1047,108 +1021,52 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
         ),
         
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(8.0),
-              child: Theme(
-                                  data: Theme.of(context).copyWith(
-                    dataTableTheme: DataTableThemeData(
-                                       headingRowColor: WidgetStatePropertyAll(ThemeAwareColors.getTableHeaderColor(context)),
-                    headingTextStyle: TextStyle(
-                     color: ThemeAwareColors.getTableHeaderTextColor(context),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    columnSpacing: 8,
-                    horizontalMargin: 8,
-                  ),
-                ),
-                child: DataTable(
-                  sortColumnIndex:
-                      displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
-                  sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
-                  headingTextStyle: TextStyle(color: ThemeAwareColors.getTableHeaderTextColor(context), fontWeight: FontWeight.bold, fontSize: 15),
-                  dataRowMinHeight: 44,
-                  dataRowMaxHeight: 44,
-                  showCheckboxColumn: false,
-                  border: TableBorder.all(
-                    color: ThemeAwareColors.getDividerColor(context),
-                    width: 0.5,
-                  ),
-                  columns: displayFields.map((header) {
-                    return DataColumn(
-                      label: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                        child: Text(_formatHeaderName(header))
+          child: MdsTable(
+            style: MdsTableStyle.premium,
+            density: MdsTableDensity.comfortable,
+            columns: displayFields.map((header) {
+              final isNumeric = _rawRows.isNotEmpty && 
+                  _rawRows.any((row) => row[header] != null && row[header] is num);
+              final isTeamColumn = header == 'home_team' || header == 'away_team';
+              
+              return MdsTableColumn(
+                key: header,
+                label: _formatHeaderName(header),
+                numeric: isNumeric,
+                enablePercentileShading: numericShadingColumns.contains(header),
+                isDoubleField: doubleFields.contains(header),
+                cellBuilder: isTeamColumn ? (value, index, percentile) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TeamLogoUtils.buildNFLTeamLogo(
+                        value.toString(),
+                        size: 24.0,
                       ),
-                      onSort: (columnIndex, ascending) {
-                        setState(() {
-                          _sortColumn = displayFields[columnIndex];
-                          _sortAscending = ascending;
-                          _applyFiltersAndFetch();
-                        });
-                      },
-                    );
-                  }).toList(),
-                  rows: _rawRows.asMap().entries.map((entry) {
-                    final int rowIndex = entry.key;
-                    final Map<String, dynamic> row = entry.value;
-                    return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>((states) => ThemeAwareColors.getTableRowColor(context, rowIndex)),
-                      cells: displayFields.map((header) {
-                        final value = row[header];
-                        String displayValue;
-                        Color? cellBackgroundColor;
-  
-                        if (value == null) {
-                          displayValue = 'N/A';
-                        } else if (value is num && numericShadingColumns.contains(header)) {
-                          final percentile = columnPercentiles[header]?[value];
-                          if (percentile != null) {
-                            cellBackgroundColor = Color.fromRGBO(
-                              100, 140, 240, 0.1 + (percentile * 0.85)
-                            );
-                          }
-                          if (doubleFields.contains(header)) {
-                            displayValue = value.toStringAsFixed(2);
-                          } else {
-                            displayValue = value.toInt().toString();
-                          }
-                        } else {
-                          displayValue = value.toString();
-                        }
-  
-                        return DataCell(
-                          Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            color: cellBackgroundColor,
-                            alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: (header == 'home_team' || header == 'away_team')
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TeamLogoUtils.buildNFLTeamLogo(
-                                        value.toString(),
-                                        size: 24.0,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(displayValue),
-                                    ],
-                                  )
-                                : Text(displayValue),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
+                      const SizedBox(width: 8),
+                      Text(value.toString()),
+                    ],
+                  );
+                } : null,
+              );
+            }).toList(),
+            rows: _rawRows.asMap().entries.map((entry) {
+              final int rowIndex = entry.key;
+              final Map<String, dynamic> row = entry.value;
+              return MdsTableRow(
+                id: row['game_id']?.toString() ?? rowIndex.toString(),
+                data: row,
+              );
+            }).toList(),
+            sortColumn: _sortColumn,
+            sortAscending: _sortAscending,
+            onSort: (column, ascending) {
+              setState(() {
+                _sortColumn = column;
+                _sortAscending = ascending;
+                _applyFiltersAndFetch();
+              });
+            },
           ),
         ),
         

@@ -8,4 +8,5 @@ export 'mds_player_card.dart';
 export 'mds_loading.dart';
 export 'mds_input.dart';
 export 'mds_search_bar.dart';
-export 'mds_filter_chip.dart'; 
+export 'mds_filter_chip.dart';
+export 'mds_table.dart'; 
