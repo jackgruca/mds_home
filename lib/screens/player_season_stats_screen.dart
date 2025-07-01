@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/utils/theme_aware_colors.dart';
+import 'package:mds_home/widgets/design_system/mds_table.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -392,6 +393,12 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
   }
 
   Future<void> _fetchDataFromFirebase() async {
+    // DEBUG LOGGING - Track data fetching state
+    print('🔍 [DEBUG] _fetchDataFromFirebase called');
+    print('🔍 [DEBUG] Current stat category: $_selectedStatCategory');
+    print('🔍 [DEBUG] Show all positions in tab: $_showAllPositionsInTab');
+    print('🔍 [DEBUG] Selected position: $_selectedPosition');
+    
     // Check if the requested page is already preloaded
     if (_preloadedPages.containsKey(_currentPage)) {
       print('[Preload] Using preloaded data for page $_currentPage');
@@ -418,14 +425,24 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     
     // Intelligent position filtering
     String effectivePositionFilter = _getEffectivePositionFilter();
+    bool shouldIncludeTE = _shouldIncludeTE();
+    
+    // DEBUG LOGGING - Track position filtering logic
+    print('🔍 [DEBUG] Effective position filter: $effectivePositionFilter');
+    print('🔍 [DEBUG] Should include TE: $shouldIncludeTE');
+    
     if (effectivePositionFilter != 'All') {
-      if (_shouldIncludeTE()) {
-        // For WR/TE Stats tab, include both WR and TE
-        filtersForFunction['position_in'] = ['WR', 'TE'];
+      if (shouldIncludeTE) {
+        // For WR/TE Stats tab, don't add position filter - we'll filter client-side
+        // This avoids Firebase index issues with position_in arrays
+        print('🔍 [DEBUG] WR/TE Stats: No position filter added, will filter client-side');
       } else {
         filtersForFunction['position'] = effectivePositionFilter;
+        print('🔍 [DEBUG] Added position filter: $effectivePositionFilter');
       }
     }
+    
+    print('🔍 [DEBUG] Final filters for Firebase: $filtersForFunction');
 
     final dynamic currentCursor =
         _currentPage > 0 ? _pageCursors[_currentPage] : null;
@@ -444,10 +461,39 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       if (mounted) {
         setState(() {
           final List<dynamic> data = result.data['data'] ?? [];
-          _rawRows =
-              data.map((item) => Map<String, dynamic>.from(item)).toList();
+          List<Map<String, dynamic>> allRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
+          
+          // Client-side filtering for WR/TE Stats tab
+          if (_shouldIncludeTE() && _selectedStatCategory == 'WR/TE Stats') {
+            _rawRows = allRows.where((row) => 
+              row['position'] == 'WR' || row['position'] == 'TE'
+            ).toList();
+            print('🔍 [DEBUG] Client-side filtered WR/TE: ${_rawRows.length} rows from ${allRows.length} total');
+          } else {
+            _rawRows = allRows;
+          }
+          
           _totalRecords = result.data['totalRecords'] ?? 0;
           _nextCursor = result.data['nextCursor'];
+
+          // DEBUG LOGGING - Track Firebase response
+          print('🔍 [DEBUG] Firebase response received');
+          print('🔍 [DEBUG] Total records from Firebase: $_totalRecords');
+          print('🔍 [DEBUG] All rows count: ${allRows.length}');
+          print('🔍 [DEBUG] Final filtered rows count: ${_rawRows.length}');
+          if (_rawRows.isNotEmpty) {
+            print('🔍 [DEBUG] First row keys: ${_rawRows.first.keys.toList()}');
+            print('🔍 [DEBUG] First row player: ${_rawRows.first['player_name']}');
+            print('🔍 [DEBUG] First row position: ${_rawRows.first['position']}');
+          } else {
+            print('🔍 [DEBUG] No rows after filtering!');
+            
+            // DIAGNOSTIC: If we're looking for WR/TE and got no results, let's check what positions exist
+            if (_selectedStatCategory == 'WR/TE Stats') {
+              print('🔍 [DEBUG] DIAGNOSTIC: WR/TE query returned 0 results. Let\'s check what positions exist...');
+              _runPositionDiagnostic();
+            }
+          }
 
           if (_rawRows.isNotEmpty) {
             _headers = _rawRows.first.keys.toList();
@@ -529,8 +575,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     String effectivePositionFilter = _getEffectivePositionFilter();
     if (effectivePositionFilter != 'All') {
       if (_shouldIncludeTE()) {
-        // For WR/TE Stats tab, include both WR and TE
-        filtersForFunction['position_in'] = ['WR', 'TE'];
+        // For WR/TE Stats tab, don't add position filter - we'll filter client-side
+        // This avoids Firebase index issues with position_in arrays
       } else {
         filtersForFunction['position'] = effectivePositionFilter;
       }
@@ -563,8 +609,16 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
         if (data.isNotEmpty) {
           if (mounted) {
-            _preloadedPages[preloadPageIndex] =
-                data.map((item) => Map<String, dynamic>.from(item)).toList();
+            List<Map<String, dynamic>> allRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
+            
+            // Apply same client-side filtering for preloaded data
+            if (_shouldIncludeTE() && _selectedStatCategory == 'WR/TE Stats') {
+              allRows = allRows.where((row) => 
+                row['position'] == 'WR' || row['position'] == 'TE'
+              ).toList();
+            }
+            
+            _preloadedPages[preloadPageIndex] = allRows;
             _preloadedCursors[preloadPageIndex] = receivedNextCursor;
           }
         }
@@ -584,6 +638,37 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
     _preloadedPages.clear();
     _preloadedCursors.clear();
     _fetchDataFromFirebase();
+  }
+
+  Future<void> _runPositionDiagnostic() async {
+    try {
+      print('🔍 [DEBUG] DIAGNOSTIC: Running position diagnostic...');
+      final HttpsCallable callable = functions.httpsCallable('getPlayerSeasonStats');
+      final result = await callable.call<Map<String, dynamic>>({
+        'filters': {}, // No filters to get all positions
+        'limit': 100, // Get a sample
+        'orderBy': 'player_name',
+        'orderDirection': 'asc',
+      });
+
+      final List<dynamic> data = result.data['data'] ?? [];
+      if (data.isNotEmpty) {
+        final positions = data.map((item) => item['position']).toSet().toList();
+        print('🔍 [DEBUG] DIAGNOSTIC: Available positions in database: $positions');
+        print('🔍 [DEBUG] DIAGNOSTIC: Total sample records: ${data.length}');
+        print('🔍 [DEBUG] DIAGNOSTIC: Sample players: ${data.take(10).map((p) => '${p['player_name']} (${p['position']})').toList()}');
+        
+        // Check if WR/TE exist with different naming
+        final wrLikePositions = positions.where((p) => p.toString().toLowerCase().contains('w')).toList();
+        final teLikePositions = positions.where((p) => p.toString().toLowerCase().contains('t')).toList();
+        print('🔍 [DEBUG] DIAGNOSTIC: WR-like positions: $wrLikePositions');
+        print('🔍 [DEBUG] DIAGNOSTIC: TE-like positions: $teLikePositions');
+      } else {
+        print('🔍 [DEBUG] DIAGNOSTIC: No data returned even with no filters!');
+      }
+    } catch (e) {
+      print('🔍 [DEBUG] DIAGNOSTIC: Error running diagnostic: $e');
+    }
   }
 
   void _addQueryCondition() {
@@ -944,53 +1029,44 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
 
   Widget _buildDataTable() {
     if (_rawRows.isEmpty && !_isLoading && _error == null) {
+      // DEBUG LOGGING - Track when "no data found" message is shown
+      print('🔍 [DEBUG] Showing "No data found" message');
+      print('🔍 [DEBUG] - _rawRows.isEmpty: ${_rawRows.isEmpty}');
+      print('🔍 [DEBUG] - _isLoading: $_isLoading');
+      print('🔍 [DEBUG] - _error: $_error');
+      print('🔍 [DEBUG] - Current stat category: $_selectedStatCategory');
+      
       return const Center(
           child: Text('No data found. Try adjusting your filters.',
               style: TextStyle(fontSize: 16)));
     }
 
-    // Determine numeric columns for shading dynamically based on visible data
-    final List<String> numericShadingColumns = [];
-    if (_rawRows.isNotEmpty) {
-      for (final field in _rawRows.first.keys) {
-        if (field != 'player_id' && field != 'player_name' && field != 'position' && field != 'recent_team' && field != 'season' &&
-            _rawRows.any((row) => row[field] != null && row[field] is num)) {
-          numericShadingColumns.add(field);
-        }
-      }
-    }
-    
-    // Calculate percentiles
-    final Map<String, Map<num, double>> columnPercentiles = {};
-    for (final column in numericShadingColumns) {
-      final List<num> values = _rawRows
-          .map((row) => row[column])
-          .whereType<num>()
-          .toList();
-      
-      if (values.isNotEmpty) {
-        values.sort();
-        columnPercentiles[column] = {};
-        for (final row in _rawRows) {
-          final value = row[column];
-          if (value is num && columnPercentiles[column]![value] == null) {
-            final rank = values.where((v) => v < value).length;
-            final count = values.where((v) => v == value).length;
-            columnPercentiles[column]![value] = (rank + 0.5 * count) / values.length;
-          }
-        }
-      }
-    }
+    // MdsTable handles percentile calculations automatically
 
     List<String> getVisibleFieldsForCategory(String category, String position) {
+      // DEBUG LOGGING - Track field category calculation
+      print('🔍 [DEBUG] getVisibleFieldsForCategory called with:');
+      print('🔍 [DEBUG] - category: $category');
+      print('🔍 [DEBUG] - position: $position');
+      
       List<String> fields;
       
       if (category == 'Custom') {
         // For Custom category, use the selected fields
         fields = _selectedFields;
+        print('🔍 [DEBUG] Using custom fields: ${fields.length} fields');
       } else {
         // For predefined categories, use the fields from the category
         fields = _statCategoryFieldGroups[category] ?? [];
+        print('🔍 [DEBUG] Base fields from category: ${fields.length} fields');
+        
+        // Special handling for WR/TE Stats tab - always show WR/TE fields regardless of position filter
+        if (category == 'WR/TE Stats') {
+          final result = fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+          print('🔍 [DEBUG] WR/TE Stats tab - filtered fields: ${result.length}');
+          print('🔍 [DEBUG] WR/TE Stats tab - fields: $result');
+          return result;
+        }
         
         if (position == 'QB') {
           return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
@@ -1007,7 +1083,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
       return fields;
     }
 
-    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, _selectedPosition);
+    // Use effective position filter for determining visible fields
+    final String effectivePosition = _showAllPositionsInTab ? _selectedPosition : _getEffectivePositionFilter();
+    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, effectivePosition);
+    
+    // DEBUG LOGGING - Track column field calculation
+    print('🔍 [DEBUG] Building table with:');
+    print('🔍 [DEBUG] - Stat category: $_selectedStatCategory');
+    print('🔍 [DEBUG] - Effective position: $effectivePosition');
+    print('🔍 [DEBUG] - Display fields count: ${displayFields.length}');
+    print('🔍 [DEBUG] - Display fields: $displayFields');
+    print('🔍 [DEBUG] - Raw rows count: ${_rawRows.length}');
 
     return Column(
       children: [
@@ -1024,11 +1110,19 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
                   selected: _selectedStatCategory == category,
                   onSelected: (selected) {
                     if (selected) {
+                      // DEBUG LOGGING - Track tab switching
+                      print('🔍 [DEBUG] Tab switched to: $category');
+                      print('🔍 [DEBUG] Previous category was: $_selectedStatCategory');
+                      
                       setState(() {
                         _selectedStatCategory = category;
                         // Reset the toggle when switching tabs
                         _showAllPositionsInTab = false;
                       });
+                      
+                      print('🔍 [DEBUG] After setState - new category: $_selectedStatCategory');
+                      print('🔍 [DEBUG] Show all positions reset to: $_showAllPositionsInTab');
+                      
                       _applyFiltersAndFetch();
                     }
                   },
@@ -1111,107 +1205,43 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen> {
         ),
         
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(8.0),
-              child: Theme(
-                data: Theme.of(context).copyWith(
-                  dataTableTheme: DataTableThemeData(
-                    headingRowColor: WidgetStatePropertyAll(ThemeAwareColors.getTableHeaderColor(context)),
-                    headingTextStyle: TextStyle(
-                      color: ThemeAwareColors.getTableHeaderTextColor(context),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+          child: MdsTable(
+            style: MdsTableStyle.premium,
+            density: MdsTableDensity.comfortable,
+            columns: displayFields.map((header) => MdsTableColumn(
+              key: header,
+              label: _formatHeaderName(header),
+              numeric: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num),
+              enablePercentileShading: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num) && header != 'season' && header != 'games',
+              isDoubleField: doubleFields.contains(header),
+              cellBuilder: header == 'recent_team' ? (value, rowIndex, percentile) {
+                if (value == null) return const Text('N/A');
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TeamLogoUtils.buildNFLTeamLogo(
+                      value.toString(),
+                      size: 24.0,
                     ),
-                    columnSpacing: 8,
-                    horizontalMargin: 8,
-                  ),
-                ),
-                child: DataTable(
-                  sortColumnIndex:
-                      displayFields.contains(_sortColumn) ? displayFields.indexOf(_sortColumn) : null,
-                  sortAscending: _sortAscending,
-                  headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
-                  headingTextStyle: TextStyle(color: ThemeAwareColors.getTableHeaderTextColor(context), fontWeight: FontWeight.bold, fontSize: 15),
-                  dataRowHeight: 44,
-                  showCheckboxColumn: false,
-                  border: TableBorder.all(
-                    color: ThemeAwareColors.getDividerColor(context),
-                    width: 0.5,
-                  ),
-                  columns: displayFields.map((header) {
-                    return DataColumn(
-                      label: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                        child: Text(_formatHeaderName(header))
-                      ),
-                      onSort: (columnIndex, ascending) {
-                        setState(() {
-                          _sortColumn = displayFields[columnIndex];
-                          _sortAscending = ascending;
-                          _applyFiltersAndFetch();
-                        });
-                      },
-                    );
-                  }).toList(),
-                  rows: _rawRows.asMap().entries.map((entry) {
-                    final int rowIndex = entry.key;
-                    final Map<String, dynamic> row = entry.value;
-                    return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>((states) => ThemeAwareColors.getTableRowColor(context, rowIndex)),
-                      cells: displayFields.map((header) {
-                        final value = row[header];
-                        String displayValue;
-                        Color? cellBackgroundColor;
-  
-                        if (value == null) {
-                          displayValue = 'N/A';
-                        } else if (value is num && numericShadingColumns.contains(header)) {
-                          final percentile = columnPercentiles[header]?[value];
-                          if (percentile != null) {
-                            cellBackgroundColor = Color.fromRGBO(
-                              100, 140, 240, 0.1 + (percentile * 0.85)
-                            );
-                          }
-                          if (doubleFields.contains(header)) {
-                            displayValue = value.toStringAsFixed(2);
-                          } else {
-                            displayValue = value.toInt().toString();
-                          }
-                        } else {
-                          displayValue = value.toString();
-                        }
-  
-                        return DataCell(
-                          Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            color: cellBackgroundColor,
-                            alignment: (value is num) ? Alignment.centerRight : Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: header == 'recent_team'
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TeamLogoUtils.buildNFLTeamLogo(
-                                        value.toString(),
-                                        size: 24.0,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(displayValue),
-                                    ],
-                                  )
-                                : Text(displayValue),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
+                    const SizedBox(width: 8),
+                    Text(value.toString()),
+                  ],
+                );
+              } : null,
+            )).toList(),
+            rows: _rawRows.asMap().entries.map((entry) => MdsTableRow(
+              id: '${entry.key}',
+              data: entry.value,
+            )).toList(),
+            sortColumn: _sortColumn,
+            sortAscending: _sortAscending,
+            onSort: (columnKey, ascending) {
+              setState(() {
+                _sortColumn = columnKey;
+                _sortAscending = ascending;
+                _applyFiltersAndFetch();
+              });
+            },
           ),
         ),
         // Pagination Controls

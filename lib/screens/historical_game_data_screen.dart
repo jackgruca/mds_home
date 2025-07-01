@@ -1024,7 +1024,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
           child: MdsTable(
             style: MdsTableStyle.premium,
             density: MdsTableDensity.comfortable,
-            columns: displayFields.map((header) {
+                  columns: displayFields.map((header) {
               final isNumeric = _rawRows.isNotEmpty && 
                   _rawRows.any((row) => row[header] != null && row[header] is num);
               final isTeamColumn = header == 'home_team' || header == 'away_team';
@@ -1037,27 +1037,27 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                 isDoubleField: doubleFields.contains(header),
                 cellBuilder: isTeamColumn ? (value, index, percentile) {
                   return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TeamLogoUtils.buildNFLTeamLogo(
-                        value.toString(),
-                        size: 24.0,
-                      ),
-                      const SizedBox(width: 8),
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TeamLogoUtils.buildNFLTeamLogo(
+                                        value.toString(),
+                                        size: 24.0,
+                                      ),
+                                      const SizedBox(width: 8),
                       Text(value.toString()),
-                    ],
+                                    ],
                   );
                 } : null,
-              );
-            }).toList(),
+                        );
+                      }).toList(),
             rows: _rawRows.asMap().entries.map((entry) {
               final int rowIndex = entry.key;
               final Map<String, dynamic> row = entry.value;
               return MdsTableRow(
                 id: row['game_id']?.toString() ?? rowIndex.toString(),
                 data: row,
-              );
-            }).toList(),
+                    );
+                  }).toList(),
             sortColumn: _sortColumn,
             sortAscending: _sortAscending,
             onSort: (column, ascending) {

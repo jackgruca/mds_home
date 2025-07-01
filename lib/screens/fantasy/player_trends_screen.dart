@@ -10,6 +10,7 @@ import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/theme_config.dart';
+import '../../widgets/design_system/mds_table.dart';
 
 class PlayerTrendsScreen extends StatefulWidget {
   const PlayerTrendsScreen({super.key});
@@ -353,122 +354,376 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   }
 
   Widget _buildDataTable() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            dataTableTheme: DataTableThemeData(
-              headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-              headingTextStyle: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+    if (_playerData.isEmpty && !_isLoading) {
+      return const Center(
+        child: Text('No data found. Try adjusting your filters.',
+            style: TextStyle(fontSize: 16)),
+      );
+    }
+
+    return Column(
+      children: [
+        _buildSectionHeaders(),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
               ),
-              dataRowColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
-                return null; // Use default
-              }),
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.surface,
+                  Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: ThemeConfig.gold.withOpacity(0.2),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: ThemeConfig.darkNavy.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+              child: MdsTable(
+                style: MdsTableStyle.premium,
+                density: MdsTableDensity.comfortable,
+                columns: _getMdsColumns(),
+                rows: _getMdsRows(),
+                sortColumn: _sortColumn,
+                sortAscending: _sortAscending,
+                showBorder: false, // Remove border since we're handling it with the container
+                padding: EdgeInsets.zero, // Remove default padding
+                onSort: (columnKey, ascending) {
+                  setState(() {
+                    _sortColumn = columnKey;
+                    _sortAscending = ascending;
+                    _sortData();
+                  });
+                },
+              ),
             ),
           ),
-          child: DataTable(
-            columnSpacing: 28.0,
-            horizontalMargin: 10.0,
-            sortColumnIndex: _getColumnIndex(_sortColumn),
-            sortAscending: _sortAscending,
-            columns: _getColumns(),
-            rows: _getRows(),
-          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeaders() {
+    // Calculate exact column counts based on actual column structure
+    final toDateCount = _getToDateColumnCount();
+    final recentCount = _getRecentColumnCount();
+    const trendsCount = 2; // Usage + Result
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+        gradient: LinearGradient(
+          colors: [
+            ThemeConfig.darkNavy,
+            ThemeConfig.darkNavy.withOpacity(0.9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: const Color(0xFFFFD700), // Gold trim
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Table(
+        columnWidths: {
+          0: const FlexColumnWidth(1), // Player column
+          1: FlexColumnWidth(toDateCount.toDouble()), // Season To-Date columns
+          2: FlexColumnWidth(recentCount.toDouble()), // Recent columns  
+          3: const FlexColumnWidth(2), // Trends columns
+        },
+        children: [
+          TableRow(
+            children: [
+              Container(
+                height: 48,
+                alignment: Alignment.center,
+                child: const Text(
+                  '',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                height: 48,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: Colors.white24, width: 1),
+                    right: BorderSide(color: Colors.white24, width: 1),
+                  ),
+                ),
+                child: const Text(
+                  'Season To-Date',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                height: 48,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: Colors.white24, width: 1),
+                  ),
+                ),
+                child: Text(
+                  'Recent ${_selectedWeeks.round()} Weeks',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                height: 48,
+                alignment: Alignment.center,
+                child: const Text(
+                  'Trends',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
-  
-  DataCell _buildStatCell(dynamic value) {
-    return DataCell(Text((value as num?)?.toStringAsFixed(1) ?? '0.0'));
+
+  int _getToDateColumnCount() {
+    int count = 2; // Games + PPR
+    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
+      count += 4; // Tgt, Rec, Yds, TD
+    } else if (_selectedPosition == 'RB') {
+      count += 5; // Car, RuYd, Tgt, ReYd, TD
+    } else if (_selectedPosition == 'QB') {
+      count += 6; // Att, PaYd, PaTD, RAtt, RuYd, RuTD
+    }
+    return count;
   }
 
-  List<DataColumn> _getColumns() {
-    List<DataColumn> columns = [
-      DataColumn(label: const Text('Player'), onSort: (i, asc) => _onSort('playerName', asc)),
+  int _getRecentColumnCount() {
+    int count = 3; // Games + PPR + Med
+    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
+      count += 4; // Tgt, Rec, Yds, TD
+    } else if (_selectedPosition == 'RB') {
+      count += 5; // Car, RuYd, Tgt, ReYd, TD
+    } else if (_selectedPosition == 'QB') {
+      count += 6; // Att, PaYd, PaTD, RAtt, RuYd, RuTD
+    }
+    return count;
+  }
+  
+  List<MdsTableColumn> _getMdsColumns() {
+    List<MdsTableColumn> columns = [
+      MdsTableColumn(
+        key: 'playerName',
+        label: 'Player',
+        numeric: false,
+        cellBuilder: (value, rowIndex, percentile) {
+          final player = _playerData[rowIndex];
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (player['team'] != null && (player['team'] as String).isNotEmpty)
+                TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 24),
+              const SizedBox(width: 8),
+              Text(player['playerName'] as String? ?? 'N/A'),
+            ],
+          );
+        },
+      ),
     ];
 
     // --- TO-DATE STATS ---
     columns.addAll([
-      DataColumn(label: const Text('Games'), numeric: true, onSort: (i, asc) => _onSort('full_games', asc)),
-      DataColumn(label: const Text('Avg\nPPR'), numeric: true, onSort: (i, asc) => _onSort('full_avg_fantasy_points_ppr', asc)),
+      const MdsTableColumn(key: 'full_games', label: 'G', numeric: true, enablePercentileShading: true),
+      const MdsTableColumn(key: 'full_avg_fantasy_points_ppr', label: 'PPR', numeric: true, enablePercentileShading: true, isDoubleField: true),
     ]);
+
     if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
       columns.addAll([
-        DataColumn(label: const Text('Avg\nTgt'), numeric: true, onSort: (i, asc) => _onSort('full_avg_targets', asc)),
-        DataColumn(label: const Text('Avg\nRec'), numeric: true, onSort: (i, asc) => _onSort('full_avg_receptions', asc)),
-        DataColumn(label: const Text('Avg\nYds'), numeric: true, onSort: (i, asc) => _onSort('full_avg_receiving_yards', asc)),
-        DataColumn(label: const Text('Avg\nTD'), numeric: true, onSort: (i, asc) => _onSort('full_avg_total_td', asc)),
+        const MdsTableColumn(key: 'full_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_receptions', label: 'Rec', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_receiving_yards', label: 'Yds', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'RB') {
       columns.addAll([
-        DataColumn(label: const Text('Avg\nRush'), numeric: true, onSort: (i, asc) => _onSort('full_avg_carries', asc)),
-        DataColumn(label: const Text('Avg\nRush Yds'), numeric: true, onSort: (i, asc) => _onSort('full_avg_rushing_yards', asc)),
-        DataColumn(label: const Text('Avg\nTgt'), numeric: true, onSort: (i, asc) => _onSort('full_avg_targets', asc)),
-        DataColumn(label: const Text('Avg\nRec Yds'), numeric: true, onSort: (i, asc) => _onSort('full_avg_receiving_yards', asc)),
-        DataColumn(label: const Text('Avg\nTD'), numeric: true, onSort: (i, asc) => _onSort('full_avg_total_td', asc)),
+        const MdsTableColumn(key: 'full_avg_carries', label: 'Car', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_rushing_yards', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_receiving_yards', label: 'ReYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'QB') {
       columns.addAll([
-        DataColumn(label: const Text('Avg\nAtt'), numeric: true, onSort: (i, asc) => _onSort('full_avg_passing_attempts', asc)),
-        DataColumn(label: const Text('Avg\nPass Yds'), numeric: true, onSort: (i, asc) => _onSort('full_avg_passing_yards', asc)),
-        DataColumn(label: const Text('Avg\nPass TD'), numeric: true, onSort: (i, asc) => _onSort('full_avg_passing_tds', asc)),
-        DataColumn(label: const Text('Avg\nRush Att'), numeric: true, onSort: (i, asc) => _onSort('full_avg_rushing_attempts_qb', asc)),
-        DataColumn(label: const Text('Avg\nRush Yds'), numeric: true, onSort: (i, asc) => _onSort('full_avg_rushing_yards_qb', asc)),
-        DataColumn(label: const Text('Avg\nRush TD'), numeric: true, onSort: (i, asc) => _onSort('full_avg_rushing_tds_qb', asc)),
+        const MdsTableColumn(key: 'full_avg_passing_attempts', label: 'Att', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_passing_yards', label: 'PaYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_passing_tds', label: 'PaTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_rushing_attempts_qb', label: 'RAtt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_rushing_yards_qb', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'full_avg_rushing_tds_qb', label: 'RuTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     }
-
-    // --- DIVIDER ---
-    columns.add(const DataColumn(label: VerticalDivider(width: 1, thickness: 1)));
 
     // --- RECENT STATS ---
     columns.addAll([
-      DataColumn(label: const Text('Games'), numeric: true, onSort: (i, asc) => _onSort('recent_games', asc)),
-      DataColumn(label: const Text('Avg\nPPR'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_fantasy_points_ppr', asc)),
-      DataColumn(label: const Text('Med\nPPR'), numeric: true, onSort: (i, asc) => _onSort('recent_median_fantasy_points_ppr', asc)),
+      const MdsTableColumn(key: 'recent_games', label: 'G', numeric: true, enablePercentileShading: true),
+      const MdsTableColumn(key: 'recent_avg_fantasy_points_ppr', label: 'PPR', numeric: true, enablePercentileShading: true, isDoubleField: true),
+      const MdsTableColumn(key: 'recent_median_fantasy_points_ppr', label: 'Med', numeric: true, enablePercentileShading: true, isDoubleField: true),
     ]);
+
     if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
       columns.addAll([
-        DataColumn(label: const Text('Avg\nTgt'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_targets', asc)),
-        DataColumn(label: const Text('Avg\nRec'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_receptions', asc)),
-        DataColumn(label: const Text('Avg\nYds'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_receiving_yards', asc)),
-        DataColumn(label: const Text('Avg\nTD'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_total_td', asc)),
+        const MdsTableColumn(key: 'recent_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_receptions', label: 'Rec', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_receiving_yards', label: 'Yds', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'RB') {
-        columns.addAll([
-        DataColumn(label: const Text('Avg\nRush'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_carries', asc)),
-        DataColumn(label: const Text('Avg\nRush Yds'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_rushing_yards', asc)),
-        DataColumn(label: const Text('Avg\nTgt'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_targets', asc)),
-        DataColumn(label: const Text('Avg\nRec Yds'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_receiving_yards', asc)),
-        DataColumn(label: const Text('Avg\nTD'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_total_td', asc)),
+      columns.addAll([
+        const MdsTableColumn(key: 'recent_avg_carries', label: 'Car', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_rushing_yards', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_receiving_yards', label: 'ReYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'QB') {
-        columns.addAll([
-        DataColumn(label: const Text('Avg\nAtt'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_passing_attempts', asc)),
-        DataColumn(label: const Text('Avg\nPass Yds'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_passing_yards', asc)),
-        DataColumn(label: const Text('Avg\nPass TD'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_passing_tds', asc)),
-        DataColumn(label: const Text('Avg\nRush Att'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_rushing_attempts_qb', asc)),
-        DataColumn(label: const Text('Avg\nRush Yds'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_rushing_yards_qb', asc)),
-        DataColumn(label: const Text('Avg\nRush TD'), numeric: true, onSort: (i, asc) => _onSort('recent_avg_rushing_tds_qb', asc)),
+      columns.addAll([
+        const MdsTableColumn(key: 'recent_avg_passing_attempts', label: 'Att', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_passing_yards', label: 'PaYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_passing_tds', label: 'PaTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_rushing_attempts_qb', label: 'RAtt', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_rushing_yards_qb', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(key: 'recent_avg_rushing_tds_qb', label: 'RuTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
       ]);
     }
 
-    // --- DIVIDER ---
-    columns.add(const DataColumn(label: VerticalDivider(width: 1, thickness: 1)));
-
     // --- TRENDS ---
     columns.addAll([
-        DataColumn(label: const Text('Usage\nTrend %'), numeric: true, onSort: (i, asc) => _onSort('usage_value', asc)),
-        DataColumn(label: const Text('Result\nTrend %'), numeric: true, onSort: (i, asc) => _onSort('result_value', asc)),
+      MdsTableColumn(
+        key: 'usage_value', 
+        label: 'Usage', 
+        numeric: true,
+        cellBuilder: (value, rowIndex, percentile) => _buildTrendCellContent(value),
+      ),
+      MdsTableColumn(
+        key: 'result_value', 
+        label: 'Result', 
+        numeric: true,
+        cellBuilder: (value, rowIndex, percentile) => _buildTrendCellContent(value),
+      ),
     ]);
 
     return columns;
+  }
+
+  List<MdsTableRow> _getMdsRows() {
+    return _playerData.asMap().entries.map((entry) {
+      final int index = entry.key;
+      final player = entry.value;
+      
+      return MdsTableRow(
+        id: 'player_$index',
+        data: player,
+      );
+    }).toList();
+  }
+
+  Widget _buildMdsCellContent(String columnKey, dynamic value, Map<String, dynamic> player) {
+    // Handle player name with team logo
+    if (columnKey == 'playerName') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (player['team'] != null && (player['team'] as String).isNotEmpty)
+            TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 24),
+          const SizedBox(width: 8),
+          Text(player['playerName'] as String? ?? 'N/A'),
+        ],
+      );
+    }
+
+    // Handle trend cells with special color coding
+    if (columnKey == 'usage_value' || columnKey == 'result_value') {
+      return _buildTrendCellContent(value);
+    }
+
+    // Handle numeric stats
+    if (value is num) {
+      return Text((value).toStringAsFixed(1));
+    }
+
+    return Text(value?.toString() ?? '-');
+  }
+
+  Widget _buildTrendCellContent(dynamic value) {
+    if (value == null) {
+      return const Text('-');
+    }
+
+    final doubleValue = (value is num) ? value.toDouble() : null;
+    if (doubleValue == null) {
+      return const Text('-');
+    }
+
+    final color = _getColorForPercentage(doubleValue);
+    final textColor = color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+    final text = '${(doubleValue * 100).toStringAsFixed(1)}%';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+      ),
+    );
   }
 
   Color _getColorForPercentage(double? value) {
@@ -484,207 +739,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     } else {
       // Interpolate between Yellow and Green
       return Color.lerp(Colors.yellow.shade600, Colors.green.shade500, clampedValue / 0.3)!;
-    }
-  }
-
-  DataCell _buildTrendCell(double? value) {
-    if (value == null) {
-      return const DataCell(Text('-'));
-    }
-
-    final color = _getColorForPercentage(value);
-    final textColor = color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
-    final text = '${(value * 100).toStringAsFixed(1)}%';
-
-    return DataCell(
-      SizedBox.expand(
-        child: Container(
-          color: color,
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-      showEditIcon: false, 
-      placeholder: false,
-    );
-  }
-
-  List<DataRow> _getRows() {
-    return _playerData.asMap().entries.map((entry) {
-      final int index = entry.key;
-      final player = entry.value;
-
-      final rowColor = WidgetStateProperty.resolveWith<Color?>(
-        (Set<WidgetState> states) {
-          if (index.isEven) {
-            return Colors.grey.withOpacity(0.05);
-          }
-          return null; // Use default
-        },
-      );
-
-      List<DataCell> cells = [
-        DataCell(
-          Row(
-            children: [
-              if (player['team'] != null && (player['team'] as String).isNotEmpty)
-                TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 24),
-              const SizedBox(width: 8),
-              Text(player['playerName'] as String? ?? 'N/A'),
-            ],
-          ),
-        ),
-      ];
-      
-      // --- TO-DATE STATS ---
-      cells.addAll([
-        _buildStatCell(player['full_games']),
-        _buildStatCell(player['full_avg_fantasy_points_ppr']),
-      ]);
-      if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-        cells.addAll([
-          _buildStatCell(player['full_avg_targets']),
-          _buildStatCell(player['full_avg_receptions']),
-          _buildStatCell(player['full_avg_receiving_yards']),
-          _buildStatCell(player['full_avg_total_td']),
-        ]);
-      } else if (_selectedPosition == 'RB') {
-        cells.addAll([
-          _buildStatCell(player['full_avg_carries']),
-          _buildStatCell(player['full_avg_rushing_yards']),
-          _buildStatCell(player['full_avg_targets']),
-          _buildStatCell(player['full_avg_receiving_yards']),
-          _buildStatCell(player['full_avg_total_td']),
-        ]);
-      } else if (_selectedPosition == 'QB') {
-        cells.addAll([
-          _buildStatCell(player['full_avg_passing_attempts']),
-          _buildStatCell(player['full_avg_passing_yards']),
-          _buildStatCell(player['full_avg_passing_tds']),
-          _buildStatCell(player['full_avg_rushing_attempts_qb']),
-          _buildStatCell(player['full_avg_rushing_yards_qb']),
-          _buildStatCell(player['full_avg_rushing_tds_qb']),
-        ]);
-      }
-
-      // --- DIVIDER ---
-      cells.add(const DataCell(VerticalDivider(width: 1, thickness: 1)));
-
-      // --- RECENT STATS ---
-      cells.addAll([
-        _buildStatCell(player['recent_games']),
-        _buildStatCell(player['recent_avg_fantasy_points_ppr']),
-        _buildStatCell(player['recent_median_fantasy_points_ppr']),
-      ]);
-      if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-        cells.addAll([
-          _buildStatCell(player['recent_avg_targets']),
-          _buildStatCell(player['recent_avg_receptions']),
-          _buildStatCell(player['recent_avg_receiving_yards']),
-          _buildStatCell(player['recent_avg_total_td']),
-        ]);
-      } else if (_selectedPosition == 'RB') {
-        cells.addAll([
-          _buildStatCell(player['recent_avg_carries']),
-          _buildStatCell(player['recent_avg_rushing_yards']),
-          _buildStatCell(player['recent_avg_targets']),
-          _buildStatCell(player['recent_avg_receiving_yards']),
-          _buildStatCell(player['recent_avg_total_td']),
-        ]);
-      } else if (_selectedPosition == 'QB') {
-        cells.addAll([
-          _buildStatCell(player['recent_avg_passing_attempts']),
-          _buildStatCell(player['recent_avg_passing_yards']),
-          _buildStatCell(player['recent_avg_passing_tds']),
-          _buildStatCell(player['recent_avg_rushing_attempts_qb']),
-          _buildStatCell(player['recent_avg_rushing_yards_qb']),
-          _buildStatCell(player['recent_avg_rushing_tds_qb']),
-        ]);
-      }
-
-      // --- DIVIDER ---
-      cells.add(const DataCell(VerticalDivider(width: 1, thickness: 1)));
-
-      // --- TRENDS ---
-      cells.addAll([
-          _buildTrendCell(player['usage_value']),
-          _buildTrendCell(player['result_value']),
-      ]);
-
-      return DataRow(cells: cells, color: rowColor);
-    }).toList();
-  }
-  
-  int? _getColumnIndex(String column) {
-    final List<String> columnIds = [];
-    columnIds.add('playerName');
-    
-    // --- TO-DATE STATS ---
-    columnIds.add('full_games');
-    columnIds.add('full_avg_fantasy_points_ppr');
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      columnIds.addAll(['full_avg_targets', 'full_avg_receptions', 'full_avg_receiving_yards', 'full_avg_total_td']);
-    } else if (_selectedPosition == 'RB') {
-      columnIds.addAll(['full_avg_carries', 'full_avg_rushing_yards', 'full_avg_targets', 'full_avg_receiving_yards', 'full_avg_total_td']);
-    } else if (_selectedPosition == 'QB') {
-      columnIds.addAll(['full_avg_passing_attempts', 'full_avg_passing_yards', 'full_avg_passing_tds', 'full_avg_rushing_attempts_qb', 'full_avg_rushing_yards_qb', 'full_avg_rushing_tds_qb']);
-    }
-    
-    // --- RECENT STATS ---
-    columnIds.add('recent_games');
-    columnIds.add('recent_avg_fantasy_points_ppr');
-    columnIds.add('recent_median_fantasy_points_ppr');
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      columnIds.addAll(['recent_avg_targets', 'recent_avg_receptions', 'recent_avg_receiving_yards', 'recent_avg_total_td']);
-    } else if (_selectedPosition == 'RB') {
-      columnIds.addAll(['recent_avg_carries', 'recent_avg_rushing_yards', 'recent_avg_targets', 'recent_avg_receiving_yards', 'recent_avg_total_td']);
-    } else if (_selectedPosition == 'QB') {
-      columnIds.addAll(['recent_avg_passing_attempts', 'recent_avg_passing_yards', 'recent_avg_passing_tds', 'recent_avg_rushing_attempts_qb', 'recent_avg_rushing_yards_qb', 'recent_avg_rushing_tds_qb']);
-    }
-    
-    // --- TRENDS ---
-    columnIds.addAll(['usage_value', 'result_value']);
-
-    // Find the index in the list of SORTABLE ids
-    int sortableIndex = columnIds.indexOf(_sortColumn);
-    if (sortableIndex == -1) return null;
-
-    // --- Calculate Visual Index by Accounting for Dividers ---
-    final int fullSeasonStatCount;
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      fullSeasonStatCount = 4;
-    } else if (_selectedPosition == 'RB') {
-      fullSeasonStatCount = 5;
-    } else { // QB
-      fullSeasonStatCount = 6;
-    }
-    final toDateColumnCount = 1 + 2 + fullSeasonStatCount;
-
-    final int recentStatCount;
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      recentStatCount = 3 + 4;
-    } else if (_selectedPosition == 'RB') {
-      recentStatCount = 3 + 5;
-    } else { // QB
-      recentStatCount = 3 + 6;
-    }
-    
-    final recentSectionStartIndex = toDateColumnCount;
-    final trendsSectionStartIndex = toDateColumnCount + recentStatCount;
-
-    if (sortableIndex >= trendsSectionStartIndex) {
-      // It's a trend stat, after TWO dividers
-      return sortableIndex + 2;
-    } else if (sortableIndex >= recentSectionStartIndex) {
-      // It's a recent stat, after ONE divider
-      return sortableIndex + 1;
-    } else {
-      // It's a to-date stat, before any dividers
-      return sortableIndex;
     }
   }
 } 

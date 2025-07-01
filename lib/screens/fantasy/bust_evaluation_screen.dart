@@ -680,10 +680,12 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
 
   Widget _buildPlayerHeader() {
     final player = _selectedPlayer!;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ThemeAwareColors.getCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -705,9 +707,12 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               children: [
                 Text(
                   player.playerName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: isDarkMode 
+                        ? ThemeConfig.darkNavy.withOpacity(0.9) // Darker in dark mode
+                        : ThemeConfig.darkNavy, // Keep dark in light mode
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -715,14 +720,14 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   '${player.position} • ${player.draftRoundDisplay} (${player.rookieYear})',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey[600],
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
                   ),
                 ),
                 Text(
                   '${player.seasonsPlayed} seasons • ${player.careerSpanDisplay}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
                   ),
                 ),
               ],
@@ -730,9 +735,17 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
           ),
           IconButton(
             onPressed: _clearSelection,
-            icon: const Icon(Icons.close),
+            icon: Icon(
+              Icons.close,
+              color: isDarkMode ? ThemeConfig.gold : ThemeConfig.darkNavy,
+            ),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.grey[100],
+              backgroundColor: isDarkMode 
+                  ? ThemeConfig.darkNavy.withOpacity(0.8) // Dark navy background in dark mode
+                  : ThemeConfig.gold.withOpacity(0.1), // Light gold background in light mode
+              side: isDarkMode 
+                  ? BorderSide(color: ThemeConfig.gold.withOpacity(0.3), width: 1)
+                  : BorderSide(color: ThemeConfig.darkNavy.withOpacity(0.2), width: 1),
             ),
           ),
         ],
