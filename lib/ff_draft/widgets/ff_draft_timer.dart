@@ -55,12 +55,6 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
     });
   }
 
-  void _resetTimer() {
-    setState(() {
-      _timeRemaining = widget.timePerPick;
-    });
-    _startTimer();
-  }
 
   @override
   void didUpdateWidget(covariant FFDraftTimer oldWidget) {
@@ -92,45 +86,47 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
         return Container(
           padding: const EdgeInsets.all(8.0),
           color: currentPick.isUserPick
-              ? Theme.of(context).primaryColor.withOpacity(0.1)
+              ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
               : Colors.grey[100],
-          child: Row(
-            children: [
-              // Current pick info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current Pick: #${currentPick.pickNumber} (Round ${currentPick.round})',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Team: ${currentPick.team.name}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
+          child: IntrinsicWidth(
+            child: Row(
+              children: [
+                // Current pick info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current Pick: #${currentPick.pickNumber} (Round ${currentPick.round})',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  ],
+                      Text(
+                        'Team: ${currentPick.team.name}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              // Play/Pause and Undo buttons
-              IconButton(
-                icon: Icon(widget.isPaused ? Icons.play_arrow : Icons.pause),
-                onPressed: widget.onPlayPause,
-                tooltip: widget.isPaused ? 'Resume Draft' : 'Pause Draft',
-              ),
-              IconButton(
-                icon: const Icon(Icons.undo),
-                onPressed: widget.onUndo,
-                tooltip: 'Undo Last Pick',
-              ),
-              // Timer
-              if (currentPick.isUserPick) ...[
-                const SizedBox(width: 16),
-                _buildTimerDisplay(),
+                // Play/Pause and Undo buttons
+                IconButton(
+                  icon: Icon(widget.isPaused ? Icons.play_arrow : Icons.pause),
+                  onPressed: widget.onPlayPause,
+                  tooltip: widget.isPaused ? 'Resume Draft' : 'Pause Draft',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.undo),
+                  onPressed: widget.onUndo,
+                  tooltip: 'Undo Last Pick',
+                ),
+                // Timer
+                if (currentPick.isUserPick) ...[
+                  const SizedBox(width: 16),
+                  _buildTimerDisplay(),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },
@@ -148,7 +144,7 @@ class _FFDraftTimerState extends State<FFDraftTimer> {
       ),
       decoration: BoxDecoration(
         color: _timeRemaining <= 10
-            ? Colors.red.withOpacity(0.1)
+            ? Colors.red.withValues(alpha: 0.1)
             : Colors.grey[200],
         borderRadius: BorderRadius.circular(8.0),
       ),

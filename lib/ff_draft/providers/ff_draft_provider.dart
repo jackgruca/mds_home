@@ -1,20 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:csv/csv.dart';
-import 'package:flutter/services.dart';
 import '../models/ff_draft_settings.dart';
 import '../models/ff_team.dart';
 import '../models/ff_player.dart';
 import '../models/ff_draft_pick.dart';
-import '../models/ff_platform_ranks.dart';
+import '../services/ff_draft_ai_service.dart';
+import '../services/ff_value_alert_service.dart';
 import '../../services/fantasy/csv_rankings_service.dart';
 import '../../models/fantasy/player_ranking.dart';
-import 'dart:math';
-
-class _PlayerScore {
-  final FFPlayer player;
-  double score;
-  _PlayerScore({required this.player, required this.score});
-}
 
 class FFDraftProvider extends ChangeNotifier {
   final FFDraftSettings settings;
@@ -30,36 +22,84 @@ class FFDraftProvider extends ChangeNotifier {
   List<FFDraftPick> pickHistory = [];
   List<FFDraftPick> userPickHistory = [];
   VoidCallback? onUserPick;
-  final Random _rand = Random();
+  final FFDraftAIService _aiService = FFDraftAIService();
+  final FFValueAlertService _alertService = FFValueAlertService();
 
   FFDraftProvider({required this.settings, this.userPick});
 
+  /// Get access to the value alert stream
+  Stream<ValueAlert> get alertStream => _alertService.alertStream;
+
   Future<void> initializeDraft() async {
+    debugPrint('=== Starting FF Draft Initialization ===');
+    
     // Determine user team index
     if (userPick != null && userPick! > 0 && userPick! <= settings.numTeams) {
       userTeamIndex = userPick! - 1;
     } else {
       userTeamIndex = (DateTime.now().millisecondsSinceEpoch % settings.numTeams);
     }
-    // Initialize teams
+    debugPrint('User team index set to: $userTeamIndex');
+    
+    // Initialize teams with AI personalities
+    final aiPersonalities = FFDraftAIService.distributePersonalities(settings.numTeams - 1);
+    int aiPersonalityIndex = 0;
+    
     teams = List.generate(
       settings.numTeams,
-      (index) => FFTeam(
-        id: 'team_$index',
-        name: 'Team ${index + 1}',
-        roster: [],
-        isUserTeam: index == userTeamIndex,
-      ),
+      (index) {
+        if (index == userTeamIndex) {
+          return FFTeam(
+            id: 'team_$index',
+            name: 'Your Team',
+            roster: [],
+            draftPosition: index + 1,
+            isUserTeam: true,
+          );
+        } else {
+          final personality = aiPersonalities[aiPersonalityIndex];
+          aiPersonalityIndex++;
+          return FFTeam.createAITeam(
+            id: 'team_$index',
+            name: '${personality.name} (Team ${index + 1})',
+            draftPosition: index + 1,
+            personality: personality,
+          );
+        }
+      },
     );
+    debugPrint('Created ${teams.length} teams');
+
     await _loadPlayers();
+    debugPrint('Players loaded: ${availablePlayers.length}');
+    
     draftPicks = _generateDraftPicks();
+    debugPrint('Generated ${draftPicks.length} draft picks');
+    
+    final currentPick = getCurrentPick();
+    debugPrint('Current pick: ${currentPick?.pickNumber} (Round ${currentPick?.round})');
+    debugPrint('Is user turn: ${isUserTurn()}');
+    
+    debugPrint('=== FF Draft Initialization Complete ===');
     notifyListeners();
   }
 
   Future<void> _loadPlayers() async {
+    debugPrint('Starting to load players...');
     try {
       final rankingsService = CSVRankingsService();
+      debugPrint('Created CSV rankings service');
+      
       final List<PlayerRanking> playerRankings = await rankingsService.fetchRankings();
+      debugPrint('Fetched ${playerRankings.length} player rankings from CSV');
+
+      if (playerRankings.isEmpty) {
+        debugPrint('WARNING: No player rankings loaded from CSV!');
+        // Create mock players if CSV loading fails
+        availablePlayers = _createMockPlayers();
+        debugPrint('Created ${availablePlayers.length} mock players as fallback');
+        return;
+      }
 
       availablePlayers = playerRankings.map((ranking) {
         return FFPlayer(
@@ -95,11 +135,94 @@ class FFDraftProvider extends ChangeNotifier {
         return rankA.compareTo(rankB);
       });
 
-      debugPrint('Loaded ${availablePlayers.length} players');
+      debugPrint('Successfully loaded and sorted ${availablePlayers.length} players');
+      
+      // Debug: Print first few players
+      if (availablePlayers.isNotEmpty) {
+        debugPrint('Top 3 players: ${availablePlayers.take(3).map((p) => '${p.name} (${p.position})').join(', ')}');
+      }
     } catch (e) {
       debugPrint('Error loading players: $e');
-      availablePlayers = [];
+      debugPrint('Stack trace: ${StackTrace.current}');
+      
+      // Create mock players as fallback
+      availablePlayers = _createMockPlayers();
+      debugPrint('Created ${availablePlayers.length} mock players as fallback');
     }
+  }
+
+  List<FFPlayer> _createMockPlayers() {
+    // Create a basic set of mock players for testing if CSV fails
+    return [
+      FFPlayer(
+        id: '1',
+        name: 'Christian McCaffrey',
+        position: 'RB',
+        team: 'SF',
+        rank: 1,
+        consensusRank: 1,
+        byeWeek: '9',
+        stats: {'rank': 1, 'adp': 1.2, 'projectedPoints': 280},
+      ),
+      FFPlayer(
+        id: '2',
+        name: 'Tyreek Hill',
+        position: 'WR',
+        team: 'MIA',
+        rank: 2,
+        consensusRank: 2,
+        byeWeek: '6',
+        stats: {'rank': 2, 'adp': 2.1, 'projectedPoints': 275},
+      ),
+      FFPlayer(
+        id: '3',
+        name: 'Josh Allen',
+        position: 'QB',
+        team: 'BUF',
+        rank: 3,
+        consensusRank: 3,
+        byeWeek: '12',
+        stats: {'rank': 3, 'adp': 3.5, 'projectedPoints': 270},
+      ),
+      FFPlayer(
+        id: '4',
+        name: 'Austin Ekeler',
+        position: 'RB',
+        team: 'WSH',
+        rank: 4,
+        consensusRank: 4,
+        byeWeek: '14',
+        stats: {'rank': 4, 'adp': 4.2, 'projectedPoints': 265},
+      ),
+      FFPlayer(
+        id: '5',
+        name: 'Stefon Diggs',
+        position: 'WR',
+        team: 'HOU',
+        rank: 5,
+        consensusRank: 5,
+        byeWeek: '7',
+        stats: {'rank': 5, 'adp': 5.1, 'projectedPoints': 260},
+      ),
+      // Add more positions for a complete draft
+      ...List.generate(50, (index) {
+        final positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+        final teams = ['KC', 'BUF', 'DAL', 'SF', 'PHI', 'MIA', 'CIN', 'BAL'];
+        final pos = positions[index % positions.length];
+        final team = teams[index % teams.length];
+        
+        return FFPlayer(
+          id: '${index + 6}',
+          name: 'Player ${index + 6}',
+          position: pos,
+          team: team,
+          rank: index + 6,
+          consensusRank: index + 6,
+          byeWeek: '${(index % 14) + 1}',
+          stats: {'rank': index + 6, 'adp': index + 6.0, 'projectedPoints': 255 - index},
+        );
+      }),
+    ];
   }
 
   List<FFDraftPick> _generateDraftPicks() {
@@ -133,147 +256,54 @@ class FFDraftProvider extends ChangeNotifier {
   void handlePickSelection(FFDraftPick pick) {
     if (pick != getCurrentPick()) return;
 
-    // Get best available player that fills a need
-    final bestPlayer = _getBestAvailablePlayer(pick.team);
-    if (bestPlayer != null) {
-      _makePick(pick, bestPlayer);
-    }
-  }
+    // Use AI service for better decision making
+    final decision = FFDraftAIService.makePickDecision(
+      team: pick.team,
+      availablePlayers: availablePlayers,
+      draftPicks: draftPicks,
+      currentPick: pick.pickNumber,
+      currentRound: pick.round,
+    );
 
-  FFPlayer? _getBestAvailablePlayer(FFTeam team) {
-    // --- 1. Dynamic reach calculation ---
-    final pickNumber = getCurrentPick()?.pickNumber ?? 1;
-    const randomness = 0.3; // Reduced from 0.5 to 0.3 for more consistent picks
-    const baseReach = 2;
-    const maxExtraReach = 10;
-    final dynamicReach = baseReach + (randomness * maxExtraReach * _rand.nextDouble());
-    final reachLimit = (pickNumber + dynamicReach).round();
-
-    // --- 2. Filter candidates within reach ---
-    final candidates = availablePlayers.where((p) {
-      final rank = p.stats?['rank'] ?? 9999;
-      return rank <= reachLimit;
-    }).toList();
-    if (candidates.isEmpty) return availablePlayers.isNotEmpty ? availablePlayers.first : null;
-
-    // --- 3. Score candidates ---
-    List<_PlayerScore> scored = candidates.map((p) {
-      double score = 0;
-      final rank = p.stats?['rank'] ?? 9999;
-      final position = p.position;
-      final byeWeek = p.byeWeek;
-      // Position of need
-      if (_isPositionNeeded(team, position)) {
-        score += 10;
-      }
-      // Stacking bonus (QB/WR/TE)
-      if (position == 'WR' || position == 'TE') {
-        final hasQB = team.roster.any((rosterP) => rosterP.position == 'QB' && rosterP.team == p.team);
-        if (hasQB) score += 2;
-      }
-      if (position == 'QB') {
-        final hasWR = team.roster.any((rosterP) => (rosterP.position == 'WR' || rosterP.position == 'TE') && rosterP.team == p.team);
-        if (hasWR) score += 2;
-      }
-      // Negative stack penalty (RB/WR on same team)
-      if (position == 'RB') {
-        final hasWR = team.roster.any((rosterP) => rosterP.position == 'WR' && rosterP.team == p.team);
-        if (hasWR) score -= 1.5;
-      }
-      if (position == 'WR') {
-        final hasRB = team.roster.any((rosterP) => rosterP.position == 'RB' && rosterP.team == p.team);
-        if (hasRB) score -= 1.5;
-      }
-      // Bye week penalty
-      if (byeWeek != null && byeWeek.isNotEmpty) {
-        final sameBye = team.roster.where((rosterP) => rosterP.byeWeek == byeWeek).length;
-        if (sameBye >= 2) score -= 0.5;
-      }
-      // Roster construction penalty (overfilling a position)
-      final positionCount = team.roster.where((rosterP) => rosterP.position == position).length;
-      // QB/TE special logic
-      if (position == 'QB') {
-        if (positionCount == 1) score -= 7; // much less likely to take a 2nd
-        if (positionCount >= 2) score -= 1000; // never take a 3rd
-      }
-      if (position == 'TE') {
-        if (positionCount == 1) score -= 6; // much less likely to take a 2nd
-        if (positionCount >= 2) score -= 1000; // never take a 3rd
-      }
-      // General position limits
-      final positionLimits = {
-        'QB': 2,
-        'RB': 8,
-        'WR': 8,
-        'TE': 2,
-        'FLEX': 1,
-        'K': 1,
-        'DEF': 1,
-      };
-      if (positionCount >= (positionLimits[position] ?? 0)) {
-        score -= 1000;
-      }
-      // Positional run bonus (if recent picks have targeted this position)
-      final recentPicks = draftPicks.where((pick) => pick.isSelected).toList().reversed.take(5).toList();
-      final runCount = recentPicks.where((pick) => pick.selectedPlayer?.position == position).length;
-      if ((position == 'RB' || position == 'TE') && runCount >= 2) {
-        score += 2.5;
-      } else if (runCount >= 3) {
-        score += 1.5;
-      }
-      // Slight randomness in score
-      score += _rand.nextDouble() * randomness;
-      // Higher score for better rank
-      score += (1000 - rank) * 0.001;
-      return _PlayerScore(player: p, score: score);
-    }).toList();
-    scored.sort((a, b) => b.score.compareTo(a.score));
-
-    // --- 4. With some probability, pick a player outside the top candidate ---
-    if (scored.length > 1 && _rand.nextDouble() < randomness * 0.25) {
-      // Pick randomly from top 3-5
-      final topN = min(5, scored.length);
-      return scored[_rand.nextInt(topN)].player;
-    }
-
-    // For AI bench logic: if all starting spots are filled, prefer FLEX
-    final startersFilled = team.roster.length >= 9; // 9 starters (QB, RB, RB, WR, WR, WR, TE, K, DEF)
-    if (startersFilled) {
-      for (final s in scored) {
-        if (s.player.position == 'RB' || s.player.position == 'WR' || s.player.position == 'TE') {
-          s.score += 1.0;
-        }
-      }
-      scored.sort((a, b) => b.score.compareTo(a.score));
-    }
-
-    return scored.first.player;
-  }
-
-  bool _isPositionNeeded(FFTeam team, String position) {
-    // Count current players at this position
-    final positionCount = team.roster.where((p) => p.position == position).length;
+    _makePick(pick, decision.selectedPlayer);
     
-    // Define position limits
-    final positionLimits = {
-      'QB': 1,
-      'RB': 2,
-      'WR': 3,
-      'TE': 1,
-      'FLEX': 1,
-      'K': 1,
-      'DEF': 1,
-    };
-
-    // Check if we need more players at this position
-    return positionCount < (positionLimits[position] ?? 0);
+    // Log AI reasoning for debugging
+    debugPrint('${pick.team.name} selected ${decision.selectedPlayer.name}: ${decision.reasoning}');
   }
+
+  // Legacy method kept for compatibility - now delegates to AI service
+  FFPlayer? _getBestAvailablePlayer(FFTeam team) {
+    final currentPick = getCurrentPick();
+    if (currentPick == null) return availablePlayers.isNotEmpty ? availablePlayers.first : null;
+
+    final decision = FFDraftAIService.makePickDecision(
+      team: team,
+      availablePlayers: availablePlayers,
+      draftPicks: draftPicks,
+      currentPick: currentPick.pickNumber,
+      currentRound: currentPick.round,
+    );
+
+    return decision.selectedPlayer;
+  }
+
 
   void _makePick(FFDraftPick pick, FFPlayer player) {
     pickHistory.add(pick.copyWith());
     if (pick.isUserPick) {
       userPickHistory.add(pick.copyWith());
     }
+    
+    // Generate value alerts for this pick
+    _alertService.analyzePick(
+      player: player,
+      team: pick.team,
+      pickNumber: pick.pickNumber,
+      round: pick.round,
+      remainingPlayers: availablePlayers,
+      isUserTeam: pick.isUserPick,
+    );
+    
     // Add player to the first available slot for their position
     final team = pick.team;
     int slotIndex = team.roster.indexWhere((p) => p.position == player.position && p.id.isEmpty);
@@ -288,6 +318,18 @@ class FFDraftProvider extends ChangeNotifier {
     pick.selectedPlayer = player;
     // Move to next pick
     currentPickIndex++;
+    
+    // Generate opportunity alerts for next pick
+    final nextPick = getCurrentPick();
+    if (nextPick != null) {
+      _alertService.analyzeOpportunities(
+        remainingPlayers: availablePlayers,
+        currentRound: nextPick.round,
+        currentPick: nextPick.pickNumber,
+        userTeam: nextPick.isUserPick ? nextPick.team : null,
+      );
+    }
+    
     // If next pick is user, trigger timer reset
     if (getCurrentPick()?.isUserPick == true && onUserPick != null) {
       onUserPick!();
@@ -298,12 +340,6 @@ class FFDraftProvider extends ChangeNotifier {
   }
 
   void _updateAtRiskPlayers() {
-    // Get next 5 picks
-    final nextPicks = draftPicks
-        .where((pick) => !pick.isSelected && pick.pickNumber > (getCurrentPick()?.pickNumber ?? 0))
-        .take(5)
-        .toList();
-
     // Find players that might be taken in next 5 picks
     atRiskPlayers = availablePlayers
         .where((player) => player.stats?['rank'] != null)
@@ -469,5 +505,35 @@ class FFDraftProvider extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  // Get AI-powered recommendations for the user
+  List<FFPlayer> getRecommendations({int count = 5}) {
+    final currentPick = getCurrentPick();
+    if (currentPick == null || !currentPick.isUserPick) return [];
+
+    final userTeam = teams[userTeamIndex];
+    
+    return FFDraftAIService.getRecommendedPicks(
+      team: userTeam,
+      availablePlayers: availablePlayers,
+      draftPicks: draftPicks,
+      currentPick: currentPick.pickNumber,
+      currentRound: currentPick.round,
+      numRecommendations: count,
+    );
+  }
+
+  // Get draft analysis for insights
+  Map<String, dynamic> getDraftAnalysis() {
+    final currentPick = getCurrentPick();
+    if (currentPick == null) return {};
+
+    return FFDraftAIService.analyzeDraftState(
+      teams: teams,
+      draftPicks: draftPicks,
+      availablePlayers: availablePlayers,
+      currentRound: currentPick.round,
+    );
   }
 } 

@@ -3,13 +3,26 @@ import 'package:provider/provider.dart';
 import '../models/ff_draft_pick.dart';
 import '../providers/ff_draft_provider.dart';
 
-class FFDraftBoard extends StatelessWidget {
+class FFDraftBoard extends StatefulWidget {
   final Function(FFDraftPick) onPickSelected;
 
   const FFDraftBoard({
     super.key,
     required this.onPickSelected,
   });
+
+  @override
+  State<FFDraftBoard> createState() => _FFDraftBoardState();
+}
+
+class _FFDraftBoardState extends State<FFDraftBoard> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +60,7 @@ class FFDraftBoard extends StatelessWidget {
               // Draft picks grid
               Expanded(
                 child: ListView.builder(
+                  controller: _scrollController,
                   itemCount: (settings.rosterSize / settings.numTeams).ceil(),
                   itemBuilder: (context, roundIndex) {
                     final round = roundIndex + 1;
@@ -104,7 +118,7 @@ class FFDraftBoard extends StatelessWidget {
     final isSelected = pick.isSelected;
 
     return GestureDetector(
-      onTap: isUserPick && !isSelected ? () => onPickSelected(pick) : null,
+      onTap: isUserPick && !isSelected ? () => widget.onPickSelected(pick) : null,
       child: Container(
         margin: const EdgeInsets.all(2.0),
         padding: const EdgeInsets.all(4.0),
@@ -114,7 +128,7 @@ class FFDraftBoard extends StatelessWidget {
             width: isCurrentPick ? 2.0 : 1.0,
           ),
           color: isUserPick
-              ? theme.primaryColor.withOpacity(0.1)
+              ? theme.primaryColor.withValues(alpha: 0.1)
               : Colors.grey[100],
         ),
         child: Column(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/ff_team.dart';
 import '../models/ff_player.dart';
+import '../models/ff_position_constants.dart';
 
 class FFTeamRoster extends StatelessWidget {
   final FFTeam team;
@@ -35,7 +36,6 @@ class FFTeamRoster extends StatelessWidget {
     final starters = _getStarterPositions();
     final flexEligible = ['RB', 'WR', 'TE'];
     final List<FFPlayer> starterPlayers = [];
-    final List<FFPlayer> flexCandidates = [];
     final List<FFPlayer> benchPlayers = [];
 
     // 1. Assign starters (excluding FLEX)
@@ -126,6 +126,7 @@ class FFTeamRoster extends StatelessWidget {
             style: TextStyle(
               color: isEmpty ? Colors.grey[600] : Colors.white,
               fontWeight: FontWeight.bold,
+              fontSize: 12,
             ),
           ),
         ),
@@ -137,12 +138,25 @@ class FFTeamRoster extends StatelessWidget {
               ),
         subtitle: isEmpty
             ? null
-            : Text(
-                '${player.team} - $position',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${player.team} - $position',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    'ADP ${player.adp.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ),
         trailing: isEmpty
             ? null
@@ -175,23 +189,12 @@ class FFTeamRoster extends StatelessWidget {
   }
 
   Color _getPositionColor(String position) {
-    switch (position) {
-      case 'QB':
-        return Colors.blue;
-      case 'RB':
-        return Colors.green;
-      case 'WR':
-        return Colors.orange;
-      case 'TE':
-        return Colors.purple;
-      case 'FLEX':
-        return Colors.amber;
-      case 'K':
-        return Colors.red;
-      case 'DEF':
-        return Colors.brown;
-      default:
-        return Colors.grey;
+    // Handle FLEX and bench positions specially
+    if (position == 'FLEX') {
+      return const Color(0xFFFF9800); // Amber/Orange
+    } else if (position.startsWith('BN')) {
+      return const Color(0xFF757575); // Gray for bench
     }
+    return FFPositionConstants.getPositionColor(position);
   }
 } 

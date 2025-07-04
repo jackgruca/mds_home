@@ -9,6 +9,9 @@ class FFPlayer {
   final Map<String, int>? platformRanks;
   final int? consensusRank;
   final bool isFavorite;
+  final double? dynamicValue;
+  final Map<String, double>? contextScores;
+  final List<String>? tags;
 
   FFPlayer({
     required this.id,
@@ -21,6 +24,9 @@ class FFPlayer {
     this.platformRanks,
     this.consensusRank,
     this.isFavorite = false,
+    this.dynamicValue,
+    this.contextScores,
+    this.tags,
   });
 
   // Factory constructor to create a player from JSON
@@ -38,6 +44,11 @@ class FFPlayer {
       ),
       consensusRank: json['consensusRank'] as int?,
       isFavorite: json['isFavorite'] as bool? ?? false,
+      dynamicValue: json['dynamicValue'] as double?,
+      contextScores: (json['contextScores'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(key, (value as num).toDouble()),
+      ),
+      tags: (json['tags'] as List?)?.cast<String>(),
     );
   }
 
@@ -54,6 +65,9 @@ class FFPlayer {
       'platformRanks': platformRanks,
       'consensusRank': consensusRank,
       'isFavorite': isFavorite,
+      'dynamicValue': dynamicValue,
+      'contextScores': contextScores,
+      'tags': tags,
     };
   }
 
@@ -66,6 +80,9 @@ class FFPlayer {
 
   FFPlayer copyWith({
     bool? isFavorite,
+    double? dynamicValue,
+    Map<String, double>? contextScores,
+    List<String>? tags,
   }) {
     return FFPlayer(
       id: id,
@@ -78,6 +95,9 @@ class FFPlayer {
       platformRanks: platformRanks,
       consensusRank: consensusRank,
       isFavorite: isFavorite ?? this.isFavorite,
+      dynamicValue: dynamicValue ?? this.dynamicValue,
+      contextScores: contextScores ?? this.contextScores,
+      tags: tags ?? this.tags,
     );
   }
 
@@ -92,6 +112,82 @@ class FFPlayer {
       platformRanks: {},
       consensusRank: 9999,
       stats: {},
+      dynamicValue: 0.0,
+      contextScores: {},
+      tags: [],
     );
+  }
+
+  // Dynamic value and context methods
+  double getContextScore(String context) {
+    return contextScores?[context] ?? 0.0;
+  }
+
+  bool hasTag(String tag) {
+    return tags?.contains(tag) ?? false;
+  }
+
+  List<String> get allTags => tags ?? [];
+
+  // Value comparison methods
+  bool isValuePick(int currentPick) {
+    final expected = consensusRank ?? rank ?? 999;
+    return expected > currentPick + 5;
+  }
+
+  bool isReach(int currentPick) {
+    final expected = consensusRank ?? rank ?? 999;
+    return expected < currentPick - 10;
+  }
+
+  bool isEliteTier() {
+    final rankToCheck = consensusRank ?? rank ?? 999;
+    return rankToCheck <= 12;
+  }
+
+  bool isTopTier() {
+    final rankToCheck = consensusRank ?? rank ?? 999;
+    return rankToCheck <= 36;
+  }
+
+  bool isStarterTier() {
+    final rankToCheck = consensusRank ?? rank ?? 999;
+    return rankToCheck <= 100;
+  }
+
+  // Position-specific helpers
+  bool get isSkillPosition => ['RB', 'WR', 'TE'].contains(position);
+  bool get isFlexEligible => ['RB', 'WR', 'TE'].contains(position);
+  bool get isPassCatcher => ['WR', 'TE'].contains(position);
+
+  // Risk assessment
+  bool get isRookie => hasTag('rookie');
+  bool get isInjuryRisk => hasTag('injury_risk');
+  bool get isHighUpside => hasTag('high_upside');
+  bool get isSafeFloor => hasTag('safe_floor');
+
+  // Projected points helpers
+  double get projectedPoints {
+    final points = stats?['projectedPoints'];
+    if (points is num) return points.toDouble();
+    return 0.0;
+  }
+
+  // ADP helpers
+  double get adp {
+    final adpValue = stats?['adp'];
+    if (adpValue is num) return adpValue.toDouble();
+    return (consensusRank ?? rank ?? 999).toDouble();
+  }
+
+  // Display helpers
+  String get displayRank {
+    final rankToShow = consensusRank ?? rank;
+    return rankToShow != null ? '#$rankToShow' : 'Unranked';
+  }
+
+  String get positionRank {
+    final posRank = stats?['Position Rank'];
+    return posRank != null ? '$position$posRank' : position;
   }
 } 

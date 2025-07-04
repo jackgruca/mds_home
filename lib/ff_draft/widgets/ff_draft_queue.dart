@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ff_player.dart';
+import '../models/ff_position_constants.dart';
 import '../providers/ff_draft_provider.dart';
 
 class FFDraftQueue extends StatelessWidget {
@@ -130,21 +131,6 @@ class FFDraftQueue extends StatelessWidget {
   }
 
   Color _getPositionColor(String position) {
-    switch (position) {
-      case 'QB':
-        return Colors.blue;
-      case 'RB':
-        return Colors.green;
-      case 'WR':
-        return Colors.orange;
-      case 'TE':
-        return Colors.purple;
-      case 'K':
-        return Colors.red;
-      case 'DEF':
-        return Colors.brown;
-      default:
-        return Colors.grey;
-    }
+    return FFPositionConstants.getPositionColor(position);
   }
 } 
