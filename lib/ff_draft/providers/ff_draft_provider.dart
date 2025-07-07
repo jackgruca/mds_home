@@ -3,8 +3,9 @@ import '../models/ff_draft_settings.dart';
 import '../models/ff_team.dart';
 import '../models/ff_player.dart';
 import '../models/ff_draft_pick.dart';
+import '../models/ff_ai_personality.dart';
 import '../services/ff_draft_ai_service.dart';
-import '../services/ff_value_alert_service.dart';
+// import '../services/ff_value_alert_service.dart'; // REMOVED - deleted service
 import '../../services/fantasy/csv_rankings_service.dart';
 import '../../models/fantasy/player_ranking.dart';
 
@@ -23,12 +24,12 @@ class FFDraftProvider extends ChangeNotifier {
   List<FFDraftPick> userPickHistory = [];
   VoidCallback? onUserPick;
   final FFDraftAIService _aiService = FFDraftAIService();
-  final FFValueAlertService _alertService = FFValueAlertService();
+  // final FFValueAlertService _alertService = FFValueAlertService(); // REMOVED
 
   FFDraftProvider({required this.settings, this.userPick});
 
-  /// Get access to the value alert stream
-  Stream<ValueAlert> get alertStream => _alertService.alertStream;
+  /// Get access to the value alert stream - SIMPLIFIED
+  // Stream<ValueAlert> get alertStream => _alertService.alertStream; // REMOVED
 
   Future<void> initializeDraft() async {
     debugPrint('=== Starting FF Draft Initialization ===');
@@ -41,8 +42,8 @@ class FFDraftProvider extends ChangeNotifier {
     }
     debugPrint('User team index set to: $userTeamIndex');
     
-    // Initialize teams with AI personalities
-    final aiPersonalities = FFDraftAIService.distributePersonalities(settings.numTeams - 1);
+    // Initialize teams with AI personalities - SIMPLIFIED
+    const personalityTypes = FFAIPersonalityType.values;
     int aiPersonalityIndex = 0;
     
     teams = List.generate(
@@ -57,7 +58,8 @@ class FFDraftProvider extends ChangeNotifier {
             isUserTeam: true,
           );
         } else {
-          final personality = aiPersonalities[aiPersonalityIndex];
+          final personalityType = personalityTypes[aiPersonalityIndex % personalityTypes.length];
+          final personality = FFAIPersonality.getPersonality(personalityType);
           aiPersonalityIndex++;
           return FFTeam.createAITeam(
             id: 'team_$index',
@@ -256,19 +258,20 @@ class FFDraftProvider extends ChangeNotifier {
   void handlePickSelection(FFDraftPick pick) {
     if (pick != getCurrentPick()) return;
 
-    // Use AI service for better decision making
-    final decision = FFDraftAIService.makePickDecision(
+    // Use AI service for better decision making - SIMPLIFIED
+    final selectedPlayer = FFDraftAIService.makeAIPick(
       team: pick.team,
       availablePlayers: availablePlayers,
-      draftPicks: draftPicks,
-      currentPick: pick.pickNumber,
+      draftHistory: draftPicks,
       currentRound: pick.round,
+      pickNumber: pick.pickNumber,
+      personality: pick.team.aiPersonality,
     );
 
-    _makePick(pick, decision.selectedPlayer);
+    _makePick(pick, selectedPlayer);
     
     // Log AI reasoning for debugging
-    debugPrint('${pick.team.name} selected ${decision.selectedPlayer.name}: ${decision.reasoning}');
+    debugPrint('${pick.team.name} selected ${selectedPlayer.name}');
   }
 
   // Legacy method kept for compatibility - now delegates to AI service
@@ -276,15 +279,14 @@ class FFDraftProvider extends ChangeNotifier {
     final currentPick = getCurrentPick();
     if (currentPick == null) return availablePlayers.isNotEmpty ? availablePlayers.first : null;
 
-    final decision = FFDraftAIService.makePickDecision(
+    return FFDraftAIService.makeAIPick(
       team: team,
       availablePlayers: availablePlayers,
-      draftPicks: draftPicks,
-      currentPick: currentPick.pickNumber,
+      draftHistory: draftPicks,
       currentRound: currentPick.round,
+      pickNumber: currentPick.pickNumber,
+      personality: team.aiPersonality,
     );
-
-    return decision.selectedPlayer;
   }
 
 
@@ -295,14 +297,14 @@ class FFDraftProvider extends ChangeNotifier {
     }
     
     // Generate value alerts for this pick
-    _alertService.analyzePick(
-      player: player,
-      team: pick.team,
-      pickNumber: pick.pickNumber,
-      round: pick.round,
-      remainingPlayers: availablePlayers,
-      isUserTeam: pick.isUserPick,
-    );
+    // _alertService.analyzePick( // REMOVED
+    //   player: player, // REMOVED
+    //   team: pick.team, // REMOVED
+    //   pickNumber: pick.pickNumber, // REMOVED
+    //   round: pick.round, // REMOVED
+    //   remainingPlayers: availablePlayers, // REMOVED
+    //   isUserTeam: pick.isUserPick, // REMOVED
+    // ); // REMOVED
     
     // Add player to the first available slot for their position
     final team = pick.team;
@@ -322,12 +324,12 @@ class FFDraftProvider extends ChangeNotifier {
     // Generate opportunity alerts for next pick
     final nextPick = getCurrentPick();
     if (nextPick != null) {
-      _alertService.analyzeOpportunities(
-        remainingPlayers: availablePlayers,
-        currentRound: nextPick.round,
-        currentPick: nextPick.pickNumber,
-        userTeam: nextPick.isUserPick ? nextPick.team : null,
-      );
+      // _alertService.analyzeOpportunities( // REMOVED
+      //   remainingPlayers: availablePlayers, // REMOVED
+      //   currentRound: nextPick.round, // REMOVED
+      //   currentPick: nextPick.pickNumber, // REMOVED
+      //   userTeam: nextPick.isUserPick ? nextPick.team : null, // REMOVED
+      // ); // REMOVED
     }
     
     // If next pick is user, trigger timer reset
@@ -514,13 +516,11 @@ class FFDraftProvider extends ChangeNotifier {
 
     final userTeam = teams[userTeamIndex];
     
-    return FFDraftAIService.getRecommendedPicks(
+    return FFDraftAIService.getRecommendedPlayers(
       team: userTeam,
       availablePlayers: availablePlayers,
-      draftPicks: draftPicks,
-      currentPick: currentPick.pickNumber,
       currentRound: currentPick.round,
-      numRecommendations: count,
+      count: count,
     );
   }
 
@@ -529,10 +529,10 @@ class FFDraftProvider extends ChangeNotifier {
     final currentPick = getCurrentPick();
     if (currentPick == null) return {};
 
-    return FFDraftAIService.analyzeDraftState(
+    return FFDraftAIService.getDraftContext(
       teams: teams,
-      draftPicks: draftPicks,
       availablePlayers: availablePlayers,
+      draftPicks: draftPicks,
       currentRound: currentPick.round,
     );
   }

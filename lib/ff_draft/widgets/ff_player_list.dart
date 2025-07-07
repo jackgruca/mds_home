@@ -2,305 +2,345 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ff_player.dart';
 import '../providers/ff_draft_provider.dart';
-import '../services/ff_recommendation_engine.dart';
+// import '../services/ff_recommendation_engine.dart'; // REMOVED
 import 'ff_player_card.dart';
-import 'ff_smart_filters.dart';
-import 'ff_quick_actions.dart';
+// import 'ff_smart_filters.dart'; // REMOVED
+// import 'ff_quick_actions.dart'; // REMOVED
 
 class FFPlayerList extends StatefulWidget {
   final Function(FFPlayer) onPlayerSelected;
-
+  final bool showFilters;
+  final bool showRecommendations;
+  
   const FFPlayerList({
     super.key,
     required this.onPlayerSelected,
+    this.showFilters = true,
+    this.showRecommendations = true,
   });
 
   @override
   State<FFPlayerList> createState() => _FFPlayerListState();
 }
 
-class _FFPlayerListState extends State<FFPlayerList> 
-    with SingleTickerProviderStateMixin {
+class _FFPlayerListState extends State<FFPlayerList> with TickerProviderStateMixin {
   late TabController _tabController;
-  final ScrollController _scrollController = ScrollController();
-  PlayerFilter _currentFilter = const PlayerFilter();
-  final FFRecommendationEngine _recommendationEngine = FFRecommendationEngine();
+  late ScrollController _scrollController;
+  late TextEditingController _searchController;
   
-  List<DraftRecommendation> _recommendations = [];
-  FFPlayer? _bestAvailable;
-  FFPlayer? _needPlayer;
-  FFPlayer? _valuePlayer;
-  String? _needPosition;
+  List<FFPlayer> _filteredPlayers = [];
+  String _selectedPosition = 'All';
+  List<FFPlayer> _lastAvailablePlayers = []; // Track last known available players
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(_onTabChanged);
-  }
-  
-  void _onTabChanged() {
-    // Update recommendations when switching to Quick Pick tab
-    if (_tabController.index == 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final provider = Provider.of<FFDraftProvider>(context, listen: false);
-          _updateRecommendations(provider);
-        }
-      });
-    }
+    _tabController = TabController(length: 3, vsync: this);
+    _scrollController = ScrollController();
+    _searchController = TextEditingController();
+    _searchController.addListener(_onSearchChanged);
+    
+    // Initialize filtered players after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeFilteredPlayers();
+    });
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
     _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
+  void _initializeFilteredPlayers() {
+    final provider = Provider.of<FFDraftProvider>(context, listen: false);
+    if (provider.availablePlayers.isNotEmpty) {
+      _filterPlayers(provider.availablePlayers);
+    }
+  }
+
+  void _onSearchChanged() {
+    final provider = Provider.of<FFDraftProvider>(context, listen: false);
+    _filterPlayers(provider.availablePlayers);
+  }
+
+  void _filterPlayers(List<FFPlayer> availablePlayers) {
+    final searchTerm = _searchController.text.toLowerCase();
+    
+    setState(() {
+      _filteredPlayers = availablePlayers.where((player) {
+        // Position filter
+        final positionMatch = _selectedPosition == 'All' || player.position == _selectedPosition;
+        
+        // Search filter
+        final searchMatch = searchTerm.isEmpty || 
+                           player.name.toLowerCase().contains(searchTerm) ||
+                           player.team.toLowerCase().contains(searchTerm);
+        
+        return positionMatch && searchMatch;
+      }).toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<FFDraftProvider>(
-      builder: (context, provider, child) {
-        return Column(
-          children: [
-            // Tab bar for switching between modes
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  bottom: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(text: 'All Players'),
-                  Tab(text: 'Quick Pick'),
-                ],
-              ),
-            ),
-            
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAllPlayersTab(provider),
-                  _buildQuickPickTab(provider),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+    return Consumer<FFDraftProvider>(builder: (context, provider, child) {
+      // Check if available players have changed and update filtered list
+      if (_lastAvailablePlayers.length != provider.availablePlayers.length ||
+          !_listsEqual(_lastAvailablePlayers, provider.availablePlayers)) {
+        _lastAvailablePlayers = List.from(provider.availablePlayers);
+        // Use post frame callback to avoid calling setState during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _filterPlayers(provider.availablePlayers);
+          }
+        });
+      }
 
-  Widget _buildAllPlayersTab(FFDraftProvider provider) {
-    final filteredPlayers = _getFilteredPlayers(provider.availablePlayers);
-    debugPrint('Player list tab - Available: ${provider.availablePlayers.length}, Filtered: ${filteredPlayers.length}');
-    
-    return Column(
-      children: [
-        // Smart filters
-        FFSmartFilters(
-          currentFilter: _currentFilter,
-          onFilterChanged: (newFilter) {
-            setState(() {
-              _currentFilter = newFilter;
-            });
-          },
-          allPlayers: provider.availablePlayers,
-        ),
-        
-        // Player list
-        Expanded(
-          child: filteredPlayers.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: filteredPlayers.length,
-                  itemBuilder: (context, index) {
-                    final player = filteredPlayers[index];
-                    final isRecommended = _isPlayerRecommended(player);
-                    final recommendation = _getRecommendationForPlayer(player);
-                    
-                    return FFPlayerCard(
-                      player: player,
-                      isRecommended: isRecommended,
-                      isUserTurn: provider.isUserTurn(),
-                      recommendationReason: recommendation?.reason,
-                      onTap: () => widget.onPlayerSelected(player),
-                      onFavorite: () => provider.toggleFavorite(player),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickPickTab(FFDraftProvider provider) {
-    
-    return FFQuickActions(
-      isUserTurn: provider.isUserTurn(),
-      bestAvailablePlayer: _bestAvailable,
-      needPlayer: _needPlayer,
-      valuePlayer: _valuePlayer,
-      needPosition: _needPosition,
-      onBestAvailable: _bestAvailable != null 
-          ? () => widget.onPlayerSelected(_bestAvailable!) 
-          : null,
-      onFillNeed: _needPlayer != null 
-          ? () => widget.onPlayerSelected(_needPlayer!) 
-          : null,
-      onTopValue: _valuePlayer != null 
-          ? () => widget.onPlayerSelected(_valuePlayer!) 
-          : null,
-      onTopRookie: () => _selectRookieUpside(provider),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      return Column(
         children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No players found',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          _buildHeader(provider),
+          if (widget.showFilters) _buildSimpleFilters(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPlayerList(provider, 'All'),
+                _buildPlayerList(provider, 'Recommended'),
+                _buildPlayerList(provider, 'Favorites'),
+              ],
             ),
+          ),
+        ],
+      );
+    });
+  }
+
+  // Helper method to compare lists efficiently
+  bool _listsEqual(List<FFPlayer> a, List<FFPlayer> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
+  }
+
+  Widget _buildHeader(FFDraftProvider provider) {
+    final theme = Theme.of(context);
+    final currentPick = provider.getCurrentPick();
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.person_search,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Available Players',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${provider.availablePlayers.length} available',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'Try adjusting your filters',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+          if (currentPick != null)
+            Text(
+              currentPick.isUserPick
+                  ? 'Your pick - Select a player'
+                  : '${currentPick.team.name} is picking...',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: currentPick.isUserPick
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+          const SizedBox(height: 12),
+          TabBar(
+            controller: _tabController,
+            tabs: [
+              Tab(text: 'All (${_filteredPlayers.length})'),
+              const Tab(text: 'Recommended'),
+              Tab(text: 'Favorites (${provider.queuedPlayers.length})'),
+            ],
+            labelStyle: const TextStyle(fontSize: 12),
+            unselectedLabelStyle: const TextStyle(fontSize: 12),
           ),
         ],
       ),
     );
   }
 
-  void _updateRecommendations(FFDraftProvider provider) {
-    try {
-      if (!provider.isUserTurn()) {
-        setState(() {
-          _recommendations = [];
-          _bestAvailable = null;
-          _needPlayer = null;
-          _valuePlayer = null;
-          _needPosition = null;
-        });
-        return;
-      }
-
-      final currentPick = provider.getCurrentPick();
-      if (currentPick == null) return;
-
-      if (provider.teams.isEmpty || provider.userTeamIndex >= provider.teams.length) {
-        return;
-      }
-
-      final userTeam = provider.teams[provider.userTeamIndex];
-      
-      setState(() {
-        // Get recommendations safely
-        _recommendations = _recommendationEngine.getRecommendations(
-          availablePlayers: provider.availablePlayers,
-          userTeam: userTeam,
-          draftPicks: provider.draftPicks,
-          currentPick: currentPick.pickNumber,
-          currentRound: currentPick.round,
-        );
-
-        // Get specific recommendation types with null safety
-        final bestAvailableRec = _recommendationEngine.getBestAvailableRecommendation(
-          availablePlayers: provider.availablePlayers,
-          userTeam: userTeam,
-          draftPicks: provider.draftPicks,
-          currentPick: currentPick.pickNumber,
-          currentRound: currentPick.round,
-        );
-        _bestAvailable = bestAvailableRec?.player;
-
-        final fillNeedRec = _recommendationEngine.getFillNeedRecommendation(
-          availablePlayers: provider.availablePlayers,
-          userTeam: userTeam,
-          draftPicks: provider.draftPicks,
-          currentPick: currentPick.pickNumber,
-          currentRound: currentPick.round,
-        );
-        _needPlayer = fillNeedRec?.player;
-        _needPosition = fillNeedRec?.metadata['position'];
-
-        final valueRec = _recommendationEngine.getValueRecommendation(
-          availablePlayers: provider.availablePlayers,
-          userTeam: userTeam,
-          draftPicks: provider.draftPicks,
-          currentPick: currentPick.pickNumber,
-          currentRound: currentPick.round,
-        );
-        _valuePlayer = valueRec?.player;
-      });
-    } catch (e) {
-      // Safely handle any errors in recommendation updates
-      debugPrint('Error updating recommendations: $e');
-      setState(() {
-        _recommendations = [];
-        _bestAvailable = null;
-        _needPlayer = null;
-        _valuePlayer = null;
-        _needPosition = null;
-      });
-    }
-  }
-
-  List<FFPlayer> _getFilteredPlayers(List<FFPlayer> players) {
-    return players.where((player) {
-      final isRecommended = _isPlayerRecommended(player);
-      return _currentFilter.matchesPlayer(player, isRecommended: isRecommended);
-    }).toList();
-  }
-
-  bool _isPlayerRecommended(FFPlayer player) {
-    return _recommendations.any((rec) => rec.player.id == player.id);
-  }
-
-  DraftRecommendation? _getRecommendationForPlayer(FFPlayer player) {
-    try {
-      return _recommendations.firstWhere((rec) => rec.player.id == player.id);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  void _selectRookieUpside(FFDraftProvider provider) {
-    final currentPick = provider.getCurrentPick();
-    if (currentPick == null) return;
-
-    final userTeam = provider.teams[provider.userTeamIndex];
-    final rookieRec = _recommendationEngine.getRookieUpsideRecommendation(
-      availablePlayers: provider.availablePlayers,
-      userTeam: userTeam,
-      draftPicks: provider.draftPicks,
-      currentPick: currentPick.pickNumber,
-      currentRound: currentPick.round,
+  Widget _buildSimpleFilters() {
+    final theme = Theme.of(context);
+    final positions = ['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DST'];
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Search field
+          Expanded(
+            flex: 2,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search players...',
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+                ),
+                prefixIcon: Icon(Icons.search, size: 18, color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Position filter
+          DropdownButton<String>(
+            value: _selectedPosition,
+            underline: const SizedBox.shrink(),
+            isDense: true,
+            items: positions.map((pos) => DropdownMenuItem(
+              value: pos,
+              child: Text(pos, style: const TextStyle(fontSize: 14)),
+            )).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedPosition = value;
+                });
+                _filterPlayers(Provider.of<FFDraftProvider>(context, listen: false).availablePlayers);
+              }
+            },
+          ),
+        ],
+      ),
     );
+  }
 
-    if (rookieRec != null) {
-      widget.onPlayerSelected(rookieRec.player);
+  Widget _buildPlayerList(FFDraftProvider provider, String tab) {
+    List<FFPlayer> players;
+    
+    switch (tab) {
+      case 'Recommended':
+        players = provider.getRecommendations(count: 20);
+        break;
+      case 'Favorites':
+        players = provider.queuedPlayers;
+        break;
+      default:
+        players = _filteredPlayers;
     }
+    
+    if (players.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              tab == 'Favorites' ? Icons.star_border : Icons.search_off,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tab == 'Favorites' 
+                  ? 'No favorites yet\nTap the star to add players'
+                  : tab == 'Recommended'
+                      ? 'No recommendations available'
+                      : 'No players found',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: players.length,
+      itemBuilder: (context, index) {
+        final player = players[index];
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+                     child: FFPlayerCard(
+             player: player,
+             onTap: () => widget.onPlayerSelected(player),
+             onFavorite: () => provider.toggleFavorite(player),
+             isUserTurn: provider.isUserTurn(),
+             isRecommended: tab == 'Recommended',
+             // Simple recommendation based on position need
+             recommendationReason: tab == 'Recommended' ? _getSimpleRecommendation(player, provider) : null,
+           ),
+        );
+      },
+    );
+  }
+  
+  // Simple recommendation system
+  String? _getSimpleRecommendation(FFPlayer player, FFDraftProvider provider) {
+    final currentPick = provider.getCurrentPick();
+    if (currentPick == null || !currentPick.isUserPick) return null;
+    
+    final userTeam = provider.teams[provider.userTeamIndex];
+    final positionCounts = userTeam.getPositionCounts();
+    
+    // Basic need-based recommendation
+    switch (player.position) {
+      case 'QB':
+        if (positionCounts['QB']! == 0) return 'Fill starter spot';
+        break;
+      case 'RB':
+        if (positionCounts['RB']! < 2) return 'Need for starter/flex';
+        break;
+      case 'WR':
+        if (positionCounts['WR']! < 2) return 'Need for starter/flex';
+        break;
+      case 'TE':
+        if (positionCounts['TE']! == 0) return 'Fill starter spot';
+        break;
+    }
+    
+    return 'Depth/value play';
   }
 }

@@ -9,10 +9,10 @@ import '../providers/ff_draft_provider.dart';
 import '../widgets/ff_team_roster.dart';
 import '../widgets/ff_player_list.dart';
 import '../widgets/ff_draft_queue.dart';
-import '../widgets/ff_risk_players.dart';
+// import '../widgets/ff_risk_players.dart'; // REMOVED
 import '../widgets/ff_rolling_picks.dart';
 import '../widgets/ff_mobile_draft_interface.dart';
-import '../widgets/ff_draft_insights_panel.dart';
+// import '../widgets/ff_draft_insights_panel.dart'; // REMOVED
 
 class FFDraftScreen extends StatefulWidget {
   final FFDraftSettings settings;
@@ -331,11 +331,13 @@ class _FFDraftScreenState extends State<FFDraftScreen> {
                               FFDraftQueue(
                                 onPlayerSelected: _draftProvider.handlePlayerSelection,
                               ),
-                              FFRiskPlayers(
-                                onPlayerSelected: _draftProvider.handlePlayerSelection,
+                              const Center(
+                                child: Text('At Risk Players\n(Coming Soon)', textAlign: TextAlign.center),
                               ),
-                              // Real-time draft insights panel
-                              const FFDraftInsightsPanel(),
+                              // Simple insights placeholder
+                              const Center(
+                                child: Text('Draft Insights\n(Coming Soon)', textAlign: TextAlign.center),
+                              ),
                             ],
                           ),
                         ),
