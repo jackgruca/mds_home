@@ -50,7 +50,7 @@ async function logMissingIndexRequest(error, queryDetails, screenName) {
 
 exports.dailyAnalyticsAggregation = functions.runWith({
     timeoutSeconds: 300,  // Increase timeout to 5 minutes
-    memory: '1GB'         // Increase memory allocation
+    memory: '2GB'         // Increase memory allocation to 2GB
 })
 .pubsub
 .schedule('0 2 * * *')  // Run at 2 AM every day

@@ -37,6 +37,7 @@ import 'screens/depth_charts_screen.dart';
 import 'screens/fantasy/player_trends_screen.dart';
 import 'screens/fantasy/bust_evaluation_screen.dart';
 
+
 // Secret tap counter for admin access
 
 void main() async {
@@ -154,7 +155,27 @@ class _MyAppState extends State<MyApp> {
               case '/ff-draft/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => DataExplorerScreen());
+                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+              case '/data/passing':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'QB'}),
+                );
+              case '/data/rushing':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'RB'}),
+                );
+              case '/data/receiving':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'WR'}),
+                );
+              case '/data/fantasy':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'FANTASY'}),
+                );
               case '/projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               case '/blog':
