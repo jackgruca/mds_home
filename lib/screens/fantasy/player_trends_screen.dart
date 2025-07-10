@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'dart:math';
@@ -12,6 +12,44 @@ import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/theme_config.dart';
 import '../../widgets/design_system/mds_table.dart';
 
+// Enum for Query Operators
+enum QueryOperator {
+  equals,
+  notEquals,
+  greaterThan,
+  greaterThanOrEquals,
+  lessThan,
+  lessThanOrEquals,
+  contains,
+}
+
+// Helper to convert QueryOperator to a display string
+String queryOperatorToString(QueryOperator op) {
+  switch (op) {
+    case QueryOperator.equals: return '==';
+    case QueryOperator.notEquals: return '!=';
+    case QueryOperator.greaterThan: return '>';
+    case QueryOperator.greaterThanOrEquals: return '>=';
+    case QueryOperator.lessThan: return '<';
+    case QueryOperator.lessThanOrEquals: return '<=';
+    case QueryOperator.contains: return 'Contains';
+  }
+}
+
+// Class to represent a single query condition
+class QueryCondition {
+  final String field;
+  final QueryOperator operator;
+  final String value;
+
+  QueryCondition({required this.field, required this.operator, required this.value});
+
+  @override
+  String toString() {
+    return '$field ${queryOperatorToString(operator)} "$value"';
+  }
+}
+
 class PlayerTrendsScreen extends StatefulWidget {
   const PlayerTrendsScreen({super.key});
 
@@ -22,17 +60,153 @@ class PlayerTrendsScreen extends StatefulWidget {
 class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   String _selectedPosition = 'RB';
   double _selectedWeeks = 4;
+  String _selectedYear = '2024'; // Add year selection
   List<Map<String, dynamic>> _playerData = [];
   bool _isLoading = true;
   String _sortColumn = 'recent_avg_fantasy_points_ppr';
   bool _sortAscending = false;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Available years for selection (past 5 years)
+  final List<String> _availableYears = ['2024', '2023', '2022', '2021', '2020'];
+
+  // Query builder state
+  bool _isQueryBuilderExpanded = false;
+  final List<QueryCondition> _queryConditions = [];
+  String? _newQueryField;
+  QueryOperator? _newQueryOperator;
+  final TextEditingController _newQueryValueController = TextEditingController();
+  
+  // Available fields for querying based on position
+  List<String> get _availableQueryFields {
+    final baseFields = ['playerName', 'team'];
+    const recentPrefix = 'recent_';
+    const fullPrefix = 'full_';
+    
+    if (_selectedPosition == 'RB') {
+      return baseFields + [
+        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
+        '${recentPrefix}avg_carries', '${fullPrefix}avg_carries',
+        '${recentPrefix}avg_rushing_yards', '${fullPrefix}avg_rushing_yards',
+        '${recentPrefix}avg_targets', '${fullPrefix}avg_targets',
+        '${recentPrefix}avg_receptions', '${fullPrefix}avg_receptions',
+        '${recentPrefix}avg_total_td', '${fullPrefix}avg_total_td',
+      ];
+    } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
+      return baseFields + [
+        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
+        '${recentPrefix}avg_targets', '${fullPrefix}avg_targets',
+        '${recentPrefix}avg_receptions', '${fullPrefix}avg_receptions',
+        '${recentPrefix}avg_receiving_yards', '${fullPrefix}avg_receiving_yards',
+        '${recentPrefix}avg_total_td', '${fullPrefix}avg_total_td',
+      ];
+    } else { // QB
+      return baseFields + [
+        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
+        '${recentPrefix}avg_passing_attempts', '${fullPrefix}avg_passing_attempts',
+        '${recentPrefix}avg_passing_yards', '${fullPrefix}avg_passing_yards',
+        '${recentPrefix}avg_passing_tds', '${fullPrefix}avg_passing_tds',
+        '${recentPrefix}avg_rushing_yards_qb', '${fullPrefix}avg_rushing_yards_qb',
+      ];
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _fetchAndProcessPlayerTrends();
+  }
+
+  @override
+  void dispose() {
+    _newQueryValueController.dispose();
+    super.dispose();
+  }
+
+  void _addQueryCondition() {
+    if (_newQueryField != null && _newQueryOperator != null && _newQueryValueController.text.isNotEmpty) {
+      setState(() {
+        _queryConditions.add(QueryCondition(
+          field: _newQueryField!,
+          operator: _newQueryOperator!,
+          value: _newQueryValueController.text,
+        ));
+        _newQueryField = null;
+        _newQueryOperator = null;
+        _newQueryValueController.clear();
+      });
+      _applyQueryFilters();
+    }
+  }
+
+  void _removeQueryCondition(int index) {
+    setState(() {
+      _queryConditions.removeAt(index);
+    });
+    _applyQueryFilters();
+  }
+
+  void _clearAllQueryConditions() {
+    setState(() {
+      _queryConditions.clear();
+    });
+    _applyQueryFilters();
+  }
+
+  void _applyQueryFilters() {
+    // This will be called after data is fetched to apply client-side filtering
+    _sortData();
+  }
+
+  List<Map<String, dynamic>> _getFilteredData() {
+    if (_queryConditions.isEmpty) return _playerData;
+    
+    return _playerData.where((player) {
+      return _queryConditions.every((condition) {
+        final value = player[condition.field];
+        final queryValue = condition.value.toLowerCase();
+        
+        switch (condition.operator) {
+          case QueryOperator.equals:
+            if (value is num) {
+              return value == double.tryParse(condition.value);
+            }
+            return value.toString().toLowerCase() == queryValue;
+          case QueryOperator.notEquals:
+            if (value is num) {
+              return value != double.tryParse(condition.value);
+            }
+            return value.toString().toLowerCase() != queryValue;
+          case QueryOperator.greaterThan:
+            if (value is num) {
+              final numValue = double.tryParse(condition.value);
+              return numValue != null && value > numValue;
+            }
+            return false;
+          case QueryOperator.greaterThanOrEquals:
+            if (value is num) {
+              final numValue = double.tryParse(condition.value);
+              return numValue != null && value >= numValue;
+            }
+            return false;
+          case QueryOperator.lessThan:
+            if (value is num) {
+              final numValue = double.tryParse(condition.value);
+              return numValue != null && value < numValue;
+            }
+            return false;
+          case QueryOperator.lessThanOrEquals:
+            if (value is num) {
+              final numValue = double.tryParse(condition.value);
+              return numValue != null && value <= numValue;
+            }
+            return false;
+          case QueryOperator.contains:
+            return value.toString().toLowerCase().contains(queryValue);
+        }
+      });
+    }).toList();
   }
   
   double _getMedian(List<double> arr) {
@@ -108,7 +282,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     try {
       final querySnapshot = await _firestore
           .collection('playerGameLogs')
-          .where('season', isEqualTo: 2023)
+          .where('season', isEqualTo: int.parse(_selectedYear))
           .where('position', isEqualTo: _selectedPosition)
           .get();
 
@@ -199,7 +373,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       });
 
     } catch (e) {
-      print("Error processing player trends: $e");
+      debugPrint("Error processing player trends: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error processing data: ${e.toString()}')),
@@ -209,13 +383,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     }
   }
   
-  void _onSort(String column, bool ascending) {
-    setState(() {
-      _sortColumn = column;
-      _sortAscending = ascending;
-      _sortData();
-    });
-  }
+
 
   void _sortData() {
     _playerData.sort((a, b) {
@@ -280,10 +448,11 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           child: Column(
             children: [
               _buildControls(),
+              _buildCollapsibleQuerySection(),
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : _playerData.isEmpty 
+                    : _getFilteredData().isEmpty 
                         ? const Center(child: Text('No data available for the selected filters.'))
                         : _buildDataTable(),
               ),
@@ -301,34 +470,249 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         children: [
           Row(
             children: [
-              const Text('Position: '),
-              const SizedBox(width: 10),
-              DropdownButton<String>(
-                value: _selectedPosition,
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedPosition = newValue;
-                      _fetchAndProcessPlayerTrends();
-                    });
-                  }
-                },
-                items: <String>['RB', 'WR', 'TE', 'QB'].map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Position: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    DropdownButton<String>(
+                      value: _selectedPosition,
+                      underline: const SizedBox(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedPosition = newValue;
+                            _fetchAndProcessPlayerTrends();
+                          });
+                        }
+                      },
+                      items: <String>['RB', 'WR', 'TE', 'QB'].map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 6),
+                    const Text('Year: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    DropdownButton<String>(
+                      value: _selectedYear,
+                      underline: const SizedBox(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedYear = newValue;
+                            _fetchAndProcessPlayerTrends();
+                          });
+                        }
+                      },
+                      items: _availableYears.map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: _isLoading ? null : _fetchAndProcessPlayerTrends,
-                child: const Text('Reload Data'),
+                icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
+                label: Text(_isLoading ? 'Loading...' : 'Reload Data'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           _buildSlider('Compare Recent Weeks:', _selectedWeeks, 1, 17, (val) => setState(() => _selectedWeeks = val)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsibleQuerySection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        title: Row(
+          children: [
+            Icon(Icons.filter_alt_outlined, color: Theme.of(context).primaryColor, size: 20),
+            const SizedBox(width: 8),
+            Text('Advanced Filters',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (_queryConditions.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_queryConditions.length}',
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        initiallyExpanded: _isQueryBuilderExpanded,
+        onExpansionChanged: (expanded) {
+          setState(() {
+            _isQueryBuilderExpanded = expanded;
+          });
+        },
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Query conditions
+                if (_queryConditions.isNotEmpty) ...[
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    children: _queryConditions.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final condition = entry.value;
+                      return Chip(
+                        label: Text(condition.toString(), style: const TextStyle(fontSize: 12)),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () => _removeQueryCondition(index),
+                        backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                // Query input fields
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Field',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                        ),
+                        value: _availableQueryFields.contains(_newQueryField) ? _newQueryField : null,
+                        items: _availableQueryFields.map((field) {
+                          String displayName = field;
+                          if (field.startsWith('recent_')) {
+                            displayName = '${field.substring(7)} (Recent)';
+                          } else if (field.startsWith('full_')) {
+                            displayName = '${field.substring(5)} (Season)';
+                          }
+                          return DropdownMenuItem(
+                            value: field,
+                            child: Text(displayName, style: const TextStyle(fontSize: 13)),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _newQueryField = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<QueryOperator>(
+                        decoration: const InputDecoration(
+                          labelText: 'Operator',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                        ),
+                        value: _newQueryOperator,
+                        items: QueryOperator.values.map((op) => DropdownMenuItem(
+                          value: op,
+                          child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 13)),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _newQueryOperator = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _newQueryValueController,
+                        decoration: const InputDecoration(
+                          labelText: 'Value',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: _addQueryCondition,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_queryConditions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _clearAllQueryConditions,
+                        child: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -425,7 +809,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     // Calculate exact column counts based on actual column structure
     final toDateCount = _getToDateColumnCount();
     final recentCount = _getRecentColumnCount();
-    const trendsCount = 2; // Usage + Result
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -485,9 +868,9 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                     right: BorderSide(color: Colors.white24, width: 1),
                   ),
                 ),
-                child: const Text(
-                  'Season To-Date',
-                  style: TextStyle(
+                child: Text(
+                  'Season To-Date ($_selectedYear)',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -502,8 +885,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                     right: BorderSide(color: Colors.white24, width: 1),
                   ),
                 ),
-                child: Text(
-                  'Recent ${_selectedWeeks.round()} Weeks',
+                child:                 Text(
+                  'Recent ${_selectedWeeks.round()} Weeks ($_selectedYear)',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -561,7 +944,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         label: 'Player',
         numeric: false,
         cellBuilder: (value, rowIndex, percentile) {
-          final player = _playerData[rowIndex];
+          final filteredData = _getFilteredData();
+          final player = filteredData[rowIndex];
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -660,7 +1044,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   }
 
   List<MdsTableRow> _getMdsRows() {
-    return _playerData.asMap().entries.map((entry) {
+    final filteredData = _getFilteredData();
+    return filteredData.asMap().entries.map((entry) {
       final int index = entry.key;
       final player = entry.value;
       
@@ -671,32 +1056,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     }).toList();
   }
 
-  Widget _buildMdsCellContent(String columnKey, dynamic value, Map<String, dynamic> player) {
-    // Handle player name with team logo
-    if (columnKey == 'playerName') {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (player['team'] != null && (player['team'] as String).isNotEmpty)
-            TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 24),
-          const SizedBox(width: 8),
-          Text(player['playerName'] as String? ?? 'N/A'),
-        ],
-      );
-    }
 
-    // Handle trend cells with special color coding
-    if (columnKey == 'usage_value' || columnKey == 'result_value') {
-      return _buildTrendCellContent(value);
-    }
-
-    // Handle numeric stats
-    if (value is num) {
-      return Text((value).toStringAsFixed(1));
-    }
-
-    return Text(value?.toString() ?? '-');
-  }
 
   Widget _buildTrendCellContent(dynamic value) {
     if (value == null) {

@@ -4,16 +4,16 @@ library(jsonlite)
 library(here)
 
 # --- CONFIGURATION ---
-YEAR_TO_FETCH <- 2023 # The most recent full season with available data
+YEARS_TO_FETCH <- 2020:2024 # Past 5 years of data
 OUTPUT_DIR <- here::here("data_processing")
 OUTPUT_FILE <- file.path(OUTPUT_DIR, "player_game_logs.json")
 
 # --- DATA FETCHING ---
-message(paste("Fetching weekly data for the", YEAR_TO_FETCH, "season..."))
+message(paste("Fetching weekly data for seasons", paste(YEARS_TO_FETCH, collapse = ", "), "..."))
 
-# Load weekly offensive stats using nflreadr
+# Load weekly offensive stats using nflreadr for multiple years
 weekly_data <- tryCatch({
-    nflreadr::load_player_stats(seasons = YEAR_TO_FETCH, stat_type = "offense")
+    nflreadr::load_player_stats(seasons = YEARS_TO_FETCH, stat_type = "offense")
 }, error = function(e) {
     message("Error fetching weekly data: ", e$message)
     return(NULL)
@@ -23,7 +23,7 @@ if (is.null(weekly_data) || nrow(weekly_data) == 0) {
     stop("Failed to fetch or process weekly data. Aborting.")
 }
 
-message("Successfully fetched ", nrow(weekly_data), " records.")
+message("Successfully fetched ", nrow(weekly_data), " records across ", length(YEARS_TO_FETCH), " seasons.")
 
 # --- DATA PROCESSING ---
 message("Processing and cleaning data...")
@@ -83,5 +83,6 @@ write(json_data, OUTPUT_FILE)
 message("✅ Successfully created player_game_logs.json")
 message(paste("Total players processed:", length(unique(processed_data$player_id))))
 message(paste("Total game logs:", nrow(processed_data)))
+message(paste("Seasons included:", paste(sort(unique(processed_data$season)), collapse = ", ")))
 
 # --- SCRIPT END --- 
