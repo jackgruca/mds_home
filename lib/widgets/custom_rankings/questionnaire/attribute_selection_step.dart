@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
-import 'package:mds_home/models/custom_rankings/ranking_attribute.dart';
+import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
 
 class AttributeSelectionStep extends StatelessWidget {
   final String position;
-  final List<RankingAttribute> selectedAttributes;
-  final Function(List<RankingAttribute>) onAttributesChanged;
+  final List<EnhancedRankingAttribute> selectedAttributes;
+  final Function(List<EnhancedRankingAttribute>) onAttributesChanged;
 
   const AttributeSelectionStep({
     super.key,
@@ -17,7 +17,7 @@ class AttributeSelectionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final availableAttributes = AttributeConstants.getAttributesForPosition(position);
+    final availableAttributes = EnhancedAttributeLibrary.getAttributesForPosition(position);
     final groupedAttributes = _groupAttributesByCategory(availableAttributes);
     
     return SingleChildScrollView(
@@ -47,8 +47,8 @@ class AttributeSelectionStep extends StatelessWidget {
     );
   }
 
-  Map<String, List<RankingAttribute>> _groupAttributesByCategory(List<RankingAttribute> attributes) {
-    final Map<String, List<RankingAttribute>> grouped = {};
+  Map<String, List<EnhancedRankingAttribute>> _groupAttributesByCategory(List<EnhancedRankingAttribute> attributes) {
+    final Map<String, List<EnhancedRankingAttribute>> grouped = {};
     for (final attr in attributes) {
       if (!grouped.containsKey(attr.category)) {
         grouped[attr.category] = [];
@@ -113,7 +113,7 @@ class AttributeSelectionStep extends StatelessWidget {
     );
   }
 
-  Widget _buildCategorySection(BuildContext context, String category, List<RankingAttribute> attributes) {
+  Widget _buildCategorySection(BuildContext context, String category, List<EnhancedRankingAttribute> attributes) {
     final theme = Theme.of(context);
     
     return Padding(
@@ -124,7 +124,7 @@ class AttributeSelectionStep extends StatelessWidget {
           Row(
             children: [
               Text(
-                AttributeConstants.getCategories().contains(category) 
+                EnhancedAttributeLibrary.getCategories().contains(category) 
                   ? attributes.first.categoryEmoji 
                   : '⚡',
                 style: const TextStyle(fontSize: 20),
@@ -147,7 +147,7 @@ class AttributeSelectionStep extends StatelessWidget {
     );
   }
 
-  Widget _buildAttributeCard(BuildContext context, RankingAttribute attribute) {
+  Widget _buildAttributeCard(BuildContext context, EnhancedRankingAttribute attribute) {
     final theme = Theme.of(context);
     final isSelected = selectedAttributes.any((attr) => attr.id == attribute.id);
     
@@ -201,6 +201,23 @@ class AttributeSelectionStep extends StatelessWidget {
                               ),
                             ),
                           ),
+                        if (attribute.hasRealData)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: ThemeConfig.successGreen,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              'REAL',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 8,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     if (attribute.description != null)
@@ -223,8 +240,8 @@ class AttributeSelectionStep extends StatelessWidget {
     );
   }
 
-  void _toggleAttribute(RankingAttribute attribute) {
-    final List<RankingAttribute> newSelected = List.from(selectedAttributes);
+  void _toggleAttribute(EnhancedRankingAttribute attribute) {
+    final List<EnhancedRankingAttribute> newSelected = List.from(selectedAttributes);
     
     if (selectedAttributes.any((attr) => attr.id == attribute.id)) {
       newSelected.removeWhere((attr) => attr.id == attribute.id);

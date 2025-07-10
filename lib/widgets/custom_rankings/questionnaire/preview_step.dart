@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
-import 'package:mds_home/models/custom_rankings/ranking_attribute.dart';
+import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
 
 class PreviewStep extends StatelessWidget {
   final String position;
-  final List<RankingAttribute> attributes;
+  final List<EnhancedRankingAttribute> attributes;
   final Map<String, double> weights;
   final String rankingName;
   final Function(String) onNameChanged;
@@ -176,7 +176,7 @@ class PreviewStep extends StatelessWidget {
     );
   }
 
-  Widget _buildAttributePreviewRow(BuildContext context, RankingAttribute attribute) {
+  Widget _buildAttributePreviewRow(BuildContext context, EnhancedRankingAttribute attribute) {
     final theme = Theme.of(context);
     final weight = weights[attribute.id] ?? 0.0;
     

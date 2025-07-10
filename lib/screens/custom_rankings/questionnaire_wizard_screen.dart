@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
-import 'package:mds_home/models/custom_rankings/ranking_attribute.dart';
+import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
+import 'package:mds_home/services/custom_rankings/enhanced_calculation_engine.dart';
 import '../../widgets/custom_rankings/questionnaire/position_selection_step.dart';
 import '../../widgets/custom_rankings/questionnaire/attribute_selection_step.dart';
 import '../../widgets/custom_rankings/questionnaire/weighting_step.dart';
 import '../../widgets/custom_rankings/questionnaire/preview_step.dart';
+import 'custom_rankings_results_screen.dart';
 
 class QuestionnaireWizardScreen extends StatefulWidget {
   const QuestionnaireWizardScreen({super.key});
@@ -18,7 +20,7 @@ class _QuestionnaireWizardScreenState extends State<QuestionnaireWizardScreen> {
   int _currentStep = 0;
   
   String? _selectedPosition;
-  List<RankingAttribute> _selectedAttributes = [];
+  List<EnhancedRankingAttribute> _selectedAttributes = [];
   Map<String, double> _attributeWeights = {};
   String _rankingName = '';
 
@@ -199,6 +201,9 @@ class _QuestionnaireWizardScreenState extends State<QuestionnaireWizardScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    } else if (_currentStep == 3) {
+      // On the last step, create rankings
+      _createRankings();
     }
   }
 
@@ -214,26 +219,64 @@ class _QuestionnaireWizardScreenState extends State<QuestionnaireWizardScreen> {
     }
   }
 
-  void _createRankings() {
-    // TODO: Use questionnaire for actual ranking generation
-    // final questionnaire = CustomRankingQuestionnaire(
-    //   id: DateTime.now().millisecondsSinceEpoch.toString(),
-    //   userId: 'anonymous', // Will be replaced with actual user ID after auth
-    //   name: _rankingName,
-    //   position: _selectedPosition!,
-    //   attributes: _selectedAttributes.map((attr) => 
-    //     attr.copyWith(weight: _attributeWeights[attr.id] ?? 0.0)
-    //   ).toList(),
-    //   createdAt: DateTime.now(),
-    //   lastModified: DateTime.now(),
-    // );
+  Future<void> _createRankings() async {
+    if (_selectedPosition == null || _selectedAttributes.isEmpty) return;
 
-    // TODO: Navigate to results screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Rankings created! Results screen coming soon...'),
-        backgroundColor: ThemeConfig.successGreen,
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+
+    try {
+      // Create attributes with weights
+      final attributesWithWeights = _selectedAttributes.map((attr) => 
+        attr.copyWith(weight: _attributeWeights[attr.id] ?? 0.0)
+      ).toList();
+
+      // Generate rankings using calculation engine
+      final engine = EnhancedCalculationEngine();
+      final questionnaireId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      final results = await engine.calculateRankings(
+        questionnaireId: questionnaireId,
+        position: _selectedPosition!,
+        attributes: attributesWithWeights,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Navigate to results screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CustomRankingsResultsScreen(
+              position: _selectedPosition!,
+              attributes: attributesWithWeights,
+              rankingName: _rankingName.isNotEmpty ? _rankingName : 'Custom ${_selectedPosition!} Rankings',
+              results: results,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating rankings: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
