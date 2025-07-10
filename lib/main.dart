@@ -36,6 +36,7 @@ import 'screens/rankings/qb_rankings_screen.dart';
 import 'screens/depth_charts_screen.dart';
 import 'screens/fantasy/player_trends_screen.dart';
 import 'screens/fantasy/bust_evaluation_screen.dart';
+import 'screens/custom_rankings/custom_rankings_home_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -192,6 +193,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
               case '/fantasy/bust-evaluation':
                 return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
+              case '/fantasy/custom-rankings':
+                return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
