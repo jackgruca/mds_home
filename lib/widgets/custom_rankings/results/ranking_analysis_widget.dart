@@ -47,7 +47,7 @@ class RankingAnalysisWidget extends StatelessWidget {
                 const Icon(Icons.analytics, color: ThemeConfig.darkNavy),
                 const SizedBox(width: 8),
                 Text(
-                  'Ranking Overview',
+                  'Ranking Quality Analysis',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -68,8 +68,8 @@ class RankingAnalysisWidget extends StatelessWidget {
                 Expanded(
                   child: _buildStatItem(
                     context,
-                    'Avg Score',
-                    analysis.averageScore.toStringAsFixed(2),
+                    'Ranking Spread',
+                    analysis.isWellDistributed ? 'Good' : 'Clustered',
                     Icons.trending_up,
                   ),
                 ),
@@ -81,17 +81,17 @@ class RankingAnalysisWidget extends StatelessWidget {
                 Expanded(
                   child: _buildStatItem(
                     context,
-                    'Score Range',
-                    analysis.scoreRange.toStringAsFixed(2),
+                    'Player Separation',
+                    analysis.hasGoodSeparation ? 'Clear Tiers' : 'Similar Scores',
                     Icons.compare_arrows,
                   ),
                 ),
                 Expanded(
                   child: _buildStatItem(
                     context,
-                    'Std Deviation',
-                    analysis.standardDeviation.toStringAsFixed(3),
-                    Icons.show_chart,
+                    'Methodology Quality',
+                    _getMethodologyQuality(analysis),
+                    Icons.check_circle,
                   ),
                 ),
               ],
@@ -469,33 +469,45 @@ class RankingAnalysisWidget extends StatelessWidget {
     );
   }
 
+  String _getMethodologyQuality(RankingAnalysis analysis) {
+    if (analysis.hasGoodSeparation && analysis.isWellDistributed) {
+      return 'Excellent';
+    } else if (analysis.hasGoodSeparation || analysis.isWellDistributed) {
+      return 'Good';
+    } else {
+      return 'Needs Tuning';
+    }
+  }
+
   List<String> _generateInsights() {
     final insights = <String>[];
     
     if (analysis.hasGoodSeparation) {
-      insights.add('Your weighting system creates good separation between players.');
+      insights.add('Your ranking system effectively separates players into clear tiers.');
     } else {
-      insights.add('Consider adjusting weights to create more separation between players.');
+      insights.add('Rankings are too similar - try increasing weights on key attributes to create better separation.');
     }
     
     if (analysis.isWellDistributed) {
-      insights.add('Player scores are well distributed across the range.');
+      insights.add('Players are well-distributed across the full ranking spectrum.');
     } else {
-      insights.add('Player scores are clustered together - consider adding more diverse attributes.');
+      insights.add('Most players have similar scores - consider adding more diverse or impactful attributes.');
     }
     
-    if (analysis.standardDeviation < 0.05) {
-      insights.add('Very low score variation - increase attribute weights for more differentiation.');
-    } else if (analysis.standardDeviation > 0.3) {
-      insights.add('High score variation - consider balancing your attribute weights.');
+    final elite = results.where((r) => r.rank <= 5).length;
+    final toptier = results.where((r) => r.rank <= 12).length;
+    
+    if (elite > 0) {
+      insights.add('You have $elite elite-tier player${elite == 1 ? '' : 's'} in your top 5.');
     }
     
-    final topScoreGap = results.length > 1 
-        ? results[0].totalScore - results[1].totalScore
-        : 0.0;
+    if (toptier - elite > 0) {
+      insights.add('${toptier - elite} player${toptier - elite == 1 ? '' : 's'} ranked in the high-tier (6-12).');
+    }
     
-    if (topScoreGap > analysis.standardDeviation * 2) {
-      insights.add('Clear standout player at the top of your rankings.');
+    final topPlayer = results.isNotEmpty ? results.first.playerName : '';
+    if (topPlayer.isNotEmpty) {
+      insights.add('$topPlayer ranks as your #1 ${results.first.position} with this methodology.');
     }
     
     return insights.isEmpty 

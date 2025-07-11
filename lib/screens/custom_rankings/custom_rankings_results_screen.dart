@@ -287,11 +287,16 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Avg Score: ${analysis.averageScore.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall,
+                      'Quality: ${analysis.hasGoodSeparation && analysis.isWellDistributed ? 'Excellent' : 'Good'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: analysis.hasGoodSeparation && analysis.isWellDistributed 
+                            ? ThemeConfig.successGreen 
+                            : ThemeConfig.gold,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
-                      'Range: ${analysis.scoreRange.toStringAsFixed(2)}',
+                      'Tiers: ${analysis.hasGoodSeparation ? 'Clear' : 'Similar'}',
                       style: theme.textTheme.bodySmall,
                     ),
                   ],

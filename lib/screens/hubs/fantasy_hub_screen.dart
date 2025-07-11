@@ -314,6 +314,12 @@ class _ToolGrid extends StatelessWidget {
       'route': '/fantasy/bust-evaluation',
     },
     {
+      'icon': Icons.tune,
+      'title': 'Custom Rankings',
+      'subtitle': 'Build your own player rankings',
+      'route': '/fantasy/custom-rankings',
+    },
+    {
       'icon': Icons.leaderboard,
       'title': 'Big Board',
       'subtitle': 'Player rankings & tiers',

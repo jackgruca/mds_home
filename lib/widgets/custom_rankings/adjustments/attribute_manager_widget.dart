@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
+import 'package:mds_home/models/custom_rankings/enhanced_attribute_library.dart';
 
 class AttributeManagerWidget extends StatefulWidget {
   final String position;
@@ -425,7 +426,7 @@ class _AttributeManagerWidgetState extends State<AttributeManagerWidget> {
                 color: ThemeConfig.successGreen,
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: Text(
+              child: const Text(
                 'REAL',
                 style: TextStyle(
                   fontSize: 8,

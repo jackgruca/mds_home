@@ -40,8 +40,20 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
         case 'rank':
           comparison = a.rank.compareTo(b.rank);
           break;
-        case 'score':
-          comparison = a.totalScore.compareTo(b.totalScore);
+        case 'projected_points':
+          final aPoints = a.normalizedStats['projected_points_raw'] ?? 0.0;
+          final bPoints = b.normalizedStats['projected_points_raw'] ?? 0.0;
+          comparison = aPoints.compareTo(bPoints);
+          break;
+        case 'adp':
+          final aAdp = a.normalizedStats['adp_raw'] ?? 999.0;
+          final bAdp = b.normalizedStats['adp_raw'] ?? 999.0;
+          comparison = aAdp.compareTo(bAdp);
+          break;
+        case 'consensus_rank':
+          final aConsensus = a.normalizedStats['consensus_rank_raw'] ?? 999.0;
+          final bConsensus = b.normalizedStats['consensus_rank_raw'] ?? 999.0;
+          comparison = aConsensus.compareTo(bConsensus);
           break;
         case 'name':
           comparison = a.playerName.compareTo(b.playerName);
@@ -170,10 +182,9 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
           _buildSortableHeader('Rank', 'rank', 60),
           _buildSortableHeader('Player', 'name', 120),
           _buildSortableHeader('Team', 'team', 60),
-          _buildSortableHeader('Score', 'score', 80),
-          ...widget.attributes.take(3).map((attr) => 
-            _buildSortableHeader(attr.displayName, attr.id, 80)
-          ),
+          _buildSortableHeader('Proj. Points', 'projected_points', 90),
+          _buildSortableHeader('ADP', 'adp', 60),
+          _buildSortableHeader('Consensus', 'consensus_rank', 80),
         ],
       ),
     );
@@ -286,28 +297,33 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Score
+            // Projected Points
             SizedBox(
-              width: 80,
+              width: 90,
               child: Text(
-                result.formattedScore,
+                _formatProjectedPoints(result),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: ThemeConfig.darkNavy,
                 ),
               ),
             ),
-            // Top attribute scores
-            ...widget.attributes.take(3).map((attr) {
-              final score = result.attributeScores[attr.id] ?? 0.0;
-              return SizedBox(
-                width: 80,
-                child: Text(
-                  score.toStringAsFixed(2),
-                  style: theme.textTheme.bodySmall,
-                ),
-              );
-            }),
+            // ADP
+            SizedBox(
+              width: 60,
+              child: Text(
+                _formatADP(result),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            // Consensus Rank
+            SizedBox(
+              width: 80,
+              child: Text(
+                _formatConsensusRank(result),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
           ],
         ),
       ),
@@ -393,13 +409,13 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          'Score',
+                          'Custom Rank',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: Colors.grey.shade600,
                           ),
                         ),
                         Text(
-                          result.formattedScore,
+                          '#${result.rank}',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: ThemeConfig.darkNavy,
@@ -413,23 +429,20 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                 const Divider(height: 1),
                 const SizedBox(height: 8),
                 Row(
-                  children: widget.attributes.take(3).map((attr) {
-                    final score = result.attributeScores[attr.id] ?? 0.0;
-                    return Expanded(
+                  children: [
+                    Expanded(
                       child: Column(
                         children: [
                           Text(
-                            attr.displayName,
+                            'Proj. Points',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: Colors.grey.shade600,
                             ),
                             textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            score.toStringAsFixed(2),
+                            _formatProjectedPoints(result),
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -437,8 +450,50 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                           ),
                         ],
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'ADP',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatADP(result),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            'Consensus',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatConsensusRank(result),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -453,5 +508,23 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
     if (rank <= 12) return ThemeConfig.gold;
     if (rank <= 24) return Colors.orange;
     return Colors.grey;
+  }
+
+  String _formatProjectedPoints(CustomRankingResult result) {
+    final points = result.normalizedStats['projected_points_raw'];
+    if (points == null || points == 0.0) return 'N/A';
+    return points.toStringAsFixed(1);
+  }
+
+  String _formatADP(CustomRankingResult result) {
+    final adp = result.normalizedStats['adp_raw'];
+    if (adp == null || adp >= 999) return 'N/A';
+    return adp.toStringAsFixed(0);
+  }
+
+  String _formatConsensusRank(CustomRankingResult result) {
+    final consensus = result.normalizedStats['consensus_rank_raw'];
+    if (consensus == null || consensus >= 999) return 'N/A';
+    return '#${consensus.toStringAsFixed(0)}';
   }
 }

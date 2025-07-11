@@ -127,8 +127,21 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
       }
     });
     
+    // Auto-normalize weights to sum to 100%
+    _normalizeWeights();
     _saveToHistory();
     _recalculateRankings();
+  }
+
+  void _normalizeWeights() {
+    final totalWeight = _currentAttributes.fold(0.0, (sum, attr) => sum + attr.weight);
+    if (totalWeight > 0) {
+      for (int i = 0; i < _currentAttributes.length; i++) {
+        _currentAttributes[i] = _currentAttributes[i].copyWith(
+          weight: _currentAttributes[i].weight / totalWeight
+        );
+      }
+    }
   }
 
   void _resetToEqual() {
@@ -293,36 +306,26 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: totalWeight > 0.8 && totalWeight < 1.2
-                        ? ThemeConfig.successGreen.withValues(alpha: 0.1)
-                        : ThemeConfig.gold.withValues(alpha: 0.1),
+                    color: ThemeConfig.successGreen.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: totalWeight > 0.8 && totalWeight < 1.2
-                          ? ThemeConfig.successGreen.withValues(alpha: 0.3)
-                          : ThemeConfig.gold.withValues(alpha: 0.3),
+                      color: ThemeConfig.successGreen.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        totalWeight > 0.8 && totalWeight < 1.2
-                            ? Icons.check_circle
-                            : Icons.info_outline,
+                      const Icon(
+                        Icons.info_outline,
                         size: 16,
-                        color: totalWeight > 0.8 && totalWeight < 1.2
-                            ? ThemeConfig.successGreen
-                            : ThemeConfig.gold,
+                        color: ThemeConfig.successGreen,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Total: ${(totalWeight * 100).toStringAsFixed(0)}%',
+                        'Weights automatically balance to 100% as you adjust',
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: totalWeight > 0.8 && totalWeight < 1.2
-                              ? ThemeConfig.successGreen
-                              : ThemeConfig.gold,
+                          color: ThemeConfig.successGreen,
                         ),
                       ),
                     ],
@@ -465,18 +468,27 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Not Important',
+                '0% - Not Important',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
               ),
               Text(
-                'Very Important',
+                '100% - Most Important',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tip: Higher weights mean this attribute has more impact on rankings. All weights automatically balance to 100%.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.grey.shade500,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

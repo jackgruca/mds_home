@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
+import 'package:mds_home/models/custom_rankings/enhanced_attribute_library.dart';
 
 class AttributeSelectionStep extends StatelessWidget {
   final String position;
@@ -124,9 +125,7 @@ class AttributeSelectionStep extends StatelessWidget {
           Row(
             children: [
               Text(
-                EnhancedAttributeLibrary.getCategories().contains(category) 
-                  ? attributes.first.categoryEmoji 
-                  : '⚡',
+                attributes.first.categoryEmoji,
                 style: const TextStyle(fontSize: 20),
               ),
               const SizedBox(width: 8),

@@ -72,7 +72,7 @@ class AttributeImpactWidget extends StatelessWidget {
                 Expanded(
                   child: _buildSummaryItem(
                     context,
-                    'Total Weight',
+                    'Total Weight Assigned',
                     '${(totalWeight * 100).toStringAsFixed(0)}%',
                     Icons.scale,
                   ),
@@ -80,7 +80,7 @@ class AttributeImpactWidget extends StatelessWidget {
                 Expanded(
                   child: _buildSummaryItem(
                     context,
-                    'Effective Impact',
+                    'Actual Ranking Impact',
                     '${(effectiveWeight * 100).toStringAsFixed(0)}%',
                     Icons.trending_up,
                   ),
