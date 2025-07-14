@@ -10,7 +10,7 @@ class AttributeCalculationService {
   ) async {
     try {
       // Get the raw stat value from player data
-      final rawValue = _getRawStatValue(player, attribute);
+      final rawValue = getRawStatValue(player, attribute);
       
       if (rawValue == null) {
         return 0.0; // No data available
@@ -23,7 +23,7 @@ class AttributeCalculationService {
     }
   }
 
-  double? _getRawStatValue(PlayerRanking player, RankingAttribute attribute) {
+  double? getRawStatValue(PlayerRanking player, RankingAttribute attribute) {
     // Check in additional ranks first (from CSV data)
     if (player.additionalRanks.containsKey(attribute.name)) {
       final value = player.additionalRanks[attribute.name];

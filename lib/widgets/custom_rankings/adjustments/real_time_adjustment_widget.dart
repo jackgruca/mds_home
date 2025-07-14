@@ -127,8 +127,8 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
       }
     });
     
-    // Auto-normalize weights to sum to 100%
-    _normalizeWeights();
+    // Don't auto-normalize weights - let users see the direct impact
+    // _normalizeWeights();
     _saveToHistory();
     _recalculateRankings();
   }
@@ -165,6 +165,14 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
       ).toList();
     });
     
+    _saveToHistory();
+    _recalculateRankings();
+  }
+
+  void _normalizeAllWeights() {
+    setState(() {
+      _normalizeWeights();
+    });
     _saveToHistory();
     _recalculateRankings();
   }
@@ -306,26 +314,37 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: ThemeConfig.successGreen.withValues(alpha: 0.1),
+                    color: ThemeConfig.darkNavy.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: ThemeConfig.successGreen.withValues(alpha: 0.3),
+                      color: ThemeConfig.darkNavy.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
                     children: [
-                      const Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: ThemeConfig.successGreen,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: ThemeConfig.darkNavy,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'New Rank-Based Scoring: Lower scores = better rankings',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: ThemeConfig.darkNavy,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Weights automatically balance to 100% as you adjust',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: ThemeConfig.successGreen,
+                        'Total Weight: ${(totalWeight * 100).toStringAsFixed(0)}% | Rankings update in real-time',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: ThemeConfig.darkNavy.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -357,28 +376,45 @@ class _RealTimeAdjustmentWidgetState extends State<RealTimeAdjustmentWidget>
   Widget _buildQuickActions(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: _resetToEqual,
-              icon: const Icon(Icons.balance, size: 16),
-              label: const Text('Equal Weights'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: ThemeConfig.darkNavy,
-                side: const BorderSide(color: ThemeConfig.darkNavy),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _resetToEqual,
+                  icon: const Icon(Icons.balance, size: 16),
+                  label: const Text('Equal Weights'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: ThemeConfig.darkNavy,
+                    side: const BorderSide(color: ThemeConfig.darkNavy),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _clearWeights,
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: const Text('Clear All'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey.shade600,
+                    side: BorderSide(color: Colors.grey.shade400),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _clearWeights,
-              icon: const Icon(Icons.clear_all, size: 16),
-              label: const Text('Clear All'),
+              onPressed: _normalizeAllWeights,
+              icon: const Icon(Icons.percent, size: 16),
+              label: const Text('Normalize to 100%'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.grey.shade600,
-                side: BorderSide(color: Colors.grey.shade400),
+                foregroundColor: ThemeConfig.gold,
+                side: const BorderSide(color: ThemeConfig.gold),
               ),
             ),
           ),

@@ -12,6 +12,7 @@ class CustomRankingResult {
   final int rank;
   final Map<String, double> attributeScores;
   final Map<String, double> normalizedStats;
+  final Map<String, double> rawStats;
   final DateTime calculatedAt;
   final String source;
 
@@ -26,6 +27,7 @@ class CustomRankingResult {
     required this.rank,
     required this.attributeScores,
     required this.normalizedStats,
+    required this.rawStats,
     required this.calculatedAt,
     this.source = 'custom',
   });
@@ -50,6 +52,11 @@ class CustomRankingResult {
           (key, value) => MapEntry(key, (value as num).toDouble()),
         ),
       ),
+      rawStats: Map<String, double>.from(
+        (json['rawStats'] as Map<String, dynamic>).map(
+          (key, value) => MapEntry(key, (value as num).toDouble()),
+        ),
+      ),
       calculatedAt: (json['calculatedAt'] as Timestamp).toDate(),
       source: json['source'] as String? ?? 'custom',
     );
@@ -67,6 +74,7 @@ class CustomRankingResult {
       'rank': rank,
       'attributeScores': attributeScores,
       'normalizedStats': normalizedStats,
+      'rawStats': rawStats,
       'calculatedAt': Timestamp.fromDate(calculatedAt),
       'source': source,
     };
@@ -101,6 +109,7 @@ class CustomRankingResult {
     int? rank,
     Map<String, double>? attributeScores,
     Map<String, double>? normalizedStats,
+    Map<String, double>? rawStats,
     DateTime? calculatedAt,
     String? source,
   }) {
@@ -115,6 +124,7 @@ class CustomRankingResult {
       rank: rank ?? this.rank,
       attributeScores: attributeScores ?? this.attributeScores,
       normalizedStats: normalizedStats ?? this.normalizedStats,
+      rawStats: rawStats ?? this.rawStats,
       calculatedAt: calculatedAt ?? this.calculatedAt,
       source: source ?? this.source,
     );

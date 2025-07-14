@@ -4,6 +4,30 @@ import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart'
 import 'package:mds_home/models/custom_rankings/custom_ranking_result.dart';
 import 'enhanced_data_service.dart';
 
+class PlayerRankData {
+  final PlayerRanking player;
+  final double value;
+  final int rank;
+
+  const PlayerRankData({
+    required this.player,
+    required this.value,
+    required this.rank,
+  });
+
+  PlayerRankData copyWith({
+    PlayerRanking? player,
+    double? value,
+    int? rank,
+  }) {
+    return PlayerRankData(
+      player: player ?? this.player,
+      value: value ?? this.value,
+      rank: rank ?? this.rank,
+    );
+  }
+}
+
 class EnhancedCalculationEngine {
   final EnhancedDataService _dataService = EnhancedDataService();
 
@@ -20,49 +44,24 @@ class EnhancedCalculationEngine {
       throw Exception('No players found for position: $position');
     }
 
-    // Calculate scores for each player
-    final playerScores = <PlayerRanking, Map<String, double>>{};
-    
-    for (final player in players) {
-      final scores = await _calculatePlayerScores(player, attributes, position);
-      playerScores[player] = scores;
-    }
+    // Calculate rank-based scores for each player
+    final results = await _calculateRankBasedScores(
+      questionnaireId: questionnaireId,
+      players: players,
+      attributes: attributes,
+      position: position,
+    );
 
-    // Create ranking results
-    final results = <CustomRankingResult>[];
-    
-    for (final entry in playerScores.entries) {
-      final player = entry.key;
-      final scores = entry.value;
-      final totalScore = scores['total'] ?? 0.0;
-      
-      final result = CustomRankingResult(
-        id: '${questionnaireId}_${player.id}_${DateTime.now().millisecondsSinceEpoch}',
-        questionnaireId: questionnaireId,
-        playerId: player.id,
-        playerName: player.name,
-        position: player.position,
-        team: player.team,
-        totalScore: totalScore,
-        rank: 0, // Will be set after sorting
-        attributeScores: Map.from(scores)..remove('total'),
-        normalizedStats: await _getNormalizedStats(player, attributes, position),
-        calculatedAt: DateTime.now(),
-      );
-      
-      results.add(result);
-    }
-
-    // Sort by total score (descending) and apply tie-breaking
+    // Sort by total score (ascending - lower is better) and apply tie-breaking
     results.sort((a, b) {
-      final scoreComparison = b.totalScore.compareTo(a.totalScore);
+      final scoreComparison = a.totalScore.compareTo(b.totalScore);
       if (scoreComparison != 0) return scoreComparison;
       
       // Apply tie-breaking logic
       return _applyTieBreaker(a, b, tieBreaker);
     });
 
-    // Assign ranks
+    // Assign final ranks
     for (int i = 0; i < results.length; i++) {
       results[i] = results[i].copyWith(rank: i + 1);
     }
@@ -70,29 +69,116 @@ class EnhancedCalculationEngine {
     return results;
   }
 
-  Future<Map<String, double>> _calculatePlayerScores(
-    PlayerRanking player,
-    List<EnhancedRankingAttribute> attributes,
-    String position,
-  ) async {
-    final scores = <String, double>{};
-    double totalScore = 0.0;
-
+  Future<List<CustomRankingResult>> _calculateRankBasedScores({
+    required String questionnaireId,
+    required List<PlayerRanking> players,
+    required List<EnhancedRankingAttribute> attributes,
+    required String position,
+  }) async {
+    // For each attribute, calculate the rank of each player
+    final attributeRanks = <String, List<PlayerRankData>>{};
+    
     for (final attribute in attributes) {
-      final normalizedValue = await _dataService.getNormalizedStatValue(
-        player,
-        attribute,
-        position,
-      );
+      final playerValues = <PlayerRankData>[];
       
-      // Apply weight to get the contribution to total score
-      final weightedScore = normalizedValue * attribute.weight;
-      scores[attribute.id] = weightedScore;
-      totalScore += weightedScore;
+      // Get raw values for all players for this attribute
+      for (final player in players) {
+        final rawValue = await _dataService.getPlayerStatValue(player, attribute);
+        if (rawValue != null) {
+          playerValues.add(PlayerRankData(
+            player: player,
+            value: rawValue,
+            rank: 0, // Will be calculated
+          ));
+        }
+      }
+      
+      // Sort by value (descending for most stats, ascending for "lower is better" stats)
+      if (attribute.calculationType == 'inverse') {
+        // For stats like interceptions where lower is better
+        playerValues.sort((a, b) => a.value.compareTo(b.value));
+      } else {
+        // For most stats where higher is better
+        playerValues.sort((a, b) => b.value.compareTo(a.value));
+      }
+      
+      // Assign ranks (1-based)
+      for (int i = 0; i < playerValues.length; i++) {
+        playerValues[i] = playerValues[i].copyWith(rank: i + 1);
+      }
+      
+      attributeRanks[attribute.id] = playerValues;
     }
+    
+    // Calculate weighted average rank for each player
+    final results = <CustomRankingResult>[];
+    
+    for (final player in players) {
+      final attributeScores = <String, double>{};
+      final normalizedStats = <String, double>{};
+      final rawStats = <String, double>{};
+      double totalWeightedRank = 0.0;
+      double totalWeight = 0.0;
+      
+      for (final attribute in attributes) {
+        final rankData = attributeRanks[attribute.id];
+        if (rankData != null) {
+          PlayerRankData? playerRankData;
+          try {
+            playerRankData = rankData.firstWhere(
+              (data) => data.player.id == player.id,
+            );
+          } catch (e) {
+            // Player not found in this attribute's rankings
+            playerRankData = PlayerRankData(
+              player: player,
+              value: 0.0,
+              rank: rankData.length + 1, // Worst possible rank
+            );
+          }
+          
+          final rank = playerRankData.rank.toDouble();
+          final weightedRank = rank * attribute.weight;
+          
+          attributeScores[attribute.id] = weightedRank;
+          normalizedStats[attribute.id] = rank;
+          rawStats[attribute.id] = playerRankData.value;
+          
+          totalWeightedRank += weightedRank;
+          totalWeight += attribute.weight;
+        }
+      }
+      
+      // Calculate average weighted rank (lower is better)
+      final averageRank = totalWeight > 0 ? totalWeightedRank / totalWeight : 999.0;
+      
+      results.add(CustomRankingResult(
+        id: '${questionnaireId}_${player.id}_${DateTime.now().millisecondsSinceEpoch}',
+        questionnaireId: questionnaireId,
+        playerId: player.id,
+        playerName: player.name,
+        position: player.position,
+        team: player.team,
+        totalScore: averageRank,
+        rank: 0, // Will be set after final sorting
+        attributeScores: attributeScores,
+        normalizedStats: normalizedStats,
+        rawStats: rawStats,
+        calculatedAt: DateTime.now(),
+      ));
+    }
+    
+    return results;
+  }
 
-    scores['total'] = totalScore;
-    return scores;
+  Future<Map<String, double>> _getRawStats(
+      PlayerRanking player, List<EnhancedRankingAttribute> attributes) async {
+    final rawStats = <String, double>{};
+    for (final attribute in attributes) {
+      final rawValue = await _dataService.getPlayerStatValue(player, attribute);
+      rawStats[attribute.id] = rawValue ?? 0.0;
+    }
+    return rawStats;
   }
 
   Future<Map<String, double>> _getNormalizedStats(
@@ -103,15 +189,12 @@ class EnhancedCalculationEngine {
     final normalizedStats = <String, double>{};
 
     for (final attribute in attributes) {
-      final rawValue = await _dataService.getPlayerStatValue(player, attribute);
       final normalizedValue = await _dataService.getNormalizedStatValue(
         player,
         attribute,
         position,
       );
-      
-      normalizedStats['${attribute.name}_raw'] = rawValue ?? 0.0;
-      normalizedStats['${attribute.name}_normalized'] = normalizedValue;
+      normalizedStats[attribute.id] = normalizedValue;
     }
 
     return normalizedStats;
@@ -173,7 +256,8 @@ class EnhancedCalculationEngine {
   double _calculatePercentile(List<double> values, double percentile) {
     if (values.isEmpty) return 0.0;
     
-    final sorted = List<double>.from(values)..sort((a, b) => b.compareTo(a));
+    // For rank-based scoring, lower is better, so sort ascending
+    final sorted = List<double>.from(values)..sort((a, b) => a.compareTo(b));
     final index = (percentile * (sorted.length - 1)).round();
     return sorted[index.clamp(0, sorted.length - 1)];
   }
@@ -181,10 +265,11 @@ class EnhancedCalculationEngine {
   List<double> _calculateTierBreaks(List<double> scores) {
     if (scores.isEmpty) return [];
     
-    final sorted = List<double>.from(scores)..sort((a, b) => b.compareTo(a));
+    // For rank-based scoring, lower is better, so sort ascending
+    final sorted = List<double>.from(scores)..sort((a, b) => a.compareTo(b));
     
     return [
-      _calculatePercentile(sorted, 0.1),  // Elite tier (top 10%)
+      _calculatePercentile(sorted, 0.1),  // Elite tier (top 10% - lowest scores)
       _calculatePercentile(sorted, 0.25), // High tier (top 25%)
       _calculatePercentile(sorted, 0.5),  // Mid tier (top 50%)
       _calculatePercentile(sorted, 0.75), // Low tier (top 75%)
@@ -194,10 +279,11 @@ class EnhancedCalculationEngine {
   String getTierLabel(double score, List<double> tierBreaks) {
     if (tierBreaks.isEmpty) return 'Unknown';
     
-    if (score >= tierBreaks[0]) return 'Elite';
-    if (score >= tierBreaks[1]) return 'High';
-    if (score >= tierBreaks[2]) return 'Mid';
-    if (score >= tierBreaks[3]) return 'Low';
+    // For rank-based scoring, lower scores are better
+    if (score <= tierBreaks[0]) return 'Elite';
+    if (score <= tierBreaks[1]) return 'High';
+    if (score <= tierBreaks[2]) return 'Mid';
+    if (score <= tierBreaks[3]) return 'Low';
     return 'Deep';
   }
 
@@ -249,6 +335,29 @@ class EnhancedCalculationEngine {
     final denominator = sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
 
     return denominator != 0 ? numerator / denominator : 0.0;
+  }
+
+  // Debug method to verify ranking system
+  void debugRankingSystem(List<CustomRankingResult> results, List<EnhancedRankingAttribute> attributes) {
+    print('=== RANKING SYSTEM DEBUG ===');
+    print('Total players: ${results.length}');
+    print('Attributes: ${attributes.map((a) => '${a.displayName} (${(a.weight * 100).toStringAsFixed(0)}%)').join(', ')}');
+    
+    final top10 = results.take(10).toList();
+    print('\nTop 10 Rankings:');
+    for (int i = 0; i < top10.length; i++) {
+      final result = top10[i];
+      print('${i + 1}. ${result.playerName} (${result.position}) - Score: ${result.totalScore.toStringAsFixed(2)}');
+      
+      // Show attribute rankings
+      final attributeRanks = <String>[];
+      for (final attr in attributes) {
+        final rank = result.normalizedStats[attr.id]?.toStringAsFixed(1) ?? 'N/A';
+        attributeRanks.add('${attr.displayName}: #$rank');
+      }
+      print('   ${attributeRanks.join(', ')}');
+    }
+    print('=========================');
   }
 }
 

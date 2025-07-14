@@ -39,6 +39,8 @@ class AttributeSelectionStep extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _buildSelectionSummary(context),
+          const SizedBox(height: 16),
+          _buildSelectAllButtons(context, availableAttributes),
           const SizedBox(height: 24),
           ...groupedAttributes.entries.map((entry) => 
             _buildCategorySection(context, entry.key, entry.value)
@@ -123,18 +125,27 @@ class AttributeSelectionStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                attributes.first.categoryEmoji,
-                style: const TextStyle(fontSize: 20),
+              Row(
+                children: [
+                  Text(
+                    attributes.first.categoryEmoji,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    category,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                category,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              TextButton(
+                onPressed: () => _selectAllInCategory(attributes),
+                child: const Text('Select All'),
+              )
             ],
           ),
           const SizedBox(height: 12),
@@ -237,6 +248,33 @@ class AttributeSelectionStep extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildSelectAllButtons(BuildContext context, List<EnhancedRankingAttribute> availableAttributes) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => onAttributesChanged(List.from(availableAttributes)),
+          child: const Text('Select All'),
+        ),
+        const SizedBox(width: 12),
+        TextButton(
+          onPressed: () => onAttributesChanged([]),
+          child: const Text('Deselect All'),
+        ),
+      ],
+    );
+  }
+
+  void _selectAllInCategory(List<EnhancedRankingAttribute> categoryAttributes) {
+    final List<EnhancedRankingAttribute> newSelected = List.from(selectedAttributes);
+    for (final attr in categoryAttributes) {
+      if (!newSelected.any((selectedAttr) => selectedAttr.id == attr.id)) {
+        newSelected.add(attr);
+      }
+    }
+    onAttributesChanged(newSelected);
   }
 
   void _toggleAttribute(EnhancedRankingAttribute attribute) {

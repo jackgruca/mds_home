@@ -139,6 +139,7 @@ class CustomRankingService {
   ) async {
     final attributeScores = <String, double>{};
     final normalizedStats = <String, double>{};
+    final rawStats = <String, double>{};
     double totalScore = 0.0;
 
     for (final attribute in questionnaire.attributes) {
@@ -150,6 +151,10 @@ class CustomRankingService {
       );
       
       normalizedStats[attribute.name] = normalizedValue;
+      
+      // Get raw stat value
+      final rawValue = _calculationService.getRawStatValue(player, attribute);
+      rawStats[attribute.id] = rawValue ?? 0.0;
       
       // Calculate weighted score for this attribute
       final attributeScore = normalizedValue * attribute.weight;
@@ -169,6 +174,7 @@ class CustomRankingService {
       rank: 0, // Will be set after sorting
       attributeScores: attributeScores,
       normalizedStats: normalizedStats,
+      rawStats: rawStats,
       calculatedAt: DateTime.now(),
     );
   }

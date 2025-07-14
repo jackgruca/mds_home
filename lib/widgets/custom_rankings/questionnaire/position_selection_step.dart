@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
+import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
 
 class PositionSelectionStep extends StatelessWidget {
   final String? selectedPosition;
@@ -32,14 +33,38 @@ class PositionSelectionStep extends StatelessWidget {
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: 32),
-          _buildPositionGrid(context),
+          ResponsiveLayoutBuilder(
+            mobile: (context) => _buildMobileLayout(context),
+            desktop: (context) => _buildDesktopLayout(context),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildPositionGrid(BuildContext context) {
-    final positions = [
+  Widget _buildMobileLayout(BuildContext context) {
+    return _buildPositionGrid(context, crossAxisCount: 2, childAspectRatio: 0.8);
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    final positions = _getPositions();
+    return Center(
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 24,
+        alignment: WrapAlignment.center,
+        children: positions
+            .map((position) => SizedBox(
+                  width: 300,
+                  child: _buildPositionCard(context, position),
+                ))
+            .toList(),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getPositions() {
+    return [
       {
         'position': 'QB',
         'name': 'Quarterback',
@@ -69,15 +94,19 @@ class PositionSelectionStep extends StatelessWidget {
         'sampleAttributes': ['Target Share', 'Red Zone Targets', 'Snap %', 'Previous PPG'],
       },
     ];
+  }
+
+  Widget _buildPositionGrid(BuildContext context, {required int crossAxisCount, required double childAspectRatio}) {
+    final positions = _getPositions();
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: childAspectRatio,
       ),
       itemCount: positions.length,
       itemBuilder: (context, index) {
@@ -96,104 +125,86 @@ class PositionSelectionStep extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? ThemeConfig.darkNavy.withValues(alpha: 0.1) : Colors.white,
+          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.05) : Colors.white,
           border: Border.all(
-            color: isSelected ? ThemeConfig.darkNavy : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
+            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            width: isSelected ? 2.5 : 1,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isSelected ? ThemeConfig.darkNavy : ThemeConfig.brightRed,
-                      borderRadius: BorderRadius.circular(8),
+                      color: isSelected ? Theme.of(context).colorScheme.primary : ThemeConfig.brightRed,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       position['icon'] as IconData,
                       color: Colors.white,
-                      size: 24,
+                      size: 28,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        position['position'] as String,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isSelected ? ThemeConfig.darkNavy : null,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          position['position'] as String,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                          ),
                         ),
-                      ),
-                      Text(
-                        position['name'] as String,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
+                        Text(
+                          position['name'] as String,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                position['description'] as String,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               Text(
                 'Sample attributes:',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: 4,
-                runSpacing: 4,
+                spacing: 6,
+                runSpacing: 6,
                 children: (position['sampleAttributes'] as List<String>)
-                    .take(3)
-                    .map((attr) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isSelected ? ThemeConfig.gold.withValues(alpha: 0.2) : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        attr,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                        ),
-                      ),
-                    )).toList(),
+                    .map((attr) => Chip(
+                          label: Text(attr),
+                          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.grey.shade100,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          labelStyle: theme.textTheme.bodySmall?.copyWith(
+                            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                          )
+                        )
+                    )
+                    .toList(),
               ),
-              if ((position['sampleAttributes'] as List<String>).length > 3)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '+${(position['sampleAttributes'] as List<String>).length - 3} more',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.grey.shade500,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
