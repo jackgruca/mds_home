@@ -320,6 +320,12 @@ class _ToolGrid extends StatelessWidget {
       'route': '/fantasy/custom-rankings',
     },
     {
+      'icon': Icons.analytics,
+      'title': 'Player Projections',
+      'subtitle': 'Create custom stat projections',
+      'route': '/fantasy/player-projections',
+    },
+    {
       'icon': Icons.leaderboard,
       'title': 'Big Board',
       'subtitle': 'Player rankings & tiers',

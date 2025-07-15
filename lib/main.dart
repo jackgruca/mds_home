@@ -4,7 +4,7 @@ import 'package:mds_home/screens/blog/blog_list_screen.dart';
 import 'package:mds_home/screens/home_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
-import 'screens/player_projections_screen.dart';
+
 import 'screens/team_selection_screen.dart';
 import 'screens/historical_data_screen.dart';
 import 'screens/hubs/gm_hub_screen.dart';
@@ -37,6 +37,7 @@ import 'screens/depth_charts_screen.dart';
 import 'screens/fantasy/player_trends_screen.dart';
 import 'screens/fantasy/bust_evaluation_screen.dart';
 import 'screens/custom_rankings/custom_rankings_home_screen.dart';
+import 'screens/projections/player_projections_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -195,6 +196,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
               case '/fantasy/custom-rankings':
                 return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
+              case '/fantasy/player-projections':
+                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
