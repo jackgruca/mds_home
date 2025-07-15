@@ -192,7 +192,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
               case '/fantasy/trends':
                 return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
-              case '/fantasy/bust-evaluation':
+              case '/gm-hub/bust-evaluation':
                 return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
               case '/fantasy/custom-rankings':
                 return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
