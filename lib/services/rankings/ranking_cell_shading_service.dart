@@ -10,6 +10,11 @@ class RankingCellShadingService {
     if (rankings.isEmpty) return percentileCache;
     
     for (String column in statColumns) {
+      // Skip string fields that shouldn't be processed as numbers
+      if (_isStringField(column)) {
+        continue;
+      }
+      
       final values = rankings
           .map((item) {
             final value = item[column];
@@ -36,6 +41,24 @@ class RankingCellShadingService {
     }
     
     return percentileCache;
+  }
+
+  // Helper method to identify string fields that shouldn't be processed as numbers
+  static bool _isStringField(String field) {
+    const stringFields = {
+      'player_name',
+      'receiver_player_name', 
+      'passer_player_name',
+      'team',
+      'posteam',
+      'player_position',
+      'position',
+      'player_id',
+      'receiver_player_id',
+      'passer_player_id',
+      'id'
+    };
+    return stringFields.contains(field);
   }
 
   static double _calculatePercentile(List<double> sortedValues, double percentile) {
@@ -81,14 +104,25 @@ class RankingCellShadingService {
     double height = 40,
   }) {
     final displayValue = showRanks ? rankValue : value;
-    final numValue = (displayValue as num?)?.toDouble() ?? 0.0;
+    
+    // Handle string fields - don't try to convert to number
+    double numValue = 0.0;
+    if (!_isStringField(column)) {
+      if (displayValue is num) {
+        numValue = displayValue.toDouble();
+      } else if (displayValue is String) {
+        numValue = double.tryParse(displayValue) ?? 0.0;
+      }
+    }
     
     return Container(
       width: width,
       height: height,
       margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: getDensityColor(column, showRanks ? (1.0 - numValue) : numValue, percentileCache),
+        color: _isStringField(column) 
+            ? Colors.grey.shade100  // Default color for string fields
+            : getDensityColor(column, showRanks ? (1.0 - numValue) : numValue, percentileCache),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300, width: 0.5),
       ),

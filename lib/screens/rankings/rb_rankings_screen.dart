@@ -61,7 +61,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
       
       // Calculate percentiles for stat ranking
       final statFields = _rbStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
@@ -119,9 +119,21 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
       baseColumns.add('season');
     }
     final statFieldsToShow = _rbStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
     ).toList();
-    baseColumns.addAll(statFieldsToShow);
+    
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
   }
 
@@ -372,10 +384,21 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _rbStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
     ).toList();
     
-    for (final field in statFieldsToShow) {
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    for (final field in fieldsToDisplay) {
       final statInfo = _rbStatFields[field]!;
       columns.add(DataColumn(
         label: Tooltip(
@@ -422,7 +445,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  rb['player_name'] ?? 'Unknown',
+                  rb['fantasy_player_name'] ?? rb['player_name'] ?? 'Unknown',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -456,10 +479,21 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _rbStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
       ).toList();
       
-      for (final field in statFieldsToShow) {
+      // Filter fields based on toggle state
+      final fieldsToDisplay = statFieldsToShow.where((field) {
+        if (_showRanks) {
+          // Show rank fields when toggle is on
+          return field.endsWith('_rank') || field == 'myRank';
+        } else {
+          // Show raw stat fields when toggle is off
+          return !field.endsWith('_rank') && field != 'myRank';
+        }
+      }).toList();
+      
+      for (final field in fieldsToDisplay) {
         final value = rb[field];
         final statInfo = _rbStatFields[field]!;
         
@@ -471,7 +505,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
             rankValue: _showRanks ? ((_rbRankings.length - (rb['myRankNum'] ?? index + 1)) / _rbRankings.length) : value,
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks ? 
+            formatValue: (val, col) => _showRanks && col.endsWith('_rank') ? 
               '#${((_rbRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _rbRankings.length))}' :
               _formatStatValue(val, statInfo['format']),
             width: double.infinity,

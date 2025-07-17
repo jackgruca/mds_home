@@ -28,7 +28,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   bool _showRanks = false; // Toggle between showing ranks vs raw stats
   
   // Sorting state - default to rank ascending (rank 1 first)
-  String _sortColumn = 'rank_number';
+  String _sortColumn = 'myRankNum';
   bool _sortAscending = true;
   
   late final List<String> _seasonOptions;
@@ -61,7 +61,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       
       // Calculate percentiles for stat ranking
       final statFields = _qbStatFields.keys.where((key) => 
-        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
@@ -114,14 +114,26 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   }
 
   int _getSortColumnIndex() {
-    final baseColumns = ['rank_number', 'player_name', 'team', 'qb_tier'];
+    final baseColumns = ['myRankNum', 'player_name', 'team', 'qb_tier'];
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
     final statFieldsToShow = _qbStatFields.keys.where((key) => 
-      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
     ).toList();
-    baseColumns.addAll(statFieldsToShow);
+    
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
   }
 
@@ -346,7 +358,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     final columns = <DataColumn>[
       DataColumn(
         label: const Text('Rank'),
-        onSort: (columnIndex, ascending) => _sort('rank_number', ascending),
+        onSort: (columnIndex, ascending) => _sort('myRankNum', ascending),
       ),
       DataColumn(
         label: const Text('Player'),
@@ -371,11 +383,22 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-            final statFieldsToShow = _qbStatFields.keys.where((key) => 
-          !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
-        ).toList();
+    final statFieldsToShow = _qbStatFields.keys.where((key) => 
+      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
+    ).toList();
     
-    for (final field in statFieldsToShow) {
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    for (final field in fieldsToDisplay) {
       final statInfo = _qbStatFields[field]!;
       columns.add(DataColumn(
         label: Tooltip(
@@ -406,7 +429,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '#${qb['rank_number'] ?? index + 1}',
+              '#${qb['myRankNum'] ?? index + 1}',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -422,7 +445,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  qb['player_name'] ?? 'Unknown',
+                  qb['passer_player_name'] ?? qb['player_name'] ?? 'Unknown',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -456,10 +479,21 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _qbStatFields.keys.where((key) => 
-        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
       ).toList();
       
-      for (final field in statFieldsToShow) {
+      // Filter fields based on toggle state
+      final fieldsToDisplay = statFieldsToShow.where((field) {
+        if (_showRanks) {
+          // Show rank fields when toggle is on
+          return field.endsWith('_rank') || field == 'myRank';
+        } else {
+          // Show raw stat fields when toggle is off
+          return !field.endsWith('_rank') && field != 'myRank';
+        }
+      }).toList();
+      
+      for (final field in fieldsToDisplay) {
         final value = qb[field];
         final statInfo = _qbStatFields[field]!;
         
@@ -468,10 +502,10 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: _showRanks ? ((_qbRankings.length - (qb['rank_number'] ?? index + 1)) / _qbRankings.length) : value,
+            rankValue: _showRanks ? ((_qbRankings.length - (qb['myRankNum'] ?? index + 1)) / _qbRankings.length) : value,
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks ? 
+            formatValue: (val, col) => _showRanks && col.endsWith('_rank') ? 
               '#${((_qbRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _qbRankings.length))}' :
               _formatStatValue(val, statInfo['format']),
             width: double.infinity,

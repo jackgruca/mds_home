@@ -61,7 +61,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       
       // Calculate percentiles for stat ranking
       final statFields = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
@@ -119,9 +119,21 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       baseColumns.add('season');
     }
     final statFieldsToShow = _wrStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
     ).toList();
-    baseColumns.addAll(statFieldsToShow);
+    
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
   }
 
@@ -372,10 +384,21 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _wrStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
     ).toList();
     
-    for (final field in statFieldsToShow) {
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRank';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRank';
+      }
+    }).toList();
+    
+    for (final field in fieldsToDisplay) {
       final statInfo = _wrStatFields[field]!;
       columns.add(DataColumn(
         label: Tooltip(
@@ -422,7 +445,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  wr['player_name'] ?? 'Unknown',
+                  wr['receiver_player_name'] ?? wr['player_name'] ?? 'Unknown',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -456,10 +479,21 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
       ).toList();
       
-      for (final field in statFieldsToShow) {
+      // Filter fields based on toggle state
+      final fieldsToDisplay = statFieldsToShow.where((field) {
+        if (_showRanks) {
+          // Show rank fields when toggle is on
+          return field.endsWith('_rank') || field == 'myRank';
+        } else {
+          // Show raw stat fields when toggle is off
+          return !field.endsWith('_rank') && field != 'myRank';
+        }
+      }).toList();
+      
+      for (final field in fieldsToDisplay) {
         final value = wr[field];
         final statInfo = _wrStatFields[field]!;
         
@@ -471,7 +505,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
             rankValue: _showRanks ? ((_wrRankings.length - (wr['myRankNum'] ?? index + 1)) / _wrRankings.length) : value,
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks ? 
+            formatValue: (val, col) => _showRanks && col.endsWith('_rank') ? 
               '#${((_wrRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _wrRankings.length))}' :
               _formatStatValue(val, statInfo['format']),
             width: double.infinity,

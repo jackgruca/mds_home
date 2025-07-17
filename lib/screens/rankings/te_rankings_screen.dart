@@ -61,7 +61,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       
       // Calculate percentiles for stat ranking
       final statFields = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
+        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
@@ -119,7 +119,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       baseColumns.add('season');
     }
     final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
+      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
     ).toList();
     
     // Filter fields based on toggle state
@@ -384,7 +384,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
+      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
     ).toList();
     
     // Filter fields based on toggle state

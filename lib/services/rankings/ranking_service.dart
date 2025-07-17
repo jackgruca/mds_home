@@ -20,22 +20,34 @@ class RankingService {
   // Position-specific stat fields based on R code
   static const Map<String, Map<String, dynamic>> _rbStatFields = {
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'totalTD': {'name': 'Total TDs', 'format': 'integer', 'description': 'Total touchdowns'},
     'run_share': {'name': 'Rush Share', 'format': 'percentage', 'description': 'Team rush share'},
     'YPG': {'name': 'Rush YPG', 'format': 'decimal1', 'description': 'Rushing yards per game'},
     'tgt_share': {'name': 'Target Share', 'format': 'percentage', 'description': 'Team target share'},
-    'totalTD': {'name': 'Total TDs', 'format': 'integer', 'description': 'Total touchdowns'},
     'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
     'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
     'avg_eff': {'name': 'Efficiency', 'format': 'decimal1', 'description': 'Average efficiency'},
     'avg_RYOE_perAtt': {'name': 'RYOE/Att', 'format': 'decimal1', 'description': 'Rush yards over expected per attempt'},
     'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
+    // Rank fields
+    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
+    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
+    'run_rank': {'name': 'Rush Rank', 'format': 'percentage', 'description': 'Rush share percentile rank'},
+    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
+    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
+    'third_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
+    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
+    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
+    'RYOE_rank': {'name': 'RYOE Rank', 'format': 'percentage', 'description': 'RYOE percentile rank'},
+    'eff_rank': {'name': 'Eff Rank', 'format': 'percentage', 'description': 'Efficiency percentile rank'},
   };
 
   static const Map<String, Map<String, dynamic>> _wrStatFields = {
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'totalTD': {'name': 'Rec TDs', 'format': 'integer', 'description': 'Receiving touchdowns'},
     'tgt_share': {'name': 'Target Share', 'format': 'percentage', 'description': 'Team target share'},
     'numYards': {'name': 'Rec Yards', 'format': 'integer', 'description': 'Receiving yards'},
-    'totalTD': {'name': 'Rec TDs', 'format': 'integer', 'description': 'Receiving touchdowns'},
     'numRec': {'name': 'Receptions', 'format': 'integer', 'description': 'Total receptions'},
     'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
     'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
@@ -44,6 +56,19 @@ class RankingService {
     'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
     'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
     'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
+    // Rank fields
+    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
+    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
+    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
+    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
+    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
+    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
+    'sep_rank': {'name': 'Sep Rank', 'format': 'percentage', 'description': 'Separation percentile rank'},
+    'intended_air_rank': {'name': 'aDOT Rank', 'format': 'percentage', 'description': 'Air yards percentile rank'},
+    'catch_rank': {'name': 'Catch Rank', 'format': 'percentage', 'description': 'Catch percentage percentile rank'},
+    'third_down_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
+    'yacOE_rank': {'name': 'YAC+ Rank', 'format': 'percentage', 'description': 'YAC above expected percentile rank'},
   };
 
   static const Map<String, Map<String, dynamic>> _teStatFields = {
@@ -88,6 +113,14 @@ class RankingService {
     'actualization': {'name': 'Actualization', 'format': 'decimal2', 'description': 'Actualization rate'},
     'pass_attempts': {'name': 'Attempts', 'format': 'integer', 'description': 'Pass attempts'},
     'games': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
+    // Rank fields
+    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
+    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
+    'TD_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
+    'third_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
+    'CPOE_rank': {'name': 'CPOE Rank', 'format': 'percentage', 'description': 'CPOE percentile rank'},
+    'actualization_rank': {'name': 'Act Rank', 'format': 'percentage', 'description': 'Actualization percentile rank'},
   };
 
   // Get stat fields for a specific position
@@ -209,8 +242,21 @@ class RankingService {
     final Map<String, Map<double, double>> percentileCache = {};
     
     for (final field in statFields) {
+      // Skip string fields that shouldn't be processed as numbers
+      if (_isStringField(field)) {
+        continue;
+      }
+      
       final values = data
-          .map((player) => (player[field] as num?)?.toDouble() ?? 0.0)
+          .map((player) {
+            final value = player[field];
+            if (value is num) {
+              return value.toDouble();
+            } else if (value is String) {
+              return double.tryParse(value) ?? 0.0;
+            }
+            return 0.0;
+          })
           .where((val) => val.isFinite)
           .toList();
           
@@ -219,11 +265,18 @@ class RankingService {
         final Map<double, double> percentiles = {};
         
         for (final player in data) {
-          final value = (player[field] as num?)?.toDouble() ?? 0.0;
-          if (value.isFinite) {
-            final rank = values.indexOf(value) + 1;
+          final value = player[field];
+          double numValue = 0.0;
+          if (value is num) {
+            numValue = value.toDouble();
+          } else if (value is String) {
+            numValue = double.tryParse(value) ?? 0.0;
+          }
+          
+          if (numValue.isFinite) {
+            final rank = values.indexOf(numValue) + 1;
             final percentile = rank / values.length;
-            percentiles[value] = percentile;
+            percentiles[numValue] = percentile;
           }
         }
         
@@ -234,11 +287,42 @@ class RankingService {
     return percentileCache;
   }
 
+  // Helper method to identify string fields that shouldn't be processed as numbers
+  static bool _isStringField(String field) {
+    const stringFields = {
+      'player_name',
+      'receiver_player_name', 
+      'passer_player_name',
+      'team',
+      'posteam',
+      'player_position',
+      'position',
+      'player_id',
+      'receiver_player_id',
+      'passer_player_id',
+      'id'
+    };
+    return stringFields.contains(field);
+  }
+
   // Format stat value based on format type
   static String formatStatValue(dynamic value, String format) {
     if (value == null) return '-';
     
-    final numValue = (value as num).toDouble();
+    // If it's already a string, return it as-is for string format
+    if (format == 'string') {
+      return value.toString();
+    }
+    
+    // Try to convert to number for numeric formats
+    double numValue;
+    if (value is num) {
+      numValue = value.toDouble();
+    } else if (value is String) {
+      numValue = double.tryParse(value) ?? 0.0;
+    } else {
+      return value.toString();
+    }
     
     switch (format) {
       case 'percentage':
@@ -247,6 +331,10 @@ class RankingService {
         return numValue.toStringAsFixed(1);
       case 'decimal2':
         return numValue.toStringAsFixed(2);
+      case 'decimal3':
+        return numValue.toStringAsFixed(3);
+      case 'decimal4':
+        return numValue.toStringAsFixed(4);
       case 'integer':
         return numValue.toInt().toString();
       default:
