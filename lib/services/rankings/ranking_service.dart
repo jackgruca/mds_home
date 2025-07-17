@@ -18,7 +18,8 @@ class RankingService {
   };
 
   // Position-specific stat fields based on R code
-  static const Map<String, Map<String, dynamic>> _rbStatFields = {
+  // RB raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _rbRawStatFields = {
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
     'totalTD': {'name': 'Total TDs', 'format': 'integer', 'description': 'Total touchdowns'},
     'run_share': {'name': 'Rush Share', 'format': 'percentage', 'description': 'Team rush share'},
@@ -29,21 +30,24 @@ class RankingService {
     'avg_eff': {'name': 'Efficiency', 'format': 'decimal1', 'description': 'Average efficiency'},
     'avg_RYOE_perAtt': {'name': 'RYOE/Att', 'format': 'decimal1', 'description': 'Rush yards over expected per attempt'},
     'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
-    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
-    // Rank fields
-    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
-    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
-    'run_rank': {'name': 'Rush Rank', 'format': 'percentage', 'description': 'Rush share percentile rank'},
-    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
-    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
-    'third_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
-    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
-    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
-    'RYOE_rank': {'name': 'RYOE Rank', 'format': 'percentage', 'description': 'RYOE percentile rank'},
-    'eff_rank': {'name': 'Eff Rank', 'format': 'percentage', 'description': 'Efficiency percentile rank'},
+  };
+  
+  // RB rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _rbRankFields = {
+    'EPA_rank_num': {'name': 'EPA Rank', 'format': 'rank', 'description': 'EPA rank number'},
+    'td_rank_num': {'name': 'TD Rank', 'format': 'rank', 'description': 'TD rank number'},
+    'run_rank_num': {'name': 'Rush Rank', 'format': 'rank', 'description': 'Rush share rank number'},
+    'YPG_rank_num': {'name': 'YPG Rank', 'format': 'rank', 'description': 'Yards per game rank number'},
+    'tgt_rank_num': {'name': 'Tgt Rank', 'format': 'rank', 'description': 'Target share rank number'},
+    'third_rank_num': {'name': '3rd Rank', 'format': 'rank', 'description': 'Third down rate rank number'},
+    'conversion_rank_num': {'name': 'RZ Rank', 'format': 'rank', 'description': 'Red zone conversion rank number'},
+    'explosive_rank_num': {'name': 'Expl Rank', 'format': 'rank', 'description': 'Explosive rate rank number'},
+    'RYOE_rank_num': {'name': 'RYOE Rank', 'format': 'rank', 'description': 'RYOE rank number'},
+    'eff_rank_num': {'name': 'Eff Rank', 'format': 'rank', 'description': 'Efficiency rank number'},
   };
 
-  static const Map<String, Map<String, dynamic>> _wrStatFields = {
+  // WR raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _wrRawStatFields = {
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
     'totalTD': {'name': 'Rec TDs', 'format': 'integer', 'description': 'Receiving touchdowns'},
     'tgt_share': {'name': 'Target Share', 'format': 'percentage', 'description': 'Team target share'},
@@ -56,28 +60,29 @@ class RankingService {
     'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
     'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
     'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
-    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
-    // Rank fields
-    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
-    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
-    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
-    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
-    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
-    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
-    'sep_rank': {'name': 'Sep Rank', 'format': 'percentage', 'description': 'Separation percentile rank'},
-    'intended_air_rank': {'name': 'aDOT Rank', 'format': 'percentage', 'description': 'Air yards percentile rank'},
-    'catch_rank': {'name': 'Catch Rank', 'format': 'percentage', 'description': 'Catch percentage percentile rank'},
-    'third_down_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
-    'yacOE_rank': {'name': 'YAC+ Rank', 'format': 'percentage', 'description': 'YAC above expected percentile rank'},
+  };
+  
+  // WR rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _wrRankFields = {
+    'EPA_rank_num': {'name': 'EPA Rank', 'format': 'rank', 'description': 'EPA rank number'},
+    'td_rank_num': {'name': 'TD Rank', 'format': 'rank', 'description': 'TD rank number'},
+    'tgt_rank_num': {'name': 'Tgt Rank', 'format': 'rank', 'description': 'Target share rank number'},
+    'YPG_rank_num': {'name': 'YPG Rank', 'format': 'rank', 'description': 'Yards per game rank number'},
+    'conversion_rank_num': {'name': 'RZ Rank', 'format': 'rank', 'description': 'Red zone conversion rank number'},
+    'explosive_rank_num': {'name': 'Expl Rank', 'format': 'rank', 'description': 'Explosive rate rank number'},
+    'sep_rank_num': {'name': 'Sep Rank', 'format': 'rank', 'description': 'Separation rank number'},
+    'intended_air_rank_num': {'name': 'aDOT Rank', 'format': 'rank', 'description': 'Air yards rank number'},
+    'catch_rank_num': {'name': 'Catch Rank', 'format': 'rank', 'description': 'Catch percentage rank number'},
+    'third_down_rank_num': {'name': '3rd Rank', 'format': 'rank', 'description': 'Third down rate rank number'},
+    'yacOE_rank_num': {'name': 'YAC+ Rank', 'format': 'rank', 'description': 'YAC above expected rank number'},
   };
 
-  static const Map<String, Map<String, dynamic>> _teStatFields = {
-    // Raw stats
+  // TE raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _teRawStatFields = {
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
     'totalTD': {'name': 'TDs', 'format': 'decimal1', 'description': 'Total touchdowns'},
     'tgt_share': {'name': 'Tgt Share', 'format': 'percentage', 'description': 'Team target share'},
     'numYards': {'name': 'Yards', 'format': 'integer', 'description': 'Receiving yards'},
-    'numGames': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
     'numRec': {'name': 'Rec', 'format': 'integer', 'description': 'Total receptions'},
     'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
     'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
@@ -86,57 +91,82 @@ class RankingService {
     'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
     'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
     'third_down_rate': {'name': '3rd Down', 'format': 'percentage', 'description': 'Third down conversion rate'},
-    // Rank fields
-    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
-    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
-    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
-    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
-    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
-    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
-    'sep_rank': {'name': 'Sep Rank', 'format': 'percentage', 'description': 'Separation percentile rank'},
-    'intended_air_rank': {'name': 'aDOT Rank', 'format': 'percentage', 'description': 'Air yards percentile rank'},
-    'catch_rank': {'name': 'Catch Rank', 'format': 'percentage', 'description': 'Catch percentage percentile rank'},
-    'third_down_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
-    'yacOE_rank': {'name': 'YAC+ Rank', 'format': 'percentage', 'description': 'YAC above expected percentile rank'},
-    // Final ranking
-    'myRank': {'name': 'Rank Score', 'format': 'decimal3', 'description': 'Composite ranking score'},
-    'myRankNum': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+  };
+  
+  // TE rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _teRankFields = {
+    'EPA_rank_num': {'name': 'EPA Rank', 'format': 'rank', 'description': 'EPA rank number'},
+    'td_rank_num': {'name': 'TD Rank', 'format': 'rank', 'description': 'TD rank number'},
+    'tgt_rank_num': {'name': 'Tgt Rank', 'format': 'rank', 'description': 'Target share rank number'},
+    'YPG_rank_num': {'name': 'YPG Rank', 'format': 'rank', 'description': 'Yards per game rank number'},
+    'conversion_rank_num': {'name': 'RZ Rank', 'format': 'rank', 'description': 'Red zone conversion rank number'},
+    'explosive_rank_num': {'name': 'Expl Rank', 'format': 'rank', 'description': 'Explosive rate rank number'},
+    'sep_rank_num': {'name': 'Sep Rank', 'format': 'rank', 'description': 'Separation rank number'},
+    'intended_air_rank_num': {'name': 'aDOT Rank', 'format': 'rank', 'description': 'Air yards rank number'},
+    'catch_rank_num': {'name': 'Catch Rank', 'format': 'rank', 'description': 'Catch percentage rank number'},
+    'third_down_rank_num': {'name': '3rd Rank', 'format': 'rank', 'description': 'Third down rate rank number'},
+    'yacOE_rank_num': {'name': 'YAC+ Rank', 'format': 'rank', 'description': 'YAC above expected rank number'},
   };
 
-  static const Map<String, Map<String, dynamic>> _qbStatFields = {
-    'total_epa': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
-    'yards_per_game': {'name': 'YPG', 'format': 'decimal1', 'description': 'Yards per game'},
-    'tds_per_game': {'name': 'TD/G', 'format': 'decimal1', 'description': 'Touchdowns per game'},
-    'ints_per_game': {'name': 'INT/G', 'format': 'decimal1', 'description': 'Interceptions per game'},
-    'avg_cpoe': {'name': 'CPOE', 'format': 'decimal1', 'description': 'Completion percentage over expected'},
-    'third_down_conversion_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
-    'actualization': {'name': 'Actualization', 'format': 'decimal2', 'description': 'Actualization rate'},
-    'pass_attempts': {'name': 'Attempts', 'format': 'integer', 'description': 'Pass attempts'},
-    'games': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
-    'myRank': {'name': 'Rank Score', 'format': 'decimal4', 'description': 'Composite ranking score'},
-    // Rank fields
-    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
-    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
-    'TD_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
-    'third_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
-    'CPOE_rank': {'name': 'CPOE Rank', 'format': 'percentage', 'description': 'CPOE percentile rank'},
-    'actualization_rank': {'name': 'Act Rank', 'format': 'percentage', 'description': 'Actualization percentile rank'},
+  // QB raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _qbRawStatFields = {
+    'ctotalEPA': {'name': 'Total EPA', 'format': 'decimal1', 'description': 'Combined passing and rushing EPA'},
+    'ctotalEP': {'name': 'Total EP', 'format': 'decimal1', 'description': 'Combined passing and rushing Expected Points'},
+    'cCPOE': {'name': 'CPOE', 'format': 'decimal3', 'description': 'Completion percentage over expected'},
+    'cactualization': {'name': 'Actualization', 'format': 'decimal3', 'description': 'Actualization rate'},
+    'cYPG': {'name': 'YPG', 'format': 'decimal1', 'description': 'Combined passing and rushing yards per game'},
+    'cTDperGame': {'name': 'TD/G', 'format': 'decimal2', 'description': 'Combined passing and rushing touchdowns per game'},
+    'intPerGame': {'name': 'INT/G', 'format': 'decimal2', 'description': 'Interceptions per game'},
+    'cthirdConvert': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+  };
+  
+  // QB rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _qbRankFields = {
+    'EPA_rank_num': {'name': 'EPA Rank', 'format': 'rank', 'description': 'EPA rank number'},
+    'EP_rank_num': {'name': 'EP Rank', 'format': 'rank', 'description': 'Expected Points rank number'},
+    'CPOE_rank_num': {'name': 'CPOE Rank', 'format': 'rank', 'description': 'CPOE rank number'},
+    'YPG_rank_num': {'name': 'YPG Rank', 'format': 'rank', 'description': 'Yards per game rank number'},
+    'TD_rank_num': {'name': 'TD Rank', 'format': 'rank', 'description': 'TD rank number'},
+    'actualization_rank_num': {'name': 'Act Rank', 'format': 'rank', 'description': 'Actualization rank number'},
+    'int_rank_num': {'name': 'INT Rank', 'format': 'rank', 'description': 'Interception rate rank number'},
+    'third_rank_num': {'name': '3rd Rank', 'format': 'rank', 'description': 'Third down rate rank number'},
   };
 
-  // Get stat fields for a specific position
-  static Map<String, Map<String, dynamic>> getStatFields(String position) {
+  // Get raw stat fields for a specific position (for raw stats view)
+  static Map<String, Map<String, dynamic>> getRawStatFields(String position) {
     switch (position.toLowerCase()) {
       case 'qb':
-        return {..._baseStatFields, ..._qbStatFields};
+        return {..._baseStatFields, ..._qbRawStatFields};
       case 'rb':
-        return {..._baseStatFields, ..._rbStatFields};
+        return {..._baseStatFields, ..._rbRawStatFields};
       case 'wr':
-        return {..._baseStatFields, ..._wrStatFields};
+        return {..._baseStatFields, ..._wrRawStatFields};
       case 'te':
-        return {..._baseStatFields, ..._teStatFields};
+        return {..._baseStatFields, ..._teRawStatFields};
       default:
         return _baseStatFields;
     }
+  }
+  
+  // Get rank fields for a specific position (for ranks view)
+  static Map<String, Map<String, dynamic>> getRankFields(String position) {
+    switch (position.toLowerCase()) {
+      case 'qb':
+        return {..._baseStatFields, ..._qbRankFields};
+      case 'rb':
+        return {..._baseStatFields, ..._rbRankFields};
+      case 'wr':
+        return {..._baseStatFields, ..._wrRankFields};
+      case 'te':
+        return {..._baseStatFields, ..._teRankFields};
+      default:
+        return _baseStatFields;
+    }
+  }
+  
+  // Get stat fields for a specific position (backwards compatibility)
+  static Map<String, Map<String, dynamic>> getStatFields(String position, {bool showRanks = false}) {
+    return showRanks ? getRankFields(position) : getRawStatFields(position);
   }
 
   // Get collection name for position with fallback
@@ -337,6 +367,8 @@ class RankingService {
         return numValue.toStringAsFixed(4);
       case 'integer':
         return numValue.toInt().toString();
+      case 'rank':
+        return '#${numValue.toInt()}';
       default:
         return value.toString();
     }

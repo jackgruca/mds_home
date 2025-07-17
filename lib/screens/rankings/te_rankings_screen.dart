@@ -33,7 +33,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
-  late final Map<String, Map<String, dynamic>> _teStatFields;
+  late Map<String, Map<String, dynamic>> _teStatFields;
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
@@ -42,8 +42,12 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     super.initState();
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
-    _teStatFields = RankingService.getStatFields('te');
+    _updateStatFields();
     _loadTERankings();
+  }
+  
+  void _updateStatFields() {
+    _teStatFields = RankingService.getStatFields('te', showRanks: _showRanks);
   }
 
   Future<void> _loadTERankings() async {
@@ -122,16 +126,8 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRankNum';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRankNum';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -288,8 +284,20 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildToggleButton('Raw Stats', !_showRanks, () => setState(() => _showRanks = false)),
-                _buildToggleButton('Ranks', _showRanks, () => setState(() => _showRanks = true)),
+                _buildToggleButton('Raw Stats', !_showRanks, () {
+                  setState(() {
+                    _showRanks = false;
+                    _updateStatFields();
+                  });
+                  _loadTERankings(); // Reload to recalculate percentiles
+                }),
+                _buildToggleButton('Ranks', _showRanks, () {
+                  setState(() {
+                    _showRanks = true;
+                    _updateStatFields();
+                  });
+                  _loadTERankings(); // Reload to recalculate percentiles
+                }),
               ],
             ),
           ),
@@ -387,16 +395,8 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRankNum';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRankNum';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     for (final field in fieldsToDisplay) {
       final statInfo = _teStatFields[field]!;
@@ -479,19 +479,11 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
+        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
       ).toList();
       
-      // Filter fields based on toggle state
-      final fieldsToDisplay = statFieldsToShow.where((field) {
-        if (_showRanks) {
-          // Show rank fields when toggle is on
-          return field.endsWith('_rank') || field == 'myRankNum';
-        } else {
-          // Show raw stat fields when toggle is off
-          return !field.endsWith('_rank') && field != 'myRankNum';
-        }
-      }).toList();
+      // The stat fields are already filtered by the service based on _showRanks
+      final fieldsToDisplay = statFieldsToShow;
       
       for (final field in fieldsToDisplay) {
         final value = te[field];
@@ -502,7 +494,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: _showRanks ? value : ((_teRankings.length - (te['myRankNum'] ?? index + 1)) / _teRankings.length),
+            rankValue: value, // For rank fields, the value IS the rank
             showRanks: _showRanks,
             percentileCache: _percentileCache,
             formatValue: (val, col) => _formatStatValue(val, statInfo['format']),

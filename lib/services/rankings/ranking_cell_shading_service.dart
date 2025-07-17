@@ -73,7 +73,7 @@ class RankingCellShadingService {
     return sortedValues[lower] * (upper - index) + sortedValues[upper] * (index - lower);
   }
 
-  static Color getDensityColor(String column, double value, Map<String, Map<String, double>> percentileCache) {
+  static Color getDensityColor(String column, double value, Map<String, Map<String, double>> percentileCache, {bool isRankField = false}) {
     final percentiles = percentileCache[column];
     if (percentiles == null) return Colors.grey.shade200;
     
@@ -81,15 +81,30 @@ class RankingCellShadingService {
     final p50 = percentiles['p50']!;
     final p75 = percentiles['p75']!;
     
-    // Determine color intensity based on percentile
-    if (value >= p75) {
-      return Colors.green.withOpacity(0.7);
-    } else if (value >= p50) {
-      return Colors.green.withOpacity(0.4);
-    } else if (value >= p25) {
-      return Colors.orange.withOpacity(0.3);
+    // For rank fields, lower numbers are better (rank 1 is best)
+    // For regular stats, higher numbers are usually better
+    if (isRankField) {
+      // Inverted logic for ranks: lower rank = better = green
+      if (value <= p25) {
+        return Colors.green.withOpacity(0.7);  // Top 25% (best ranks)
+      } else if (value <= p50) {
+        return Colors.green.withOpacity(0.4);  // Top 50%
+      } else if (value <= p75) {
+        return Colors.orange.withOpacity(0.3); // Top 75%
+      } else {
+        return Colors.red.withOpacity(0.3);    // Bottom 25% (worst ranks)
+      }
     } else {
-      return Colors.red.withOpacity(0.3);
+      // Regular logic for stats: higher value = better = green
+      if (value >= p75) {
+        return Colors.green.withOpacity(0.7);
+      } else if (value >= p50) {
+        return Colors.green.withOpacity(0.4);
+      } else if (value >= p25) {
+        return Colors.orange.withOpacity(0.3);
+      } else {
+        return Colors.red.withOpacity(0.3);
+      }
     }
   }
 
@@ -104,6 +119,7 @@ class RankingCellShadingService {
     double height = 40,
   }) {
     final displayValue = showRanks ? rankValue : value;
+    final isRankField = showRanks && column.endsWith('_rank_num');
     
     // Handle string fields - don't try to convert to number
     double numValue = 0.0;
@@ -122,7 +138,7 @@ class RankingCellShadingService {
       decoration: BoxDecoration(
         color: _isStringField(column) 
             ? Colors.grey.shade100  // Default color for string fields
-            : getDensityColor(column, showRanks ? (1.0 - numValue) : numValue, percentileCache),
+            : getDensityColor(column, numValue, percentileCache, isRankField: isRankField),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300, width: 0.5),
       ),

@@ -33,7 +33,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
-  late final Map<String, Map<String, dynamic>> _qbStatFields;
+  late Map<String, Map<String, dynamic>> _qbStatFields;
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
@@ -42,8 +42,12 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     super.initState();
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
-    _qbStatFields = RankingService.getStatFields('qb');
+    _updateStatFields();
     _loadQBRankings();
+  }
+  
+  void _updateStatFields() {
+    _qbStatFields = RankingService.getStatFields('qb', showRanks: _showRanks);
   }
 
   Future<void> _loadQBRankings() async {
@@ -122,16 +126,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRank';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRank';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -288,8 +284,20 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildToggleButton('Raw Stats', !_showRanks, () => setState(() => _showRanks = false)),
-                _buildToggleButton('Ranks', _showRanks, () => setState(() => _showRanks = true)),
+                _buildToggleButton('Raw Stats', !_showRanks, () {
+                  setState(() {
+                    _showRanks = false;
+                    _updateStatFields();
+                  });
+                  _loadQBRankings(); // Reload to recalculate percentiles
+                }),
+                _buildToggleButton('Ranks', _showRanks, () {
+                  setState(() {
+                    _showRanks = true;
+                    _updateStatFields();
+                  });
+                  _loadQBRankings(); // Reload to recalculate percentiles
+                }),
               ],
             ),
           ),
@@ -387,16 +395,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRank';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRank';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     for (final field in fieldsToDisplay) {
       final statInfo = _qbStatFields[field]!;
@@ -482,16 +482,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
       ).toList();
       
-      // Filter fields based on toggle state
-      final fieldsToDisplay = statFieldsToShow.where((field) {
-        if (_showRanks) {
-          // Show rank fields when toggle is on
-          return field.endsWith('_rank') || field == 'myRank';
-        } else {
-          // Show raw stat fields when toggle is off
-          return !field.endsWith('_rank') && field != 'myRank';
-        }
-      }).toList();
+      // The stat fields are already filtered by the service based on _showRanks
+      final fieldsToDisplay = statFieldsToShow;
       
       for (final field in fieldsToDisplay) {
         final value = qb[field];
@@ -502,12 +494,10 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: _showRanks ? ((_qbRankings.length - (qb['myRankNum'] ?? index + 1)) / _qbRankings.length) : value,
+            rankValue: value, // For rank fields, the value IS the rank
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks && col.endsWith('_rank') ? 
-              '#${((_qbRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _qbRankings.length))}' :
-              _formatStatValue(val, statInfo['format']),
+            formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
             width: double.infinity,
             height: 48,
           ),

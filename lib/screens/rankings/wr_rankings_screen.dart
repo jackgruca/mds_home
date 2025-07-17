@@ -33,7 +33,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
   
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
-  late final Map<String, Map<String, dynamic>> _wrStatFields;
+  late Map<String, Map<String, dynamic>> _wrStatFields;
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
@@ -42,8 +42,12 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     super.initState();
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
-    _wrStatFields = RankingService.getStatFields('wr');
+    _updateStatFields();
     _loadWRRankings();
+  }
+  
+  void _updateStatFields() {
+    _wrStatFields = RankingService.getStatFields('wr', showRanks: _showRanks);
   }
 
   Future<void> _loadWRRankings() async {
@@ -122,16 +126,8 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRank';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRank';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -288,8 +284,20 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildToggleButton('Raw Stats', !_showRanks, () => setState(() => _showRanks = false)),
-                _buildToggleButton('Ranks', _showRanks, () => setState(() => _showRanks = true)),
+                _buildToggleButton('Raw Stats', !_showRanks, () {
+                  setState(() {
+                    _showRanks = false;
+                    _updateStatFields();
+                  });
+                  _loadWRRankings(); // Reload to recalculate percentiles
+                }),
+                _buildToggleButton('Ranks', _showRanks, () {
+                  setState(() {
+                    _showRanks = true;
+                    _updateStatFields();
+                  });
+                  _loadWRRankings(); // Reload to recalculate percentiles
+                }),
               ],
             ),
           ),
@@ -387,16 +395,8 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
     ).toList();
     
-    // Filter fields based on toggle state
-    final fieldsToDisplay = statFieldsToShow.where((field) {
-      if (_showRanks) {
-        // Show rank fields when toggle is on
-        return field.endsWith('_rank') || field == 'myRank';
-      } else {
-        // Show raw stat fields when toggle is off
-        return !field.endsWith('_rank') && field != 'myRank';
-      }
-    }).toList();
+    // The stat fields are already filtered by the service based on _showRanks
+    final fieldsToDisplay = statFieldsToShow;
     
     for (final field in fieldsToDisplay) {
       final statInfo = _wrStatFields[field]!;
@@ -482,16 +482,8 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
         !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
       ).toList();
       
-      // Filter fields based on toggle state
-      final fieldsToDisplay = statFieldsToShow.where((field) {
-        if (_showRanks) {
-          // Show rank fields when toggle is on
-          return field.endsWith('_rank') || field == 'myRank';
-        } else {
-          // Show raw stat fields when toggle is off
-          return !field.endsWith('_rank') && field != 'myRank';
-        }
-      }).toList();
+      // The stat fields are already filtered by the service based on _showRanks
+      final fieldsToDisplay = statFieldsToShow;
       
       for (final field in fieldsToDisplay) {
         final value = wr[field];
@@ -502,12 +494,10 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: _showRanks ? ((_wrRankings.length - (wr['myRankNum'] ?? index + 1)) / _wrRankings.length) : value,
+            rankValue: value, // For rank fields, the value IS the rank
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks && col.endsWith('_rank') ? 
-              '#${((_wrRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _wrRankings.length))}' :
-              _formatStatValue(val, statInfo['format']),
+            formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
             width: double.infinity,
             height: 48,
           ),

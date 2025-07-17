@@ -157,7 +157,31 @@ WR_ngs <- load_nextgen_stats(stat_type = "receiving") %>%
 
 WR_ranks <- left_join(WR_ranks, wr_tgt_share) %>% left_join(.,rz_rate) %>% left_join(.,explosive_rate) %>% left_join(.,WR_ngs) %>% left_join(.,third_down_rate) %>%
   filter(player_position == "WR") %>%
-  group_by(season) %>% mutate(EPA_rank = percent_rank(totalEPA), tgt_rank = percent_rank(tgt_share), YPG_rank = percent_rank(numYards/numGames), td_rank = percent_rank(totalTD/numGames), conversion_rank = percent_rank(conversion), explosive_rank = percent_rank(explosive_rate), sep_rank = percent_rank(avg_separation), intended_air_rank = percent_rank(avg_intended_air_yards), catch_rank = percent_rank(catch_percentage), third_down_rank = percent_rank(third_down_rate), yacOE_rank = percent_rank(yac_above_expected)) %>%
+  group_by(season) %>% 
+  mutate(
+    EPA_rank = percent_rank(totalEPA), 
+    tgt_rank = percent_rank(tgt_share), 
+    YPG_rank = percent_rank(numYards/numGames), 
+    td_rank = percent_rank(totalTD/numGames), 
+    conversion_rank = percent_rank(conversion), 
+    explosive_rank = percent_rank(explosive_rate), 
+    sep_rank = percent_rank(avg_separation), 
+    intended_air_rank = percent_rank(avg_intended_air_yards), 
+    catch_rank = percent_rank(catch_percentage), 
+    third_down_rank = percent_rank(third_down_rate), 
+    yacOE_rank = percent_rank(yac_above_expected)
+  ) %>%
+  arrange(desc(totalEPA)) %>% mutate(EPA_rank_num = row_number()) %>%
+  arrange(desc(tgt_share)) %>% mutate(tgt_rank_num = row_number()) %>%
+  arrange(desc(numYards/numGames)) %>% mutate(YPG_rank_num = row_number()) %>%
+  arrange(desc(totalTD/numGames)) %>% mutate(td_rank_num = row_number()) %>%
+  arrange(desc(conversion)) %>% mutate(conversion_rank_num = row_number()) %>%
+  arrange(desc(explosive_rate)) %>% mutate(explosive_rank_num = row_number()) %>%
+  arrange(desc(avg_separation)) %>% mutate(sep_rank_num = row_number()) %>%
+  arrange(desc(avg_intended_air_yards)) %>% mutate(intended_air_rank_num = row_number()) %>%
+  arrange(desc(catch_percentage)) %>% mutate(catch_rank_num = row_number()) %>%
+  arrange(desc(third_down_rate)) %>% mutate(third_down_rank_num = row_number()) %>%
+  arrange(desc(yac_above_expected)) %>% mutate(yacOE_rank_num = row_number()) %>%
   unique() %>% group_by(receiver_player_id, receiver_player_name, posteam, season) %>% arrange(desc(EPA_rank)) %>% #head(20)
   # consensus rank calc
   mutate(myRank = 
@@ -242,7 +266,19 @@ WR_ranks_final <- WR_ranks %>%
     intended_air_rank,
     catch_rank,
     third_down_rank,
-    yacOE_rank
+    yacOE_rank,
+    # Numbered rank fields
+    EPA_rank_num,
+    td_rank_num,
+    tgt_rank_num,
+    YPG_rank_num,
+    conversion_rank_num,
+    explosive_rank_num,
+    sep_rank_num,
+    intended_air_rank_num,
+    catch_rank_num,
+    third_down_rank_num,
+    yacOE_rank_num
   ) %>%
   arrange(myRankNum)
 

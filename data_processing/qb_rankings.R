@@ -139,11 +139,38 @@ QB_ranks <- rbind(pbp_2024, pbp_2023, pbp_2022, pbp_2021, pbp_2020, pbp_2019, pb
   left_join(QB_ranks,.) %>% group_by(passer_player_id, passer_player_name, posteam, season) %>% 
   # combined ranks
   summarise(numGames = first(numGames), ctotalEPA = totalEPA+rtotalEPA, ctotalEP = totalEP+rtotalEP, cCPOE = unique(avgCPOE), cactualization = unique(actualization), cYPG = rYPG+YPG, cTDperGame = TDperGame+rTDperGame, intPerGame = unique(intPerGame), cthirdConvert = mean(c(thirdConvert, rthirdConvert))) %>% 
-  # get percentiles
-  group_by(season) %>% mutate(EPA_rank = percent_rank(ctotalEPA), EP_rank = percent_rank(ctotalEP), CPOE_rank = percent_rank(cCPOE), YPG_rank = percent_rank(cYPG), TD_rank = percent_rank(cTDperGame), int_rank = percent_rank(intPerGame), third_rank = percent_rank(cthirdConvert)) %>%
+  # get percentiles and numbered ranks
+  group_by(season) %>% 
+  mutate(
+    EPA_rank = percent_rank(ctotalEPA), 
+    EP_rank = percent_rank(ctotalEP), 
+    CPOE_rank = percent_rank(cCPOE), 
+    YPG_rank = percent_rank(cYPG), 
+    TD_rank = percent_rank(cTDperGame), 
+    actualization_rank = percent_rank(cactualization), 
+    int_rank = percent_rank(intPerGame), 
+    third_rank = percent_rank(cthirdConvert)
+  ) %>%
+  arrange(desc(ctotalEPA)) %>% mutate(EPA_rank_num = row_number()) %>%
+  arrange(desc(ctotalEP)) %>% mutate(EP_rank_num = row_number()) %>%
+  arrange(desc(cCPOE)) %>% mutate(CPOE_rank_num = row_number()) %>%
+  arrange(desc(cYPG)) %>% mutate(YPG_rank_num = row_number()) %>%
+  arrange(desc(cTDperGame)) %>% mutate(TD_rank_num = row_number()) %>%
+  arrange(desc(cactualization)) %>% mutate(actualization_rank_num = row_number()) %>%
+  arrange(intPerGame) %>% mutate(int_rank_num = row_number()) %>%
+  arrange(desc(cthirdConvert)) %>% mutate(third_rank_num = row_number()) %>%
   unique() %>% group_by(passer_player_id, passer_player_name, posteam, season) %>% arrange(desc(cactualization)) %>% #head(20)
   # consensus rank calc
-  summarise(numGames = first(numGames), myRank = EPA_rank+YPG_rank+TD_rank+third_rank+cactualization) %>% unique() %>% arrange(desc(myRank)) %>% 
+  mutate(numGames = first(numGames), 
+         myRank = (
+           .25*EPA_rank+
+           .2*TD_rank+
+           .15*YPG_rank+
+           .1*third_rank+
+           .1*actualization_rank+
+           .1*CPOE_rank+
+           .1*(1-int_rank))) %>% 
+  unique() %>% arrange(desc(myRank)) %>% 
   group_by(season) %>% mutate(myRankNum = row_number()) %>%
   mutate(qbTier = case_when(
     myRankNum <= 4 ~ 1,
@@ -170,7 +197,25 @@ QB_ranks_final <- QB_ranks %>%
     myRank = round(myRank, 4),
     myRankNum = round(myRankNum, 0),
     qbTier = round(qbTier, 0),
-    teamQBTier = round(teamQBTier, 0)
+    teamQBTier = round(teamQBTier, 0),
+    # Format all the combined stats
+    ctotalEPA = round(coalesce(ctotalEPA, 0), 2),
+    ctotalEP = round(coalesce(ctotalEP, 0), 2),
+    cCPOE = round(coalesce(cCPOE, 0), 3),
+    cactualization = round(coalesce(cactualization, 0), 3),
+    cYPG = round(coalesce(cYPG, 0), 1),
+    cTDperGame = round(coalesce(cTDperGame, 0), 2),
+    intPerGame = round(coalesce(intPerGame, 0), 2),
+    cthirdConvert = round(coalesce(cthirdConvert, 0), 3),
+    # Format all rank fields
+    EPA_rank = round(coalesce(EPA_rank, 0), 4),
+    EP_rank = round(coalesce(EP_rank, 0), 4),
+    CPOE_rank = round(coalesce(CPOE_rank, 0), 4),
+    YPG_rank = round(coalesce(YPG_rank, 0), 4),
+    TD_rank = round(coalesce(TD_rank, 0), 4),
+    actualization_rank = round(coalesce(actualization_rank, 0), 4),
+    int_rank = round(coalesce(int_rank, 0), 4),
+    third_rank = round(coalesce(third_rank, 0), 4)
   ) %>%
   # Select and order columns for consistency
   select(
@@ -185,7 +230,34 @@ QB_ranks_final <- QB_ranks %>%
     myRank,
     qbTier,
     tier,
-    teamQBTier
+    teamQBTier,
+    # Combined stats
+    ctotalEPA,
+    ctotalEP,
+    cCPOE,
+    cactualization,
+    cYPG,
+    cTDperGame,
+    intPerGame,
+    cthirdConvert,
+    # Rank fields (percentiles)
+    EPA_rank,
+    EP_rank,
+    CPOE_rank,
+    YPG_rank,
+    TD_rank,
+    actualization_rank,
+    int_rank,
+    third_rank,
+    # Numbered rank fields
+    EPA_rank_num,
+    EP_rank_num,
+    CPOE_rank_num,
+    YPG_rank_num,
+    TD_rank_num,
+    actualization_rank_num,
+    int_rank_num,
+    third_rank_num
   ) %>%
   arrange(myRankNum)
 

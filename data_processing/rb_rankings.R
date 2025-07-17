@@ -158,7 +158,29 @@ RB_ngs <- load_nextgen_stats(stat_type = "rushing") %>%
 
 RB_ranks <- left_join(RB_ranks, rb_rush_share, by = join_by(posteam, season, fantasy_player_id)) %>% left_join(.,wr_tgt_share[,c(1,3,4,6)], by = join_by(posteam, season, fantasy_player_id == receiver_player_id)) %>% left_join(.,rz_rate, by = join_by(posteam, season, fantasy_player_id)) %>% left_join(.,explosive_rate, by = join_by(posteam, season, fantasy_player_id)) %>% left_join(.,RB_ngs, by = join_by(season, fantasy_player_id)) %>% left_join(.,third_down_rate, by = join_by(season, fantasy_player_id)) %>%
   filter(player_position == "RB") %>%
-  group_by(season) %>% mutate(EPA_rank = percent_rank(totalEPA), td_rank = percent_rank(totalTD/numGames), run_rank = percent_rank(run_share), tgt_rank = percent_rank(tgt_share), YPG_rank = percent_rank(YPG), third_rank = percent_rank(third_down_rate), conversion_rank = percent_rank(conversion), explosive_rank = percent_rank(explosive_rate), RYOE_rank = percent_rank(avg_RYOE_perAtt), eff_rank = percent_rank(-avg_eff)) %>%
+  group_by(season) %>% 
+  mutate(
+    EPA_rank = percent_rank(totalEPA), 
+    td_rank = percent_rank(totalTD/numGames), 
+    run_rank = percent_rank(run_share), 
+    tgt_rank = percent_rank(tgt_share), 
+    YPG_rank = percent_rank(YPG), 
+    third_rank = percent_rank(third_down_rate), 
+    conversion_rank = percent_rank(conversion), 
+    explosive_rank = percent_rank(explosive_rate), 
+    RYOE_rank = percent_rank(avg_RYOE_perAtt), 
+    eff_rank = percent_rank(-avg_eff)
+  ) %>%
+  arrange(desc(totalEPA)) %>% mutate(EPA_rank_num = row_number()) %>%
+  arrange(desc(totalTD/numGames)) %>% mutate(td_rank_num = row_number()) %>%
+  arrange(desc(run_share)) %>% mutate(run_rank_num = row_number()) %>%
+  arrange(desc(tgt_share)) %>% mutate(tgt_rank_num = row_number()) %>%
+  arrange(desc(YPG)) %>% mutate(YPG_rank_num = row_number()) %>%
+  arrange(desc(third_down_rate)) %>% mutate(third_rank_num = row_number()) %>%
+  arrange(desc(conversion)) %>% mutate(conversion_rank_num = row_number()) %>%
+  arrange(desc(explosive_rate)) %>% mutate(explosive_rank_num = row_number()) %>%
+  arrange(desc(avg_RYOE_perAtt)) %>% mutate(RYOE_rank_num = row_number()) %>%
+  arrange(avg_eff) %>% mutate(eff_rank_num = row_number()) %>%
   unique() %>% group_by(fantasy_player_id, fantasy_player_name, posteam, season) %>% arrange(desc(EPA_rank)) %>% #head(20)
   # consensus rank calc
   mutate(myRank = 
@@ -221,7 +243,7 @@ RB_ranks_final <- RB_ranks %>%
     td_rank,
     run_rank,
     YPG_rank,
-    any_of(c("tgt_share", "numRec", "conversion", "explosive_rate", "third_down_rate", "avg_eff", "avg_RYOE_perAtt", "tgt_rank", "third_rank", "conversion_rank", "explosive_rank", "RYOE_rank", "eff_rank"))
+    any_of(c("tgt_share", "numRec", "conversion", "explosive_rate", "third_down_rate", "avg_eff", "avg_RYOE_perAtt", "tgt_rank", "third_rank", "conversion_rank", "explosive_rank", "RYOE_rank", "eff_rank", "EPA_rank_num", "td_rank_num", "run_rank_num", "tgt_rank_num", "YPG_rank_num", "third_rank_num", "conversion_rank_num", "explosive_rank_num", "RYOE_rank_num", "eff_rank_num"))
   ) %>%
   arrange(myRankNum)
 
