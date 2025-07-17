@@ -61,7 +61,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       
       // Calculate percentiles for stat ranking
       final statFields = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
@@ -114,14 +114,26 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   }
 
   int _getSortColumnIndex() {
-    final baseColumns = ['myRankNum', 'player_name', 'posteam', 'tier'];
+    final baseColumns = ['myRankNum', 'receiver_player_name', 'team', 'qbTier'];
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
     final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
     ).toList();
-    baseColumns.addAll(statFieldsToShow);
+    
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRankNum';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRankNum';
+      }
+    }).toList();
+    
+    baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
   }
 
@@ -350,15 +362,15 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       ),
       DataColumn(
         label: const Text('Player'),
-        onSort: (columnIndex, ascending) => _sort('player_name', ascending),
+        onSort: (columnIndex, ascending) => _sort('receiver_player_name', ascending),
       ),
       DataColumn(
         label: const Text('Team'),
-        onSort: (columnIndex, ascending) => _sort('posteam', ascending),
+        onSort: (columnIndex, ascending) => _sort('team', ascending),
       ),
       DataColumn(
         label: const Text('Tier'),
-        onSort: (columnIndex, ascending) => _sort('tier', ascending),
+        onSort: (columnIndex, ascending) => _sort('qbTier', ascending),
       ),
     ];
 
@@ -372,10 +384,21 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
     ).toList();
     
-    for (final field in statFieldsToShow) {
+    // Filter fields based on toggle state
+    final fieldsToDisplay = statFieldsToShow.where((field) {
+      if (_showRanks) {
+        // Show rank fields when toggle is on
+        return field.endsWith('_rank') || field == 'myRankNum';
+      } else {
+        // Show raw stat fields when toggle is off
+        return !field.endsWith('_rank') && field != 'myRankNum';
+      }
+    }).toList();
+    
+    for (final field in fieldsToDisplay) {
       final statInfo = _teStatFields[field]!;
       columns.add(DataColumn(
         label: Tooltip(
@@ -418,18 +441,18 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
         DataCell(
           Row(
             children: [
-              TeamLogoUtils.buildNFLTeamLogo(te['posteam'] ?? '', size: 20),
+              TeamLogoUtils.buildNFLTeamLogo(te['team'] ?? te['posteam'] ?? '', size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  te['player_name'] ?? 'Unknown',
+                  te['receiver_player_name'] ?? te['player_name'] ?? 'Unknown',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
         ),
-        DataCell(Text(te['posteam'] ?? '')),
+        DataCell(Text(te['team'] ?? te['posteam'] ?? '')),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -456,10 +479,21 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position'].contains(key)
       ).toList();
       
-      for (final field in statFieldsToShow) {
+      // Filter fields based on toggle state
+      final fieldsToDisplay = statFieldsToShow.where((field) {
+        if (_showRanks) {
+          // Show rank fields when toggle is on
+          return field.endsWith('_rank') || field == 'myRankNum';
+        } else {
+          // Show raw stat fields when toggle is off
+          return !field.endsWith('_rank') && field != 'myRankNum';
+        }
+      }).toList();
+      
+      for (final field in fieldsToDisplay) {
         final value = te[field];
         final statInfo = _teStatFields[field]!;
         
@@ -468,12 +502,10 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: _showRanks ? ((_teRankings.length - (te['myRankNum'] ?? index + 1)) / _teRankings.length) : value,
+            rankValue: _showRanks ? value : ((_teRankings.length - (te['myRankNum'] ?? index + 1)) / _teRankings.length),
             showRanks: _showRanks,
             percentileCache: _percentileCache,
-            formatValue: (val, col) => _showRanks ? 
-              '#${((_teRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _teRankings.length))}' :
-              _formatStatValue(val, statInfo['format']),
+            formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
             width: double.infinity,
             height: 48,
           ),

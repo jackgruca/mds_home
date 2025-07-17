@@ -47,10 +47,12 @@ class RankingService {
   };
 
   static const Map<String, Map<String, dynamic>> _teStatFields = {
+    // Raw stats
     'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'totalTD': {'name': 'TDs', 'format': 'decimal1', 'description': 'Total touchdowns'},
     'tgt_share': {'name': 'Tgt Share', 'format': 'percentage', 'description': 'Team target share'},
-    'numYards': {'name': 'Yards', 'format': 'integer', 'description': 'Receiving yards per game'},
-    'totalTD': {'name': 'TDs', 'format': 'decimal1', 'description': 'Touchdowns per game'},
+    'numYards': {'name': 'Yards', 'format': 'integer', 'description': 'Receiving yards'},
+    'numGames': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
     'numRec': {'name': 'Rec', 'format': 'integer', 'description': 'Total receptions'},
     'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
     'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
@@ -59,6 +61,21 @@ class RankingService {
     'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
     'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
     'third_down_rate': {'name': '3rd Down', 'format': 'percentage', 'description': 'Third down conversion rate'},
+    // Rank fields
+    'EPA_rank': {'name': 'EPA Rank', 'format': 'percentage', 'description': 'EPA percentile rank'},
+    'td_rank': {'name': 'TD Rank', 'format': 'percentage', 'description': 'TD percentile rank'},
+    'tgt_rank': {'name': 'Tgt Rank', 'format': 'percentage', 'description': 'Target share percentile rank'},
+    'YPG_rank': {'name': 'YPG Rank', 'format': 'percentage', 'description': 'Yards per game percentile rank'},
+    'conversion_rank': {'name': 'RZ Rank', 'format': 'percentage', 'description': 'Red zone conversion percentile rank'},
+    'explosive_rank': {'name': 'Expl Rank', 'format': 'percentage', 'description': 'Explosive rate percentile rank'},
+    'sep_rank': {'name': 'Sep Rank', 'format': 'percentage', 'description': 'Separation percentile rank'},
+    'intended_air_rank': {'name': 'aDOT Rank', 'format': 'percentage', 'description': 'Air yards percentile rank'},
+    'catch_rank': {'name': 'Catch Rank', 'format': 'percentage', 'description': 'Catch percentage percentile rank'},
+    'third_down_rank': {'name': '3rd Rank', 'format': 'percentage', 'description': 'Third down rate percentile rank'},
+    'yacOE_rank': {'name': 'YAC+ Rank', 'format': 'percentage', 'description': 'YAC above expected percentile rank'},
+    // Final ranking
+    'myRank': {'name': 'Rank Score', 'format': 'decimal3', 'description': 'Composite ranking score'},
+    'myRankNum': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
   };
 
   static const Map<String, Map<String, dynamic>> _qbStatFields = {
