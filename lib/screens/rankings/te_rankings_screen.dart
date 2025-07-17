@@ -392,7 +392,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
+      !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
     ).toList();
     
     // The stat fields are already filtered by the service based on _showRanks
@@ -479,7 +479,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qbTier', 'season', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
+        !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'receiver_player_id', 'player_position', 'player_id', 'position'].contains(key)
       ).toList();
       
       // The stat fields are already filtered by the service based on _showRanks

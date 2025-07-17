@@ -392,7 +392,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _wrStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
+      !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'wrTier'].contains(key)
     ).toList();
     
     // The stat fields are already filtered by the service based on _showRanks
@@ -479,7 +479,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'qbTier', 'wrTier'].contains(key)
+        !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'wrTier'].contains(key)
       ).toList();
       
       // The stat fields are already filtered by the service based on _showRanks
