@@ -38,6 +38,10 @@ import 'screens/fantasy/player_trends_screen.dart';
 import 'screens/fantasy/bust_evaluation_screen.dart';
 import 'screens/custom_rankings/custom_rankings_home_screen.dart';
 import 'screens/projections/player_projections_screen.dart';
+import 'screens/rankings/wr_rankings_screen.dart';
+import 'screens/rankings/rb_rankings_screen.dart';
+import 'screens/rankings/te_rankings_screen.dart';
+import 'screens/projections/wr_projections_2025_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -198,17 +202,19 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
               case '/fantasy/player-projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+              case '/projections/wr-2025':
+                return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
               case '/rankings/qb':
                 return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
               case '/rankings/rb':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'RB Rankings'));
+                return MaterialPageRoute(builder: (_) => const RBRankingsScreen());
               case '/rankings/wr':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'WR Rankings'));
+                return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
               case '/rankings/te':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'TE Rankings'));
+                return MaterialPageRoute(builder: (_) => const TERankingsScreen());
               case '/rankings/ol':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'OL Rankings'));
               case '/rankings/dl':

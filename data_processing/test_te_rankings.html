@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test TE Rankings Data</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .tier-badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; }
+        .tier-1 { background-color: #7C3AED; }
+        .tier-2 { background-color: #2563EB; }
+        .tier-3 { background-color: #059669; }
+        .tier-4 { background-color: #D97706; }
+        .tier-5 { background-color: #DC2626; }
+    </style>
+</head>
+<body>
+    <h1>TE Rankings Data Test</h1>
+    
+    <div id="te-test" class="test-result loading">Testing TE Rankings...</div>
+    
+    <div id="results"></div>
+    <div id="table-results"></div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwQMnU3-1sZIRUNlGfQy7wqKqXJOF5I_Y",
+            authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+            projectId: "nfl-draft-simulator-9265f",
+            storageBucket: "nfl-draft-simulator-9265f.appspot.com",
+            messagingSenderId: "900728713837",
+            appId: "1:900728713837:web:e123456789abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function testTERankings() {
+            const testElement = document.getElementById('te-test');
+            
+            try {
+                // Test TE rankings for 2024
+                const snapshot = await db.collection('te_rankings_comprehensive')
+                    .where('season', '==', 2024)
+                    .orderBy('myRankNum', 'asc')
+                    .limit(10)
+                    .get();
+                
+                if (snapshot.empty) {
+                    testElement.className = 'test-result error';
+                    testElement.innerHTML = `❌ TE Rankings: No 2024 TE data found`;
+                    return;
+                }
+                
+                const data = [];
+                snapshot.forEach(doc => {
+                    data.push({ id: doc.id, ...doc.data() });
+                });
+                
+                testElement.className = 'test-result success';
+                testElement.innerHTML = `✅ TE Rankings: Found ${snapshot.size} TE records for 2024`;
+                
+                // Show sample data
+                const resultsDiv = document.getElementById('results');
+                const sampleDiv = document.createElement('div');
+                sampleDiv.innerHTML = `
+                    <h3>Sample TE Data (First Record):</h3>
+                    <pre>${JSON.stringify(data[0], null, 2)}</pre>
+                `;
+                resultsDiv.appendChild(sampleDiv);
+                
+                // Create a table showing top 10 TEs
+                const tableDiv = document.getElementById('table-results');
+                let tableHTML = `
+                    <h3>Top 10 TEs for 2024:</h3>
+                    <table>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Team</th>
+                            <th>Tier</th>
+                            <th>EPA</th>
+                            <th>Target Share</th>
+                            <th>Yards/Game</th>
+                            <th>TDs/Game</th>
+                            <th>Receptions</th>
+                        </tr>
+                `;
+                
+                data.forEach(te => {
+                    const tier = te.qbTier || te.tier || 1;
+                    tableHTML += `
+                        <tr>
+                            <td>${te.myRankNum || '?'}</td>
+                            <td>${te.player_name || 'Unknown'}</td>
+                            <td>${te.posteam || 'UNK'}</td>
+                            <td><span class="tier-badge tier-${tier}">Tier ${tier}</span></td>
+                            <td>${(te.totalEPA || 0).toFixed(1)}</td>
+                            <td>${((te.tgt_share || 0) * 100).toFixed(1)}%</td>
+                            <td>${(te.numYards || 0).toFixed(1)}</td>
+                            <td>${(te.totalTD || 0).toFixed(2)}</td>
+                            <td>${te.numRec || 0}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += '</table>';
+                tableDiv.innerHTML = tableHTML;
+                
+            } catch (error) {
+                testElement.className = 'test-result error';
+                testElement.innerHTML = `❌ TE Rankings: ${error.message}`;
+                console.error('Error:', error);
+            }
+        }
+
+        // Test the TE rankings
+        testTERankings();
+    </script>
+</body>
+</html>

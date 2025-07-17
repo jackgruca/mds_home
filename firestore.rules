@@ -26,6 +26,53 @@ service cloud.firestore {
       allow read: if true;
     }
     
+    // Allow read access to WR rankings
+    match /wr_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to WR rankings (alternative collection name)
+    match /wrRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to RB rankings
+    match /rb_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to RB rankings (alternative collection name)
+    match /rbRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to TE rankings
+    match /te_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to TE rankings (alternative collection name)
+    match /teRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to comprehensive rankings collections
+    match /rb_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /wr_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /te_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /qb_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
     // Allow read access to depth charts
     match /depthCharts/{document} {
       allow read: if true;

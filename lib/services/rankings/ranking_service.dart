@@ -1,0 +1,237 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class RankingService {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Base stat fields common to all positions
+  static const Map<String, Map<String, dynamic>> _baseStatFields = {
+    'myRankNum': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+    'player_name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
+    'posteam': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+    'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+    'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
+    'numGames': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+  };
+
+  // Position-specific stat fields based on R code
+  static const Map<String, Map<String, dynamic>> _rbStatFields = {
+    'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'run_share': {'name': 'Rush Share', 'format': 'percentage', 'description': 'Team rush share'},
+    'YPG': {'name': 'Rush YPG', 'format': 'decimal1', 'description': 'Rushing yards per game'},
+    'tgt_share': {'name': 'Target Share', 'format': 'percentage', 'description': 'Team target share'},
+    'totalTD': {'name': 'Total TDs', 'format': 'integer', 'description': 'Total touchdowns'},
+    'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
+    'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
+    'avg_eff': {'name': 'Efficiency', 'format': 'decimal1', 'description': 'Average efficiency'},
+    'avg_RYOE_perAtt': {'name': 'RYOE/Att', 'format': 'decimal1', 'description': 'Rush yards over expected per attempt'},
+    'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+  };
+
+  static const Map<String, Map<String, dynamic>> _wrStatFields = {
+    'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'tgt_share': {'name': 'Target Share', 'format': 'percentage', 'description': 'Team target share'},
+    'numYards': {'name': 'Rec Yards', 'format': 'integer', 'description': 'Receiving yards'},
+    'totalTD': {'name': 'Rec TDs', 'format': 'integer', 'description': 'Receiving touchdowns'},
+    'numRec': {'name': 'Receptions', 'format': 'integer', 'description': 'Total receptions'},
+    'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
+    'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
+    'avg_separation': {'name': 'Separation', 'format': 'decimal1', 'description': 'Average separation'},
+    'avg_intended_air_yards': {'name': 'aDOT', 'format': 'decimal1', 'description': 'Average depth of target'},
+    'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
+    'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
+    'third_down_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+  };
+
+  static const Map<String, Map<String, dynamic>> _teStatFields = {
+    'totalEPA': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'tgt_share': {'name': 'Tgt Share', 'format': 'percentage', 'description': 'Team target share'},
+    'numYards': {'name': 'Yards', 'format': 'integer', 'description': 'Receiving yards per game'},
+    'totalTD': {'name': 'TDs', 'format': 'decimal1', 'description': 'Touchdowns per game'},
+    'numRec': {'name': 'Rec', 'format': 'integer', 'description': 'Total receptions'},
+    'conversion': {'name': 'RZ Conv', 'format': 'percentage', 'description': 'Red zone conversion rate'},
+    'explosive_rate': {'name': 'Expl Rate', 'format': 'percentage', 'description': 'Explosive play rate (15+ yards)'},
+    'avg_separation': {'name': 'Sep', 'format': 'decimal1', 'description': 'Average separation'},
+    'avg_intended_air_yards': {'name': 'aDOT', 'format': 'decimal1', 'description': 'Average intended air yards'},
+    'catch_percentage': {'name': 'Catch %', 'format': 'percentage', 'description': 'Catch percentage'},
+    'yac_above_expected': {'name': 'YAC+', 'format': 'decimal1', 'description': 'YAC above expected'},
+    'third_down_rate': {'name': '3rd Down', 'format': 'percentage', 'description': 'Third down conversion rate'},
+  };
+
+  // Get stat fields for a specific position
+  static Map<String, Map<String, dynamic>> getStatFields(String position) {
+    switch (position.toLowerCase()) {
+      case 'rb':
+        return {..._baseStatFields, ..._rbStatFields};
+      case 'wr':
+        return {..._baseStatFields, ..._wrStatFields};
+      case 'te':
+        return {..._baseStatFields, ..._teStatFields};
+      default:
+        return _baseStatFields;
+    }
+  }
+
+  // Get collection name for position with fallback
+  static String getCollectionName(String position) {
+    switch (position.toLowerCase()) {
+      case 'rb':
+        return 'rb_rankings_comprehensive';
+      case 'wr':
+        return 'wr_rankings_comprehensive'; 
+      case 'te':
+        return 'te_rankings_comprehensive';
+      default:
+        return 'rankings';
+    }
+  }
+  
+  // Get fallback collection name if comprehensive doesn't exist
+  static String getFallbackCollectionName(String position) {
+    switch (position.toLowerCase()) {
+      case 'rb':
+        return 'rb_rankings';
+      case 'wr':
+        return 'wrRankings';
+      case 'te':
+        return 'te_rankings';
+      default:
+        return 'rankings';
+    }
+  }
+
+  // Load rankings for a specific position with fallback
+  static Future<List<Map<String, dynamic>>> loadRankings({
+    required String position,
+    String? season,
+    String? tier,
+  }) async {
+    try {
+      // Try comprehensive collection first
+      String collectionName = getCollectionName(position);
+      Query query = _firestore.collection(collectionName);
+      
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await query.limit(1).get();
+        if (snapshot.docs.isEmpty) {
+          // If comprehensive collection is empty, try fallback
+          collectionName = getFallbackCollectionName(position);
+          query = _firestore.collection(collectionName);
+        }
+      } catch (e) {
+        // If comprehensive collection doesn't exist, use fallback
+        collectionName = getFallbackCollectionName(position);
+        query = _firestore.collection(collectionName);
+      }
+      
+      // Apply season filter
+      if (season != null && season != 'All Seasons') {
+        final seasonInt = int.tryParse(season);
+        if (seasonInt != null) {
+          query = query.where('season', isEqualTo: seasonInt);
+        }
+      }
+      
+      snapshot = await query.get();
+      final rankings = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          ...data,
+          'id': doc.id,
+        };
+      }).toList();
+      
+      // Apply tier filter
+      if (tier != null && tier != 'All') {
+        final tierInt = int.tryParse(tier.split(' ').last);
+        if (tierInt != null) {
+          // Try both qbTier and tier fields for compatibility
+          return rankings.where((player) => 
+            player['qbTier'] == tierInt || player['tier'] == tierInt
+          ).toList();
+        }
+      }
+      
+      return rankings;
+    } catch (e) {
+      throw Exception('Failed to load $position rankings: $e');
+    }
+  }
+
+  // Calculate percentiles for stats
+  static Map<String, Map<double, double>> calculatePercentiles(
+    List<Map<String, dynamic>> data,
+    List<String> statFields,
+  ) {
+    final Map<String, Map<double, double>> percentileCache = {};
+    
+    for (final field in statFields) {
+      final values = data
+          .map((player) => (player[field] as num?)?.toDouble() ?? 0.0)
+          .where((val) => val.isFinite)
+          .toList();
+          
+      if (values.isNotEmpty) {
+        values.sort();
+        final Map<double, double> percentiles = {};
+        
+        for (final player in data) {
+          final value = (player[field] as num?)?.toDouble() ?? 0.0;
+          if (value.isFinite) {
+            final rank = values.indexOf(value) + 1;
+            final percentile = rank / values.length;
+            percentiles[value] = percentile;
+          }
+        }
+        
+        percentileCache[field] = percentiles;
+      }
+    }
+    
+    return percentileCache;
+  }
+
+  // Format stat value based on format type
+  static String formatStatValue(dynamic value, String format) {
+    if (value == null) return '-';
+    
+    final numValue = (value as num).toDouble();
+    
+    switch (format) {
+      case 'percentage':
+        return '${(numValue * 100).toStringAsFixed(1)}%';
+      case 'decimal1':
+        return numValue.toStringAsFixed(1);
+      case 'decimal2':
+        return numValue.toStringAsFixed(2);
+      case 'integer':
+        return numValue.toInt().toString();
+      default:
+        return value.toString();
+    }
+  }
+
+  // Get tier color
+  static Map<int, int> getTierColors() {
+    return {
+      1: 0xFF7C3AED, // Purple
+      2: 0xFF2563EB, // Blue  
+      3: 0xFF059669, // Green
+      4: 0xFFD97706, // Orange
+      5: 0xFFDC2626, // Red
+      6: 0xFF7C2D12, // Brown
+      7: 0xFF374151, // Gray
+      8: 0xFF1F2937, // Dark gray
+    };
+  }
+
+  // Season options
+  static List<String> getSeasonOptions() {
+    return ['All Seasons', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016'];
+  }
+
+  // Tier options  
+  static List<String> getTierOptions() {
+    return ['All', 'Tier 1', 'Tier 2', 'Tier 3', 'Tier 4', 'Tier 5', 'Tier 6', 'Tier 7', 'Tier 8'];
+  }
+}

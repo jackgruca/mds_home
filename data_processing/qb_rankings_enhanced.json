@@ -1,0 +1,3213 @@
+[
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2022,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.9859
+  },
+  {
+    "player_name": "B.Purdy",
+    "team": "SF",
+    "season": 2023,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.8432
+  },
+  {
+    "player_name": "J.Burrow",
+    "team": "CIN",
+    "season": 2024,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.8229
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "DET",
+    "season": 2024,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.7519
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2020,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.7295
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2024,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.7078
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2021,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.6973
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2018,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.6814
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2020,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.6778
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2022,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.6162
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2023,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.6065
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "NE",
+    "season": 2016,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.6025
+  },
+  {
+    "player_name": "B.Roethlisberger",
+    "team": "PIT",
+    "season": 2018,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.5976
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "TB",
+    "season": 2021,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.5844
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2020,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.5774
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2024,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.5739
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "TB",
+    "season": 2024,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.5295
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2019,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.5138
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2023,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.5036
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2018,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.4921
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2016,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.4919
+  },
+  {
+    "player_name": "J.Herbert",
+    "team": "LAC",
+    "season": 2021,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.4801
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2021,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.4649
+  },
+  {
+    "player_name": "J.Hurts",
+    "team": "PHI",
+    "season": 2022,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.4545
+  },
+  {
+    "player_name": "T.Tagovailoa",
+    "team": "MIA",
+    "season": 2024,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 4.4396
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "WAS",
+    "season": 2016,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.4217
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2019,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.4138
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2023,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.4045
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2021,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.3952
+  },
+  {
+    "player_name": "J.Burrow",
+    "team": "CIN",
+    "season": 2022,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.3942
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "PHI",
+    "season": 2017,
+    "rank": 1,
+    "tier": 1,
+    "myRank": 4.3502
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2016,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.295
+  },
+  {
+    "player_name": "D.Brees",
+    "team": "NO",
+    "season": 2018,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.2789
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "LA",
+    "season": 2018,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.2684
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "TEN",
+    "season": 2020,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.2554
+  },
+  {
+    "player_name": "J.Burrow",
+    "team": "CIN",
+    "season": 2021,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 4.2365
+  },
+  {
+    "player_name": "J.Hurts",
+    "team": "PHI",
+    "season": 2023,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.2029
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2022,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.1959
+  },
+  {
+    "player_name": "A.Smith",
+    "team": "KC",
+    "season": 2017,
+    "rank": 2,
+    "tier": 1,
+    "myRank": 4.1866
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2019,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.1785
+  },
+  {
+    "player_name": "D.Brees",
+    "team": "NO",
+    "season": 2016,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 4.1463
+  },
+  {
+    "player_name": "A.Luck",
+    "team": "IND",
+    "season": 2018,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 4.144
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "NE",
+    "season": 2017,
+    "rank": 3,
+    "tier": 1,
+    "myRank": 4.1278
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2022,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 4.1264
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "LA",
+    "season": 2021,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 4.0973
+  },
+  {
+    "player_name": "P.Rivers",
+    "team": "LAC",
+    "season": 2016,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 4.0932
+  },
+  {
+    "player_name": "B.Purdy",
+    "team": "SF",
+    "season": 2024,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 4.0652
+  },
+  {
+    "player_name": "J.Daniels",
+    "team": "WAS",
+    "season": 2024,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 4.051
+  },
+  {
+    "player_name": "T.Lawrence",
+    "team": "JAX",
+    "season": 2022,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 4.0361
+  },
+  {
+    "player_name": "A.Luck",
+    "team": "IND",
+    "season": 2016,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 4.0328
+  },
+  {
+    "player_name": "B.Roethlisberger",
+    "team": "PIT",
+    "season": 2017,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 4.0074
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2019,
+    "rank": 4,
+    "tier": 1,
+    "myRank": 3.9896
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2021,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.974
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "HOU",
+    "season": 2019,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 3.9655
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "DET",
+    "season": 2016,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.9645
+  },
+  {
+    "player_name": "J.Herbert",
+    "team": "LAC",
+    "season": 2020,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 3.9627
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "TB",
+    "season": 2018,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 3.9523
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "HOU",
+    "season": 2020,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 3.9442
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2024,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.9407
+  },
+  {
+    "player_name": "J.Browning",
+    "team": "CIN",
+    "season": 2023,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 3.9301
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2020,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 3.9288
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "MIN",
+    "season": 2024,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.9269
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2017,
+    "rank": 5,
+    "tier": 2,
+    "myRank": 3.9215
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2022,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.8906
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "DET",
+    "season": 2019,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 3.8839
+  },
+  {
+    "player_name": "J.Love",
+    "team": "GB",
+    "season": 2023,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 3.8812
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "HOU",
+    "season": 2017,
+    "rank": 6,
+    "tier": 2,
+    "myRank": 3.8797
+  },
+  {
+    "player_name": "C.Stroud",
+    "team": "HOU",
+    "season": 2023,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.8795
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "LA",
+    "season": 2023,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.8772
+  },
+  {
+    "player_name": "P.Mahomes",
+    "team": "KC",
+    "season": 2023,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.8633
+  },
+  {
+    "player_name": "R.Fitzpatrick",
+    "team": "TB",
+    "season": 2018,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.8485
+  },
+  {
+    "player_name": "D.Brees",
+    "team": "NO",
+    "season": 2019,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 3.8351
+  },
+  {
+    "player_name": "J.Herbert",
+    "team": "LAC",
+    "season": 2022,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.826
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "NE",
+    "season": 2018,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.8077
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2017,
+    "rank": 7,
+    "tier": 2,
+    "myRank": 3.7974
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "DET",
+    "season": 2017,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.786
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "DET",
+    "season": 2022,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.7627
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "NO",
+    "season": 2024,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.7494
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "TB",
+    "season": 2020,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.7226
+  },
+  {
+    "player_name": "T.Tagovailoa",
+    "team": "MIA",
+    "season": 2023,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.7199
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2021,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.7174
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2023,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.7099
+  },
+  {
+    "player_name": "N.Foles",
+    "team": "PHI",
+    "season": 2018,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.6987
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "TEN",
+    "season": 2019,
+    "rank": 8,
+    "tier": 2,
+    "myRank": 3.6844
+  },
+  {
+    "player_name": "T.Tagovailoa",
+    "team": "MIA",
+    "season": 2022,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.6669
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2020,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.6556
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2020,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.6518
+  },
+  {
+    "player_name": "P.Rivers",
+    "team": "LAC",
+    "season": 2017,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.6508
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2019,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.6507
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "LA",
+    "season": 2017,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.6274
+  },
+  {
+    "player_name": "P.Rivers",
+    "team": "LAC",
+    "season": 2019,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.627
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2021,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.6234
+  },
+  {
+    "player_name": "J.Hurts",
+    "team": "PHI",
+    "season": 2024,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.6219
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "LA",
+    "season": 2019,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.6206
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "CLE",
+    "season": 2023,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.6195
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "TB",
+    "season": 2019,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.6171
+  },
+  {
+    "player_name": "C.Palmer",
+    "team": "ARI",
+    "season": 2016,
+    "rank": 9,
+    "tier": 3,
+    "myRank": 3.6009
+  },
+  {
+    "player_name": "J.Love",
+    "team": "GB",
+    "season": 2024,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.5989
+  },
+  {
+    "player_name": "C.Keenum",
+    "team": "MIN",
+    "season": 2017,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.5928
+  },
+  {
+    "player_name": "D.Brees",
+    "team": "NO",
+    "season": 2017,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.5925
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2020,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.5902
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "DET",
+    "season": 2023,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.589
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2017,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.5862
+  },
+  {
+    "player_name": "B.Nix",
+    "team": "DEN",
+    "season": 2024,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.5657
+  },
+  {
+    "player_name": "G.Smith",
+    "team": "SEA",
+    "season": 2022,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.5638
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "IND",
+    "season": 2024,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.5535
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2022,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.5441
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2020,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.5408
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "TEN",
+    "season": 2021,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.5349
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "DET",
+    "season": 2020,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.5271
+  },
+  {
+    "player_name": "J.Hurts",
+    "team": "PHI",
+    "season": 2021,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.5149
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2024,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.5093
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2016,
+    "rank": 10,
+    "tier": 3,
+    "myRank": 3.5066
+  },
+  {
+    "player_name": "B.Roethlisberger",
+    "team": "PIT",
+    "season": 2016,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.502
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2019,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.4979
+  },
+  {
+    "player_name": "J.Herbert",
+    "team": "LAC",
+    "season": 2023,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.4947
+  },
+  {
+    "player_name": "B.Purdy",
+    "team": "SF",
+    "season": 2022,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.4889
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "TB",
+    "season": 2017,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.4844
+  },
+  {
+    "player_name": "J.McCown",
+    "team": "NYJ",
+    "season": 2017,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.4727
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "PHI",
+    "season": 2019,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.4622
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "CHI",
+    "season": 2018,
+    "rank": 11,
+    "tier": 3,
+    "myRank": 3.4422
+  },
+  {
+    "player_name": "G.Smith",
+    "team": "SEA",
+    "season": 2023,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.441
+  },
+  {
+    "player_name": "D.Brees",
+    "team": "NO",
+    "season": 2020,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.4398
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2022,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.4277
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2019,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.4232
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2017,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.4208
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "WAS",
+    "season": 2017,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.4167
+  },
+  {
+    "player_name": "M.Mariota",
+    "team": "TEN",
+    "season": 2016,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.4102
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2020,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.4094
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2020,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.4071
+  },
+  {
+    "player_name": "C.Newton",
+    "team": "CAR",
+    "season": 2017,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.3845
+  },
+  {
+    "player_name": "C.Newton",
+    "team": "CAR",
+    "season": 2018,
+    "rank": 12,
+    "tier": 3,
+    "myRank": 3.3571
+  },
+  {
+    "player_name": "R.Fitzpatrick",
+    "team": "MIA",
+    "season": 2020,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.3536
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2024,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.3386
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2018,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.3374
+  },
+  {
+    "player_name": "J.Driskel",
+    "team": "DET",
+    "season": 2019,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.3324
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "CLE",
+    "season": 2024,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.3076
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2019,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.2935
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "CLE",
+    "season": 2020,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.2829
+  },
+  {
+    "player_name": "C.Palmer",
+    "team": "ARI",
+    "season": 2017,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.2824
+  },
+  {
+    "player_name": "P.Rivers",
+    "team": "LAC",
+    "season": 2018,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.2773
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "NE",
+    "season": 2019,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.2653
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "TB",
+    "season": 2023,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.2616
+  },
+  {
+    "player_name": "T.Bridgewater",
+    "team": "DEN",
+    "season": 2021,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.2573
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2016,
+    "rank": 13,
+    "tier": 4,
+    "myRank": 3.2513
+  },
+  {
+    "player_name": "J.Brissett",
+    "team": "CLE",
+    "season": 2022,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.24
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2021,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.2277
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "BAL",
+    "season": 2018,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.204
+  },
+  {
+    "player_name": "M.White",
+    "team": "NYJ",
+    "season": 2021,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 3.2
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2017,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 3.1956
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2022,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.1878
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "HOU",
+    "season": 2018,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.1829
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2023,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.1679
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2021,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 3.1654
+  },
+  {
+    "player_name": "B.Bortles",
+    "team": "JAX",
+    "season": 2017,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 3.1619
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2021,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.149
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "CHI",
+    "season": 2020,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.1406
+  },
+  {
+    "player_name": "J.Fields",
+    "team": "CHI",
+    "season": 2023,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.1329
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "PIT",
+    "season": 2024,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.1258
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CIN",
+    "season": 2019,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.1214
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "TB",
+    "season": 2016,
+    "rank": 14,
+    "tier": 4,
+    "myRank": 3.1061
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "NO",
+    "season": 2021,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 3.0947
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2021,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 3.081
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "DEN",
+    "season": 2023,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 3.0627
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "PHI",
+    "season": 2018,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 3.0436
+  },
+  {
+    "player_name": "M.Jones",
+    "team": "NE",
+    "season": 2021,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 3.043
+  },
+  {
+    "player_name": "J.Herbert",
+    "team": "LAC",
+    "season": 2024,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 3.0372
+  },
+  {
+    "player_name": "M.White",
+    "team": "NYJ",
+    "season": 2022,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 2.9848
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CIN",
+    "season": 2016,
+    "rank": 15,
+    "tier": 4,
+    "myRank": 2.9783
+  },
+  {
+    "player_name": "E.Manning",
+    "team": "NYG",
+    "season": 2019,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 2.9757
+  },
+  {
+    "player_name": "T.Brady",
+    "team": "TB",
+    "season": 2022,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 2.9546
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "CLE",
+    "season": 2019,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.9536
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "CLE",
+    "season": 2018,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 2.9528
+  },
+  {
+    "player_name": "N.Mullens",
+    "team": "MIN",
+    "season": 2023,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.9275
+  },
+  {
+    "player_name": "N.Mullens",
+    "team": "SF",
+    "season": 2018,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 2.92
+  },
+  {
+    "player_name": "E.Stick",
+    "team": "LAC",
+    "season": 2023,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.9146
+  },
+  {
+    "player_name": "T.Bagent",
+    "team": "CHI",
+    "season": 2023,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.9103
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2016,
+    "rank": 16,
+    "tier": 4,
+    "myRank": 2.8986
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "SEA",
+    "season": 2018,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 2.8865
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "NYJ",
+    "season": 2024,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.8796
+  },
+  {
+    "player_name": "B.Bortles",
+    "team": "JAX",
+    "season": 2016,
+    "rank": 17,
+    "tier": 5,
+    "myRank": 2.872
+  },
+  {
+    "player_name": "G.Smith",
+    "team": "SEA",
+    "season": 2024,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.8684
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "LA",
+    "season": 2022,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 2.8673
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "NO",
+    "season": 2022,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.8637
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "LA",
+    "season": 2020,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 2.8601
+  },
+  {
+    "player_name": "T.Heinicke",
+    "team": "ATL",
+    "season": 2023,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.8437
+  },
+  {
+    "player_name": "P.Rivers",
+    "team": "IND",
+    "season": 2020,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.842
+  },
+  {
+    "player_name": "M.Rudolph",
+    "team": "PIT",
+    "season": 2023,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.8398
+  },
+  {
+    "player_name": "C.Kaepernick",
+    "team": "SF",
+    "season": 2016,
+    "rank": 18,
+    "tier": 5,
+    "myRank": 2.8374
+  },
+  {
+    "player_name": "D.Prescott",
+    "team": "DAL",
+    "season": 2018,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.8277
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2020,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.8179
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "IND",
+    "season": 2021,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.8163
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "CAR",
+    "season": 2022,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.8096
+  },
+  {
+    "player_name": "M.Mariota",
+    "team": "TEN",
+    "season": 2017,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.7997
+  },
+  {
+    "player_name": "G.Smith",
+    "team": "SEA",
+    "season": 2021,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.7982
+  },
+  {
+    "player_name": "J.Burrow",
+    "team": "CIN",
+    "season": 2020,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.7956
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "BAL",
+    "season": 2016,
+    "rank": 19,
+    "tier": 5,
+    "myRank": 2.791
+  },
+  {
+    "player_name": "T.Siemian",
+    "team": "DEN",
+    "season": 2016,
+    "rank": 20,
+    "tier": 5,
+    "myRank": 2.787
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2022,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.7761
+  },
+  {
+    "player_name": "J.Dobbs",
+    "team": "ARI",
+    "season": 2023,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.7556
+  },
+  {
+    "player_name": "S.Howell",
+    "team": "WAS",
+    "season": 2023,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.7486
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "TEN",
+    "season": 2022,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.7347
+  },
+  {
+    "player_name": "T.Lawrence",
+    "team": "JAX",
+    "season": 2023,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.7297
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "NO",
+    "season": 2023,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.7054
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2017,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.7053
+  },
+  {
+    "player_name": "T.Tagovailoa",
+    "team": "MIA",
+    "season": 2021,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.7033
+  },
+  {
+    "player_name": "T.Bridgewater",
+    "team": "CAR",
+    "season": 2020,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.6992
+  },
+  {
+    "player_name": "D.Carr",
+    "team": "LV",
+    "season": 2018,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.6935
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "CLE",
+    "season": 2023,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.6902
+  },
+  {
+    "player_name": "C.Beathard",
+    "team": "SF",
+    "season": 2018,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.6885
+  },
+  {
+    "player_name": "B.Roethlisberger",
+    "team": "PIT",
+    "season": 2021,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.688
+  },
+  {
+    "player_name": "N.Mullens",
+    "team": "SF",
+    "season": 2020,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.6799
+  },
+  {
+    "player_name": "M.Rudolph",
+    "team": "TEN",
+    "season": 2024,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.6737
+  },
+  {
+    "player_name": "B.Roethlisberger",
+    "team": "PIT",
+    "season": 2020,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.6667
+  },
+  {
+    "player_name": "J.Fields",
+    "team": "CHI",
+    "season": 2022,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.6567
+  },
+  {
+    "player_name": "A.Smith",
+    "team": "KC",
+    "season": 2016,
+    "rank": 21,
+    "tier": 6,
+    "myRank": 2.6413
+  },
+  {
+    "player_name": "J.Burrow",
+    "team": "CIN",
+    "season": 2023,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.6243
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2022,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.618
+  },
+  {
+    "player_name": "M.Mariota",
+    "team": "ATL",
+    "season": 2022,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.6173
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "ATL",
+    "season": 2024,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.6101
+  },
+  {
+    "player_name": "C.Beathard",
+    "team": "SF",
+    "season": 2017,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.588
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CIN",
+    "season": 2018,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.5805
+  },
+  {
+    "player_name": "R.Fitzpatrick",
+    "team": "MIA",
+    "season": 2019,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.5792
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "LA",
+    "season": 2024,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.5781
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2019,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.5589
+  },
+  {
+    "player_name": "C.Newton",
+    "team": "CAR",
+    "season": 2016,
+    "rank": 22,
+    "tier": 6,
+    "myRank": 2.5487
+  },
+  {
+    "player_name": "C.McCoy",
+    "team": "ARI",
+    "season": 2021,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.5449
+  },
+  {
+    "player_name": "J.Brissett",
+    "team": "IND",
+    "season": 2019,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.5198
+  },
+  {
+    "player_name": "C.Keenum",
+    "team": "WAS",
+    "season": 2019,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.5182
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "IND",
+    "season": 2022,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.4903
+  },
+  {
+    "player_name": "D.Lock",
+    "team": "DEN",
+    "season": 2019,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.4897
+  },
+  {
+    "player_name": "T.Heinicke",
+    "team": "WAS",
+    "season": 2022,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.4876
+  },
+  {
+    "player_name": "S.Bradford",
+    "team": "MIN",
+    "season": 2016,
+    "rank": 23,
+    "tier": 6,
+    "myRank": 2.4784
+  },
+  {
+    "player_name": "A.Rodgers",
+    "team": "GB",
+    "season": 2019,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.4774
+  },
+  {
+    "player_name": "K.Cousins",
+    "team": "MIN",
+    "season": 2018,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.475
+  },
+  {
+    "player_name": "M.Stafford",
+    "team": "DET",
+    "season": 2018,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.4712
+  },
+  {
+    "player_name": "M.Mariota",
+    "team": "TEN",
+    "season": 2018,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.4704
+  },
+  {
+    "player_name": "K.Pickett",
+    "team": "PIT",
+    "season": 2022,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.4665
+  },
+  {
+    "player_name": "G.Minshew",
+    "team": "JAX",
+    "season": 2020,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.4525
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "CLE",
+    "season": 2021,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.4433
+  },
+  {
+    "player_name": "K.Murray",
+    "team": "ARI",
+    "season": 2019,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.439
+  },
+  {
+    "player_name": "T.Taylor",
+    "team": "BUF",
+    "season": 2016,
+    "rank": 24,
+    "tier": 6,
+    "myRank": 2.4384
+  },
+  {
+    "player_name": "D.Ridder",
+    "team": "ATL",
+    "season": 2023,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 2.4347
+  },
+  {
+    "player_name": "J.Winston",
+    "team": "NO",
+    "season": 2022,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.4136
+  },
+  {
+    "player_name": "M.Jones",
+    "team": "JAX",
+    "season": 2024,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.4111
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "PHI",
+    "season": 2020,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.4068
+  },
+  {
+    "player_name": "T.Taylor",
+    "team": "HOU",
+    "season": 2021,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.3971
+  },
+  {
+    "player_name": "J.Dobbs",
+    "team": "MIN",
+    "season": 2023,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 2.3921
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "PIT",
+    "season": 2022,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 2.3786
+  },
+  {
+    "player_name": "T.Taylor",
+    "team": "BUF",
+    "season": 2017,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.3757
+  },
+  {
+    "player_name": "E.Manning",
+    "team": "NYG",
+    "season": 2018,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.356
+  },
+  {
+    "player_name": "M.Moore",
+    "team": "MIA",
+    "season": 2017,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.3427
+  },
+  {
+    "player_name": "C.Keenum",
+    "team": "DEN",
+    "season": 2018,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.3358
+  },
+  {
+    "player_name": "C.Newton",
+    "team": "NE",
+    "season": 2020,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.3274
+  },
+  {
+    "player_name": "D.Maye",
+    "team": "NE",
+    "season": 2024,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.3253
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2021,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.32
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "MIA",
+    "season": 2016,
+    "rank": 25,
+    "tier": 7,
+    "myRank": 2.3155
+  },
+  {
+    "player_name": "M.Jones",
+    "team": "NE",
+    "season": 2023,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 2.3059
+  },
+  {
+    "player_name": "D.Lock",
+    "team": "DEN",
+    "season": 2020,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.2983
+  },
+  {
+    "player_name": "B.Hoyer",
+    "team": "SF",
+    "season": 2017,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.2593
+  },
+  {
+    "player_name": "M.Ryan",
+    "team": "ATL",
+    "season": 2021,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.254
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2019,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.2508
+  },
+  {
+    "player_name": "G.Minshew",
+    "team": "IND",
+    "season": 2023,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 2.2396
+  },
+  {
+    "player_name": "T.Siemian",
+    "team": "NO",
+    "season": 2021,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.2282
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "SF",
+    "season": 2018,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.2273
+  },
+  {
+    "player_name": "T.Lawrence",
+    "team": "JAX",
+    "season": 2024,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.2228
+  },
+  {
+    "player_name": "J.Fields",
+    "team": "PIT",
+    "season": 2024,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.1989
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "DET",
+    "season": 2021,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.1725
+  },
+  {
+    "player_name": "P.Walker",
+    "team": "CAR",
+    "season": 2022,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 2.172
+  },
+  {
+    "player_name": "B.Young",
+    "team": "CAR",
+    "season": 2024,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.1679
+  },
+  {
+    "player_name": "N.Foles",
+    "team": "JAX",
+    "season": 2019,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 2.1626
+  },
+  {
+    "player_name": "D.Stanton",
+    "team": "ARI",
+    "season": 2017,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.1579
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "PHI",
+    "season": 2016,
+    "rank": 26,
+    "tier": 7,
+    "myRank": 2.1529
+  },
+  {
+    "player_name": "D.Lock",
+    "team": "NYG",
+    "season": 2024,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.1413
+  },
+  {
+    "player_name": "E.Manning",
+    "team": "NYG",
+    "season": 2016,
+    "rank": 27,
+    "tier": 7,
+    "myRank": 2.1114
+  },
+  {
+    "player_name": "B.Bortles",
+    "team": "JAX",
+    "season": 2018,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.1
+  },
+  {
+    "player_name": "C.Keenum",
+    "team": "LA",
+    "season": 2016,
+    "rank": 28,
+    "tier": 7,
+    "myRank": 2.0989
+  },
+  {
+    "player_name": "C.Wentz",
+    "team": "WAS",
+    "season": 2022,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 2.0912
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "DEN",
+    "season": 2019,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 2.0755
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "CLE",
+    "season": 2022,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 2.0745
+  },
+  {
+    "player_name": "G.Minshew",
+    "team": "JAX",
+    "season": 2019,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 2.0681
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2024,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 2.0657
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CIN",
+    "season": 2017,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.0454
+  },
+  {
+    "player_name": "T.Bridgewater",
+    "team": "NO",
+    "season": 2019,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 2.0312
+  },
+  {
+    "player_name": "T.Heinicke",
+    "team": "WAS",
+    "season": 2021,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 2.0202
+  },
+  {
+    "player_name": "D.Mills",
+    "team": "HOU",
+    "season": 2022,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 2.0169
+  },
+  {
+    "player_name": "B.Gabbert",
+    "team": "SF",
+    "season": 2016,
+    "rank": 29,
+    "tier": 8,
+    "myRank": 2.0107
+  },
+  {
+    "player_name": "J.Garoppolo",
+    "team": "LV",
+    "season": 2023,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 2.0101
+  },
+  {
+    "player_name": "R.Wilson",
+    "team": "DEN",
+    "season": 2022,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 2.0037
+  },
+  {
+    "player_name": "B.Hoyer",
+    "team": "CHI",
+    "season": 2016,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 1.9959
+  },
+  {
+    "player_name": "R.Fitzpatrick",
+    "team": "TB",
+    "season": 2017,
+    "rank": 30,
+    "tier": 8,
+    "myRank": 1.9868
+  },
+  {
+    "player_name": "A.Smith",
+    "team": "WAS",
+    "season": 2018,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 1.9858
+  },
+  {
+    "player_name": "J.Johnson",
+    "team": "WAS",
+    "season": 2018,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.9828
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "CAR",
+    "season": 2021,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.9824
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "NYJ",
+    "season": 2018,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.9794
+  },
+  {
+    "player_name": "T.Hill",
+    "team": "NO",
+    "season": 2020,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 1.969
+  },
+  {
+    "player_name": "T.Siemian",
+    "team": "DEN",
+    "season": 2017,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 1.9664
+  },
+  {
+    "player_name": "B.Allen",
+    "team": "CIN",
+    "season": 2020,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 1.9598
+  },
+  {
+    "player_name": "T.Hill",
+    "team": "NO",
+    "season": 2021,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.9276
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "DAL",
+    "season": 2020,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.9216
+  },
+  {
+    "player_name": "D.Kizer",
+    "team": "CLE",
+    "season": 2017,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 1.8876
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "NYJ",
+    "season": 2022,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.8856
+  },
+  {
+    "player_name": "E.Manning",
+    "team": "NYG",
+    "season": 2017,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.8778
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CAR",
+    "season": 2024,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.876
+  },
+  {
+    "player_name": "B.Hundley",
+    "team": "GB",
+    "season": 2017,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.8747
+  },
+  {
+    "player_name": "M.Glennon",
+    "team": "JAX",
+    "season": 2020,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.8529
+  },
+  {
+    "player_name": "W.Levis",
+    "team": "TEN",
+    "season": 2023,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.8489
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "NYJ",
+    "season": 2020,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.841
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "NYJ",
+    "season": 2019,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.8402
+  },
+  {
+    "player_name": "C.Newton",
+    "team": "CAR",
+    "season": 2021,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.8177
+  },
+  {
+    "player_name": "M.Penix",
+    "team": "ATL",
+    "season": 2024,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.8165
+  },
+  {
+    "player_name": "D.Mills",
+    "team": "HOU",
+    "season": 2021,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.8163
+  },
+  {
+    "player_name": "J.Brissett",
+    "team": "MIA",
+    "season": 2021,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.8078
+  },
+  {
+    "player_name": "B.Gabbert",
+    "team": "ARI",
+    "season": 2017,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.8002
+  },
+  {
+    "player_name": "B.Osweiler",
+    "team": "HOU",
+    "season": 2016,
+    "rank": 31,
+    "tier": 8,
+    "myRank": 1.7924
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "LA",
+    "season": 2022,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.791
+  },
+  {
+    "player_name": "C.Rush",
+    "team": "DAL",
+    "season": 2024,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.7837
+  },
+  {
+    "player_name": "K.Allen",
+    "team": "CAR",
+    "season": 2019,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.7653
+  },
+  {
+    "player_name": "J.Cutler",
+    "team": "MIA",
+    "season": 2017,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.7539
+  },
+  {
+    "player_name": "R.Fitzpatrick",
+    "team": "NYJ",
+    "season": 2016,
+    "rank": 32,
+    "tier": 8,
+    "myRank": 1.7425
+  },
+  {
+    "player_name": "T.Taylor",
+    "team": "NYG",
+    "season": 2023,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.7356
+  },
+  {
+    "player_name": "J.McCown",
+    "team": "NYJ",
+    "season": 2018,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.7315
+  },
+  {
+    "player_name": "A.O'Connell",
+    "team": "LV",
+    "season": 2023,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.7239
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "PIT",
+    "season": 2023,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.7236
+  },
+  {
+    "player_name": "T.Tagovailoa",
+    "team": "MIA",
+    "season": 2020,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.7221
+  },
+  {
+    "player_name": "A.Richardson",
+    "team": "IND",
+    "season": 2024,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.7209
+  },
+  {
+    "player_name": "A.O'Connell",
+    "team": "LV",
+    "season": 2024,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.7145
+  },
+  {
+    "player_name": "C.McCoy",
+    "team": "ARI",
+    "season": 2022,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.7124
+  },
+  {
+    "player_name": "B.Petty",
+    "team": "NYJ",
+    "season": 2017,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.7049
+  },
+  {
+    "player_name": "T.Lawrence",
+    "team": "JAX",
+    "season": 2021,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.6996
+  },
+  {
+    "player_name": "M.Jones",
+    "team": "NE",
+    "season": 2022,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.6943
+  },
+  {
+    "player_name": "G.Minshew",
+    "team": "LV",
+    "season": 2024,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.6905
+  },
+  {
+    "player_name": "B.Osweiler",
+    "team": "DEN",
+    "season": 2017,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.684
+  },
+  {
+    "player_name": "D.Lock",
+    "team": "DEN",
+    "season": 2021,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.6839
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "CHI",
+    "season": 2019,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.6821
+  },
+  {
+    "player_name": "S.Darnold",
+    "team": "NYJ",
+    "season": 2020,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.6708
+  },
+  {
+    "player_name": "J.Allen",
+    "team": "BUF",
+    "season": 2018,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.6693
+  },
+  {
+    "player_name": "M.Barkley",
+    "team": "CHI",
+    "season": 2016,
+    "rank": 33,
+    "tier": 8,
+    "myRank": 1.6494
+  },
+  {
+    "player_name": "C.Stroud",
+    "team": "HOU",
+    "season": 2024,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.639
+  },
+  {
+    "player_name": "L.Jackson",
+    "team": "BAL",
+    "season": 2018,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.6288
+  },
+  {
+    "player_name": "W.Levis",
+    "team": "TEN",
+    "season": 2024,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.6209
+  },
+  {
+    "player_name": "B.Young",
+    "team": "CAR",
+    "season": 2023,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.6168
+  },
+  {
+    "player_name": "T.Siemian",
+    "team": "NYJ",
+    "season": 2023,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.5945
+  },
+  {
+    "player_name": "M.Glennon",
+    "team": "CHI",
+    "season": 2017,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.5805
+  },
+  {
+    "player_name": "T.Huntley",
+    "team": "BAL",
+    "season": 2021,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.5759
+  },
+  {
+    "player_name": "K.Pickett",
+    "team": "PIT",
+    "season": 2023,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 1.5678
+  },
+  {
+    "player_name": "J.Brissett",
+    "team": "IND",
+    "season": 2017,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.5579
+  },
+  {
+    "player_name": "J.Driskel",
+    "team": "CIN",
+    "season": 2018,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.5545
+  },
+  {
+    "player_name": "T.Yates",
+    "team": "HOU",
+    "season": 2017,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.5467
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2023,
+    "rank": 44,
+    "tier": 8,
+    "myRank": 1.5263
+  },
+  {
+    "player_name": "T.Huntley",
+    "team": "BAL",
+    "season": 2022,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.5161
+  },
+  {
+    "player_name": "A.Dalton",
+    "team": "CHI",
+    "season": 2021,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.5132
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "MIA",
+    "season": 2018,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.5096
+  },
+  {
+    "player_name": "M.Mariota",
+    "team": "TEN",
+    "season": 2019,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.5062
+  },
+  {
+    "player_name": "R.Griffin",
+    "team": "CLE",
+    "season": 2016,
+    "rank": 34,
+    "tier": 8,
+    "myRank": 1.484
+  },
+  {
+    "player_name": "J.McCown",
+    "team": "CLE",
+    "season": 2016,
+    "rank": 35,
+    "tier": 8,
+    "myRank": 1.4822
+  },
+  {
+    "player_name": "C.Williams",
+    "team": "CHI",
+    "season": 2024,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.4698
+  },
+  {
+    "player_name": "Z.Wilson",
+    "team": "NYJ",
+    "season": 2022,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 1.461
+  },
+  {
+    "player_name": "B.Mayfield",
+    "team": "CAR",
+    "season": 2022,
+    "rank": 44,
+    "tier": 8,
+    "myRank": 1.4543
+  },
+  {
+    "player_name": "J.Hurts",
+    "team": "PHI",
+    "season": 2020,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.4366
+  },
+  {
+    "player_name": "P.Walker",
+    "team": "CLE",
+    "season": 2023,
+    "rank": 45,
+    "tier": 8,
+    "myRank": 1.4258
+  },
+  {
+    "player_name": "M.Rudolph",
+    "team": "PIT",
+    "season": 2019,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 1.4111
+  },
+  {
+    "player_name": "D.Jones",
+    "team": "NYG",
+    "season": 2020,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.4082
+  },
+  {
+    "player_name": "J.Flacco",
+    "team": "BAL",
+    "season": 2017,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.374
+  },
+  {
+    "player_name": "C.Kessler",
+    "team": "CLE",
+    "season": 2016,
+    "rank": 36,
+    "tier": 8,
+    "myRank": 1.3664
+  },
+  {
+    "player_name": "C.Rush",
+    "team": "DAL",
+    "season": 2022,
+    "rank": 45,
+    "tier": 8,
+    "myRank": 1.366
+  },
+  {
+    "player_name": "R.Tannehill",
+    "team": "TEN",
+    "season": 2023,
+    "rank": 46,
+    "tier": 8,
+    "myRank": 1.3435
+  },
+  {
+    "player_name": "D.Ridder",
+    "team": "ATL",
+    "season": 2022,
+    "rank": 46,
+    "tier": 8,
+    "myRank": 1.3255
+  },
+  {
+    "player_name": "T.Huntley",
+    "team": "MIA",
+    "season": 2024,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.3197
+  },
+  {
+    "player_name": "B.Gabbert",
+    "team": "TEN",
+    "season": 2018,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.3143
+  },
+  {
+    "player_name": "A.Smith",
+    "team": "WAS",
+    "season": 2020,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 1.2878
+  },
+  {
+    "player_name": "N.Foles",
+    "team": "CHI",
+    "season": 2020,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.2725
+  },
+  {
+    "player_name": "C.Kessler",
+    "team": "JAX",
+    "season": 2018,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 1.2591
+  },
+  {
+    "player_name": "D.Haskins",
+    "team": "WAS",
+    "season": 2020,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.2515
+  },
+  {
+    "player_name": "B.Osweiler",
+    "team": "MIA",
+    "season": 2018,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.2375
+  },
+  {
+    "player_name": "M.Trubisky",
+    "team": "CHI",
+    "season": 2017,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 1.2329
+  },
+  {
+    "player_name": "D.Blough",
+    "team": "DET",
+    "season": 2019,
+    "rank": 39,
+    "tier": 8,
+    "myRank": 1.2074
+  },
+  {
+    "player_name": "Z.Wilson",
+    "team": "NYJ",
+    "season": 2021,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 1.1884
+  },
+  {
+    "player_name": "S.Rattler",
+    "team": "NO",
+    "season": 2024,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 1.1849
+  },
+  {
+    "player_name": "S.Ehlinger",
+    "team": "IND",
+    "season": 2022,
+    "rank": 47,
+    "tier": 8,
+    "myRank": 1.1657
+  },
+  {
+    "player_name": "D.Thompson-Robinson",
+    "team": "CLE",
+    "season": 2024,
+    "rank": 44,
+    "tier": 8,
+    "myRank": 1.1406
+  },
+  {
+    "player_name": "T.DeVito",
+    "team": "NYG",
+    "season": 2023,
+    "rank": 47,
+    "tier": 8,
+    "myRank": 1.1215
+  },
+  {
+    "player_name": "J.Brissett",
+    "team": "NE",
+    "season": 2024,
+    "rank": 45,
+    "tier": 8,
+    "myRank": 1.1111
+  },
+  {
+    "player_name": "J.Fields",
+    "team": "CHI",
+    "season": 2021,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 1.0939
+  },
+  {
+    "player_name": "D.Thompson-Robinson",
+    "team": "CLE",
+    "season": 2023,
+    "rank": 48,
+    "tier": 8,
+    "myRank": 1.0913
+  },
+  {
+    "player_name": "B.Petty",
+    "team": "NYJ",
+    "season": 2016,
+    "rank": 37,
+    "tier": 8,
+    "myRank": 1.0754
+  },
+  {
+    "player_name": "Z.Wilson",
+    "team": "NYJ",
+    "season": 2023,
+    "rank": 49,
+    "tier": 8,
+    "myRank": 1.0685
+  },
+  {
+    "player_name": "N.Foles",
+    "team": "PHI",
+    "season": 2017,
+    "rank": 44,
+    "tier": 8,
+    "myRank": 1.025
+  },
+  {
+    "player_name": "D.Hodges",
+    "team": "PIT",
+    "season": 2019,
+    "rank": 40,
+    "tier": 8,
+    "myRank": 0.9673
+  },
+  {
+    "player_name": "J.Goff",
+    "team": "LA",
+    "season": 2016,
+    "rank": 38,
+    "tier": 8,
+    "myRank": 0.939
+  },
+  {
+    "player_name": "J.Rosen",
+    "team": "ARI",
+    "season": 2018,
+    "rank": 43,
+    "tier": 8,
+    "myRank": 0.9189
+  },
+  {
+    "player_name": "D.Haskins",
+    "team": "WAS",
+    "season": 2019,
+    "rank": 41,
+    "tier": 8,
+    "myRank": 0.9152
+  },
+  {
+    "player_name": "B.Zappe",
+    "team": "NE",
+    "season": 2023,
+    "rank": 50,
+    "tier": 8,
+    "myRank": 0.9001
+  },
+  {
+    "player_name": "M.Glennon",
+    "team": "NYG",
+    "season": 2021,
+    "rank": 44,
+    "tier": 8,
+    "myRank": 0.8188
+  },
+  {
+    "player_name": "S.Thompson",
+    "team": "MIA",
+    "season": 2022,
+    "rank": 48,
+    "tier": 8,
+    "myRank": 0.7457
+  },
+  {
+    "player_name": "D.Watson",
+    "team": "CLE",
+    "season": 2024,
+    "rank": 46,
+    "tier": 8,
+    "myRank": 0.7281
+  },
+  {
+    "player_name": "J.Rosen",
+    "team": "MIA",
+    "season": 2019,
+    "rank": 42,
+    "tier": 8,
+    "myRank": 0.4842
+  },
+  {
+    "player_name": "J.Cutler",
+    "team": "CHI",
+    "season": 2016,
+    "rank": 39,
+    "tier": 8
+  },
+  {
+    "player_name": "M.Moore",
+    "team": "MIA",
+    "season": 2016,
+    "rank": 40,
+    "tier": 8
+  },
+  {
+    "player_name": "T.Savage",
+    "team": "HOU",
+    "season": 2017,
+    "rank": 45,
+    "tier": 8
+  },
+  {
+    "player_name": "C.Beathard",
+    "team": "SF",
+    "season": 2020,
+    "rank": 43,
+    "tier": 8
+  },
+  {
+    "player_name": "J.Luton",
+    "team": "JAX",
+    "season": 2020,
+    "rank": 44,
+    "tier": 8
+  }
+]

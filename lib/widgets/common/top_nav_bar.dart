@@ -56,9 +56,9 @@ final List<NavItem> topNavItems = [
     subItems: [
       // OFFENSE
       NavItem(title: 'QB Rankings', route: '/rankings/qb', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'RB Rankings', route: '/rankings/rb', icon: Icons.sports_football, isPlaceholder: true),
-      NavItem(title: 'WR Rankings', route: '/rankings/wr', icon: Icons.sports_football, isPlaceholder: true),
-      NavItem(title: 'TE Rankings', route: '/rankings/te', icon: Icons.sports_football, isPlaceholder: true),
+      NavItem(title: 'RB Rankings', route: '/rankings/rb', icon: Icons.sports_football, isPlaceholder: false),
+      NavItem(title: 'WR Rankings', route: '/rankings/wr', icon: Icons.sports_football, isPlaceholder: false),
+      NavItem(title: 'TE Rankings', route: '/rankings/te', icon: Icons.sports_football, isPlaceholder: false),
       NavItem(title: 'OL Rankings', route: '/rankings/ol', icon: Icons.sports_football, isPlaceholder: true),
       // DEFENSE
       NavItem(title: 'DL Rankings', route: '/rankings/dl', icon: Icons.shield, isPlaceholder: true),
@@ -77,6 +77,7 @@ final List<NavItem> topNavItems = [
       // --- Implemented --- 
       NavItem(title: 'Fantasy Draft Simulator', route: '/draft/fantasy', isPlaceholder: false),
       NavItem(title: 'Rest-of-Season Projections', route: '/projections', isPlaceholder: false),
+      NavItem(title: '2025 WR Projections', route: '/projections/wr-2025', icon: Icons.trending_up, isPlaceholder: false),
       NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
       NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
       NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', icon: Icons.tune, isPlaceholder: false),

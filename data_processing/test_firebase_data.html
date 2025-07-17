@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firebase Data Access</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Firebase Data Access Test</h1>
+    
+    <div id="rb-test" class="test-result loading">Testing RB Rankings...</div>
+    <div id="wr-test" class="test-result loading">Testing WR Rankings...</div>
+    <div id="te-test" class="test-result loading">Testing TE Rankings...</div>
+    
+    <div id="results"></div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwQMnU3-1sZIRUNlGfQy7wqKqXJOF5I_Y",
+            authDomain: "nfl-draft-simulator-9265f.firebaseapp.com",
+            projectId: "nfl-draft-simulator-9265f",
+            storageBucket: "nfl-draft-simulator-9265f.appspot.com",
+            messagingSenderId: "900728713837",
+            appId: "1:900728713837:web:e123456789abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function testCollection(position, displayName) {
+            const collectionName = `${position}_rankings_comprehensive`;
+            const testElement = document.getElementById(`${position}-test`);
+            
+            try {
+                const snapshot = await db.collection(collectionName).limit(3).get();
+                
+                if (snapshot.empty) {
+                    testElement.className = 'test-result error';
+                    testElement.innerHTML = `❌ ${displayName}: Collection is empty`;
+                    return;
+                }
+                
+                const data = [];
+                snapshot.forEach(doc => {
+                    data.push({ id: doc.id, ...doc.data() });
+                });
+                
+                testElement.className = 'test-result success';
+                testElement.innerHTML = `✅ ${displayName}: Found ${snapshot.size} records`;
+                
+                // Show sample data
+                const resultsDiv = document.getElementById('results');
+                const sampleDiv = document.createElement('div');
+                sampleDiv.innerHTML = `
+                    <h3>${displayName} Sample Data:</h3>
+                    <pre>${JSON.stringify(data[0], null, 2)}</pre>
+                `;
+                resultsDiv.appendChild(sampleDiv);
+                
+            } catch (error) {
+                testElement.className = 'test-result error';
+                testElement.innerHTML = `❌ ${displayName}: ${error.message}`;
+            }
+        }
+
+        // Test all collections
+        testCollection('rb', 'RB Rankings');
+        testCollection('wr', 'WR Rankings');
+        testCollection('te', 'TE Rankings');
+    </script>
+</body>
+</html>

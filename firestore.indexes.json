@@ -1,6 +1,62 @@
 {
   "indexes": [
     {
+      "collectionGroup": "qb_rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wr_rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "te_rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "rb_rankings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "rank",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "playerSeasonStats",
       "queryScope": "COLLECTION",
       "fields": [
@@ -53,8 +109,8 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "__name__",
-          "order": "ASCENDING"
+          "fieldPath": "fantasy_points_half_ppr",
+          "order": "DESCENDING"
         }
       ]
     },
@@ -68,16 +124,16 @@
         },
         {
           "fieldPath": "season",
-          "order": "DESCENDING"
+          "order": "ASCENDING"
         },
         {
-          "fieldPath": "__name__",
+          "fieldPath": "fantasy_points_standard",
           "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "qbRankings",
+      "collectionGroup": "playerSeasonStats",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -85,13 +141,17 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "rank_number",
+          "fieldPath": "position",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fantasy_points_ppr",
+          "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "qbRankings",
+      "collectionGroup": "playerSeasonStats",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -99,12 +159,30 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "qb_tier",
+          "fieldPath": "position",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "rank_number",
+          "fieldPath": "fantasy_points_half_ppr",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "playerSeasonStats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "season",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "position",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fantasy_points_standard",
+          "order": "DESCENDING"
         }
       ]
     }
