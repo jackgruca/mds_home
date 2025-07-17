@@ -19,6 +19,16 @@ class TeamLogoUtils {
       );
     }
     
+    // Handle unknown teams specifically
+    if (teamName.trim().toLowerCase() == 'unk' || teamName.trim().toLowerCase() == 'unknown') {
+      return _buildPlaceholderLogo(
+        'UNK',
+        size: size,
+        color: Colors.grey.shade600,
+        customBuilder: placeholderBuilder,
+      );
+    }
+    
     // Try to find the abbreviation in the mapping
     String? abbr = NFLTeamMappings.fullNameToAbbreviation[teamName.trim()];
     
@@ -33,6 +43,16 @@ class TeamLogoUtils {
         teamName.isNotEmpty ? teamName : 'NFL',
         size: size,
         color: Colors.blue.shade700,
+        customBuilder: placeholderBuilder,
+      );
+    }
+    
+    // Additional check for known problematic abbreviations
+    if (abbr.toLowerCase() == 'unk') {
+      return _buildPlaceholderLogo(
+        'UNK',
+        size: size,
+        color: Colors.grey.shade600,
         customBuilder: placeholderBuilder,
       );
     }

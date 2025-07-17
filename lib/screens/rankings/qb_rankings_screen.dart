@@ -9,6 +9,8 @@ import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
+import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/ranking_cell_shading_service.dart';
 
 class QBRankingsScreen extends StatefulWidget {
   const QBRankingsScreen({super.key});
@@ -26,24 +28,21 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   bool _showRanks = false; // Toggle between showing ranks vs raw stats
   
   // Sorting state - default to rank ascending (rank 1 first)
-  String _sortColumn = 'myRankNum';
+  String _sortColumn = 'rank_number';
   bool _sortAscending = true;
   
-  final List<String> _seasonOptions = ['All Seasons', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016'];
-  final List<String> _tierOptions = ['All', 'Tier 1', 'Tier 2', 'Tier 3', 'Tier 4', 'Tier 5', 'Tier 6', 'Tier 7', 'Tier 8'];
+  late final List<String> _seasonOptions;
+  late final List<String> _tierOptions;
+  late final Map<String, Map<String, dynamic>> _qbStatFields;
   
-  // Relevant QB stats with their metadata
-  final Map<String, Map<String, dynamic>> _qbStatFields = {
-    'myRank': {'name': 'Rank Score', 'format': 'decimal1', 'description': 'Composite ranking score'},
-    'season': {'name': 'Season', 'format': 'integer', 'description': 'Season year'},
-    'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Performance tier'},
-  };
-  
-  final Map<String, Map<double, double>> _percentileCache = {};
+  final Map<String, Map<String, double>> _percentileCache = {};
 
   @override
   void initState() {
     super.initState();
+    _seasonOptions = RankingService.getSeasonOptions();
+    _tierOptions = RankingService.getTierOptions();
+    _qbStatFields = RankingService.getStatFields('qb');
     _loadQBRankings();
   }
 
@@ -54,37 +53,26 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     });
 
     try {
-      Query query = FirebaseFirestore.instance.collection('qbRankings');
-      
-      // Apply season filter
-      if (_selectedSeason != 'All Seasons') {
-        query = query.where('season', isEqualTo: int.tryParse(_selectedSeason) ?? _selectedSeason);
-      }
-      
-      final snapshot = await query.get();
-      final rankings = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          ...data,
-          'id': doc.id,
-        };
-      }).toList();
-      
-      // Apply tier filter
-      List<Map<String, dynamic>> filteredRankings = rankings;
-      if (_selectedTier != 'All') {
-        final tier = int.parse(_selectedTier.split(' ')[1]);
-        filteredRankings = rankings.where((qb) => qb['tier'] == tier).toList();
-      }
+      final rankings = await RankingService.loadRankings(
+        position: 'qb',
+        season: _selectedSeason,
+        tier: _selectedTier,
+      );
       
       // Calculate percentiles for stat ranking
-      _calculatePercentiles(filteredRankings);
+      final statFields = _qbStatFields.keys.where((key) => 
+        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
       
       // Sort by default column
-      _sortData(filteredRankings);
+      _sortData(rankings);
       
       setState(() {
-        _qbRankings = filteredRankings;
+        _qbRankings = rankings;
         _isLoading = false;
       });
     } catch (e) {
@@ -92,29 +80,6 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         _error = 'Failed to load QB rankings: ${e.toString()}';
         _isLoading = false;
       });
-    }
-  }
-
-  void _calculatePercentiles(List<Map<String, dynamic>> rankings) {
-    _percentileCache.clear();
-    
-    for (String field in _qbStatFields.keys) {
-      final values = rankings
-          .where((qb) => qb[field] != null)
-          .map((qb) => (qb[field] as num).toDouble())
-          .toList();
-      
-      if (values.isNotEmpty) {
-        values.sort();
-        final percentileMap = <double, double>{};
-        
-        for (int i = 0; i < values.length; i++) {
-          final percentile = (i + 1) / values.length;
-          percentileMap[values[i]] = percentile;
-        }
-        
-        _percentileCache[field] = percentileMap;
-      }
     }
   }
 
@@ -149,75 +114,24 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   }
 
   int _getSortColumnIndex() {
-    final baseColumns = ['myRankNum', 'player_name', 'posteam', 'tier'];
+    final baseColumns = ['rank_number', 'player_name', 'team', 'qb_tier'];
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
-    baseColumns.addAll(_qbStatFields.keys);
+    final statFieldsToShow = _qbStatFields.keys.where((key) => 
+      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+    ).toList();
+    baseColumns.addAll(statFieldsToShow);
     return baseColumns.indexOf(_sortColumn);
   }
 
   Color _getTierColor(int tier) {
-    switch (tier) {
-      case 1: return const Color(0xFF7C3AED); // Purple
-      case 2: return const Color(0xFF2563EB); // Blue
-      case 3: return const Color(0xFF059669); // Green
-      case 4: return const Color(0xFFD97706); // Orange
-      case 5: return const Color(0xFFDC2626); // Red
-      case 6: return const Color(0xFF7C2D12); // Brown
-      case 7: return const Color(0xFF374151); // Gray
-      case 8: return const Color(0xFF1F2937); // Dark gray
-      default: return Colors.grey;
-    }
+    final colors = RankingService.getTierColors();
+    return Color(colors[tier] ?? 0xFF9E9E9E);
   }
 
-  Widget _formatStatValue(String field, dynamic value) {
-    if (value == null) return const Text('-');
-    
-    final format = _qbStatFields[field]?['format'] ?? 'string';
-    
-    if (_showRanks) {
-      // Show rank instead of raw value
-      final percentiles = _percentileCache[field];
-      if (percentiles != null) {
-        final percentile = percentiles[value.toDouble()];
-        if (percentile != null) {
-          final rank = ((1 - percentile) * _qbRankings.length).round() + 1;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: rank <= 5 ? Colors.green.shade100 : 
-                     rank <= 10 ? Colors.orange.shade100 : 
-                     Colors.red.shade100,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '#$rank',
-              style: TextStyle(
-                color: rank <= 5 ? Colors.green.shade800 : 
-                       rank <= 10 ? Colors.orange.shade800 : 
-                       Colors.red.shade800,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          );
-        }
-      }
-      return const Text('-');
-    }
-    
-    // Show raw value
-    switch (format) {
-      case 'percentage':
-        return Text('${(value * 100).toStringAsFixed(1)}%');
-      case 'decimal1':
-        return Text(value.toStringAsFixed(1));
-      case 'integer':
-        return Text(value.round().toString());
-      default:
-        return Text(value.toString());
-    }
+  String _formatStatValue(dynamic value, String format) {
+    return RankingService.formatStatValue(value, format);
   }
 
   @override
@@ -432,7 +346,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     final columns = <DataColumn>[
       DataColumn(
         label: const Text('Rank'),
-        onSort: (columnIndex, ascending) => _sort('myRankNum', ascending),
+        onSort: (columnIndex, ascending) => _sort('rank_number', ascending),
       ),
       DataColumn(
         label: const Text('Player'),
@@ -440,11 +354,11 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       ),
       DataColumn(
         label: const Text('Team'),
-        onSort: (columnIndex, ascending) => _sort('posteam', ascending),
+                    onSort: (columnIndex, ascending) => _sort('team', ascending),
       ),
       DataColumn(
         label: const Text('Tier'),
-                        onSort: (columnIndex, ascending) => _sort('tier', ascending),
+        onSort: (columnIndex, ascending) => _sort('qb_tier', ascending),
       ),
     ];
 
@@ -456,10 +370,19 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       ));
     }
 
-    // Add stat columns
-    for (final field in _qbStatFields.keys) {
+    // Add stat columns - skip base fields that are already added
+            final statFieldsToShow = _qbStatFields.keys.where((key) => 
+          !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+        ).toList();
+    
+    for (final field in statFieldsToShow) {
+      final statInfo = _qbStatFields[field]!;
       columns.add(DataColumn(
-        label: Text(_qbStatFields[field]!['name']),
+        label: Tooltip(
+          message: statInfo['description'],
+          child: Text(statInfo['name']),
+        ),
+        numeric: true,
         onSort: (columnIndex, ascending) => _sort(field, ascending),
       ));
     }
@@ -471,7 +394,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     return _qbRankings.asMap().entries.map((entry) {
       final index = entry.key;
       final qb = entry.value;
-              final tier = qb['tier'] ?? 1;
+                    final tier = qb['qb_tier'] ?? qb['tier'] ?? 1;
       final tierColor = _getTierColor(tier);
 
       final cells = <DataCell>[
@@ -483,7 +406,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '#${qb['myRankNum'] ?? index + 1}',
+              '#${qb['rank_number'] ?? index + 1}',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -495,7 +418,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         DataCell(
           Row(
             children: [
-                             TeamLogoUtils.buildNFLTeamLogo(qb['posteam'] ?? '', size: 20),
+                                TeamLogoUtils.buildNFLTeamLogo(qb['team'] ?? '', size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -506,7 +429,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             ],
           ),
         ),
-        DataCell(Text(qb['posteam'] ?? '')),
+                  DataCell(Text(qb['team'] ?? '')),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -531,9 +454,30 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         cells.add(DataCell(Text(qb['season']?.toString() ?? '')));
       }
 
-      // Add stat cells
-      for (final field in _qbStatFields.keys) {
-        cells.add(DataCell(_formatStatValue(field, qb[field])));
+      // Add stat cells - skip base fields that are already added
+      final statFieldsToShow = _qbStatFields.keys.where((key) => 
+        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts'].contains(key)
+      ).toList();
+      
+      for (final field in statFieldsToShow) {
+        final value = qb[field];
+        final statInfo = _qbStatFields[field]!;
+        
+        // Use the cell shading service for stat cells
+        cells.add(DataCell(
+          RankingCellShadingService.buildDensityCell(
+            column: field,
+            value: value,
+            rankValue: _showRanks ? ((_qbRankings.length - (qb['rank_number'] ?? index + 1)) / _qbRankings.length) : value,
+            showRanks: _showRanks,
+            percentileCache: _percentileCache,
+            formatValue: (val, col) => _showRanks ? 
+              '#${((_qbRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _qbRankings.length))}' :
+              _formatStatValue(val, statInfo['format']),
+            width: double.infinity,
+            height: 48,
+          ),
+        ));
       }
 
       return DataRow(

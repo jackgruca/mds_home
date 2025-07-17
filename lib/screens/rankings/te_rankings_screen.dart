@@ -10,6 +10,7 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/ranking_cell_shading_service.dart';
 
 class TERankingsScreen extends StatefulWidget {
   const TERankingsScreen({super.key});
@@ -34,7 +35,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   late final List<String> _tierOptions;
   late final Map<String, Map<String, dynamic>> _teStatFields;
   
-  final Map<String, Map<double, double>> _percentileCache = {};
+  final Map<String, Map<String, double>> _percentileCache = {};
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
         !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
       ).toList();
       
-      final percentiles = RankingService.calculatePercentiles(rankings, statFields);
+      final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
       _percentileCache.clear();
       _percentileCache.addAll(percentiles);
       
@@ -127,19 +128,6 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   Color _getTierColor(int tier) {
     final colors = RankingService.getTierColors();
     return Color(colors[tier] ?? 0xFF9E9E9E);
-  }
-
-  Color _getPercentileColor(double percentile) {
-    if (percentile.isNaN || percentile.isInfinite) return Colors.transparent;
-    
-    final clampedPercentile = percentile.clamp(0.0, 1.0);
-    
-    return Color.fromRGBO(
-      100,  // Red
-      140,  // Green  
-      240,  // Blue
-      0.1 + (clampedPercentile * 0.7)  // Alpha (10% to 80%)
-    );
   }
 
   String _formatStatValue(dynamic value, String format) {
@@ -475,29 +463,19 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
         final value = te[field];
         final statInfo = _teStatFields[field]!;
         
-        Widget cellContent;
-        if (_showRanks) {
-          // Show rank based on percentile
-          final percentiles = _percentileCache[field] ?? {};
-          final percentile = percentiles[(value as num?)?.toDouble() ?? 0.0] ?? 0.0;
-          final rank = (_teRankings.length * (1.0 - percentile)).round().clamp(1, _teRankings.length);
-          cellContent = Text('#$rank');
-        } else {
-          // Show raw value
-          cellContent = Text(_formatStatValue(value, statInfo['format']));
-        }
-        
-        // Add background color based on percentile
-        final percentiles = _percentileCache[field] ?? {};
-        final percentile = percentiles[(value as num?)?.toDouble() ?? 0.0] ?? 0.0;
-        final backgroundColor = _getPercentileColor(percentile);
-        
+        // Use the cell shading service for stat cells
         cells.add(DataCell(
-          Container(
+          RankingCellShadingService.buildDensityCell(
+            column: field,
+            value: value,
+            rankValue: _showRanks ? ((_teRankings.length - (te['myRankNum'] ?? index + 1)) / _teRankings.length) : value,
+            showRanks: _showRanks,
+            percentileCache: _percentileCache,
+            formatValue: (val, col) => _showRanks ? 
+              '#${((_teRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _teRankings.length))}' :
+              _formatStatValue(val, statInfo['format']),
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            color: backgroundColor,
-            child: cellContent,
+            height: 48,
           ),
         ));
       }

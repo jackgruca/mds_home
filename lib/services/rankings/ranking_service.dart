@@ -6,11 +6,15 @@ class RankingService {
   // Base stat fields common to all positions
   static const Map<String, Map<String, dynamic>> _baseStatFields = {
     'myRankNum': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+    'rank_number': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
     'player_name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
     'posteam': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+    'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
     'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+    'qb_tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
     'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
     'numGames': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'games': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
   };
 
   // Position-specific stat fields based on R code
@@ -57,9 +61,23 @@ class RankingService {
     'third_down_rate': {'name': '3rd Down', 'format': 'percentage', 'description': 'Third down conversion rate'},
   };
 
+  static const Map<String, Map<String, dynamic>> _qbStatFields = {
+    'total_epa': {'name': 'EPA', 'format': 'decimal1', 'description': 'Total Expected Points Added'},
+    'yards_per_game': {'name': 'YPG', 'format': 'decimal1', 'description': 'Yards per game'},
+    'tds_per_game': {'name': 'TD/G', 'format': 'decimal1', 'description': 'Touchdowns per game'},
+    'ints_per_game': {'name': 'INT/G', 'format': 'decimal1', 'description': 'Interceptions per game'},
+    'avg_cpoe': {'name': 'CPOE', 'format': 'decimal1', 'description': 'Completion percentage over expected'},
+    'third_down_conversion_rate': {'name': '3rd Down %', 'format': 'percentage', 'description': 'Third down conversion rate'},
+    'actualization': {'name': 'Actualization', 'format': 'decimal2', 'description': 'Actualization rate'},
+    'pass_attempts': {'name': 'Attempts', 'format': 'integer', 'description': 'Pass attempts'},
+    'games': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+  };
+
   // Get stat fields for a specific position
   static Map<String, Map<String, dynamic>> getStatFields(String position) {
     switch (position.toLowerCase()) {
+      case 'qb':
+        return {..._baseStatFields, ..._qbStatFields};
       case 'rb':
         return {..._baseStatFields, ..._rbStatFields};
       case 'wr':
@@ -74,6 +92,8 @@ class RankingService {
   // Get collection name for position with fallback
   static String getCollectionName(String position) {
     switch (position.toLowerCase()) {
+      case 'qb':
+        return 'qb_rankings_comprehensive';
       case 'rb':
         return 'rb_rankings_comprehensive';
       case 'wr':
@@ -88,6 +108,8 @@ class RankingService {
   // Get fallback collection name if comprehensive doesn't exist
   static String getFallbackCollectionName(String position) {
     switch (position.toLowerCase()) {
+      case 'qb':
+        return 'qbRankings';
       case 'rb':
         return 'rb_rankings';
       case 'wr':
@@ -145,10 +167,14 @@ class RankingService {
       if (tier != null && tier != 'All') {
         final tierInt = int.tryParse(tier.split(' ').last);
         if (tierInt != null) {
-          // Try both qbTier and tier fields for compatibility
-          return rankings.where((player) => 
-            player['qbTier'] == tierInt || player['tier'] == tierInt
-          ).toList();
+          // Try different tier field names depending on position
+          return rankings.where((player) {
+            if (position.toLowerCase() == 'qb') {
+              return player['qb_tier'] == tierInt || player['qbTier'] == tierInt || player['tier'] == tierInt;
+            } else {
+              return player['qbTier'] == tierInt || player['tier'] == tierInt;
+            }
+          }).toList();
         }
       }
       

@@ -10,6 +10,7 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/ranking_cell_shading_service.dart';
 
 class WRRankingsScreen extends StatefulWidget {
   const WRRankingsScreen({super.key});
@@ -34,7 +35,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
   late final List<String> _tierOptions;
   late final Map<String, Map<String, dynamic>> _wrStatFields;
   
-  final Map<String, Map<double, double>> _percentileCache = {};
+  final Map<String, Map<String, double>> _percentileCache = {};
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
         !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
       ).toList();
       
-      final percentiles = RankingService.calculatePercentiles(rankings, statFields);
+      final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
       _percentileCache.clear();
       _percentileCache.addAll(percentiles);
       
@@ -81,7 +82,6 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       });
     }
   }
-
 
   void _sortData(List<Map<String, dynamic>> rankings) {
     rankings.sort((a, b) {
@@ -118,26 +118,16 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
-    baseColumns.addAll(_wrStatFields.keys);
+    final statFieldsToShow = _wrStatFields.keys.where((key) => 
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season'].contains(key)
+    ).toList();
+    baseColumns.addAll(statFieldsToShow);
     return baseColumns.indexOf(_sortColumn);
   }
 
   Color _getTierColor(int tier) {
     final colors = RankingService.getTierColors();
     return Color(colors[tier] ?? 0xFF9E9E9E);
-  }
-
-  Color _getPercentileColor(double percentile) {
-    if (percentile.isNaN || percentile.isInfinite) return Colors.transparent;
-    
-    final clampedPercentile = percentile.clamp(0.0, 1.0);
-    
-    return Color.fromRGBO(
-      100,  // Red
-      140,  // Green  
-      240,  // Blue
-      0.1 + (clampedPercentile * 0.7)  // Alpha (10% to 80%)
-    );
   }
 
   String _formatStatValue(dynamic value, String format) {
@@ -368,7 +358,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       ),
       DataColumn(
         label: const Text('Tier'),
-                        onSort: (columnIndex, ascending) => _sort('tier', ascending),
+        onSort: (columnIndex, ascending) => _sort('tier', ascending),
       ),
     ];
 
@@ -404,7 +394,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     return _wrRankings.asMap().entries.map((entry) {
       final index = entry.key;
       final wr = entry.value;
-              final tier = wr['tier'] ?? 1;
+      final tier = wr['tier'] ?? 1;
       final tierColor = _getTierColor(tier);
 
       final cells = <DataCell>[
@@ -473,29 +463,19 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
         final value = wr[field];
         final statInfo = _wrStatFields[field]!;
         
-        Widget cellContent;
-        if (_showRanks) {
-          // Show rank based on percentile
-          final percentiles = _percentileCache[field] ?? {};
-          final percentile = percentiles[(value as num?)?.toDouble() ?? 0.0] ?? 0.0;
-          final rank = (_wrRankings.length * (1.0 - percentile)).round().clamp(1, _wrRankings.length);
-          cellContent = Text('#$rank');
-        } else {
-          // Show raw value
-          cellContent = Text(_formatStatValue(value, statInfo['format']));
-        }
-        
-        // Add background color based on percentile
-        final percentiles = _percentileCache[field] ?? {};
-        final percentile = percentiles[(value as num?)?.toDouble() ?? 0.0] ?? 0.0;
-        final backgroundColor = _getPercentileColor(percentile);
-        
+        // Use the cell shading service for stat cells
         cells.add(DataCell(
-          Container(
+          RankingCellShadingService.buildDensityCell(
+            column: field,
+            value: value,
+            rankValue: _showRanks ? ((_wrRankings.length - (wr['myRankNum'] ?? index + 1)) / _wrRankings.length) : value,
+            showRanks: _showRanks,
+            percentileCache: _percentileCache,
+            formatValue: (val, col) => _showRanks ? 
+              '#${((_wrRankings.length * (1.0 - ((val as num?)?.toDouble() ?? 0.0))).round().clamp(1, _wrRankings.length))}' :
+              _formatStatValue(val, statInfo['format']),
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            color: backgroundColor,
-            child: cellContent,
+            height: 48,
           ),
         ));
       }
