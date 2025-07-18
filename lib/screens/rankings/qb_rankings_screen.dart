@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
-import '../../utils/theme_aware_colors.dart';
 import '../../services/rankings/ranking_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
+import '../../services/rankings/ranking_calculation_service.dart';
+import '../../services/rankings/filter_service.dart';
+import '../../models/custom_weight_config.dart';
+import '../../widgets/rankings/weight_adjustment_panel.dart';
+import '../../widgets/rankings/filter_panel.dart';
 
 class QBRankingsScreen extends StatefulWidget {
   const QBRankingsScreen({super.key});
@@ -21,11 +23,16 @@ class QBRankingsScreen extends StatefulWidget {
 
 class _QBRankingsScreenState extends State<QBRankingsScreen> {
   List<Map<String, dynamic>> _qbRankings = [];
+  List<Map<String, dynamic>> _originalRankings = []; // Store original rankings
   bool _isLoading = true;
   String? _error;
   String _selectedSeason = '2024';
   String _selectedTier = 'All';
   bool _showRanks = false; // Toggle between showing ranks vs raw stats
+  bool _showWeightPanel = false; // Toggle weight adjustment panel
+  bool _showFilterPanel = false; // Toggle filter panel
+  bool _usingCustomWeights = false; // Track if custom weights are applied
+  bool _usingFilters = false; // Track if filters are applied
   
   // Sorting state - default to rank ascending (rank 1 first)
   String _sortColumn = 'myRankNum';
@@ -34,6 +41,9 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
   late Map<String, Map<String, dynamic>> _qbStatFields;
+  late CustomWeightConfig _currentWeights;
+  late CustomWeightConfig _defaultWeights;
+  late FilterQuery _currentFilter;
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
@@ -42,6 +52,9 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     super.initState();
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
+    _defaultWeights = RankingCalculationService.getDefaultWeights('qb');
+    _currentWeights = _defaultWeights;
+    _currentFilter = const FilterQuery();
     _updateStatFields();
     _loadQBRankings();
   }
@@ -63,20 +76,42 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         tier: _selectedTier,
       );
       
+      // Store original rankings
+      _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();
+      
+      // Apply custom weights if enabled
+      List<Map<String, dynamic>> processedRankings;
+      if (_usingCustomWeights) {
+        processedRankings = RankingCalculationService.calculateCustomQBRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        processedRankings = rankings;
+      }
+      
+      // Apply filters if enabled
+      List<Map<String, dynamic>> filteredRankings;
+      if (_usingFilters) {
+        filteredRankings = FilterService.applyFilters(processedRankings, _currentFilter);
+      } else {
+        filteredRankings = processedRankings;
+      }
+      
       // Calculate percentiles for stat ranking
       final statFields = _qbStatFields.keys.where((key) => 
-        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'passer_player_id', 'passer_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'teamQBTier'].contains(key)
       ).toList();
       
-      final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
       _percentileCache.clear();
       _percentileCache.addAll(percentiles);
       
       // Sort by default column
-      _sortData(rankings);
+      _sortData(filteredRankings);
       
       setState(() {
-        _qbRankings = rankings;
+        _qbRankings = filteredRankings;
         _isLoading = false;
       });
     } catch (e) {
@@ -117,13 +152,138 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     });
   }
 
+  void _onWeightsChanged(CustomWeightConfig newWeights) {
+    setState(() {
+      _currentWeights = newWeights;
+      _usingCustomWeights = true;
+    });
+    
+    // Recalculate rankings with new weights
+    if (_originalRankings.isNotEmpty) {
+      final customRankings = RankingCalculationService.calculateCustomQBRankings(
+        _originalRankings,
+        newWeights,
+      );
+      
+      // Apply filters if enabled
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(customRankings, _currentFilter)
+          : customRankings;
+      
+      // Update percentiles for new rankings
+      final statFields = _qbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'passer_player_id', 'passer_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'teamQBTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(processedRankings);
+      
+      setState(() {
+        _qbRankings = processedRankings;
+      });
+    }
+  }
+
+  void _resetToDefaultWeights() {
+    setState(() {
+      _currentWeights = _defaultWeights;
+      _usingCustomWeights = false;
+    });
+    
+    // Reload original rankings
+    if (_originalRankings.isNotEmpty) {
+      // Apply filters if enabled
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(_originalRankings, _currentFilter)
+          : _originalRankings;
+      
+      // Update percentiles for original rankings
+      final statFields = _qbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'passer_player_id', 'passer_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'teamQBTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(processedRankings);
+      
+      setState(() {
+        _qbRankings = processedRankings;
+      });
+    }
+  }
+
+  void _toggleWeightPanel() {
+    setState(() {
+      _showWeightPanel = !_showWeightPanel;
+      if (_showWeightPanel) {
+        _showFilterPanel = false; // Close filter panel when opening weight panel
+      }
+    });
+  }
+
+  void _toggleFilterPanel() {
+    setState(() {
+      _showFilterPanel = !_showFilterPanel;
+      if (_showFilterPanel) {
+        _showWeightPanel = false; // Close weight panel when opening filter panel
+      }
+    });
+  }
+
+  void _onFilterChanged(FilterQuery newFilter) {
+    setState(() {
+      _currentFilter = newFilter;
+      _usingFilters = newFilter.hasActiveFilters;
+    });
+    
+    // Apply filter to current rankings
+    if (_originalRankings.isNotEmpty) {
+      // Start with appropriate base rankings (custom weighted or original)
+      List<Map<String, dynamic>> baseRankings;
+      if (_usingCustomWeights) {
+        baseRankings = RankingCalculationService.calculateCustomQBRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        baseRankings = _originalRankings;
+      }
+      
+      // Apply filters
+      final filteredRankings = FilterService.applyFilters(baseRankings, newFilter);
+      
+      // Update percentiles
+      final statFields = _qbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'passer_player_id', 'passer_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'teamQBTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(filteredRankings);
+      
+      setState(() {
+        _qbRankings = filteredRankings;
+      });
+    }
+  }
+
   int _getSortColumnIndex() {
-    final baseColumns = ['myRankNum', 'player_name', 'team', 'qb_tier'];
+    final baseColumns = ['myRankNum', 'player_name', 'posteam', 'tier'];
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
     final statFieldsToShow = _qbStatFields.keys.where((key) => 
-      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
+      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'passer_player_id', 'passer_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'teamQBTier'].contains(key)
     ).toList();
     
     // The stat fields are already filtered by the service based on _showRanks
@@ -157,7 +317,38 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         ),
       ),
       drawer: const AppDrawer(),
-      body: _buildContent(),
+      body: Stack(
+        children: [
+          _buildContent(),
+          if (_showWeightPanel)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: WeightAdjustmentPanel(
+                position: 'qb',
+                currentWeights: _currentWeights,
+                onWeightsChanged: _onWeightsChanged,
+                onReset: _resetToDefaultWeights,
+                isVisible: _showWeightPanel,
+              ),
+            ),
+          if (_showFilterPanel)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: FilterPanel(
+                currentQuery: _currentFilter,
+                onFilterChanged: _onFilterChanged,
+                isVisible: _showFilterPanel,
+                availableTeams: FilterService.getAvailableTeams(_originalRankings),
+                availableSeasons: FilterService.getAvailableSeasons(_originalRankings),
+                statFields: FilterService.getFilterableStats(_qbStatFields),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -204,7 +395,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -275,6 +466,40 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             ),
           ),
           const Spacer(),
+          // Filter button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleFilterPanel,
+              icon: Icon(
+                _showFilterPanel ? Icons.close : Icons.filter_list,
+                size: 16,
+              ),
+              label: Text(_showFilterPanel ? 'Close' : 'Filter'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
+          // Customize Rankings button
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton.icon(
+              onPressed: _toggleWeightPanel,
+              icon: Icon(
+                _showWeightPanel ? Icons.close : Icons.tune,
+                size: 16,
+              ),
+              label: Text(_showWeightPanel ? 'Close' : 'Customize'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
           // Toggle button for ranks vs raw stats
           Container(
             decoration: BoxDecoration(
@@ -302,11 +527,32 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          Text(
-            '${_qbRankings.length} players',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_qbRankings.length} players',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              if (_usingCustomWeights)
+                Text(
+                  'Custom weights applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              if (_usingFilters)
+                Text(
+                  'Filters applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -355,7 +601,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             rows: _buildDataRows(),
             columnSpacing: 20,
             headingRowHeight: 56,
-            dataRowHeight: 48,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 48,
           ),
         ),
       ),
@@ -374,11 +621,11 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       ),
       DataColumn(
         label: const Text('Team'),
-                    onSort: (columnIndex, ascending) => _sort('team', ascending),
+        onSort: (columnIndex, ascending) => _sort('posteam', ascending),
       ),
       DataColumn(
         label: const Text('Tier'),
-        onSort: (columnIndex, ascending) => _sort('qb_tier', ascending),
+        onSort: (columnIndex, ascending) => _sort('tier', ascending),
       ),
     ];
 
@@ -392,7 +639,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _qbStatFields.keys.where((key) => 
-      !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
+      !['myRankNum', 'rank_number', 'player_name', 'passer_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'passer_player_id', 'player_position', 'fantasy_player_id', 'teamQBTier'].contains(key)
     ).toList();
     
     // The stat fields are already filtered by the service based on _showRanks
@@ -417,7 +664,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     return _qbRankings.asMap().entries.map((entry) {
       final index = entry.key;
       final qb = entry.value;
-                    final tier = qb['qb_tier'] ?? qb['tier'] ?? 1;
+      final tier = qb['tier'] ?? qb['qbTier'] ?? 1;
       final tierColor = _getTierColor(tier);
 
       final cells = <DataCell>[
@@ -441,18 +688,18 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         DataCell(
           Row(
             children: [
-                                TeamLogoUtils.buildNFLTeamLogo(qb['team'] ?? '', size: 20),
+              TeamLogoUtils.buildNFLTeamLogo(qb['posteam'] ?? '', size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  qb['passer_player_name'] ?? qb['player_name'] ?? 'Unknown',
+                  qb['fantasy_player_name'] ?? qb['player_name'] ?? qb['passer_player_name'] ?? 'Unknown',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
         ),
-                  DataCell(Text(qb['team'] ?? '')),
+        DataCell(Text(qb['posteam'] ?? '')),
         DataCell(
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -479,7 +726,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
 
       // Add stat cells - skip base fields that are already added
       final statFieldsToShow = _qbStatFields.keys.where((key) => 
-        !['rank_number', 'player_name', 'team', 'qb_tier', 'season', 'player_id', 'position', 'games', 'pass_attempts', 'posteam', 'player_position', 'passer_player_id', 'passer_player_name', 'myRankNum', 'tier', 'teamQBTier'].contains(key)
+        !['myRankNum', 'rank_number', 'player_name', 'passer_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'passer_player_id', 'player_position', 'fantasy_player_id', 'teamQBTier'].contains(key)
       ).toList();
       
       // The stat fields are already filtered by the service based on _showRanks
@@ -509,7 +756,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         color: WidgetStateProperty.resolveWith<Color?>(
           (Set<WidgetState> states) {
             if (states.contains(WidgetState.hovered)) {
-              return tierColor.withOpacity(0.1);
+              return tierColor.withValues(alpha: 0.1);
             }
             return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
           },
@@ -517,4 +764,4 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       );
     }).toList();
   }
-} 
+}

@@ -11,6 +11,11 @@ import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../services/rankings/ranking_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
+import '../../services/rankings/ranking_calculation_service.dart';
+import '../../services/rankings/filter_service.dart';
+import '../../models/custom_weight_config.dart';
+import '../../widgets/rankings/weight_adjustment_panel.dart';
+import '../../widgets/rankings/filter_panel.dart';
 
 class RBRankingsScreen extends StatefulWidget {
   const RBRankingsScreen({super.key});
@@ -21,11 +26,16 @@ class RBRankingsScreen extends StatefulWidget {
 
 class _RBRankingsScreenState extends State<RBRankingsScreen> {
   List<Map<String, dynamic>> _rbRankings = [];
+  List<Map<String, dynamic>> _originalRankings = []; // Store original rankings
   bool _isLoading = true;
   String? _error;
   String _selectedSeason = '2024';
   String _selectedTier = 'All';
   bool _showRanks = false; // Toggle between showing ranks vs raw stats
+  bool _showWeightPanel = false; // Toggle weight adjustment panel
+  bool _showFilterPanel = false; // Toggle filter panel
+  bool _usingCustomWeights = false; // Track if custom weights are applied
+  bool _usingFilters = false; // Track if filters are applied
   
   // Sorting state - default to rank ascending (rank 1 first)
   String _sortColumn = 'myRankNum';
@@ -34,6 +44,10 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
   late Map<String, Map<String, dynamic>> _rbStatFields;
+  late CustomWeightConfig _currentWeights;
+  late CustomWeightConfig _defaultWeights;
+  late FilterQuery _currentFilter;
+  List<Map<String, dynamic>> _filteredRankings = [];
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
@@ -42,6 +56,9 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
     super.initState();
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
+    _defaultWeights = RankingCalculationService.getDefaultWeights('rb');
+    _currentWeights = _defaultWeights;
+    _currentFilter = const FilterQuery();
     _updateStatFields();
     _loadRBRankings();
   }
@@ -63,20 +80,43 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
         tier: _selectedTier,
       );
       
+      // Store original rankings
+      _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();
+      
+      // Apply custom weights if enabled
+      List<Map<String, dynamic>> processedRankings;
+      if (_usingCustomWeights) {
+        processedRankings = RankingCalculationService.calculateCustomRBRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        processedRankings = rankings;
+      }
+      
+      // Apply filters if enabled
+      List<Map<String, dynamic>> filteredRankings;
+      if (_usingFilters) {
+        filteredRankings = FilterService.applyFilters(processedRankings, _currentFilter);
+      } else {
+        filteredRankings = processedRankings;
+      }
+      
       // Calculate percentiles for stat ranking
       final statFields = _rbStatFields.keys.where((key) => 
         !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
       ).toList();
       
-      final percentiles = RankingCellShadingService.calculatePercentiles(rankings, statFields);
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
       _percentileCache.clear();
       _percentileCache.addAll(percentiles);
       
       // Sort by default column
-      _sortData(rankings);
+      _sortData(filteredRankings);
       
       setState(() {
-        _rbRankings = rankings;
+        _rbRankings = filteredRankings;
+        _filteredRankings = filteredRankings;
         _isLoading = false;
       });
     } catch (e) {
@@ -115,6 +155,134 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
       _sortAscending = ascending;
       _sortData(_rbRankings);
     });
+  }
+
+  void _onWeightsChanged(CustomWeightConfig newWeights) {
+    setState(() {
+      _currentWeights = newWeights;
+      _usingCustomWeights = true;
+    });
+    
+    // Recalculate rankings with new weights
+    if (_originalRankings.isNotEmpty) {
+      final customRankings = RankingCalculationService.calculateCustomRBRankings(
+        _originalRankings,
+        newWeights,
+      );
+      
+      // Apply filters if enabled
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(customRankings, _currentFilter)
+          : customRankings;
+      
+      // Update percentiles for new rankings
+      final statFields = _rbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(processedRankings);
+      
+      setState(() {
+        _rbRankings = processedRankings;
+        _filteredRankings = processedRankings;
+      });
+    }
+  }
+
+  void _resetToDefaultWeights() {
+    setState(() {
+      _currentWeights = _defaultWeights;
+      _usingCustomWeights = false;
+    });
+    
+    // Reload original rankings
+    if (_originalRankings.isNotEmpty) {
+      // Apply filters if enabled
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(_originalRankings, _currentFilter)
+          : _originalRankings;
+      
+      // Update percentiles for original rankings
+      final statFields = _rbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(processedRankings);
+      
+      setState(() {
+        _rbRankings = processedRankings;
+        _filteredRankings = processedRankings;
+      });
+    }
+  }
+
+  void _toggleWeightPanel() {
+    setState(() {
+      _showWeightPanel = !_showWeightPanel;
+      if (_showWeightPanel) {
+        _showFilterPanel = false; // Close filter panel when opening weight panel
+      }
+    });
+  }
+
+  void _toggleFilterPanel() {
+    setState(() {
+      _showFilterPanel = !_showFilterPanel;
+      if (_showFilterPanel) {
+        _showWeightPanel = false; // Close weight panel when opening filter panel
+      }
+    });
+  }
+
+  void _onFilterChanged(FilterQuery newFilter) {
+    setState(() {
+      _currentFilter = newFilter;
+      _usingFilters = newFilter.hasActiveFilters;
+    });
+    
+    // Apply filter to current rankings
+    if (_originalRankings.isNotEmpty) {
+      // Start with appropriate base rankings (custom weighted or original)
+      List<Map<String, dynamic>> baseRankings;
+      if (_usingCustomWeights) {
+        baseRankings = RankingCalculationService.calculateCustomRBRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        baseRankings = _originalRankings;
+      }
+      
+      // Apply filters
+      final filteredRankings = FilterService.applyFilters(baseRankings, newFilter);
+      
+      // Update percentiles
+      final statFields = _rbStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by current column
+      _sortData(filteredRankings);
+      
+      setState(() {
+        _rbRankings = filteredRankings;
+        _filteredRankings = filteredRankings;
+      });
+    }
   }
 
   int _getSortColumnIndex() {
@@ -157,7 +325,38 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
         ),
       ),
       drawer: const AppDrawer(),
-      body: _buildContent(),
+      body: Stack(
+        children: [
+          _buildContent(),
+          if (_showWeightPanel)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: WeightAdjustmentPanel(
+                position: 'rb',
+                currentWeights: _currentWeights,
+                onWeightsChanged: _onWeightsChanged,
+                onReset: _resetToDefaultWeights,
+                isVisible: _showWeightPanel,
+              ),
+            ),
+          if (_showFilterPanel)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: FilterPanel(
+                currentQuery: _currentFilter,
+                onFilterChanged: _onFilterChanged,
+                isVisible: _showFilterPanel,
+                availableTeams: FilterService.getAvailableTeams(_originalRankings),
+                availableSeasons: FilterService.getAvailableSeasons(_originalRankings),
+                statFields: FilterService.getFilterableStats(_rbStatFields),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -275,6 +474,40 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
             ),
           ),
           const Spacer(),
+          // Filter button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleFilterPanel,
+              icon: Icon(
+                _showFilterPanel ? Icons.close : Icons.filter_list,
+                size: 16,
+              ),
+              label: Text(_showFilterPanel ? 'Close' : 'Filter'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
+          // Customize Rankings button
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton.icon(
+              onPressed: _toggleWeightPanel,
+              icon: Icon(
+                _showWeightPanel ? Icons.close : Icons.tune,
+                size: 16,
+              ),
+              label: Text(_showWeightPanel ? 'Close' : 'Customize'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
           // Toggle button for ranks vs raw stats
           Container(
             decoration: BoxDecoration(
@@ -302,11 +535,32 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          Text(
-            '${_rbRankings.length} players',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_rbRankings.length} players',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              if (_usingCustomWeights)
+                Text(
+                  'Custom weights applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              if (_usingFilters)
+                Text(
+                  'Filters applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
