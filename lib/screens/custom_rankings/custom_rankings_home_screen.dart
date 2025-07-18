@@ -105,11 +105,26 @@ class CustomRankingsHomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          MdsButton(
-            text: 'Start Building Your Rankings',
+          ElevatedButton.icon(
             onPressed: () => _startQuestionnaire(context),
-            icon: Icons.rocket_launch,
-            type: MdsButtonType.secondary,
+            icon: const Icon(Icons.rocket_launch, size: 18, color: Colors.white),
+            label: const Text(
+              'Start Building Your Rankings',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ThemeConfig.successGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.2),
+            ),
           ),
         ],
       ),

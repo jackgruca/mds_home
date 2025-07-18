@@ -43,23 +43,28 @@ class PositionSelectionStep extends StatelessWidget {
   }
 
   Widget _buildMobileLayout(BuildContext context) {
-    return _buildPositionGrid(context, crossAxisCount: 2, childAspectRatio: 0.8);
+    final positions = _getPositions();
+    return Column(
+      children: positions
+          .map((position) => Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: _buildPositionCard(context, position),
+              ))
+          .toList(),
+    );
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
     final positions = _getPositions();
-    return Center(
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 24,
-        alignment: WrapAlignment.center,
-        children: positions
-            .map((position) => SizedBox(
-                  width: 300,
+    return Row(
+      children: positions
+          .map((position) => Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   child: _buildPositionCard(context, position),
-                ))
-            .toList(),
-      ),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -69,6 +74,7 @@ class PositionSelectionStep extends StatelessWidget {
         'position': 'QB',
         'name': 'Quarterback',
         'icon': Icons.sports_football,
+        'image': 'assets/images/FF/josh.png',
         'description': 'Passing yards, TDs, rushing upside',
         'sampleAttributes': ['Passing Yards/Game', 'Passing TDs', 'Rushing Yards', 'Previous PPG'],
       },
@@ -76,6 +82,7 @@ class PositionSelectionStep extends StatelessWidget {
         'position': 'RB',
         'name': 'Running Back',
         'icon': Icons.directions_run,
+        'image': 'assets/images/FF/saquon.png',
         'description': 'Rushing volume, receiving work, goal line',
         'sampleAttributes': ['Rushing Yards/Game', 'Target Share', 'Snap %', 'Previous PPG'],
       },
@@ -83,6 +90,7 @@ class PositionSelectionStep extends StatelessWidget {
         'position': 'WR',
         'name': 'Wide Receiver',
         'icon': Icons.sports,
+        'image': 'assets/images/FF/jamarr.png',
         'description': 'Target share, air yards, red zone usage',
         'sampleAttributes': ['Target Share', 'Receiving Yards/Game', 'Red Zone Targets', 'Air Yards'],
       },
@@ -90,31 +98,13 @@ class PositionSelectionStep extends StatelessWidget {
         'position': 'TE',
         'name': 'Tight End',
         'icon': Icons.sports_handball,
+        'image': 'assets/images/FF/kittle.png',
         'description': 'Target share, red zone role, snap count',
         'sampleAttributes': ['Target Share', 'Red Zone Targets', 'Snap %', 'Previous PPG'],
       },
     ];
   }
 
-  Widget _buildPositionGrid(BuildContext context, {required int crossAxisCount, required double childAspectRatio}) {
-    final positions = _getPositions();
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: childAspectRatio,
-      ),
-      itemCount: positions.length,
-      itemBuilder: (context, index) {
-        final position = positions[index];
-        return _buildPositionCard(context, position);
-      },
-    );
-  }
 
   Widget _buildPositionCard(BuildContext context, Map<String, dynamic> position) {
     final theme = Theme.of(context);
@@ -142,67 +132,98 @@ class PositionSelectionStep extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Theme.of(context).colorScheme.primary : ThemeConfig.brightRed,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      position['icon'] as IconData,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          position['position'] as String,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Theme.of(context).colorScheme.primary : null,
-                          ),
-                        ),
-                        Text(
-                          position['name'] as String,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+              // Position name at top
               Text(
-                'Sample attributes:',
+                position['position'] as String,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : ThemeConfig.darkNavy,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                position['name'] as String,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              
+              // Player image in the middle
+              Container(
+                height: 120,
+                width: 120,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    position['image'] as String,
+                    height: 120,
+                    width: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 120,
+                        width: 120,
+                        color: Colors.grey.shade200,
+                        child: Icon(
+                          position['icon'] as IconData,
+                          size: 40,
+                          color: Colors.grey.shade400,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Sample attributes at bottom
+              Text(
+                'Sample Attributes:',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
+                alignment: WrapAlignment.center,
                 children: (position['sampleAttributes'] as List<String>)
-                    .map((attr) => Chip(
-                          label: Text(attr),
-                          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.grey.shade100,
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          labelStyle: theme.textTheme.bodySmall?.copyWith(
-                            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
-                          )
-                        )
-                    )
+                    .map((attr) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isSelected ? Border.all(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            ) : null,
+                          ),
+                          child: Text(
+                            attr,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ))
                     .toList(),
               ),
             ],
