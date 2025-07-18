@@ -322,7 +322,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
           _buildContent(),
           if (_showWeightPanel)
             Positioned(
-              left: 0,
+              right: 0,
               top: 0,
               bottom: 0,
               child: WeightAdjustmentPanel(
@@ -330,17 +330,19 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
                 currentWeights: _currentWeights,
                 onWeightsChanged: _onWeightsChanged,
                 onReset: _resetToDefaultWeights,
+                onClose: _toggleWeightPanel,
                 isVisible: _showWeightPanel,
               ),
             ),
           if (_showFilterPanel)
             Positioned(
-              left: 0,
+              right: 0,
               top: 0,
               bottom: 0,
               child: FilterPanel(
                 currentQuery: _currentFilter,
                 onFilterChanged: _onFilterChanged,
+                onClose: _toggleFilterPanel,
                 isVisible: _showFilterPanel,
                 availableTeams: FilterService.getAvailableTeams(_originalRankings),
                 availableSeasons: FilterService.getAvailableSeasons(_originalRankings),

@@ -59,6 +59,7 @@ class RangeFilter {
 class FilterPanel extends StatefulWidget {
   final FilterQuery currentQuery;
   final Function(FilterQuery) onFilterChanged;
+  final VoidCallback? onClose;
   final bool isVisible;
   final List<String> availableTeams;
   final List<int> availableSeasons;
@@ -68,6 +69,7 @@ class FilterPanel extends StatefulWidget {
     super.key,
     required this.currentQuery,
     required this.onFilterChanged,
+    this.onClose,
     required this.isVisible,
     required this.availableTeams,
     required this.availableSeasons,
@@ -191,13 +193,25 @@ class _FilterPanelState extends State<FilterPanel>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Advanced Filters',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Advanced Filters',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (widget.onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: widget.onClose,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(

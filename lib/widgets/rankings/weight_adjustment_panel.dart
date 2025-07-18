@@ -7,6 +7,7 @@ class WeightAdjustmentPanel extends StatefulWidget {
   final CustomWeightConfig currentWeights;
   final Function(CustomWeightConfig) onWeightsChanged;
   final VoidCallback? onReset;
+  final VoidCallback? onClose;
   final bool isVisible;
 
   const WeightAdjustmentPanel({
@@ -15,6 +16,7 @@ class WeightAdjustmentPanel extends StatefulWidget {
     required this.currentWeights,
     required this.onWeightsChanged,
     this.onReset,
+    this.onClose,
     required this.isVisible,
   });
 
@@ -151,13 +153,25 @@ class _WeightAdjustmentPanelState extends State<WeightAdjustmentPanel>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Customize Rankings',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Customize Rankings',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (widget.onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: widget.onClose,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(

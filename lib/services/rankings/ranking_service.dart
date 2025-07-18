@@ -11,7 +11,6 @@ class RankingService {
     'posteam': {'name': 'Team', 'format': 'string', 'description': 'Team'},
     'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
     'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
-    'qb_tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
     'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
     'numGames': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
     'games': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
