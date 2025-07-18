@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/custom_ranking_result.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
 import 'package:mds_home/services/custom_rankings/enhanced_calculation_engine.dart';
 import 'package:mds_home/services/custom_rankings/ranking_export_service.dart';
+import 'package:mds_home/models/custom_weight_config.dart';
+import 'package:mds_home/services/rankings/ranking_calculation_service.dart';
 import '../../widgets/custom_rankings/results/ranking_table_widget.dart';
 import '../../widgets/custom_rankings/results/ranking_analysis_widget.dart';
-import '../../widgets/custom_rankings/results/attribute_impact_widget.dart';
-import '../../widgets/custom_rankings/adjustments/real_time_adjustment_widget.dart';
 
 class CustomRankingsResultsScreen extends StatefulWidget {
   final String position;
@@ -30,23 +29,32 @@ class CustomRankingsResultsScreen extends StatefulWidget {
 
 class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScreen>
     with TickerProviderStateMixin {
-  late TabController _tabController;
   late Future<RankingAnalysis> _analysisFuture;
-  late Future<List<AttributeImpact>> _impactFuture;
   
   // Current state for real-time updates
   late List<CustomRankingResult> _currentResults;
   late List<EnhancedRankingAttribute> _currentAttributes;
-  bool _showAdjustments = false;
+  
+  // Panel visibility state
+  bool _showCustomizePanel = false;
+  bool _showHealthPanel = false;
+  
+  // Weight adjustment state
+  late CustomWeightConfig _currentWeights;
+  late CustomWeightConfig _defaultWeights;
+  int _selectedTab = 0; // 0 = weights, 1 = what-if
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     
     // Initialize current state
     _currentResults = List.from(widget.results);
     _currentAttributes = List.from(widget.attributes);
+    
+    // Initialize weight configurations
+    _defaultWeights = RankingCalculationService.getDefaultWeights(widget.position);
+    _currentWeights = _defaultWeights;
     
     _updateAnalysis();
   }
@@ -54,26 +62,12 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   void _updateAnalysis() {
     final engine = EnhancedCalculationEngine();
     _analysisFuture = engine.analyzeRankings(_currentResults);
-    _impactFuture = engine.analyzeAttributeImpact(_currentResults, _currentAttributes);
   }
   
-  void _onRankingsUpdated(List<CustomRankingResult> newResults, List<EnhancedRankingAttribute> newAttributes) {
-    setState(() {
-      _currentResults = newResults;
-      _currentAttributes = newAttributes;
-    });
-    _updateAnalysis();
-  }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     
     return Scaffold(
       appBar: AppBar(
@@ -81,6 +75,40 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
             ? widget.rankingName 
             : 'Custom ${widget.position} Rankings'),
         actions: [
+          // Health button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleHealthPanel,
+              icon: Icon(
+                _showHealthPanel ? Icons.close : Icons.health_and_safety,
+                size: 16,
+              ),
+              label: Text(_showHealthPanel ? 'Close' : 'Health'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _showHealthPanel ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
+          // Customize button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleCustomizePanel,
+              icon: Icon(
+                _showCustomizePanel ? Icons.close : Icons.tune,
+                size: 16,
+              ),
+              label: Text(_showCustomizePanel ? 'Close' : 'Customize'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _showCustomizePanel ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.share),
             onSelected: _shareRankings,
@@ -144,97 +172,218 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
             ],
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Rankings', icon: Icon(Icons.list)),
-            Tab(text: 'Analysis', icon: Icon(Icons.analytics)),
-            Tab(text: 'Attributes', icon: Icon(Icons.tune)),
-            Tab(text: 'Adjust', icon: Icon(Icons.settings)),
-          ],
-        ),
       ),
-      body: ResponsiveLayoutBuilder(
-        mobile: (context) => _buildMobileLayout(),
-        desktop: (context) => _buildDesktopLayout(),
-      ),
-      floatingActionButton: ResponsiveLayoutBuilder(
-        mobile: (context) => FloatingActionButton(
-          onPressed: () => _adjustWeights(),
-          backgroundColor: ThemeConfig.darkNavy,
-          foregroundColor: Colors.white,
-          child: const Icon(Icons.tune),
-        ),
-        desktop: (context) => FloatingActionButton.extended(
-          onPressed: () => _adjustWeights(),
-          icon: const Icon(Icons.tune),
-          label: const Text('Adjust Weights'),
-          backgroundColor: ThemeConfig.darkNavy,
-          foregroundColor: Colors.white,
-        ),
+      body: Stack(
+        children: [
+          _buildMainContent(),
+          if (_showCustomizePanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildCustomizePanel(),
+            ),
+          if (_showHealthPanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildHealthPanel(),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMainContent() {
     return Column(
       children: [
         _buildSummaryHeader(),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildRankingsTab(),
-              _buildAnalysisTab(),
-              _buildAttributesTab(),
-              _buildAdjustmentsTab(),
-            ],
-          ),
-        ),
+        Expanded(child: _buildRankingsTab()),
       ],
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: Column(
-            children: [
-              _buildSummaryHeader(),
-              Expanded(child: _buildRankingsTab()),
-            ],
+  Widget _buildCustomizePanel() {
+    return Container(
+      width: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(-2, 0),
           ),
-        ),
-        const VerticalDivider(width: 1),
-        Expanded(
-          flex: 2,
-          child: DefaultTabController(
-            length: 3,
-            child: Column(
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade600,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: Row(
               children: [
-                const TabBar(
-                  tabs: [
-                    Tab(text: 'Analysis'),
-                    Tab(text: 'Attributes'),
-                    Tab(text: 'Adjust'),
-                  ],
+                const Icon(Icons.tune, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Customize Rankings',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: _toggleCustomizePanel,
+                ),
+              ],
+            ),
+          ),
+          // Tab bar
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedTab = 0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 0 ? Colors.white : Colors.transparent,
+                        border: _selectedTab == 0 ? Border(
+                          bottom: BorderSide(color: Colors.blue.shade600, width: 2),
+                        ) : null,
+                      ),
+                      child: Text(
+                        'Weights',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: _selectedTab == 0 ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedTab == 0 ? Colors.blue.shade600 : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 Expanded(
-                  child: TabBarView(
-                    children: [
-                      _buildAnalysisTab(),
-                      _buildAttributesTab(),
-                      _buildAdjustmentsTab(),
-                    ],
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedTab = 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 1 ? Colors.white : Colors.transparent,
+                        border: _selectedTab == 1 ? Border(
+                          bottom: BorderSide(color: Colors.blue.shade600, width: 2),
+                        ) : null,
+                      ),
+                      child: Text(
+                        'What-If',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: _selectedTab == 1 ? FontWeight.bold : FontWeight.normal,
+                          color: _selectedTab == 1 ? Colors.blue.shade600 : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          Expanded(
+            child: _selectedTab == 0 ? _buildWeightsTab() : _buildWhatIfTab(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthPanel() {
+    return Container(
+      width: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade600,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.health_and_safety, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ranking Health',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: _toggleHealthPanel,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<RankingAnalysis>(
+              future: _analysisFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+                
+                if (snapshot.hasData) {
+                  return RankingAnalysisWidget(
+                    analysis: snapshot.data!,
+                    results: _currentResults,
+                  );
+                }
+                
+                return const Center(child: Text('No analysis available'));
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -318,66 +467,6 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
     );
   }
 
-  Widget _buildAnalysisTab() {
-    return FutureBuilder<RankingAnalysis>(
-      future: _analysisFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-        
-        if (snapshot.hasData) {
-          return RankingAnalysisWidget(
-            analysis: snapshot.data!,
-            results: _currentResults,
-          );
-        }
-        
-        return const Center(child: Text('No analysis available'));
-      },
-    );
-  }
-
-  Widget _buildAttributesTab() {
-    return FutureBuilder<List<AttributeImpact>>(
-      future: _impactFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-        
-        if (snapshot.hasData) {
-          return AttributeImpactWidget(
-            impacts: snapshot.data!,
-            onAttributeAdjust: (attribute) => _adjustAttribute(attribute),
-          );
-        }
-        
-        return const Center(child: Text('No attribute data available'));
-      },
-    );
-  }
-
-  Widget _buildAdjustmentsTab() {
-    return RealTimeAdjustmentWidget(
-      position: widget.position,
-      initialAttributes: _currentAttributes,
-      initialResults: _currentResults,
-      onRankingsUpdated: _onRankingsUpdated,
-    );
-  }
 
   void _showPlayerDetails(CustomRankingResult result) {
     showDialog(
@@ -422,20 +511,718 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
     );
   }
 
-  void _adjustWeights() {
-    // On mobile, switch to adjust tab
-    // On desktop, show inline adjustments
+  Widget _buildWeightsTab() {
+    return Column(
+      children: [
+        // Weight summary header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '${widget.position.toUpperCase()} Weight Adjustment',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _currentWeights.isNormalized 
+                      ? Colors.green.shade600 
+                      : Colors.blue.shade600,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Total: ${(_currentWeights.totalWeight * 100).toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Weight sliders
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Text(
+                'Adjust the weight of each factor in the ranking calculation:',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ..._currentWeights.weights.entries.map((entry) {
+                return _buildWeightSlider(entry.key, entry.value);
+              }).toList(),
+            ],
+          ),
+        ),
+        // Footer with normalize and reset buttons
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_currentWeights.isNormalized)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ElevatedButton.icon(
+                    onPressed: _normalizeWeights,
+                    icon: const Icon(Icons.balance, size: 16),
+                    label: const Text('Normalize to 100%'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ElevatedButton.icon(
+                onPressed: _resetToDefaultWeights,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Reset to Defaults'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tip: Higher weights give more influence to that statistic in the ranking.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWhatIfTab() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.science, color: Colors.blue.shade600, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'What-If Scenario Testing',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Create scenarios with different weight configurations to see how rankings would change.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Create scenario section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.add_circle_outline, color: Colors.blue.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Create New Scenario',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Enter scenario name (e.g., "Heavy EPA Focus")',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _showCreateScenarioDialog();
+                      },
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Create'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Scenarios list and comparison
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Scenarios list
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.list, size: 16, color: Colors.grey.shade600),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Scenarios',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.all(8),
+                            children: [
+                              _buildScenarioItem('Current Rankings', true, isSelected: true),
+                              _buildScenarioItem('High EPA Focus', false),
+                              _buildScenarioItem('Volume Priority', false),
+                              _buildScenarioItem('Efficiency Focus', false),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // Comparison panel
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                            border: Border(
+                              bottom: BorderSide(color: Colors.blue.shade200),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.compare_arrows, size: 16, color: Colors.blue.shade600),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Scenario Comparison',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.analytics_outlined,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Select two scenarios to compare',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Rankings changes, biggest movers, and impact analysis will appear here',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildScenarioItem(String name, bool isCurrent, {bool isSelected = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: () {
+          // Handle scenario selection
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade50 : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? Colors.blue.shade300 : Colors.grey.shade200,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isCurrent ? Icons.home : Icons.science,
+                size: 14,
+                color: isCurrent ? Colors.green.shade600 : Colors.blue.shade600,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Colors.blue.shade700 : Colors.grey.shade700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              if (!isCurrent)
+                Icon(
+                  Icons.more_vert,
+                  size: 14,
+                  color: Colors.grey.shade400,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showCreateScenarioDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create What-If Scenario'),
+        content: SizedBox(
+          width: 400,
+          height: 500,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Scenario Name',
+                  hintText: 'e.g., "Heavy Volume Focus" or "Efficiency Priority"',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Adjust Weights for This Scenario',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _currentWeights.weights.length,
+                  itemBuilder: (context, index) {
+                    final entry = _currentWeights.weights.entries.elementAt(index);
+                    return _buildScenarioWeightSlider(entry.key, entry.value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Create scenario logic here
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Create Scenario'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildScenarioWeightSlider(String variable, double value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  variable,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Text(
+                '${(value * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.blue.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.blue.shade600,
+              inactiveTrackColor: Colors.blue.shade200,
+              thumbColor: Colors.blue.shade600,
+              overlayColor: Colors.blue.shade600.withValues(alpha: 0.2),
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            ),
+            child: Slider(
+              value: value,
+              min: 0.0,
+              max: 0.30,
+              divisions: 60,
+              onChanged: (newValue) {
+                // Handle weight change for scenario
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeightSlider(String variable, double value) {
+    final descriptions = RankingCalculationService.getWeightDescriptions(widget.position);
+    final description = descriptions[variable] ?? '';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                variable,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _getWeightColor(value),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${(value * 100).toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: _getWeightColor(value),
+              inactiveTrackColor: _getWeightColor(value).withValues(alpha: 0.3),
+              thumbColor: _getWeightColor(value),
+              overlayColor: _getWeightColor(value).withValues(alpha: 0.2),
+              trackHeight: 4,
+            ),
+            child: Slider(
+              value: value,
+              min: 0.0,
+              max: 0.30,
+              divisions: 60,
+              onChanged: (newValue) => _updateWeight(variable, newValue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getWeightColor(double weight) {
+    if (weight >= 0.15) return Colors.red.shade600;
+    if (weight >= 0.10) return Colors.orange.shade600;
+    if (weight >= 0.05) return Colors.blue.shade600;
+    return Colors.grey.shade600;
+  }
+
+  void _updateWeight(String variable, double value) {
     setState(() {
-      _tabController.animateTo(3); // Switch to adjustments tab
+      final updatedWeights = Map<String, double>.from(_currentWeights.weights);
+      updatedWeights[variable] = value;
+      _currentWeights = _currentWeights.copyWith(weights: updatedWeights);
+    });
+    
+    // Apply new weights to rankings
+    _applyCustomWeights();
+  }
+
+  void _normalizeWeights() {
+    final normalized = _currentWeights.normalize();
+    setState(() {
+      _currentWeights = normalized;
+    });
+    _applyCustomWeights();
+  }
+
+  void _resetToDefaultWeights() {
+    setState(() {
+      _currentWeights = _defaultWeights;
+    });
+    
+    // Reset to original rankings
+    setState(() {
+      _currentResults = List.from(widget.results);
+    });
+    _updateAnalysis();
+  }
+
+  void _applyCustomWeights() {
+    // Convert enhanced ranking attributes to simple player data format
+    final players = widget.results.map((result) {
+      final player = <String, dynamic>{};
+      
+      // Map the result data to the format expected by RankingCalculationService
+      final statMappings = RankingCalculationService.getStatFieldMappings(widget.position);
+      
+      for (final entry in statMappings.entries) {
+        final statName = entry.key;
+        final fieldName = entry.value;
+        
+        // Find the attribute score for this stat
+        final attributeScore = result.attributeScores[statName];
+        if (attributeScore != null) {
+          player[fieldName] = attributeScore;
+        }
+      }
+      
+      // Add basic player info
+      player['player_name'] = result.playerName;
+      player['posteam'] = result.team;
+      player['myRankNum'] = result.rank;
+      
+      return player;
+    }).toList();
+    
+    // Calculate new rankings with custom weights
+    final customRankings = RankingCalculationService.calculateCustomRankings(players, _currentWeights);
+    
+    // Convert back to CustomRankingResult format
+    final newResults = customRankings.asMap().entries.map((entry) {
+      final index = entry.key;
+      final player = entry.value;
+      final originalResult = widget.results[index];
+      
+      return CustomRankingResult(
+        id: originalResult.id,
+        questionnaireId: originalResult.questionnaireId,
+        playerId: originalResult.playerId,
+        playerName: player['player_name'] ?? originalResult.playerName,
+        team: player['posteam'] ?? originalResult.team,
+        position: originalResult.position,
+        rank: player['myRankNum']?.toInt() ?? (index + 1),
+        totalScore: player['myRankNum']?.toDouble() ?? originalResult.totalScore,
+        attributeScores: originalResult.attributeScores,
+        normalizedStats: originalResult.normalizedStats,
+        rawStats: originalResult.rawStats,
+        calculatedAt: originalResult.calculatedAt,
+      );
+    }).toList();
+    
+    setState(() {
+      _currentResults = newResults;
+    });
+    _updateAnalysis();
+  }
+
+  void _toggleCustomizePanel() {
+    setState(() {
+      _showCustomizePanel = !_showCustomizePanel;
+      if (_showCustomizePanel) {
+        _showHealthPanel = false; // Close health panel when opening customize panel
+      }
     });
   }
 
-  void _adjustAttribute(EnhancedRankingAttribute attribute) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Adjust ${attribute.displayName} - Feature coming soon!'),
-      ),
-    );
+  void _toggleHealthPanel() {
+    setState(() {
+      _showHealthPanel = !_showHealthPanel;
+      if (_showHealthPanel) {
+        _showCustomizePanel = false; // Close customize panel when opening health panel
+      }
+    });
   }
 
   Future<void> _shareRankings(String action) async {
