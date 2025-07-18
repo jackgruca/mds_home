@@ -3,6 +3,9 @@ import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/custom_ranking_result.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
+import 'package:mds_home/services/rankings/ranking_service.dart';
+import 'package:mds_home/services/rankings/ranking_cell_shading_service.dart';
+import 'package:mds_home/utils/team_logo_utils.dart';
 
 class RankingTableWidget extends StatefulWidget {
   final List<CustomRankingResult> results;
@@ -25,7 +28,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
   bool _ascending = true;
   bool _showRanks = false; // Toggle between showing ranks vs raw stats
   late List<CustomRankingResult> _sortedResults;
-  late Map<String, Map<double, double>> _percentileCache; // Cache for percentile calculations
+  late Map<String, Map<String, double>> _percentileCache; // Cache for percentile calculations
 
   @override
   void initState() {
@@ -48,25 +51,70 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
   void _calculatePercentiles() {
     _percentileCache = {};
     
-    for (final attribute in widget.attributes) {
-      final values = widget.results
-          .map((result) => result.rawStats[attribute.id] ?? 0.0)
-          .where((value) => value > 0)
-          .toList();
-      
-      if (values.isNotEmpty) {
-        values.sort();
-        _percentileCache[attribute.id] = {};
-        
-        for (final result in widget.results) {
-          final value = result.rawStats[attribute.id] ?? 0.0;
-          if (value > 0) {
-            final rank = values.where((v) => v < value).length;
-            final count = values.where((v) => v == value).length;
-            final percentile = (rank + 0.5 * count) / values.length;
-            _percentileCache[attribute.id]![value] = percentile;
-          }
-        }
+    // Convert widget.results to the format expected by RankingCellShadingService
+    // Use either raw stats or normalized stats (ranks) based on current toggle
+    final dataList = widget.results.map((result) => 
+      _showRanks ? result.normalizedStats : result.rawStats
+    ).toList();
+    final statFields = widget.attributes.map((attr) => attr.id).toList();
+    
+    // Use the same percentile calculation as the position rankings
+    final percentiles = RankingCellShadingService.calculatePercentiles(dataList, statFields);
+    _percentileCache = percentiles;
+  }
+  
+  int _calculateTier(int rank) {
+    // Use the same tier calculation as position rankings
+    // Based on rank position, assign tiers
+    if (rank <= 5) return 1;
+    if (rank <= 12) return 2;
+    if (rank <= 24) return 3;
+    if (rank <= 48) return 4;
+    return 5;
+  }
+  
+  Color _getTierColor(int tier) {
+    final colors = RankingService.getTierColors();
+    return Color(colors[tier] ?? 0xFF9E9E9E);
+  }
+  
+  String _formatStatValue(dynamic value, String format) {
+    return RankingService.formatStatValue(value, format);
+  }
+  
+  Color _getAttributeCellColor(String attributeId, double rawValue, double rankValue) {
+    final percentiles = _percentileCache[attributeId];
+    if (percentiles == null) return Colors.grey.shade200;
+    
+    final p25 = percentiles['p25']!;
+    final p50 = percentiles['p50']!;
+    final p75 = percentiles['p75']!;
+    
+    // Determine which value to use for comparison
+    final value = _showRanks ? rankValue : rawValue;
+    
+    if (_showRanks) {
+      // For rank fields, lower numbers are better (rank 1 is best)
+      // Inverted logic for ranks: lower rank = better = green
+      if (value <= p25) {
+        return Colors.green.withOpacity(0.7);  // Top 25% (best ranks)
+      } else if (value <= p50) {
+        return Colors.green.withOpacity(0.4);  // Top 50%
+      } else if (value <= p75) {
+        return Colors.orange.withOpacity(0.3); // Top 75%
+      } else {
+        return Colors.red.withOpacity(0.3);    // Bottom 25% (worst ranks)
+      }
+    } else {
+      // For regular stats, higher numbers are usually better
+      if (value >= p75) {
+        return Colors.green.withOpacity(0.7);
+      } else if (value >= p50) {
+        return Colors.green.withOpacity(0.4);
+      } else if (value >= p25) {
+        return Colors.orange.withOpacity(0.3);
+      } else {
+        return Colors.red.withOpacity(0.3);
       }
     }
   }
@@ -102,6 +150,11 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
           break;
         case 'team':
           comparison = a.team.compareTo(b.team);
+          break;
+        case 'tier':
+          final aTier = _calculateTier(a.rank);
+          final bTier = _calculateTier(b.rank);
+          comparison = aTier.compareTo(bTier);
           break;
         default:
           // Sort by attribute score
@@ -202,13 +255,19 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                   context,
                   'Raw Stats',
                   !_showRanks,
-                  () => setState(() => _showRanks = false),
+                  () => setState(() {
+                    _showRanks = false;
+                    _calculatePercentiles();
+                  }),
                 ),
                 _buildToggleButton(
                   context,
                   'Ranks',
                   _showRanks,
-                  () => setState(() => _showRanks = true),
+                  () => setState(() {
+                    _showRanks = true;
+                    _calculatePercentiles();
+                  }),
                 ),
               ],
             ),
@@ -280,7 +339,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
           _buildSortableHeader('Rank', 'rank', 60),
           _buildSortableHeader('Player', 'name', 200),
           _buildSortableHeader('Team', 'team', 60),
-          _buildSortableHeader('Score', 'score', 80),
+          _buildSortableHeader('Tier', 'tier', 60),
           ...widget.attributes.map((attr) => _buildSortableHeader(attr.displayName, attr.id, 100)).toList(),
         ],
       ),
@@ -325,82 +384,40 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
   Widget _buildAttributeCell(CustomRankingResult result, EnhancedRankingAttribute attribute) {
     final rawValue = result.rawStats[attribute.id] ?? 0.0;
     final rankValue = result.normalizedStats[attribute.id] ?? 0.0;
-    final percentile = _percentileCache[attribute.id]?[rawValue] ?? 0.0;
 
-    String displayValue;
-    if (_showRanks) {
-      // Show rank (e.g., "#1", "#15")
-      displayValue = '#${rankValue.toInt()}';
-    } else {
-      // Show raw stat value with appropriate formatting
-      displayValue = _formatStatValue(rawValue, attribute);
-    }
-
+    // Use the same cell shading service as the position rankings
     return SizedBox(
       width: 100,
       child: Container(
-        color: _getColorForPercentile(percentile),
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          displayValue,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: percentile > 0.85 ? FontWeight.bold : FontWeight.normal,
-            color: percentile > 0.7 ? Colors.white : Colors.black,
+        width: 100,
+        height: 48,
+        margin: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: _getAttributeCellColor(attribute.id, rawValue, rankValue),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.grey.shade300, width: 0.5),
+        ),
+        child: Center(
+          child: Text(
+            _showRanks ? '#${rankValue.toInt()}' : _formatStatValue(rawValue, 'decimal1'),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       ),
     );
   }
 
-  String _formatStatValue(double value, EnhancedRankingAttribute attribute) {
-    if (value == 0.0) return 'N/A';
-    
-    // Format based on attribute type
-    if (attribute.name.contains('percentage') || 
-        attribute.name.contains('rate') || 
-        attribute.name.contains('share')) {
-      // Handle percentage stats - check if value is already in percentage format
-      if (value > 1.0) {
-        // Value is already in percentage format (e.g., 27.23 for 27.23%)
-        return '${value.toStringAsFixed(1)}%';
-      } else {
-        // Value is in decimal format (e.g., 0.2723 for 27.23%)
-        return '${(value * 100).toStringAsFixed(1)}%';
-      }
-    } else if (attribute.name.contains('per_game') || 
-               attribute.name.contains('yards') || 
-               attribute.name.contains('points')) {
-      // Show with 1 decimal place
-      return value.toStringAsFixed(1);
-    } else {
-      // Show as whole number for counts (TDs, receptions, etc.)
-      return value.toInt().toString();
-    }
-  }
-
-  Color _getColorForPercentile(double? percentile) {
-    if (percentile == null || percentile.isNaN || percentile.isInfinite) {
-      return Colors.transparent;
-    }
-    
-    // Ensure percentile is within valid range (0.0 to 1.0)
-    final clampedPercentile = percentile.clamp(0.0, 1.0);
-    
-    // Use the same color scheme as data hub tables
-    // Higher percentile = darker color (better performance)
-    return Color.fromRGBO(
-      100,  // Red
-      140,  // Green  
-      240,  // Blue
-      0.1 + (clampedPercentile * 0.85)  // Alpha (10% to 95%)
-    );
-  }
 
   Widget _buildPlayerRow(BuildContext context, CustomRankingResult result) {
     final theme = Theme.of(context);
     final isEven = _sortedResults.indexOf(result) % 2 == 0;
+    final tier = _calculateTier(result.rank);
+    final tierColor = _getTierColor(tier);
     
     return InkWell(
       onTap: () => widget.onPlayerTap(result),
@@ -414,43 +431,35 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
             // Rank
             SizedBox(
               width: 60,
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: _getRankColor(result.rank),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        result.rank.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tierColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '#${result.rank}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
-                ],
+                ),
               ),
             ),
-            // Player Name and Position
+            // Player Name with team logo
             SizedBox(
               width: 200,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    result.playerName.isEmpty ? 'Unknown Player' : result.playerName,
-                    style: theme.textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    result.position.isEmpty ? 'N/A' : result.position,
-                    style: theme.textTheme.bodySmall,
+                  TeamLogoUtils.buildNFLTeamLogo(result.team, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      result.playerName.isEmpty ? 'Unknown Player' : result.playerName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -464,23 +473,22 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Score
+            // Tier
             SizedBox(
-              width: 80,
+              width: 60,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _getScoreColor(result.totalScore),
+                  color: tierColor,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  result.totalScore.toStringAsFixed(1),
+                  'Tier $tier',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -494,6 +502,8 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
 
   Widget _buildMobilePlayerCard(BuildContext context, CustomRankingResult result, int index) {
     final theme = Theme.of(context);
+    final tier = _calculateTier(result.rank);
+    final tierColor = _getTierColor(tier);
     
     return Card(
       elevation: 2,
@@ -514,7 +524,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: _getRankColor(result.rank),
+                          color: tierColor,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Center(
@@ -531,17 +541,43 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            result.playerName,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              TeamLogoUtils.buildNFLTeamLogo(result.team, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                result.playerName,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            '${result.position} • ${result.team}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                '${result.position} • ${result.team}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: tierColor,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Tier $tier',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -551,7 +587,6 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                 ],
               ),
               const Divider(height: 24),
-              _buildMobileStatRow('Score', result.totalScore.toStringAsFixed(1)),
               ...widget.attributes.map((attr) => _buildMobileAttributeRow(result, attr)),
             ],
           ),
@@ -587,41 +622,38 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
   Widget _buildMobileAttributeRow(CustomRankingResult result, EnhancedRankingAttribute attribute) {
     final rawValue = result.rawStats[attribute.id] ?? 0.0;
     final rankValue = result.normalizedStats[attribute.id] ?? 0.0;
-    final percentile = _percentileCache[attribute.id]?[rawValue] ?? 0.0;
-
-    String displayValue;
-    if (_showRanks) {
-      displayValue = '#${rankValue.toInt()}';
-    } else {
-      displayValue = _formatStatValue(rawValue, attribute);
-    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getColorForPercentile(percentile),
-        borderRadius: BorderRadius.circular(4),
-      ),
       child: Row(
         children: [
           Text(
-            attribute.displayName,
+            '${attribute.displayName}: ',
             style: TextStyle(
               fontSize: 12,
-              color: percentile > 0.7 ? Colors.white : Colors.grey.shade600,
+              color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              displayValue,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: percentile > 0.85 ? FontWeight.bold : FontWeight.w600,
-                color: percentile > 0.7 ? Colors.white : Colors.black,
+            child: Container(
+              height: 32,
+              margin: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: _getAttributeCellColor(attribute.id, rawValue, rankValue),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade300, width: 0.5),
               ),
-              textAlign: TextAlign.right,
+              child: Center(
+                child: Text(
+                  _showRanks ? '#${rankValue.toInt()}' : _formatStatValue(rawValue, 'decimal1'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ),
         ],
@@ -629,21 +661,6 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
     );
   }
 
-  Color _getRankColor(int rank) {
-    if (rank <= 5) return ThemeConfig.successGreen;
-    if (rank <= 12) return ThemeConfig.gold;
-    if (rank <= 24) return Colors.orange;
-    return Colors.grey;
-  }
-
-  Color _getScoreColor(double score) {
-    // Since lower scores are better in the new rank-based system,
-    // we'll use a gradient where lower scores get better colors
-    if (score <= 10) return ThemeConfig.successGreen;
-    if (score <= 20) return ThemeConfig.gold;
-    if (score <= 40) return Colors.orange;
-    return Colors.grey;
-  }
 
 
 }
