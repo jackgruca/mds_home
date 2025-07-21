@@ -111,6 +111,12 @@ class _ToolGrid extends StatelessWidget {
       'route': '/fantasy/player-projections',
     },
     {
+      'icon': Icons.analytics_outlined,
+      'title': 'Stat Predictor',
+      'subtitle': 'Predict & customize next year stats',
+      'route': '/projections/stat-predictor',
+    },
+    {
       'icon': Icons.leaderboard,
       'title': 'Big Board',
       'subtitle': 'Player rankings & tiers',

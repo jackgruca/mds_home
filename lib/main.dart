@@ -42,6 +42,7 @@ import 'screens/rankings/wr_rankings_screen.dart';
 import 'screens/rankings/rb_rankings_screen.dart';
 import 'screens/rankings/te_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
+import 'screens/projections/player_stat_predictor_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -204,6 +205,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
               case '/projections/wr-2025':
                 return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
+              case '/projections/stat-predictor':
+                return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));

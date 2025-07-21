@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
 
-class PreviewStep extends StatelessWidget {
+class PreviewStep extends StatefulWidget {
   final String position;
   final List<EnhancedRankingAttribute> attributes;
   final Map<String, double> weights;
@@ -19,6 +19,13 @@ class PreviewStep extends StatelessWidget {
     required this.onNameChanged,
     required this.onCreateRankings,
   });
+
+  @override
+  State<PreviewStep> createState() => _PreviewStepState();
+}
+
+class _PreviewStepState extends State<PreviewStep> {
+  bool _includeNextYearPredictions = false;
 
   @override
   Widget build(BuildContext context) {
@@ -43,11 +50,123 @@ class PreviewStep extends StatelessWidget {
           const SizedBox(height: 24),
           _buildNameInput(context),
           const SizedBox(height: 24),
+          if (widget.position == 'WR' || widget.position == 'TE')
+            _buildNextYearPredictionsSection(context),
+          const SizedBox(height: 24),
           _buildSummaryCard(context),
           const SizedBox(height: 24),
           _buildAttributesPreview(context),
           const SizedBox(height: 24),
           _buildSampleRankings(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextYearPredictionsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.analytics_outlined, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'Next Year Predictions',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Include AI-generated next year stat predictions in your rankings. These predictions consider team context, target share projections, and historical performance patterns.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.blue.shade700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Checkbox(
+                value: _includeNextYearPredictions,
+                onChanged: (value) {
+                  setState(() {
+                    _includeNextYearPredictions = value ?? false;
+                  });
+                },
+                activeColor: Colors.blue.shade700,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Include next year predictions as ranking factors',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_includeNextYearPredictions) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Prediction Data Included:',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '• Next year target share projections\n'
+                    '• Projected fantasy points\n'
+                    '• Expected receiving yards and TDs\n'
+                    '• Team context and tier adjustments',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pushNamed(context, '/projections/stat-predictor');
+                    },
+                    child: Text(
+                      'Customize predictions in Stat Predictor →',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -67,9 +186,9 @@ class PreviewStep extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextField(
-          onChanged: onNameChanged,
+          onChanged: widget.onNameChanged,
           decoration: InputDecoration(
-            hintText: 'e.g., "Volume-Heavy $position Rankings" or "My Custom ${position}s"',
+            hintText: 'e.g., "Volume-Heavy ${widget.position} Rankings" or "My Custom ${widget.position}s"',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -85,7 +204,7 @@ class PreviewStep extends StatelessWidget {
 
   Widget _buildSummaryCard(BuildContext context) {
     final theme = Theme.of(context);
-    final totalWeight = weights.values.fold(0.0, (sum, weight) => sum + weight);
+    final totalWeight = widget.weights.values.fold(0.0, (sum, weight) => sum + weight);
     
     return Container(
       padding: const EdgeInsets.all(16),
@@ -122,8 +241,8 @@ class PreviewStep extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow(context, 'Position', position),
-          _buildSummaryRow(context, 'Attributes', '${attributes.length} selected'),
+          _buildSummaryRow(context, 'Position', widget.position),
+          _buildSummaryRow(context, 'Attributes', '${widget.attributes.length} selected'),
           _buildSummaryRow(context, 'Total Weight', '${(totalWeight * 100).toStringAsFixed(0)}%'),
           _buildSummaryRow(context, 'Focus Area', _getPrimaryFocus()),
         ],
@@ -158,8 +277,8 @@ class PreviewStep extends StatelessWidget {
 
   Widget _buildAttributesPreview(BuildContext context) {
     final theme = Theme.of(context);
-    final sortedAttributes = attributes.toList()
-      ..sort((a, b) => (weights[b.id] ?? 0.0).compareTo(weights[a.id] ?? 0.0));
+    final sortedAttributes = widget.attributes.toList()
+      ..sort((a, b) => (widget.weights[b.id] ?? 0.0).compareTo(widget.weights[a.id] ?? 0.0));
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +297,7 @@ class PreviewStep extends StatelessWidget {
 
   Widget _buildAttributePreviewRow(BuildContext context, EnhancedRankingAttribute attribute) {
     final theme = Theme.of(context);
-    final weight = weights[attribute.id] ?? 0.0;
+    final weight = widget.weights[attribute.id] ?? 0.0;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -353,8 +472,8 @@ class PreviewStep extends StatelessWidget {
   String _getPrimaryFocus() {
     final categoryWeights = <String, double>{};
     
-    for (final attr in attributes) {
-      final weight = weights[attr.id] ?? 0.0;
+    for (final attr in widget.attributes) {
+      final weight = widget.weights[attr.id] ?? 0.0;
       categoryWeights[attr.category] = (categoryWeights[attr.category] ?? 0.0) + weight;
     }
     
