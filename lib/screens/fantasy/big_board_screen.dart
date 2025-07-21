@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'dart:async';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import '../../models/fantasy/player_ranking.dart';
@@ -29,15 +29,26 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   bool _isLoading = true;
   List<PlayerRanking> _rankings = [];
   List<PlayerRanking> _filteredRankings = [];
+  List<PlayerRanking> _cachedVisibleRankings = [];
   int? _sortColumnIndex;
   final bool _sortAscending = true;
   final CSVRankingsService _csvService = CSVRankingsService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _lastSearchQuery = '';
+  String _lastPositionFilter = '';
+  int _lastCurrentPage = -1;
+  Timer? _searchDebounce;
   final List<CustomColumn> _customColumns = [];
   String _positionFilter = 'All';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  
+  // Pagination variables
+  int _currentPage = 0;
+  static const int _rowsPerPage = 25;
+  int _totalRecords = 0;
+  bool _hasNextPage = false;
 
   @override
   void initState() {
@@ -56,6 +67,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   void dispose() {
     _searchController.dispose();
     _animationController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -68,6 +80,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         _rankings = rankings;
         _filteredRankings = rankings;
         _sortData('Consensus Rank', true); // Initial sort by consensus rank
+        _resetPagination(); // Reset pagination for fresh data
+        _updateVisibleRankings(); // Initialize visible rankings cache
         _isLoading = false;
       });
       _animationController.forward();
@@ -87,30 +101,90 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   void _filterRankings(String query) {
-    setState(() {
-      _searchQuery = query.toLowerCase();
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _searchQuery = query.toLowerCase();
+        _resetPagination();
+        _updateVisibleRankings();
+      });
     });
   }
 
-  List<PlayerRanking> get _visibleRankings {
-    return _rankings.where((player) {
+  void _updateVisibleRankings() {
+    // Only use cache if search, position filter, and current page haven't changed
+    if (_searchQuery == _lastSearchQuery && 
+        _positionFilter == _lastPositionFilter && 
+        _currentPage == _lastCurrentPage && 
+        _cachedVisibleRankings.isNotEmpty) {
+      return; // Use cached results
+    }
+    
+    // Filter all rankings first
+    final allFilteredRankings = _rankings.where((player) {
       final matchesSearch = _searchQuery.isEmpty ||
         player.name.toLowerCase().contains(_searchQuery) ||
         player.position.toLowerCase().contains(_searchQuery) ||
-        player.rank.toString().contains(_searchQuery) ||
-        (player.additionalRanks['PFF']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['CBS']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['ESPN']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['FFToday']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['FootballGuys']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['Yahoo']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['NFL']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['Consensus']?.toString() ?? '').contains(_searchQuery) ||
-        (player.additionalRanks['Consensus Rank']?.toString() ?? '').contains(_searchQuery) ||
-        _customColumns.any((col) => (col.values[player.id]?.toString() ?? '').contains(_searchQuery));
+        player.rank.toString().contains(_searchQuery);
       final matchesPosition = _positionFilter == 'All' || player.position == _positionFilter;
       return matchesSearch && matchesPosition;
     }).toList();
+    
+    // Update pagination info
+    _totalRecords = allFilteredRankings.length;
+    final totalPages = (_totalRecords / _rowsPerPage).ceil();
+    
+    // Ensure current page is valid
+    if (_currentPage >= totalPages && totalPages > 0) {
+      _currentPage = totalPages - 1;
+    }
+    
+    // Calculate pagination
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage).clamp(0, _totalRecords);
+    _hasNextPage = endIndex < _totalRecords;
+    
+    // Get current page data
+    _cachedVisibleRankings = allFilteredRankings.sublist(
+      startIndex, 
+      endIndex,
+    );
+    
+    _lastSearchQuery = _searchQuery;
+    _lastPositionFilter = _positionFilter;
+    _lastCurrentPage = _currentPage;
+  }
+  
+  List<PlayerRanking> get _visibleRankings {
+    if (_cachedVisibleRankings.isEmpty && _rankings.isNotEmpty) {
+      _updateVisibleRankings();
+    }
+    return _cachedVisibleRankings;
+  }
+
+  void _goToNextPage() {
+    if (_hasNextPage) {
+      setState(() {
+        _currentPage++;
+        _updateVisibleRankings();
+      });
+    }
+  }
+
+  void _goToPreviousPage() {
+    if (_currentPage > 0) {
+      setState(() {
+        _currentPage--;
+        _updateVisibleRankings();
+      });
+    }
+  }
+
+  void _resetPagination() {
+    _currentPage = 0;
+    _totalRecords = 0;
+    _hasNextPage = false;
+    _lastCurrentPage = -1; // Reset cache tracker
   }
 
   void _sortData(String column, bool ascending) {
@@ -378,13 +452,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     
-    return AnimationConfiguration.staggeredList(
-      position: index,
-      duration: const Duration(milliseconds: 375),
-      child: SlideAnimation(
-        verticalOffset: 20.0,
-        child: FadeInAnimation(
-          child: Container(
+    return Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -545,9 +613,6 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -902,6 +967,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                   HapticFeedback.lightImpact();
                                   setState(() {
                                     _positionFilter = pos;
+                                    _resetPagination();
+                                    _updateVisibleRankings();
                                   });
                                 },
                                 backgroundColor: theme.colorScheme.surface,
@@ -981,27 +1048,32 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                             ],
                           ),
                         )
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Use cards on mobile (< 768px), table on web/desktop
-                            final isMobile = constraints.maxWidth < 768;
-                            
-                            if (isMobile) {
-                              return AnimationLimiter(
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  itemCount: _visibleRankings.length,
-                                  itemBuilder: (context, index) {
-                                    return _buildPlayerCard(_visibleRankings[index], index);
-                                  },
-                                ),
-                              );
-                            } else {
-                              return SingleChildScrollView(
-                                child: _buildModernTable(),
-                              );
-                            }
-                          },
+                      : Column(
+                          children: [
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  // Use cards on mobile (< 768px), table on web/desktop
+                                  final isMobile = constraints.maxWidth < 768;
+                                  
+                                  if (isMobile) {
+                                    return ListView.builder(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      itemCount: _visibleRankings.length,
+                                      itemBuilder: (context, index) {
+                                        return _buildPlayerCard(_visibleRankings[index], index);
+                                      },
+                                    );
+                                  } else {
+                                    return SingleChildScrollView(
+                                      child: _buildModernTable(),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                            _buildPaginationControls(),
+                          ],
                         ),
             ),
           ],
@@ -1041,8 +1113,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         borderRadius: BorderRadius.circular(16),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: AnimationLimiter(
-            child: DataTable(
+          child: DataTable(
               headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
               headingTextStyle: TextStyle(
                 color: ThemeAwareColors.getTableHeaderTextColor(context),
@@ -1061,7 +1132,6 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
               columns: _getModernColumns(),
               rows: _getModernRows(),
             ),
-          ),
         ),
       ),
     );
@@ -1231,30 +1301,23 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         cells: [
           // Rank cell with badge
           DataCell(
-            AnimationConfiguration.staggeredList(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              child: SlideAnimation(
-                verticalOffset: 10.0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        ThemeConfig.gold,
-                        ThemeConfig.gold.withOpacity(0.8),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${player.rank}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    ThemeConfig.gold,
+                    ThemeConfig.gold.withOpacity(0.8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${player.rank}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -1262,47 +1325,33 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           
           // Player name cell
           DataCell(
-            AnimationConfiguration.staggeredList(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              child: SlideAnimation(
-                verticalOffset: 10.0,
-                child: Text(
-                  player.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: ThemeConfig.darkNavy,
-                  ),
-                ),
+            Text(
+              player.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: ThemeConfig.darkNavy,
               ),
             ),
           ),
           
           // Position cell with colored badge
           DataCell(
-            AnimationConfiguration.staggeredList(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              child: SlideAnimation(
-                verticalOffset: 10.0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _getPositionColor(player.position).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _getPositionColor(player.position),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    player.position,
-                    style: TextStyle(
-                      color: _getPositionColor(player.position),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: _getPositionColor(player.position).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _getPositionColor(player.position),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                player.position,
+                style: TextStyle(
+                  color: _getPositionColor(player.position),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
                 ),
               ),
             ),
@@ -1310,28 +1359,21 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           
           // Team cell with logo
           DataCell(
-            AnimationConfiguration.staggeredList(
-              position: index,
-              duration: const Duration(milliseconds: 375),
-              child: SlideAnimation(
-                verticalOffset: 10.0,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (player.team.isNotEmpty) ...[
-                      TeamLogoUtils.buildNFLTeamLogo(player.team, size: 16),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      player.team,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (player.team.isNotEmpty) ...[
+                  TeamLogoUtils.buildNFLTeamLogo(player.team, size: 16),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  player.team,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
           
@@ -1351,28 +1393,21 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
             return DataCell(
               GestureDetector(
                 onTap: () => _editCustomRank(context, player.id, value, _customColumns.indexOf(col)),
-                child: AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    verticalOffset: 10.0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: ThemeConfig.gold.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: ThemeConfig.gold.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        value?.toString() ?? '-',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: ThemeConfig.darkNavy,
-                          fontSize: 12,
-                        ),
-                      ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ThemeConfig.gold.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: ThemeConfig.gold.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    value?.toString() ?? '-',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: ThemeConfig.darkNavy,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -1385,30 +1420,89 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   Widget _buildRankingCell(dynamic value, int index) {
-    return AnimationConfiguration.staggeredList(
-      position: index,
-      duration: const Duration(milliseconds: 375),
-      child: SlideAnimation(
-        verticalOffset: 10.0,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: value != null 
-              ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
-              : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            value?.toString() ?? '-',
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: value != null 
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-              fontSize: 12,
-            ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: value != null 
+          ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
+          : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        value?.toString() ?? '-',
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: value != null 
+            ? Theme.of(context).colorScheme.onSurface
+            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    final theme = Theme.of(context);
+    final totalPages = (_totalRecords / _rowsPerPage).ceil().clamp(1, 9999);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: theme.dividerColor.withOpacity(0.2),
+            width: 1,
           ),
         ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Page info
+          Text(
+            'Page ${_currentPage + 1} of $totalPages. Total: $_totalRecords players.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 13,
+            ),
+          ),
+          
+          // Navigation buttons
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: _currentPage > 0 ? _goToPreviousPage : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  disabledForegroundColor: theme.colorScheme.onSurface.withOpacity(0.4),
+                ),
+                child: const Text('Previous'),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: _hasNextPage ? _goToNextPage : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ThemeConfig.darkNavy,
+                  foregroundColor: ThemeConfig.gold,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  disabledForegroundColor: theme.colorScheme.onSurface.withOpacity(0.4),
+                ),
+                child: const Text('Next'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

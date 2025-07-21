@@ -157,9 +157,9 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
               case '/draft/fantasy':
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
-              case '/ff-draft':
+              case '/mock-draft-sim':
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
-              case '/ff-draft/setup':
+              case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
                 return MaterialPageRoute(builder: (_) => const DataExplorerScreen());

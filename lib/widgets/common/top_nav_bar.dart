@@ -75,12 +75,12 @@ final List<NavItem> topNavItems = [
     isPlaceholder: false,
     subItems: [
       // --- Implemented --- 
-      NavItem(title: 'Fantasy Draft Simulator', route: '/draft/fantasy', isPlaceholder: false),
-      NavItem(title: 'Rest-of-Season Projections', route: '/projections', isPlaceholder: false),
-      NavItem(title: '2025 WR Projections', route: '/projections/wr-2025', icon: Icons.trending_up, isPlaceholder: false),
       NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
-      NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
+      NavItem(title: 'Stat Predictor', route: '/projections/stat-predictor', icon: Icons.analytics_outlined, isPlaceholder: false),
       NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', icon: Icons.tune, isPlaceholder: false),
+      NavItem(title: 'Fantasy Draft Simulator', route: '/mock-draft-sim', isPlaceholder: false),
+      NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
+      NavItem(title: 'Player Trends', route: '/fantasy/trends', icon: Icons.show_chart, isPlaceholder: false),
        // --- Placeholders --- 
       // PREPARE
       NavItem(title: 'Player Rankings', route: '/fantasy/rankings', isPlaceholder: true),
@@ -95,7 +95,6 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'Performance Tracker', route: '/fantasy/performance', isPlaceholder: true),
       NavItem(title: 'League Analyzer', route: '/fantasy/league', isPlaceholder: true),
       NavItem(title: 'Historical Comparisons', route: '/fantasy/historical', isPlaceholder: true),
-      NavItem(title: 'Player Trends', route: '/fantasy/trends', icon: Icons.show_chart, isPlaceholder: false),
    ]),
    NavItem(
     title: 'Data Explorer',

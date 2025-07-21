@@ -158,45 +158,68 @@ class FantasyHubScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-            AnimationConfiguration.staggeredList(
-              position: 0,
-              duration: const Duration(milliseconds: 600),
-              child: SlideAnimation(
-                verticalOffset: 40.0,
-                child: FadeInAnimation(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    child: ResponsiveLayoutBuilder(
-                       mobile: (context) => Column(
-                        children: [
-                          HomeSlideshow(slides: _slides, isMobile: true),
-                          const SizedBox(height: 24),
-                          StackedToolLinks(tools: hubTools),
-                        ],
-                      ),
-                      desktop: (context) => Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
-                          const SizedBox(width: 32),
-                          Expanded(flex: 1, child: StackedToolLinks(tools: hubTools)),
-                        ],
+                // Hero Section
+                AnimationConfiguration.staggeredList(
+                  position: 0,
+                  duration: const Duration(milliseconds: 800),
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: Container(
+                        height: 200,
+                        color: ThemeConfig.darkNavy,
+                        child: Center(
+                          child: Text(
+                            'Fantasy Hub - Hero Section Placeholder',
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            AnimationConfiguration.staggeredList(
-              position: 1,
-              duration: const Duration(milliseconds: 600),
-              child: SlideAnimation(
-                verticalOffset: 30.0,
-                child: FadeInAnimation(
-                  child: BlogSection(blogPosts: _blogPosts, title: 'Latest Fantasy Insights'),
+                // Original slideshow and tools section
+                AnimationConfiguration.staggeredList(
+                  position: 1,
+                  duration: const Duration(milliseconds: 600),
+                  child: SlideAnimation(
+                    verticalOffset: 40.0,
+                    child: FadeInAnimation(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                        child: ResponsiveLayoutBuilder(
+                           mobile: (context) => Column(
+                            children: [
+                              HomeSlideshow(slides: _slides, isMobile: true),
+                              const SizedBox(height: 24),
+                              StackedToolLinks(tools: hubTools),
+                            ],
+                          ),
+                          desktop: (context) => Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
+                              const SizedBox(width: 32),
+                              Expanded(flex: 1, child: StackedToolLinks(tools: hubTools)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+                AnimationConfiguration.staggeredList(
+                  position: 2,
+                  duration: const Duration(milliseconds: 600),
+                  child: SlideAnimation(
+                    verticalOffset: 30.0,
+                    child: FadeInAnimation(
+                      child: BlogSection(blogPosts: _blogPosts, title: 'Latest Fantasy Insights'),
+                    ),
+                  ),
+                ),
           ],
         ),
           ),
@@ -204,6 +227,7 @@ class FantasyHubScreen extends StatelessWidget {
       ),
     );
   }
+
 
   Widget _buildToolLink(BuildContext context, String title, String description, IconData icon, String routeName) {
     return InkWell(
