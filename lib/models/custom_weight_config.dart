@@ -104,6 +104,25 @@ class CustomWeightConfig {
     );
   }
 
+  /// Create default weights for consensus rankings
+  static CustomWeightConfig createDefaultConsensusWeights() {
+    return CustomWeightConfig(
+      position: 'consensus',
+      name: 'Default',
+      weights: {
+        'PFF': 0.15,
+        'CBS': 0.15,
+        'ESPN': 0.15,
+        'FFToday': 0.15,
+        'FootballGuys': 0.15,
+        'Yahoo': 0.15,
+        'NFL': 0.10,
+      },
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
   /// Create weights with updated values
   CustomWeightConfig copyWith({
     String? position,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
-import 'package:mds_home/widgets/common/top_nav_bar.dart';
+import '../../widgets/common/top_nav_bar.dart';
 import '../../models/fantasy/player_ranking.dart';
 import '../../services/fantasy/csv_rankings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +11,8 @@ import 'package:file_picker/file_picker.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
+import '../../models/custom_weight_config.dart';
+import '../../widgets/rankings/weight_adjustment_panel.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -49,6 +51,11 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   static const int _rowsPerPage = 25;
   int _totalRecords = 0;
   bool _hasNextPage = false;
+  
+  // Weight customization variables
+  bool _showWeightPanel = false;
+  CustomWeightConfig _currentWeights = CustomWeightConfig.createDefaultConsensusWeights();
+  bool _usingCustomWeights = false;
 
   @override
   void initState() {
@@ -185,6 +192,68 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     _totalRecords = 0;
     _hasNextPage = false;
     _lastCurrentPage = -1; // Reset cache tracker
+  }
+
+  void _toggleWeightPanel() {
+    setState(() {
+      _showWeightPanel = !_showWeightPanel;
+    });
+  }
+
+  void _onWeightsChanged(CustomWeightConfig newWeights) {
+    setState(() {
+      _currentWeights = newWeights;
+      _usingCustomWeights = true;
+      _applyCustomWeights();
+    });
+  }
+
+  void _resetWeights() {
+    setState(() {
+      _currentWeights = CustomWeightConfig.createDefaultConsensusWeights();
+      _usingCustomWeights = false;
+      _applyCustomWeights();
+    });
+  }
+
+  void _applyCustomWeights() {
+    // Apply weighted ranking calculation to update consensus rankings
+    for (final player in _rankings) {
+      final weightedRanks = <double>[];
+      double totalWeight = 0.0;
+      
+      _currentWeights.weights.forEach((platform, weight) {
+        final rank = player.additionalRanks[platform];
+        if (rank != null && rank > 0) {
+          weightedRanks.add(rank * weight);
+          totalWeight += weight;
+        }
+      });
+      
+      if (weightedRanks.isNotEmpty && totalWeight > 0) {
+        final weightedConsensus = weightedRanks.reduce((a, b) => a + b) / totalWeight;
+        player.additionalRanks['Consensus'] = weightedConsensus;
+      }
+    }
+    
+    // Re-sort by new consensus rankings
+    _rankings.sort((a, b) {
+      final aVal = a.additionalRanks['Consensus'];
+      final bVal = b.additionalRanks['Consensus'];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      return (aVal as num).compareTo(bVal as num);
+    });
+    
+    // Update consensus rank positions
+    for (int i = 0; i < _rankings.length; i++) {
+      _rankings[i] = _rankings[i].copyWith(rank: i + 1);
+    }
+    
+    _filteredRankings = List.from(_rankings);
+    _resetPagination();
+    _updateVisibleRankings();
   }
 
   void _sortData(String column, bool ascending) {
@@ -817,267 +886,314 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           ),
         ],
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
-          children: [
-            // Compact header section
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: ThemeConfig.darkNavy.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Title row with action buttons
-                  Row(
-                    children: [
-                      // Title section
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Fantasy Big Board',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: ThemeConfig.darkNavy,
-                              ),
-                            ),
-                            Text(
-                              'Comprehensive rankings from multiple platforms',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Action buttons
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Material(
-                            elevation: 1,
-                            borderRadius: BorderRadius.circular(16),
-                            shadowColor: ThemeConfig.gold.withOpacity(0.2),
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                _onAddCustomColumn();
-                              },
-                              icon: const Icon(Icons.add_rounded, size: 16),
-                              label: const Text('Add Column', style: TextStyle(fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ThemeConfig.darkNavy,
-                                foregroundColor: ThemeConfig.gold,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                minimumSize: const Size(0, 32),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Material(
-                            elevation: 0,
-                            borderRadius: BorderRadius.circular(16),
-                            child: OutlinedButton.icon(
-                              onPressed: _onImportCSV,
-                              icon: const Icon(Icons.upload_file_rounded, size: 16),
-                              label: const Text('Import CSV', style: TextStyle(fontSize: 12)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: ThemeConfig.darkNavy,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                minimumSize: const Size(0, 32),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                side: BorderSide(color: ThemeConfig.darkNavy.withOpacity(0.3)),
-                              ),
-                            ),
-                          ),
-                        ],
+      body: Stack(
+        children: [
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                // Compact header section
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: ThemeConfig.darkNavy.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Search and filters row
-                  Row(
+                  child: Column(
                     children: [
-                      // Search bar
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: ThemeConfig.darkNavy.withOpacity(0.05),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
+                      // Title row with action buttons
+                      Row(
+                        children: [
+                          // Title section
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Fantasy Big Board',
+                                  style: theme.textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: ThemeConfig.darkNavy,
+                                  ),
+                                ),
+                                Text(
+                                  'Comprehensive rankings from multiple platforms',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          // Action buttons
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    _toggleWeightPanel();
+                                  },
+                                  icon: Icon(
+                                    _showWeightPanel ? Icons.close : Icons.tune,
+                                    size: 16,
+                                  ),
+                                  label: Text(_showWeightPanel ? 'Close' : 'Customize', style: const TextStyle(fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    minimumSize: const Size(0, 32),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Material(
+                                elevation: 1,
+                                borderRadius: BorderRadius.circular(16),
+                                shadowColor: ThemeConfig.gold.withOpacity(0.2),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    _onAddCustomColumn();
+                                  },
+                                  icon: const Icon(Icons.add_rounded, size: 16),
+                                  label: const Text('Add Column', style: TextStyle(fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ThemeConfig.darkNavy,
+                                    foregroundColor: ThemeConfig.gold,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    minimumSize: const Size(0, 32),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Material(
+                                elevation: 0,
+                                borderRadius: BorderRadius.circular(16),
+                                child: OutlinedButton.icon(
+                                  onPressed: _onImportCSV,
+                                  icon: const Icon(Icons.upload_file_rounded, size: 16),
+                                  label: const Text('Import CSV', style: TextStyle(fontSize: 12)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: ThemeConfig.darkNavy,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    minimumSize: const Size(0, 32),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    side: BorderSide(color: ThemeConfig.darkNavy.withOpacity(0.3)),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              hintText: 'Search players...',
-                              hintStyle: const TextStyle(fontSize: 14),
-                              prefixIcon: Icon(Icons.search_rounded, size: 20, color: ThemeConfig.darkNavy.withOpacity(0.7)),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              isDense: true,
-                            ),
-                            onChanged: _filterRankings,
-                          ),
-                        ),
+                        ],
                       ),
                       
-                      const SizedBox(width: 16),
+                      const SizedBox(height: 16),
                       
-                      // Position filters
-                      Expanded(
-                        flex: 3,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: positions.map((pos) => Padding(
-                              padding: const EdgeInsets.only(right: 6.0),
-                              child: FilterChip(
-                                label: Text(pos, style: const TextStyle(fontSize: 12)),
-                                selected: _positionFilter == pos,
-                                onSelected: (_) {
-                                  HapticFeedback.lightImpact();
-                                  setState(() {
-                                    _positionFilter = pos;
-                                    _resetPagination();
-                                    _updateVisibleRankings();
-                                  });
-                                },
-                                backgroundColor: theme.colorScheme.surface,
-                                selectedColor: ThemeConfig.gold.withOpacity(0.2),
-                                checkmarkColor: ThemeConfig.darkNavy,
-                                labelStyle: TextStyle(
-                                  color: _positionFilter == pos 
-                                    ? ThemeConfig.darkNavy 
-                                    : theme.colorScheme.onSurface.withOpacity(0.7),
-                                  fontWeight: _positionFilter == pos 
-                                    ? FontWeight.bold 
-                                    : FontWeight.normal,
-                                  fontSize: 12,
-                                ),
-                                side: BorderSide(
-                                  color: _positionFilter == pos 
-                                    ? ThemeConfig.gold 
-                                    : theme.dividerColor.withOpacity(0.3),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            )).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Responsive content - cards on mobile, table on web/desktop
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // Search and filters row
+                      Row(
                         children: [
-                          const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(ThemeConfig.gold),
+                          // Search bar
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: ThemeConfig.darkNavy.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search players...',
+                                  hintStyle: const TextStyle(fontSize: 14),
+                                  prefixIcon: Icon(Icons.search_rounded, size: 20, color: ThemeConfig.darkNavy.withOpacity(0.7)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  isDense: true,
+                                ),
+                                onChanged: _filterRankings,
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Loading rankings...',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          
+                          const SizedBox(width: 16),
+                          
+                          // Position filters
+                          Expanded(
+                            flex: 3,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: positions.map((pos) => Padding(
+                                  padding: const EdgeInsets.only(right: 6.0),
+                                  child: FilterChip(
+                                    label: Text(pos, style: const TextStyle(fontSize: 12)),
+                                    selected: _positionFilter == pos,
+                                    onSelected: (_) {
+                                      HapticFeedback.lightImpact();
+                                      setState(() {
+                                        _positionFilter = pos;
+                                        _resetPagination();
+                                        _updateVisibleRankings();
+                                      });
+                                    },
+                                    backgroundColor: theme.colorScheme.surface,
+                                    selectedColor: ThemeConfig.gold.withOpacity(0.2),
+                                    checkmarkColor: ThemeConfig.darkNavy,
+                                    labelStyle: TextStyle(
+                                      color: _positionFilter == pos 
+                                        ? ThemeConfig.darkNavy 
+                                        : theme.colorScheme.onSurface.withOpacity(0.7),
+                                      fontWeight: _positionFilter == pos 
+                                        ? FontWeight.bold 
+                                        : FontWeight.normal,
+                                      fontSize: 12,
+                                    ),
+                                    side: BorderSide(
+                                      color: _positionFilter == pos 
+                                        ? ThemeConfig.gold 
+                                        : theme.dividerColor.withOpacity(0.3),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                )).toList(),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : _visibleRankings.isEmpty
+                    ],
+                  ),
+                ),
+                
+                // Responsive content - cards on mobile, table on web/desktop
+                Expanded(
+                  child: _isLoading
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.search_off_rounded,
-                                size: 64,
-                                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                              const CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(ThemeConfig.gold),
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'No players found',
-                                style: theme.textTheme.headlineSmall?.copyWith(
+                                'Loading rankings...',
+                                style: theme.textTheme.bodyLarge?.copyWith(
                                   color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Try adjusting your search or filters',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.5),
                                 ),
                               ),
                             ],
                           ),
                         )
-                      : Column(
-                          children: [
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  // Use cards on mobile (< 768px), table on web/desktop
-                                  final isMobile = constraints.maxWidth < 768;
-                                  
-                                  if (isMobile) {
-                                    return ListView.builder(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      itemCount: _visibleRankings.length,
-                                      itemBuilder: (context, index) {
-                                        return _buildPlayerCard(_visibleRankings[index], index);
-                                      },
-                                    );
-                                  } else {
-                                    return SingleChildScrollView(
-                                      child: _buildModernTable(),
-                                    );
-                                  }
-                                },
+                      : _visibleRankings.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off_rounded,
+                                    size: 64,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.3),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No players found',
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try adjusting your search or filters',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            )
+                          : Column(
+                              children: [
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      // Use cards on mobile (< 768px), table on web/desktop
+                                      final isMobile = constraints.maxWidth < 768;
+                                      
+                                      if (isMobile) {
+                                        return ListView.builder(
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          itemCount: _visibleRankings.length,
+                                          itemBuilder: (context, index) {
+                                            return _buildPlayerCard(_visibleRankings[index], index);
+                                          },
+                                        );
+                                      } else {
+                                        return SingleChildScrollView(
+                                          child: _buildModernTable(),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                                _buildPaginationControls(),
+                              ],
                             ),
-                            _buildPaginationControls(),
-                          ],
-                        ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          
+          // Weight Adjustment Panel
+          if (_showWeightPanel)
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: WeightAdjustmentPanel(
+                position: 'consensus',
+                currentWeights: _currentWeights,
+                onWeightsChanged: _onWeightsChanged,
+                onReset: _resetWeights,
+                onClose: () {
+                  setState(() {
+                    _showWeightPanel = false;
+                  });
+                },
+                isVisible: _showWeightPanel,
+              ),
+            ),
+        ],
       ),
     );
   }
