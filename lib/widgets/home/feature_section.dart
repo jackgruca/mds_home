@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import '../../utils/theme_config.dart';
 
 class FeatureSection extends StatelessWidget {
-  final List<Map<String, dynamic>> features;
+  final List<Map<String, dynamic>>? features;
+  final Map<String, List<Map<String, dynamic>>>? toolCategories;
+  final Map<String, Map<String, dynamic>>? categorizedTools;
   
   const FeatureSection({
     super.key,
-    required this.features,
-  });
+    this.features,
+    this.toolCategories,
+    this.categorizedTools,
+  }) : assert(features != null || toolCategories != null || categorizedTools != null, 'Either features, toolCategories, or categorizedTools must be provided');
 
   @override
   Widget build(BuildContext context) {
@@ -44,25 +48,100 @@ class FeatureSection extends StatelessWidget {
               ],
             ),
           ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Determine how many cards to show per row based on width
-              final double maxWidth = constraints.maxWidth;
-              final int cardsPerRow = maxWidth > 1200 ? 3 : (maxWidth > 700 ? 2 : 1);
-              
-              return Wrap(
-                spacing: 20,
-                runSpacing: 24,
-                children: List.generate(
-                  features.length,
-                  (index) => SizedBox(
-                    width: (maxWidth / cardsPerRow) - (20 * (cardsPerRow - 1) / cardsPerRow),
-                    child: _buildFeatureCard(context, features[index], index),
-                  ),
-                ),
-              );
-            },
+          // Show categorized tools if provided, otherwise show flat list
+          if (categorizedTools != null)
+            ...categorizedTools!.entries.map((category) => _buildCategorySectionWithDescription(context, category.key, category.value))
+          else if (toolCategories != null)
+            ...toolCategories!.entries.map((category) => _buildCategorySection(context, category.key, category.value))
+          else if (features != null)
+            _buildFeaturesGrid(context, features!),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildFeaturesGrid(BuildContext context, List<Map<String, dynamic>> featureList) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Determine how many cards to show per row based on width
+        final double maxWidth = constraints.maxWidth;
+        final int cardsPerRow = maxWidth > 1200 ? 3 : (maxWidth > 700 ? 2 : 1);
+        
+        return Wrap(
+          spacing: 20,
+          runSpacing: 24,
+          children: List.generate(
+            featureList.length,
+            (index) => SizedBox(
+              width: (maxWidth / cardsPerRow) - (20 * (cardsPerRow - 1) / cardsPerRow),
+              child: _buildFeatureCard(context, featureList[index], index),
+            ),
           ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildCategorySection(BuildContext context, String categoryName, List<Map<String, dynamic>> categoryTools) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 20),
+            child: Text(
+              categoryName.toUpperCase(),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: isDarkMode ? ThemeConfig.gold : ThemeConfig.darkNavy,
+              ),
+            ),
+          ),
+          _buildFeaturesGrid(context, categoryTools),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildCategorySectionWithDescription(BuildContext context, String categoryName, Map<String, dynamic> categoryData) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final description = categoryData['description'] as String;
+    final tools = categoryData['tools'] as List<Map<String, dynamic>>;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 50),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            child: Text(
+              categoryName.toUpperCase(),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: isDarkMode ? ThemeConfig.gold : ThemeConfig.darkNavy,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 24),
+            child: Text(
+              description,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: isDarkMode 
+                    ? Colors.white.withOpacity(0.8) 
+                    : Colors.black.withOpacity(0.7),
+                height: 1.4,
+              ),
+            ),
+          ),
+          _buildFeaturesGrid(context, tools),
         ],
       ),
     );

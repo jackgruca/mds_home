@@ -27,50 +27,112 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // Global key for scrolling to tools section
   final GlobalKey _toolsSectionKey = GlobalKey();
 
-  final List<Map<String, dynamic>> _tools = [
-    {
-      'icon': Icons.format_list_numbered,
-      'title': 'Mock Draft Simulator',
-      'desc': 'Build your team with our interactive NFL draft simulator featuring real-time analytics and team needs.',
-      'route': '/draft',
-      'image': 'assets/images/GM/PIT Draft.png',
+  final Map<String, Map<String, dynamic>> _toolCategories = {
+    'Fantasy Football': {
+      'description': 'Dominate your fantasy leagues with data-driven insights and strategic tools',
+      'tools': [
+        {
+          'icon': Icons.sports_football,
+          'title': 'Fantasy Hub',
+          'desc': 'Central hub for all your fantasy football needs, insights, and tools.',
+          'route': '/fantasy/hub',
+          'image': null,
+        },
+        {
+          'icon': Icons.analytics,
+          'title': 'Customize Player Rankings',
+          'desc': 'Create personalized player rankings based on your league settings and preferences.',
+          'route': '/custom-rankings',
+          'image': null,
+        },
+        {
+          'icon': Icons.sports,
+          'title': 'Fantasy Draft Simulator',
+          'desc': 'Simulate fantasy drafts with real-time ADP and expert insights.',
+          'route': '/draft/fantasy',
+          'image': 'assets/images/FF/shiva.png',
+        },
+      ],
     },
-    {
-      'icon': Icons.sports_football,
-      'title': 'Fantasy Draft Lab',
-      'desc': 'Dominate your fantasy league with our AI-powered mock draft simulator and strategic insights.',
-      'route': '/draft/fantasy',
-      'image': 'assets/images/FF/shiva.png',
+    'Be A GM: Team Construction': {
+      'description': 'Understand the business side of a championship team with premium scouting and player profile tools',
+      'tools': [
+        {
+          'icon': Icons.home,
+          'title': 'GM Hub',
+          'desc': 'Your command center for all GM tools and team-building resources.',
+          'route': '/gm/hub',
+          'image': null,
+        },
+        {
+          'icon': Icons.format_list_numbered,
+          'title': 'Mock Draft Simulator',
+          'desc': 'Interactive 7-round draft simulator with team needs and trade scenarios.',
+          'route': '/draft',
+          'image': 'assets/images/GM/PIT Draft.png',
+        },
+        {
+          'icon': Icons.flash_on,
+          'title': 'Boom or Bust',
+          'desc': 'Analyze prospects with boom-or-bust potential using advanced analytics.',
+          'route': '/boom-or-bust',
+          'image': null,
+        },
+      ],
     },
-    {
-      'icon': Icons.leaderboard,
-      'title': 'Player Rankings',
-      'desc': 'Access and customize comprehensive player big boards from multiple expert sources.',
-      'route': '/fantasy/big-board',
-      'image': 'assets/images/GM/big board.png',
+    'Betting': {
+      'description': 'Make smarter wagers with data-driven insights and predictive models',
+      'tools': [
+        {
+          'icon': Icons.paid,
+          'title': 'Betting Hub',
+          'desc': 'Central hub for betting insights, models, and tools.',
+          'route': '/betting/hub',
+          'image': null,
+        },
+        {
+          'icon': Icons.show_chart,
+          'title': 'Line Tracker',
+          'desc': 'Track real-time odds and line movement across sportsbooks.',
+          'route': '/line-tracker',
+          'image': null,
+        },
+        {
+          'icon': Icons.calculate,
+          'title': 'Create Your Model',
+          'desc': 'Build and test your own betting models with custom parameters.',
+          'route': '/betting/model',
+          'image': null,
+        },
+      ],
     },
-    {
-      'icon': Icons.trending_up,
-      'title': 'Advanced Analytics',
-      'desc': 'Dive into player projections, performance metrics, and statistical models that reveal hidden value.',
-      'route': '/wr-model',
-      'image': 'assets/images/data/moneyBall.jpeg',
+    'Data Hub': {
+      'description': 'Access comprehensive NFL analytics and performance insights',
+      'tools': [
+        {
+          'icon': Icons.hub,
+          'title': 'Data Hub',
+          'desc': 'Explore all NFL data, analytics, and research tools in one place.',
+          'route': '/data/hub',
+          'image': null,
+        },
+        {
+          'icon': Icons.bar_chart,
+          'title': 'Player Season Stats',
+          'desc': 'View and analyze player season statistics across years.',
+          'route': '/data/player-stats',
+          'image': null,
+        },
+        {
+          'icon': Icons.history,
+          'title': 'Historical Game Stats',
+          'desc': 'Access a database of historical NFL game statistics.',
+          'route': '/data/historical-games',
+          'image': null,
+        },
+      ],
     },
-    {
-      'icon': Icons.paid,
-      'title': 'Betting Intelligence',
-      'desc': 'Make smarter bets with historical trends, odds analysis, and proprietary betting models.',
-      'route': '/data/historical',
-      'image': null,
-    },
-    {
-      'icon': Icons.calendar_today,
-      'title': 'Game Center',
-      'desc': 'Get matchup insights, odds, and projections for this week\'s games all in one place.',
-      'route': '/data',
-      'image': null,
-    },
-  ];
+  };
 
   final List<Map<String, String>> _blogPosts = [
     // {
@@ -287,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Container(
       key: _toolsSectionKey,
       padding: const EdgeInsets.only(top: 40),
-      child: FeatureSection(features: _tools),
+      child: FeatureSection(categorizedTools: _toolCategories),
     );
   }
   
