@@ -5,6 +5,10 @@ import 'package:mds_home/models/player.dart';
 class SEOHelper {
   static const String baseUrl = 'https://sticktothemodel.com';
   
+  // SEO Configuration - Update these with actual values
+  static const String googleAnalyticsId = 'GA_MEASUREMENT_ID'; // Replace with actual GA4 ID
+  static const String googleSearchConsoleVerification = 'YOUR_VERIFICATION_CODE_HERE'; // Replace with actual verification code
+  
   static void updateMetaTags({
     required String title,
     required String description,
@@ -365,6 +369,174 @@ class SEOHelper {
     } catch (e) {
       print('Error updating breadcrumbs: $e');
     }
+  }
+
+  // GOOGLE ANALYTICS HELPERS
+  static void trackPageView(String pageName, String pageUrl) {
+    try {
+      if (js.context.hasProperty('gtag')) {
+        js.context.callMethod('gtag', ['event', 'page_view', {
+          'page_title': pageName,
+          'page_location': pageUrl,
+        }]);
+      }
+    } catch (e) {
+      print('Error tracking page view: $e');
+    }
+  }
+
+  static void trackToolUsage(String toolName, String action) {
+    try {
+      if (js.context.hasProperty('gtag')) {
+        js.context.callMethod('gtag', ['event', action, {
+          'event_category': 'Tool Usage',
+          'event_label': toolName,
+        }]);
+      }
+    } catch (e) {
+      print('Error tracking tool usage: $e');
+    }
+  }
+
+  static void trackMockDraftEvent(String eventType, Map<String, dynamic> parameters) {
+    try {
+      if (js.context.hasProperty('gtag')) {
+        final eventData = {
+          'event_category': 'Mock Draft',
+          'event_label': eventType,
+          ...parameters,
+        };
+        js.context.callMethod('gtag', ['event', 'mock_draft_action', eventData]);
+      }
+    } catch (e) {
+      print('Error tracking mock draft event: $e');
+    }
+  }
+
+  // INTERNAL LINKING HELPERS
+  static List<Map<String, String>> getRelatedTools(String currentTool) {
+    final relatedToolsMap = {
+      'big-board': [
+        {'title': 'Fantasy Mock Draft Simulator', 'url': '/draft/fantasy', 'description': 'Practice your draft strategy'},
+        {'title': 'Player Comparison Tool', 'url': '/fantasy/player-comparison', 'description': 'Compare players head-to-head'},
+        {'title': 'My Rankings', 'url': '/my-rankings', 'description': 'Create custom rankings'},
+      ],
+      'mock-draft': [
+        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'VORP-based player rankings'},
+        {'title': 'Player Trends', 'url': '/fantasy/trends', 'description': 'Trending players analysis'},
+        {'title': 'QB Rankings', 'url': '/rankings/qb', 'description': 'Quarterback tier rankings'},
+      ],
+      'player-comparison': [
+        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'See where players rank'},
+        {'title': 'Player Stats Database', 'url': '/player-season-stats', 'description': 'Historical player data'},
+        {'title': 'Player Trends', 'url': '/fantasy/trends', 'description': 'Rising and falling players'},
+      ],
+      'rankings': [
+        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'VORP-based consensus rankings'},
+        {'title': 'Mock Draft Simulator', 'url': '/draft/fantasy', 'description': 'Test your draft strategy'},
+        {'title': 'Player Comparison', 'url': '/fantasy/player-comparison', 'description': 'Compare players side-by-side'},
+      ],
+      'bust-evaluation': [
+        {'title': 'NFL Mock Draft Simulator', 'url': '/draft', 'description': 'Full 7-round NFL draft'},
+        {'title': 'Historical Data Explorer', 'url': '/data/historical', 'description': 'NFL historical data'},
+        {'title': 'Player Stats Database', 'url': '/player-season-stats', 'description': 'Comprehensive player stats'},
+      ],
+    };
+
+    return relatedToolsMap[currentTool] ?? [];
+  }
+
+  static List<Map<String, String>> getPositionLinks() {
+    return [
+      {'title': 'QB Rankings', 'url': '/rankings/qb', 'description': 'Quarterback tier rankings'},
+      {'title': 'WR Rankings', 'url': '/rankings/wr', 'description': 'Wide receiver analysis'},
+      {'title': 'RB Rankings', 'url': '/rankings/rb', 'description': 'Running back projections'},
+      {'title': 'TE Rankings', 'url': '/rankings/te', 'description': 'Tight end evaluations'},
+    ];
+  }
+
+  static List<Map<String, String>> getHubLinks() {
+    return [
+      {'title': 'Fantasy Hub', 'url': '/fantasy', 'description': 'Fantasy football tools and rankings'},
+      {'title': 'GM Hub', 'url': '/gm-hub', 'description': 'NFL GM simulation tools'},
+      {'title': 'Data Explorer', 'url': '/data', 'description': 'NFL statistics and historical data'},
+    ];
+  }
+
+  // FAQ DATA FOR COMPLEX TOOLS
+  static List<Map<String, String>> getVORPFAQs() {
+    return [
+      {
+        'question': 'What is VORP in fantasy football?',
+        'answer': 'VORP (Value Over Replacement Player) measures how much more valuable a player is compared to a replacement-level player at the same position. It helps identify which players provide the most value relative to what you could get from free agents or late draft picks.'
+      },
+      {
+        'question': 'How is VORP calculated?',
+        'answer': 'VORP is calculated by taking a player\'s projected fantasy points and subtracting the projected points of a replacement-level player at that position. The replacement level is typically set at the point where players become widely available (usually around the top 24 players per position).'
+      },
+      {
+        'question': 'Why should I use VORP for fantasy football drafts?',
+        'answer': 'VORP helps you identify the most valuable picks at each draft position. Players with high VORP scores provide more advantage over replacement options, making them better draft targets than players who may score more points but are easily replaceable.'
+      },
+      {
+        'question': 'How does position scarcity affect VORP?',
+        'answer': 'Positions with fewer quality options (like tight end) often have higher VORP values for top players because the drop-off to replacement level is steeper. This is why elite TEs often have surprisingly high VORP despite lower raw point totals.'
+      },
+      {
+        'question': 'Can I customize VORP calculations for my league?',
+        'answer': 'Yes! Our VORP calculator allows you to adjust scoring settings, roster requirements, and league size to generate personalized VORP values that match your specific league format and scoring system.'
+      }
+    ];
+  }
+
+  static List<Map<String, String>> getBigBoardFAQs() {
+    return [
+      {
+        'question': 'What is a fantasy football big board?',
+        'answer': 'A big board is a comprehensive ranking of all fantasy-relevant players regardless of position, ordered by their overall value. It helps you identify the best available player at any point in your draft, accounting for positional value and scarcity.'
+      },
+      {
+        'question': 'How do I use custom weights in the big board?',
+        'answer': 'Custom weights allow you to adjust how much emphasis is placed on different statistics and metrics. For example, you can increase the weight of rushing yards for RBs or target share for WRs to match your league\'s scoring system and your personal preferences.'
+      },
+      {
+        'question': 'What\'s the difference between consensus and custom rankings?',
+        'answer': 'Consensus rankings aggregate expert opinions from multiple sources to create an average ranking. Custom rankings use our advanced algorithms with your personalized weight settings to create rankings tailored to your specific league format and strategy.'
+      },
+      {
+        'question': 'How often are big board rankings updated?',
+        'answer': 'Our big board is updated daily during the season and multiple times per week during the offseason. Rankings incorporate the latest news, injury reports, depth chart changes, and statistical performance to keep your draft strategy current.'
+      },
+      {
+        'question': 'Can I export my big board for draft day?',
+        'answer': 'Yes! You can export your customized big board as a printable cheat sheet or CSV file. This lets you take your personalized rankings into any draft platform or use them for offline drafts.'
+      }
+    ];
+  }
+
+  static List<Map<String, String>> getMockDraftFAQs() {
+    return [
+      {
+        'question': 'How realistic are the AI opponents in mock drafts?',
+        'answer': 'Our AI opponents are trained on thousands of real draft data points and use current ADP (Average Draft Position) data to make realistic picks. They account for team needs, positional runs, and draft trends to simulate authentic draft behavior.'
+      },
+      {
+        'question': 'Can I practice drafts for different platforms?',
+        'answer': 'Yes! Our mock draft simulator supports various league formats including ESPN, Yahoo, Sleeper, and custom scoring systems. You can practice for your specific platform and scoring rules to perfect your strategy.'
+      },
+      {
+        'question': 'What draft positions and league sizes are available?',
+        'answer': 'You can practice from any draft position (1-20) in leagues ranging from 8 to 20 teams. This covers standard leagues (10-12 teams), competitive leagues (14+ teams), and dynasty formats with larger rosters.'
+      },
+      {
+        'question': 'How do I analyze my mock draft results?',
+        'answer': 'After each mock draft, you receive a detailed grade breaking down your team\'s projected performance, positional strength, value picks, and areas for improvement. Use this feedback to refine your draft strategy.'
+      },
+      {
+        'question': 'Can I save and share my mock draft results?',
+        'answer': 'Yes! You can save your draft results to track your improvement over time and share your teams with friends or league mates. This helps you identify patterns in your drafting and optimize your strategy.'
+      }
+    ];
   }
 
   // FAQ STRUCTURED DATA
