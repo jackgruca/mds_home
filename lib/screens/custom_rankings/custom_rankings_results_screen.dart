@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/models/custom_rankings/custom_ranking_result.dart';
 import 'package:mds_home/models/custom_rankings/enhanced_ranking_attribute.dart';
@@ -62,6 +63,9 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   // VORP services
   final CustomVorpRankingService _vorpRankingService = CustomVorpRankingService();
   final HistoricalPointsService _historicalPointsService = HistoricalPointsService();
+  
+  // Debounce timer for weight updates
+  Timer? _weightUpdateDebounce;
 
   @override
   void initState() {
@@ -81,6 +85,12 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   void _updateAnalysis() {
     final engine = EnhancedCalculationEngine();
     _analysisFuture = engine.analyzeRankings(_currentResults);
+  }
+  
+  @override
+  void dispose() {
+    _weightUpdateDebounce?.cancel();
+    super.dispose();
   }
   
 
@@ -1268,8 +1278,11 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
       _currentWeights = _currentWeights.copyWith(weights: updatedWeights);
     });
     
-    // Apply new weights to rankings
-    _applyCustomWeights();
+    // Debounce the weight application to prevent rapid updates
+    _weightUpdateDebounce?.cancel();
+    _weightUpdateDebounce = Timer(const Duration(milliseconds: 150), () {
+      _applyCustomWeights();
+    });
   }
 
   void _normalizeWeights() {
@@ -1293,61 +1306,93 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   }
 
   void _applyCustomWeights() {
-    // Convert enhanced ranking attributes to simple player data format
-    final players = widget.results.map((result) {
-      final player = <String, dynamic>{};
+    // COPY THE EXACT WORKING LOGIC from EnhancedCalculationEngine
+    // Use rank-based scoring system where lower total scores are better
+    final newResults = widget.results.map((result) {
+      double totalWeightedRank = 0.0;
+      double totalWeight = 0.0;
+      final newAttributeScores = <String, double>{};
       
-      // Map the result data to the format expected by RankingCalculationService
-      final statMappings = RankingCalculationService.getStatFieldMappings(widget.position);
-      
-      for (final entry in statMappings.entries) {
-        final statName = entry.key;
-        final fieldName = entry.value;
+      // Apply weights to rank values (from normalizedStats)
+      for (final weightEntry in _currentWeights.weights.entries) {
+        final attributeName = weightEntry.key;  // e.g., "EPA", "YPG"
+        final weight = weightEntry.value;       // e.g., 0.15, 0.20
         
-        // Find the attribute score for this stat
-        final attributeScore = result.attributeScores[statName];
-        if (attributeScore != null) {
-          player[fieldName] = attributeScore;
+        // Find the rank value for this attribute in normalizedStats
+        double? rankValue;
+        
+        // Try different key variations to find the rank
+        if (result.normalizedStats.containsKey(attributeName)) {
+          rankValue = result.normalizedStats[attributeName];
+        }
+        else if (result.normalizedStats.containsKey(attributeName.toLowerCase())) {
+          rankValue = result.normalizedStats[attributeName.toLowerCase()];
+        }
+        // Try looking through all attribute IDs in the original data
+        else {
+          for (final attr in _currentAttributes) {
+            if (attr.displayName == attributeName || attr.name == attributeName || attr.id == attributeName) {
+              rankValue = result.normalizedStats[attr.id];
+              break;
+            }
+          }
+        }
+        
+        // If still not found, try rawStats and attributeScores as fallback
+        if (rankValue == null) {
+          rankValue = result.rawStats[attributeName] ?? result.attributeScores[attributeName];
+        }
+        
+        if (rankValue != null && weight > 0) {
+          // EXACT SAME LOGIC: rank * weight (lower ranks get lower weighted scores)
+          final weightedRank = rankValue * weight;
+          newAttributeScores[attributeName] = weightedRank;
+          totalWeightedRank += weightedRank;
+          totalWeight += weight;
         }
       }
       
-      // Add basic player info
-      player['player_name'] = result.playerName;
-      player['posteam'] = result.team;
-      player['myRankNum'] = result.rank;
-      
-      return player;
-    }).toList();
-    
-    // Calculate new rankings with custom weights
-    final customRankings = RankingCalculationService.calculateCustomRankings(players, _currentWeights);
-    
-    // Convert back to CustomRankingResult format
-    final newResults = customRankings.asMap().entries.map((entry) {
-      final index = entry.key;
-      final player = entry.value;
-      final originalResult = widget.results[index];
+      // EXACT SAME LOGIC: Calculate average weighted rank (lower is better)
+      final averageRank = totalWeight > 0 ? totalWeightedRank / totalWeight : 999.0;
       
       return CustomRankingResult(
-        id: originalResult.id,
-        questionnaireId: originalResult.questionnaireId,
-        playerId: originalResult.playerId,
-        playerName: player['player_name'] ?? originalResult.playerName,
-        team: player['posteam'] ?? originalResult.team,
-        position: originalResult.position,
-        rank: player['myRankNum']?.toInt() ?? (index + 1),
-        totalScore: player['myRankNum']?.toDouble() ?? originalResult.totalScore,
-        attributeScores: originalResult.attributeScores,
-        normalizedStats: originalResult.normalizedStats,
-        rawStats: originalResult.rawStats,
-        calculatedAt: originalResult.calculatedAt,
+        id: result.id,
+        questionnaireId: result.questionnaireId,
+        playerId: result.playerId,
+        playerName: result.playerName,
+        team: result.team,
+        position: result.position,
+        rank: result.rank, // Will be updated after sorting
+        totalScore: averageRank, // Lower scores are better
+        attributeScores: newAttributeScores,
+        normalizedStats: result.normalizedStats,
+        rawStats: result.rawStats,
+        calculatedAt: result.calculatedAt,
       );
     }).toList();
     
+    // EXACT SAME LOGIC: Sort by total score (ascending - lower is better)
+    newResults.sort((a, b) => a.totalScore.compareTo(b.totalScore));
+    
+    // EXACT SAME LOGIC: Assign final ranks
+    final finalResults = <CustomRankingResult>[];
+    for (int i = 0; i < newResults.length; i++) {
+      finalResults.add(newResults[i].copyWith(rank: i + 1));
+    }
+    
+    // Update state
     setState(() {
-      _currentResults = newResults;
+      _currentResults = finalResults;
     });
     _updateAnalysis();
+  }
+  
+  CustomRankingResult _findOriginalResult(String playerName, List<CustomRankingResult> results) {
+    try {
+      return results.firstWhere((r) => r.playerName == playerName);
+    } catch (e) {
+      return results.first; // fallback
+    }
   }
 
   void _toggleCustomizePanel() {

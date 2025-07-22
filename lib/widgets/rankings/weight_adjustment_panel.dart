@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../models/custom_weight_config.dart';
 import '../../utils/theme_config.dart';
 
@@ -29,6 +30,7 @@ class _WeightAdjustmentPanelState extends State<WeightAdjustmentPanel>
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late CustomWeightConfig _workingWeights;
+  Timer? _updateDebounce;
   
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _WeightAdjustmentPanelState extends State<WeightAdjustmentPanel>
   @override
   void dispose() {
     _animationController.dispose();
+    _updateDebounce?.cancel();
     super.dispose();
   }
 
@@ -84,8 +87,11 @@ class _WeightAdjustmentPanelState extends State<WeightAdjustmentPanel>
       _workingWeights = _workingWeights.copyWith(weights: updatedWeights);
     });
     
-    // Notify parent immediately for live updates
-    widget.onWeightsChanged(_workingWeights);
+    // Debounce the parent notification to prevent rapid updates
+    _updateDebounce?.cancel();
+    _updateDebounce = Timer(const Duration(milliseconds: 150), () {
+      widget.onWeightsChanged(_workingWeights);
+    });
   }
 
   void _resetToDefaults() {

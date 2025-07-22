@@ -37,22 +37,16 @@ class RBTierService {
     return (position / sortedValues.length) * 100;
   }
 
-  /// Assign tier based on ranking (8-tier system)
-  int calculateTier(double rankScore, List<double> allRankScores) {
-    final sortedScores = allRankScores.where((s) => s.isFinite).toList()..sort();
-    if (sortedScores.isEmpty) return 8;
-    
-    final percentile = _calculatePercentileRank(rankScore, sortedScores);
-    
-    // 8-tier system based on percentiles
-    if (percentile >= 87.5) return 1;  // Top 12.5%
-    if (percentile >= 75.0) return 2;  // 75-87.5%
-    if (percentile >= 62.5) return 3;  // 62.5-75%
-    if (percentile >= 50.0) return 4;  // 50-62.5%
-    if (percentile >= 37.5) return 5;  // 37.5-50%
-    if (percentile >= 25.0) return 6;  // 25-37.5%
-    if (percentile >= 12.5) return 7;  // 12.5-25%
-    return 8;                          // Bottom 12.5%
+  /// Assign tier based on rank number - RB uses 8 players per tier
+  int calculateTier(int rankNum) {
+    if (rankNum <= 8) return 1;
+    if (rankNum <= 16) return 2;
+    if (rankNum <= 24) return 3;
+    if (rankNum <= 32) return 4;
+    if (rankNum <= 40) return 5;
+    if (rankNum <= 48) return 6;
+    if (rankNum <= 56) return 7;
+    return 8; // All remaining players
   }
 
   /// Process RB data and calculate rankings
@@ -89,18 +83,13 @@ class RBTierService {
       rb['myRank'] = rankScore;
     }
 
-    // Calculate tiers
-    final allRankScores = processedData.map((rb) => rb['myRank'] as double).toList();
-    for (final rb in processedData) {
-      rb['rb_tier'] = calculateTier(rb['myRank'] as double, allRankScores);
-    }
-
-    // Sort by ranking (lower score = better rank)
-    processedData.sort((a, b) => (a['myRank'] as double).compareTo(b['myRank'] as double));
+    // Sort by ranking (higher score = better rank)
+    processedData.sort((a, b) => (b['myRank'] as double).compareTo(a['myRank'] as double));
     
-    // Assign rank numbers
+    // Assign rank numbers and calculate tiers
     for (int i = 0; i < processedData.length; i++) {
       processedData[i]['myRankNum'] = i + 1;
+      processedData[i]['rb_tier'] = calculateTier(i + 1);
     }
 
     return processedData;

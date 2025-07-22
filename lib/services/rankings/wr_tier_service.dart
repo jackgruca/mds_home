@@ -98,16 +98,16 @@ class WRTierService {
     }
   }
 
-  /// Calculate tier based on rank number (mirroring R script logic)
+  /// Calculate tier based on rank number - WR uses 8 players per tier
   int _calculateTier(int rankNum) {
-    if (rankNum <= 4) return 1;
-    if (rankNum <= 8) return 2;
-    if (rankNum <= 12) return 3;
-    if (rankNum <= 16) return 4;
-    if (rankNum <= 20) return 5;
-    if (rankNum <= 24) return 6;
-    if (rankNum <= 28) return 7;
-    return 8;
+    if (rankNum <= 8) return 1;
+    if (rankNum <= 16) return 2;
+    if (rankNum <= 24) return 3;
+    if (rankNum <= 32) return 4;
+    if (rankNum <= 40) return 5;
+    if (rankNum <= 48) return 6;
+    if (rankNum <= 56) return 7;
+    return 8; // All remaining players
   }
 
   /// Get WR rankings for a specific season

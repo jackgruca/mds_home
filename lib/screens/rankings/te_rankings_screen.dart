@@ -153,12 +153,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   }
 
   void _onWeightsChanged(CustomWeightConfig newWeights) {
-    setState(() {
-      _currentWeights = newWeights;
-      _usingCustomWeights = true;
-    });
-    
-    // Recalculate rankings with new weights
+    // Do all calculations and state updates in a single setState to prevent race conditions
     if (_originalRankings.isNotEmpty) {
       final customRankings = RankingCalculationService.calculateCustomTERankings(
         _originalRankings,
@@ -176,25 +171,28 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
-      _percentileCache.clear();
-      _percentileCache.addAll(percentiles);
       
       // Sort by current column
       _sortData(processedRankings);
       
       setState(() {
+        _currentWeights = newWeights;
+        _usingCustomWeights = true;
+        _percentileCache.clear();
+        _percentileCache.addAll(percentiles);
         _teRankings = processedRankings;
+      });
+    } else {
+      // If no rankings loaded, just update the weights
+      setState(() {
+        _currentWeights = newWeights;
+        _usingCustomWeights = true;
       });
     }
   }
 
   void _resetToDefaultWeights() {
-    setState(() {
-      _currentWeights = _defaultWeights;
-      _usingCustomWeights = false;
-    });
-    
-    // Reload original rankings
+    // Do all calculations and state updates in a single setState to prevent race conditions
     if (_originalRankings.isNotEmpty) {
       // Apply filters if enabled
       final processedRankings = _usingFilters 
@@ -207,14 +205,22 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       ).toList();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
-      _percentileCache.clear();
-      _percentileCache.addAll(percentiles);
       
       // Sort by current column
       _sortData(processedRankings);
       
       setState(() {
+        _currentWeights = _defaultWeights;
+        _usingCustomWeights = false;
+        _percentileCache.clear();
+        _percentileCache.addAll(percentiles);
         _teRankings = processedRankings;
+      });
+    } else {
+      // If no rankings loaded, just reset the weights
+      setState(() {
+        _currentWeights = _defaultWeights;
+        _usingCustomWeights = false;
       });
     }
   }

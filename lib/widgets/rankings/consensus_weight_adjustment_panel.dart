@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../models/consensus_weight_config.dart';
 import '../../utils/theme_config.dart';
 
@@ -29,6 +30,7 @@ class _ConsensusWeightAdjustmentPanelState extends State<ConsensusWeightAdjustme
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late ConsensusWeightConfig _workingWeights;
+  Timer? _updateDebounce;
   
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _ConsensusWeightAdjustmentPanelState extends State<ConsensusWeightAdjustme
   @override
   void dispose() {
     _animationController.dispose();
+    _updateDebounce?.cancel();
     super.dispose();
   }
 
@@ -82,8 +85,11 @@ class _ConsensusWeightAdjustmentPanelState extends State<ConsensusWeightAdjustme
       _workingWeights = _workingWeights.updateWeight(platform, value);
     });
     
-    // Notify parent immediately for live updates
-    widget.onWeightsChanged(_workingWeights);
+    // Debounce the parent notification to prevent rapid updates
+    _updateDebounce?.cancel();
+    _updateDebounce = Timer(const Duration(milliseconds: 150), () {
+      widget.onWeightsChanged(_workingWeights);
+    });
   }
 
   void _toggleCustomRankings(bool enabled) {
@@ -103,7 +109,11 @@ class _ConsensusWeightAdjustmentPanelState extends State<ConsensusWeightAdjustme
       _workingWeights = _workingWeights.updateWeight('My Custom Rankings', value);
     });
     
-    widget.onWeightsChanged(_workingWeights);
+    // Debounce the parent notification to prevent rapid updates
+    _updateDebounce?.cancel();
+    _updateDebounce = Timer(const Duration(milliseconds: 150), () {
+      widget.onWeightsChanged(_workingWeights);
+    });
   }
 
   void _resetToDefaults() {

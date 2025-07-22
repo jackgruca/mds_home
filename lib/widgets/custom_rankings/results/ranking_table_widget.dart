@@ -63,14 +63,38 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
     _percentileCache = percentiles;
   }
   
-  int _calculateTier(int rank) {
-    // Use the same tier calculation as position rankings
-    // Based on rank position, assign tiers
-    if (rank <= 5) return 1;
-    if (rank <= 12) return 2;
-    if (rank <= 24) return 3;
-    if (rank <= 48) return 4;
-    return 5;
+  int _calculateTier(int rank, String position) {
+    // Position-specific tier calculation
+    final pos = position.toUpperCase();
+    
+    if (pos == 'QB' || pos == 'TE') {
+      // QB and TE: 4 players per tier (tiers 1-7), remainder in tier 8
+      if (rank <= 4) return 1;
+      if (rank <= 8) return 2;
+      if (rank <= 12) return 3;
+      if (rank <= 16) return 4;
+      if (rank <= 20) return 5;
+      if (rank <= 24) return 6;
+      if (rank <= 28) return 7;
+      return 8; // All remaining players
+    } else if (pos == 'WR' || pos == 'RB') {
+      // WR and RB: 8 players per tier
+      if (rank <= 8) return 1;
+      if (rank <= 16) return 2;
+      if (rank <= 24) return 3;
+      if (rank <= 32) return 4;
+      if (rank <= 40) return 5;
+      if (rank <= 48) return 6;
+      if (rank <= 56) return 7;
+      return 8; // All remaining players
+    } else {
+      // Default tier calculation for other positions
+      if (rank <= 5) return 1;
+      if (rank <= 12) return 2;
+      if (rank <= 24) return 3;
+      if (rank <= 48) return 4;
+      return 5;
+    }
   }
   
   Color _getTierColor(int tier) {
@@ -152,8 +176,8 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
           comparison = a.team.compareTo(b.team);
           break;
         case 'tier':
-          final aTier = _calculateTier(a.rank);
-          final bTier = _calculateTier(b.rank);
+          final aTier = _calculateTier(a.rank, a.position);
+          final bTier = _calculateTier(b.rank, b.position);
           comparison = aTier.compareTo(bTier);
           break;
         default:
@@ -416,7 +440,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
   Widget _buildPlayerRow(BuildContext context, CustomRankingResult result) {
     final theme = Theme.of(context);
     final isEven = _sortedResults.indexOf(result) % 2 == 0;
-    final tier = _calculateTier(result.rank);
+    final tier = _calculateTier(result.rank, result.position);
     final tierColor = _getTierColor(tier);
     
     return InkWell(
@@ -502,7 +526,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
 
   Widget _buildMobilePlayerCard(BuildContext context, CustomRankingResult result, int index) {
     final theme = Theme.of(context);
-    final tier = _calculateTier(result.rank);
+    final tier = _calculateTier(result.rank, result.position);
     final tierColor = _getTierColor(tier);
     
     return Card(

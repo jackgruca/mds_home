@@ -18,17 +18,19 @@ class RankingCalculationService {
 
     // Calculate percentile ranks for each stat first
     final Map<String, List<double>> statValues = _extractStatValues(playersWithCustomRanks, weightConfig.position);
-    final Map<String, Map<String, double>> percentileRanks = _calculatePercentileRanks(statValues, weightConfig.position);
+    final Map<String, List<double>> sortedStatValues = _calculatePercentileRanks(statValues, weightConfig.position);
 
     // Calculate custom myRank for each player
     for (final player in playersWithCustomRanks) {
-      final customRank = _calculatePlayerCustomRank(player, weightConfig, percentileRanks);
-      player['myRankNum'] = customRank;
+      final customRankScore = _calculatePlayerCustomRank(player, weightConfig, sortedStatValues);
+      player['myRankScore'] = customRankScore; // Store the calculated score
+      player['myRankNum'] = customRankScore; // Temporary for sorting
     }
 
-    // Sort by custom rank and assign new rank numbers and tiers
-    playersWithCustomRanks.sort((a, b) => (a['myRankNum'] as double).compareTo(b['myRankNum'] as double));
+    // Sort by custom rank score (higher score = better rank = lower rank number)
+    playersWithCustomRanks.sort((a, b) => (b['myRankScore'] as double).compareTo(a['myRankScore'] as double));
     
+    // Assign actual rank numbers and tiers after sorting
     for (int i = 0; i < playersWithCustomRanks.length; i++) {
       playersWithCustomRanks[i]['myRankNum'] = i + 1;
       playersWithCustomRanks[i]['tier'] = _assignTier(i + 1);
@@ -106,45 +108,30 @@ class RankingCalculationService {
   }
 
   /// Calculate percentile ranks for each stat (1.0 = best, 0.0 = worst)
-  static Map<String, Map<String, double>> _calculatePercentileRanks(Map<String, List<double>> statValues, String position) {
-    final Map<String, Map<String, double>> percentileRanks = {};
-    
-    // Define "bad" stats where lower is better (currently just INT for QB)
-    const badStats = {'INT', 'interceptions'};
+  static Map<String, List<double>> _calculatePercentileRanks(Map<String, List<double>> statValues, String position) {
+    final Map<String, List<double>> sortedStatValues = {};
     
     for (final entry in statValues.entries) {
       final statName = entry.key;
       final values = List<double>.from(entry.value);
       values.sort();
-      
-      final Map<String, double> valueToPercentile = {};
-      
-      for (int i = 0; i < values.length; i++) {
-        final value = values[i];
-        double percentile = (i + 1) / values.length;
-        
-        // For "bad" stats (like INTs), we want lower values to have higher percentiles
-        if (badStats.contains(statName)) {
-          percentile = 1.0 - percentile;
-        }
-        
-        valueToPercentile[value.toString()] = percentile;
-      }
-      
-      percentileRanks[statName] = valueToPercentile;
+      sortedStatValues[statName] = values;
     }
     
-    return percentileRanks;
+    return sortedStatValues;
   }
 
   /// Calculate custom rank for a single player
   static double _calculatePlayerCustomRank(
     Map<String, dynamic> player,
     CustomWeightConfig weightConfig,
-    Map<String, Map<String, double>> percentileRanks,
+    Map<String, List<double>> sortedStatValues,
   ) {
     double weightedSum = 0.0;
     double totalWeight = 0.0;
+    
+    // Define "bad" stats where lower is better (currently just INT for QB)
+    const badStats = {'INT', 'interceptions'};
     
     // Get stat field mappings for the position
     final Map<String, String> statFieldMappings = getStatFieldMappings(weightConfig.position);
@@ -167,21 +154,33 @@ class RankingCalculationService {
       
       if (!numValue.isFinite) numValue = 0.0;
       
-      // Get percentile rank for this stat value
-      final statPercentiles = percentileRanks[statName];
-      if (statPercentiles != null) {
-        final percentile = statPercentiles[numValue.toString()] ?? 0.0;
+      // Calculate percentile for this stat value on the fly
+      final sortedValues = sortedStatValues[statName];
+      if (sortedValues != null && sortedValues.isNotEmpty) {
+        // Find where this value ranks among all values
+        int betterCount = 0;
+        for (final otherValue in sortedValues) {
+          if (numValue > otherValue) {
+            betterCount++;
+          }
+        }
         
-        // Convert percentile to rank (1.0 percentile = rank 1.0, 0.0 percentile = rank 100.0)
-        // We want lower rank numbers for better players
-        final rank = (1.0 - percentile) * 100.0;
+        // Calculate percentile (0.0 = worst, 1.0 = best)
+        double percentile = betterCount / sortedValues.length;
         
-        weightedSum += weight * rank;
+        // For "bad" stats (like INTs), flip the percentile
+        if (badStats.contains(statName)) {
+          percentile = 1.0 - percentile;
+        }
+        
+        // Convert to a score (higher percentile = higher score for weighting)
+        // Use percentile directly as the score (0.0 to 1.0)
+        weightedSum += weight * percentile;
         totalWeight += weight;
       }
     }
     
-    return totalWeight > 0 ? weightedSum / totalWeight : 100.0;
+    return totalWeight > 0 ? weightedSum / totalWeight : 0.0;
   }
 
   /// Assign tier based on rank number (8-tier system)

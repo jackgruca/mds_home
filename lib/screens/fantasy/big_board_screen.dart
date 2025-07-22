@@ -138,11 +138,12 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   void _updateVisibleRankings() {
-    // Only use cache if search, position filter, and current page haven't changed
+    // Only use cache if search, position filter, current page, and rankings haven't changed
     if (_searchQuery == _lastSearchQuery && 
         _positionFilter == _lastPositionFilter && 
         _currentPage == _lastCurrentPage && 
-        _cachedVisibleRankings.isNotEmpty) {
+        _cachedVisibleRankings.isNotEmpty &&
+        _rankings.isNotEmpty) {
       return; // Use cached results
     }
     
@@ -224,8 +225,13 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       _consensusWeights = newWeights;
       _usingCustomWeights = true;
       _includeCustomRankings = newWeights.includeCustomRankings;
-      _applyCustomWeights();
+      // Clear cache to force recalculation
+      _cachedVisibleRankings.clear();
+      _lastSearchQuery = '';
+      _lastPositionFilter = '';
+      _lastCurrentPage = -1;
     });
+    _applyCustomWeights();
   }
 
   void _resetWeights() {
@@ -233,8 +239,13 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       _consensusWeights = ConsensusWeightConfig.createDefault();
       _usingCustomWeights = false;
       _includeCustomRankings = false;
-      _applyCustomWeights();
+      // Clear cache to force recalculation
+      _cachedVisibleRankings.clear();
+      _lastSearchQuery = '';
+      _lastPositionFilter = '';
+      _lastCurrentPage = -1;
     });
+    _applyCustomWeights();
   }
 
   Future<void> _applyCustomWeights() async {
@@ -251,15 +262,21 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       }
     }
     
+    // Create a new list of updated players to avoid state conflicts
+    final updatedRankings = <PlayerRanking>[];
+    
     for (final player in _rankings) {
       final weightedRanks = <double>[];
       double totalWeight = 0.0;
       
+      // Create a copy of additional ranks to avoid modifying the original
+      final updatedAdditionalRanks = Map<String, dynamic>.from(player.additionalRanks);
+      
       // Apply platform weights
       _consensusWeights.platformWeights.forEach((platform, weight) {
-        final rank = player.additionalRanks[platform];
+        final rank = updatedAdditionalRanks[platform];
         if (rank != null && rank > 0) {
-          weightedRanks.add(rank * weight);
+          weightedRanks.add((rank as num).toDouble() * weight);
           totalWeight += weight;
         }
       });
@@ -272,19 +289,26 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         if (customRank != null && customRank > 0) {
           weightedRanks.add(customRank * _consensusWeights.customRankingsWeight);
           totalWeight += _consensusWeights.customRankingsWeight;
-          // Add custom ranking to player's additional ranks for display
-          player.additionalRanks['My Custom Rankings'] = customRank;
+          // Add custom ranking to display
+          updatedAdditionalRanks['My Custom Rankings'] = customRank;
         }
+      } else {
+        // Remove custom rankings if not included
+        updatedAdditionalRanks.remove('My Custom Rankings');
       }
       
       if (weightedRanks.isNotEmpty && totalWeight > 0) {
         final weightedConsensus = weightedRanks.reduce((a, b) => a + b) / totalWeight;
-        player.additionalRanks['Consensus'] = weightedConsensus;
+        updatedAdditionalRanks['Consensus'] = weightedConsensus;
       }
+      
+      // Create updated player with new additional ranks
+      final updatedPlayer = player.copyWith(additionalRanks: updatedAdditionalRanks);
+      updatedRankings.add(updatedPlayer);
     }
     
-    // Re-sort by new consensus rankings
-    _rankings.sort((a, b) {
+    // Sort by new consensus rankings
+    updatedRankings.sort((a, b) {
       final aVal = a.additionalRanks['Consensus'];
       final bVal = b.additionalRanks['Consensus'];
       if (aVal == null && bVal == null) return 0;
@@ -293,14 +317,18 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       return (aVal as num).compareTo(bVal as num);
     });
     
-    // Update consensus rank positions
-    for (int i = 0; i < _rankings.length; i++) {
-      _rankings[i] = _rankings[i].copyWith(rank: i + 1);
+    // Update consensus rank positions and replace the rankings list
+    final finalRankings = <PlayerRanking>[];
+    for (int i = 0; i < updatedRankings.length; i++) {
+      finalRankings.add(updatedRankings[i].copyWith(rank: i + 1));
     }
     
-    _filteredRankings = List.from(_rankings);
-    _resetPagination();
-    _updateVisibleRankings();
+    setState(() {
+      _rankings = finalRankings;
+      _filteredRankings = List.from(_rankings);
+      _resetPagination();
+      _updateVisibleRankings();
+    });
     
     // Update VORP board if in VORP mode
     if (_showVORPMode) {
@@ -327,10 +355,20 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   void _toggleVORPMode() {
     setState(() {
       _showVORPMode = !_showVORPMode;
+      // Clear cache to force recalculation
+      _cachedVisibleRankings.clear();
+      _lastSearchQuery = '';
+      _lastPositionFilter = '';
+      _lastCurrentPage = -1;
+      
       if (_showVORPMode) {
         _calculateVORPBoard();
       } else {
         _vorpBoard = null;
+        // Restore original rankings order when exiting VORP mode
+        _filteredRankings = List.from(_rankings);
+        _resetPagination();
+        _updateVisibleRankings();
       }
     });
   }
@@ -415,21 +453,25 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         orElse: () => _rankings.first, // fallback
       );
       
+      // Create new additional ranks with VORP data
+      final updatedAdditionalRanks = Map<String, dynamic>.from(originalPlayer.additionalRanks);
+      updatedAdditionalRanks['VORP'] = vorpPlayer.vorp;
+      updatedAdditionalRanks['Projected Points'] = vorpPlayer.projectedPoints;
+      updatedAdditionalRanks['VORP Tier'] = vorpPlayer.vorpTier;
+      
       final updatedPlayer = originalPlayer.copyWith(
         rank: vorpPlayer.overallRank,
+        additionalRanks: updatedAdditionalRanks,
       );
-      
-      // Add VORP data to additional ranks
-      updatedPlayer.additionalRanks['VORP'] = vorpPlayer.vorp;
-      updatedPlayer.additionalRanks['Projected Points'] = vorpPlayer.projectedPoints;
-      updatedPlayer.additionalRanks['VORP Tier'] = vorpPlayer.vorpTier;
       
       updatedRankings.add(updatedPlayer);
     }
 
-    _filteredRankings = updatedRankings;
-    _resetPagination();
-    _updateVisibleRankings();
+    setState(() {
+      _filteredRankings = updatedRankings;
+      _resetPagination();
+      _updateVisibleRankings();
+    });
   }
 
   int _getPositionTier(String position, int rank) {
