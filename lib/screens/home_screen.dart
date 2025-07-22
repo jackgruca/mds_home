@@ -343,8 +343,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<Widget> _buildStatItems(BuildContext context, {Color textColor = Colors.white}) {
     final stats = [
       {'number': '300K+', 'label': 'Mock Drafts Run'},
-      {'number': '25K+', 'label': 'Active Users'},
-      {'number': '24/7', 'label': 'Expert Support'},
+      {'number': '25K+', 'label': 'Users'},
+      {'number': '10M+', 'label': 'NFL Data Points'},
     ];
     return stats.map((stat) {
       return Padding(
