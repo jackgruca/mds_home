@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -17,20 +17,150 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  
+  <!-- Primary Meta Tags -->
+  <title id="page-title">NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics | StickToTheModel</title>
+  <meta name="title" content="NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics | StickToTheModel">
+  <meta id="page-description" name="description" content="Advanced NFL mock draft simulator with 300K+ completed drafts, VORP calculations, and fantasy football big board. Create custom rankings, analyze player trends, and dominate your league.">
+  <meta name="keywords" content="NFL mock draft simulator, fantasy football big board, VORP calculator, NFL draft rankings, mock draft database, fantasy football rankings, NFL analytics, draft simulator, player comparison tool">
+  <meta name="author" content="StickToTheModel">
+  
+  <!-- Canonical URL -->
+  <link id="canonical-url" rel="canonical" href="https://sticktothemodel.com">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta id="og-url" property="og:url" content="https://sticktothemodel.com">
+  <meta id="og-title" property="og:title" content="NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics">
+  <meta id="og-description" property="og:description" content="Advanced NFL mock draft simulator with 300K+ completed drafts, VORP calculations, and fantasy football big board. Create custom rankings, analyze player trends, and dominate your league.">
+  <meta property="og:image" content="https://sticktothemodel.com/images/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="StickToTheModel">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta id="twitter-url" property="twitter:url" content="https://sticktothemodel.com">
+  <meta id="twitter-title" property="twitter:title" content="NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics">
+  <meta id="twitter-description" property="twitter:description" content="Advanced NFL mock draft simulator with 300K+ completed drafts, VORP calculations, and fantasy football big board. Create custom rankings, analyze player trends, and dominate your league.">
+  <meta property="twitter:image" content="https://sticktothemodel.com/images/twitter-image.png">
+
+  <!-- Structured Data - Organization -->
+  <script type="application/ld+json" id="organization-schema">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "StickToTheModel",
+      "url": "https://sticktothemodel.com",
+      "logo": "https://sticktothemodel.com/logo.png",
+      "description": "Advanced NFL analytics platform with mock draft simulators, fantasy football tools, and player analytics",
+      "sameAs": [
+        "https://twitter.com/sticktothemodel"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "url": "https://sticktothemodel.com/contact"
+      }
+    }
+  </script>
+
+  <!-- Structured Data - WebSite -->
+  <script type="application/ld+json" id="website-schema">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "StickToTheModel",
+      "url": "https://sticktothemodel.com",
+      "description": "NFL mock draft simulator and fantasy football analytics platform",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://sticktothemodel.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  </script>
+
+  <!-- Additional SEO Meta Tags -->
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow">
+  <meta name="google-site-verification" content="">
+  <meta name="theme-color" content="#1976d2">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="mds_home">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StickToTheModel">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
 
-  <title>mds_home</title>
+  <!-- Preconnect to external domains for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
   <link rel="manifest" href="manifest.json">
+
+  <!-- JavaScript Functions for Dynamic SEO -->
+  <script>
+    // Function to update meta tags dynamically
+    function updateMetaTags(title, description, url) {
+      try {
+        // Update title
+        document.getElementById('page-title').textContent = title;
+        document.title = title;
+        
+        // Update meta description
+        const descriptionMeta = document.getElementById('page-description');
+        if (descriptionMeta) {
+          descriptionMeta.setAttribute('content', description);
+        }
+        
+        // Update canonical URL
+        const canonicalLink = document.getElementById('canonical-url');
+        if (canonicalLink) {
+          canonicalLink.setAttribute('href', url);
+        }
+        
+        // Update Open Graph tags
+        const ogTitle = document.getElementById('og-title');
+        const ogDescription = document.getElementById('og-description');
+        const ogUrl = document.getElementById('og-url');
+        
+        if (ogTitle) ogTitle.setAttribute('content', title);
+        if (ogDescription) ogDescription.setAttribute('content', description);
+        if (ogUrl) ogUrl.setAttribute('content', url);
+        
+        // Update Twitter tags
+        const twitterTitle = document.getElementById('twitter-title');
+        const twitterDescription = document.getElementById('twitter-description');
+        const twitterUrl = document.getElementById('twitter-url');
+        
+        if (twitterTitle) twitterTitle.setAttribute('content', title);
+        if (twitterDescription) twitterDescription.setAttribute('content', description);
+        if (twitterUrl) twitterUrl.setAttribute('content', url);
+        
+      } catch (error) {
+        console.error('Error updating meta tags:', error);
+      }
+    }
+
+    // Function to update structured data
+    function updateStructuredData(data) {
+      try {
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.textContent = JSON.stringify(data);
+        document.head.appendChild(script);
+      } catch (error) {
+        console.error('Error updating structured data:', error);
+      }
+    }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

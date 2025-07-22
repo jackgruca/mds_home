@@ -4,6 +4,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import '../utils/theme_manager.dart';
 import '../utils/theme_config.dart';
+import '../utils/seo_helper.dart';
 import '../widgets/auth/auth_dialog.dart';
 import '../widgets/common/responsive_layout_builder.dart';
 import '../widgets/common/app_drawer.dart';
@@ -153,6 +154,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
     
     _scrollController.addListener(_onScroll);
+    
+    // Update SEO for homepage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForHomepage();
+    });
   }
   
   @override

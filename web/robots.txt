@@ -1,4 +1,32 @@
 User-agent: *
 Allow: /
+
+# Sitemap location
 Sitemap: https://sticktothemodel.com/sitemap.xml
 
+# Important pages for SEO crawling
+Allow: /fantasy/
+Allow: /rankings/
+Allow: /draft/
+Allow: /gm-hub/
+Allow: /data/
+Allow: /projections/
+Allow: /blog/
+
+# Block admin and development pages
+Disallow: /admin/
+Disallow: /test/
+Disallow: /dev/
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Crawl delay to prevent server overload
+Crawl-delay: 1

@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
+import '../../utils/seo_helper.dart';
 import '../../models/custom_weight_config.dart';
 import '../../models/consensus_weight_config.dart';
 import '../../widgets/rankings/consensus_weight_adjustment_panel.dart';
@@ -87,6 +88,16 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _fetchRankings();
+    
+    // Update SEO for Big Board
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForBigBoard();
+      SEOHelper.updateToolStructuredData(
+        toolName: 'Fantasy Football Big Board',
+        description: 'Advanced fantasy football big board with VORP calculations, custom weight systems, and tier-based rankings',
+        url: 'https://sticktothemodel.com/fantasy/big-board',
+      );
+    });
   }
 
   @override

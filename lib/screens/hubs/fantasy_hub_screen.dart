@@ -5,6 +5,7 @@ import 'package:mds_home/models/bust_evaluation.dart';
 import 'package:mds_home/services/bust_evaluation_service.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
+import '../../utils/seo_helper.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
@@ -24,6 +25,16 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Update SEO for Fantasy Hub
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForFantasyHub();
+      SEOHelper.updateToolStructuredData(
+        toolName: 'Fantasy Football Hub',
+        description: 'Complete fantasy football toolkit with VORP big board, custom rankings, player comparison tools, and advanced analytics',
+        url: 'https://sticktothemodel.com/fantasy',
+      );
+    });
   }
 
   @override

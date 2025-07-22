@@ -1,12 +1,15 @@
-// lib/utils/sitemap_generator.dart
 import 'dart:io';
-import '../services/blog_service.dart';
 
-class SitemapGenerator {
-  static const String baseUrl = 'https://sticktothemodel.com';
+// Simple sitemap generator without dependencies
+void main() async {
+  final StringBuffer sitemap = StringBuffer();
+  sitemap.writeln('<?xml version="1.0" encoding="UTF-8"?>');
+  sitemap.writeln('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+  
+  final baseUrl = 'https://sticktothemodel.com';
   
   // Define all static routes with their properties
-  static final List<Map<String, dynamic>> staticRoutes = [
+  final List<Map<String, dynamic>> routes = [
     // Homepage - Highest priority
     {'url': '', 'changefreq': 'weekly', 'priority': 1.0},
     
@@ -67,47 +70,19 @@ class SitemapGenerator {
     {'url': '/blog', 'changefreq': 'daily', 'priority': 0.8},
   ];
   
-  static Future<String> generateSitemap() async {
-    final blogPosts = await BlogService.getAllPosts();
-    
-    final StringBuffer sitemap = StringBuffer();
-    sitemap.writeln('<?xml version="1.0" encoding="UTF-8"?>');
-    sitemap.writeln('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
-    
-    // Add all static routes
-    for (final route in staticRoutes) {
-      sitemap.writeln('  <url>');
-      sitemap.writeln('    <loc>$baseUrl${route['url']}</loc>');
-      sitemap.writeln('    <changefreq>${route['changefreq']}</changefreq>');
-      sitemap.writeln('    <priority>${route['priority']}</priority>');
-      sitemap.writeln('  </url>');
-    }
-    
-    // Add individual blog posts
-    for (final post in blogPosts) {
-      if (post.isPublished) {
-        sitemap.writeln('  <url>');
-        sitemap.writeln('    <loc>$baseUrl/blog/${post.id}</loc>');
-        sitemap.writeln('    <lastmod>${post.publishedDate.toIso8601String().substring(0, 10)}</lastmod>');
-        sitemap.writeln('    <changefreq>monthly</changefreq>');
-        sitemap.writeln('    <priority>0.6</priority>');
-        sitemap.writeln('  </url>');
-      }
-    }
-    
-    sitemap.writeln('</urlset>');
-    return sitemap.toString();
+  // Add all static routes
+  for (final route in routes) {
+    sitemap.writeln('  <url>');
+    sitemap.writeln('    <loc>$baseUrl${route['url']}</loc>');
+    sitemap.writeln('    <changefreq>${route['changefreq']}</changefreq>');
+    sitemap.writeln('    <priority>${route['priority']}</priority>');
+    sitemap.writeln('  </url>');
   }
   
-  static Future<void> writeSitemapToFile(String outputPath) async {
-    final sitemap = await generateSitemap();
-    final file = File(outputPath);
-    await file.writeAsString(sitemap);
-  }
+  sitemap.writeln('</urlset>');
   
-  static Future<void> main() async {
-    final sitemap = await SitemapGenerator.generateSitemap();
-    final file = File('web/sitemap.xml');
-    await file.writeAsString(sitemap);
-  }
+  final file = File('web/sitemap.xml');
+  await file.writeAsString(sitemap.toString());
+  print('✅ Sitemap generated successfully at web/sitemap.xml');
+  print('📊 Generated ${routes.length} URLs');
 }
