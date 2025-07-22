@@ -1799,6 +1799,8 @@ Widget build(BuildContext context) {
             controller: _tabController,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             labelStyle: const TextStyle(fontSize: TextConstants.kTabLabelSize),
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
             tabs: [
               const Tab(
                 child: Row(
