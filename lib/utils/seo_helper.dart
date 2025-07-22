@@ -48,7 +48,7 @@ class SEOHelper {
     updateMetaTags(
       title: "Fantasy Football Big Board | VORP Rankings & Custom Weights | StickToTheModel",
       description: "Advanced fantasy football big board with VORP calculations, custom weight systems, and tier-based rankings. Create personalized player rankings for your league format.",
-      url: '$baseUrl/fantasy/big-board',
+      url: '$baseUrl/big-board',
     );
   }
 
@@ -56,7 +56,7 @@ class SEOHelper {
     updateMetaTags(
       title: "Fantasy Football Player Comparison Tool | Head-to-Head Stats & Analysis",
       description: "Compare fantasy football players side-by-side with advanced metrics, historical performance, and projection analysis. Make informed draft and trade decisions.",
-      url: '$baseUrl/fantasy/player-comparison',
+      url: '$baseUrl/player-comparison',
     );
   }
 
@@ -81,7 +81,7 @@ class SEOHelper {
     updateMetaTags(
       title: "Fantasy Football Mock Draft Simulator | Practice Drafts & AI Opponents",
       description: "Free fantasy football mock draft simulator with AI opponents, multiple platform support (ESPN, Yahoo, Sleeper), and real-time analytics. Perfect your draft strategy.",
-      url: '$baseUrl/draft/fantasy',
+      url: '$baseUrl/mock-draft-simulator',
     );
   }
 
@@ -181,7 +181,7 @@ class SEOHelper {
     updateMetaTags(
       title: "NFL Player Stat Predictor | Season Statistics Prediction Tool",
       description: "Predict NFL player season statistics with advanced modeling. Forecast rushing yards, receiving stats, touchdowns, and fantasy points.",
-      url: '$baseUrl/projections/stat-predictor',
+      url: '$baseUrl/stat-predictor',
     );
   }
 
@@ -417,24 +417,24 @@ class SEOHelper {
   static List<Map<String, String>> getRelatedTools(String currentTool) {
     final relatedToolsMap = {
       'big-board': [
-        {'title': 'Fantasy Mock Draft Simulator', 'url': '/draft/fantasy', 'description': 'Practice your draft strategy'},
-        {'title': 'Player Comparison Tool', 'url': '/fantasy/player-comparison', 'description': 'Compare players head-to-head'},
+        {'title': 'Fantasy Mock Draft Simulator', 'url': '/mock-draft-simulator', 'description': 'Practice your draft strategy'},
+        {'title': 'Player Comparison Tool', 'url': '/player-comparison', 'description': 'Compare players head-to-head'},
         {'title': 'My Rankings', 'url': '/my-rankings', 'description': 'Create custom rankings'},
       ],
       'mock-draft': [
-        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'VORP-based player rankings'},
+        {'title': 'Fantasy Big Board', 'url': '/big-board', 'description': 'VORP-based player rankings'},
         {'title': 'Player Trends', 'url': '/fantasy/trends', 'description': 'Trending players analysis'},
         {'title': 'QB Rankings', 'url': '/rankings/qb', 'description': 'Quarterback tier rankings'},
       ],
       'player-comparison': [
-        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'See where players rank'},
+        {'title': 'Fantasy Big Board', 'url': '/big-board', 'description': 'See where players rank'},
         {'title': 'Player Stats Database', 'url': '/player-season-stats', 'description': 'Historical player data'},
         {'title': 'Player Trends', 'url': '/fantasy/trends', 'description': 'Rising and falling players'},
       ],
       'rankings': [
-        {'title': 'Fantasy Big Board', 'url': '/fantasy/big-board', 'description': 'VORP-based consensus rankings'},
-        {'title': 'Mock Draft Simulator', 'url': '/draft/fantasy', 'description': 'Test your draft strategy'},
-        {'title': 'Player Comparison', 'url': '/fantasy/player-comparison', 'description': 'Compare players side-by-side'},
+        {'title': 'Fantasy Big Board', 'url': '/big-board', 'description': 'VORP-based consensus rankings'},
+        {'title': 'Mock Draft Simulator', 'url': '/mock-draft-simulator', 'description': 'Test your draft strategy'},
+        {'title': 'Player Comparison', 'url': '/player-comparison', 'description': 'Compare players side-by-side'},
       ],
       'bust-evaluation': [
         {'title': 'NFL Mock Draft Simulator', 'url': '/draft', 'description': 'Full 7-round NFL draft'},

@@ -162,6 +162,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
               case '/mock-draft-sim':
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
+              case '/mock-draft-simulator':
+                return MaterialPageRoute(builder: (_) => const FFHomeScreen());
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
@@ -196,7 +198,11 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const FantasyHubScreen());
               case '/fantasy/big-board':
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+              case '/big-board':
+                return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/fantasy/player-comparison':
+                return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+              case '/player-comparison':
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
               case '/fantasy/trends':
                 return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
@@ -210,6 +216,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
               case '/projections/stat-predictor':
                 return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
+              case '/stat-predictor':
+                return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
+              case '/vorp-calculator':
+                return MaterialPageRoute(builder: (_) => const BigBoardScreen()); // VORP is part of Big Board
               // Rankings section - placeholder routes
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
