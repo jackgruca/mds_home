@@ -203,10 +203,10 @@ class SEOHelper {
   static void updateForPlayerProfile(Player player) {
     final playerName = player.name ?? 'NFL Player';
     final position = player.position ?? '';
-    final college = player.college ?? '';
+    final school = player.school ?? '';
     
     final title = '$playerName $position Profile | Stats, Analysis & Fantasy Outlook';
-    final description = 'Complete $playerName profile with college stats, NFL projection, fantasy football analysis, and draft outlook. ${college.isNotEmpty ? 'Former $college standout' : 'Detailed player breakdown'} with advanced metrics.';
+    final description = 'Complete $playerName profile with college stats, NFL projection, fantasy football analysis, and draft outlook. ${school.isNotEmpty ? 'Former $school standout' : 'Detailed player breakdown'} with advanced metrics.';
     final url = '$baseUrl/players/${playerName.toLowerCase().replaceAll(' ', '-')}';
     
     updateMetaTags(
@@ -254,18 +254,18 @@ class SEOHelper {
   static void updatePlayerStructuredData(Player player) {
     final playerName = player.name ?? 'NFL Player';
     final position = player.position ?? '';
-    final college = player.college ?? '';
+    final school = player.school ?? '';
     
     final data = {
       "@context": "https://schema.org",
       "@type": "Person",
       "name": playerName,
       "jobTitle": "$position - NFL Player",
-      "description": "NFL $position prospect ${college.isNotEmpty ? 'from $college' : ''} with detailed stats and analysis",
+      "description": "NFL $position prospect ${school.isNotEmpty ? 'from $school' : ''} with detailed stats and analysis",
       "sport": "American Football",
       "memberOf": {
         "@type": "SportsTeam",
-        "name": college.isNotEmpty ? college : "College Football"
+        "name": school.isNotEmpty ? school : "College Football"
       },
       "url": "$baseUrl/players/${playerName.toLowerCase().replaceAll(' ', '-')}"
     };
