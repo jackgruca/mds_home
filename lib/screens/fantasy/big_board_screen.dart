@@ -13,6 +13,8 @@ import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../models/custom_weight_config.dart';
 import '../../widgets/rankings/weight_adjustment_panel.dart';
+import '../../services/fantasy/vorp_service.dart';
+import '../../models/fantasy/vorp_big_board.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -56,6 +58,19 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   bool _showWeightPanel = false;
   CustomWeightConfig _currentWeights = CustomWeightConfig.createDefaultConsensusWeights();
   bool _usingCustomWeights = false;
+  
+  // VORP variables
+  bool _showVORPMode = false;
+  VORPBigBoard? _vorpBoard;
+  Map<String, int> _leagueSettings = {
+    'teams': 12,
+    'qb': 1,
+    'rb': 2,
+    'wr': 2,
+    'te': 1,
+    'flex': 1,
+  };
+  String _scoringSystem = 'ppr';
 
   @override
   void initState() {
@@ -254,6 +269,143 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     _filteredRankings = List.from(_rankings);
     _resetPagination();
     _updateVisibleRankings();
+    
+    // Update VORP board if in VORP mode
+    if (_showVORPMode) {
+      _calculateVORPBoard();
+    }
+  }
+
+  void _toggleVORPMode() {
+    setState(() {
+      _showVORPMode = !_showVORPMode;
+      if (_showVORPMode) {
+        _calculateVORPBoard();
+      } else {
+        _vorpBoard = null;
+      }
+    });
+  }
+
+  Future<void> _calculateVORPBoard() async {
+    if (_rankings.isEmpty) return;
+
+    try {
+      // Convert PlayerRanking objects to Map format for VORP service
+      final playersData = _rankings.map((player) {
+        return {
+          'player_id': player.id,
+          'fantasy_player_name': player.name,
+          'player_name': player.name,
+          'position': player.position.toLowerCase(),
+          'posteam': player.team,
+          'team': player.team,
+          'myRankNum': player.rank,
+          'rank': player.rank,
+          'tier': _getPositionTier(player.position, player.rank),
+          // Include all ranking data
+          ...player.additionalRanks.map((key, value) => MapEntry(key.toLowerCase(), value)),
+        };
+      }).toList();
+
+      VORPBoard vorpBoard;
+      if (_usingCustomWeights) {
+        // Use custom weights for VORP calculation
+        vorpBoard = VORPService.calculateVORPWithCustomWeights(
+          playersData,
+          _currentWeights.weights,
+          leagueSettings: _leagueSettings,
+          scoringSystem: _scoringSystem,
+        );
+      } else {
+        // Use standard consensus rankings
+        vorpBoard = VORPService.calculateVORP(
+          playersData,
+          leagueSettings: _leagueSettings,
+          scoringSystem: _scoringSystem,
+        );
+      }
+
+      setState(() {
+        _vorpBoard = VORPBigBoard.fromVORPBoard(
+          vorpBoard,
+          customWeights: _usingCustomWeights ? _currentWeights.weights : null,
+          usingCustomWeights: _usingCustomWeights,
+        );
+        
+        // Update filtered rankings to match VORP order if in VORP mode
+        if (_showVORPMode && _vorpBoard != null) {
+          _updateRankingsFromVORP();
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error calculating VORP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _updateRankingsFromVORP() {
+    if (_vorpBoard == null) return;
+
+    // Create a map for quick lookup
+    final vorpPlayerMap = <String, VORPBigBoardPlayer>{};
+    for (final vorpPlayer in _vorpBoard!.players) {
+      vorpPlayerMap[vorpPlayer.playerId] = vorpPlayer;
+    }
+
+    // Update rankings with VORP data
+    final updatedRankings = <PlayerRanking>[];
+    for (final vorpPlayer in _vorpBoard!.players) {
+      final originalPlayer = _rankings.firstWhere(
+        (p) => p.id == vorpPlayer.playerId,
+        orElse: () => _rankings.first, // fallback
+      );
+      
+      final updatedPlayer = originalPlayer.copyWith(
+        rank: vorpPlayer.overallRank,
+      );
+      
+      // Add VORP data to additional ranks
+      updatedPlayer.additionalRanks['VORP'] = vorpPlayer.vorp;
+      updatedPlayer.additionalRanks['Projected Points'] = vorpPlayer.projectedPoints;
+      updatedPlayer.additionalRanks['VORP Tier'] = vorpPlayer.vorpTier;
+      
+      updatedRankings.add(updatedPlayer);
+    }
+
+    _filteredRankings = updatedRankings;
+    _resetPagination();
+    _updateVisibleRankings();
+  }
+
+  int _getPositionTier(String position, int rank) {
+    // Simple tier calculation based on position rank
+    switch (position.toLowerCase()) {
+      case 'qb':
+        if (rank <= 3) return 1;
+        if (rank <= 8) return 2;
+        if (rank <= 15) return 3;
+        return 4;
+      case 'rb':
+      case 'wr':
+        if (rank <= 6) return 1;
+        if (rank <= 15) return 2;
+        if (rank <= 30) return 3;
+        return 4;
+      case 'te':
+        if (rank <= 3) return 1;
+        if (rank <= 8) return 2;
+        if (rank <= 15) return 3;
+        return 4;
+      default:
+        return 4;
+    }
   }
 
   void _sortData(String column, bool ascending) {
@@ -312,6 +464,18 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         case 'Bye':
           aValue = a.additionalRanks['Bye'];
           bValue = b.additionalRanks['Bye'];
+          break;
+        case 'VORP':
+          aValue = a.additionalRanks['VORP'];
+          bValue = b.additionalRanks['VORP'];
+          break;
+        case 'Projected Points':
+          aValue = a.additionalRanks['Projected Points'];
+          bValue = b.additionalRanks['Projected Points'];
+          break;
+        case 'VORP Tier':
+          aValue = a.additionalRanks['VORP Tier'];
+          bValue = b.additionalRanks['VORP Tier'];
           break;
         default:
           if (_customColumns.any((c) => c.title == column)) {
@@ -959,6 +1123,35 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                   ),
                                 ),
                               ),
+                              // VORP Mode Toggle
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                child: Material(
+                                  elevation: 1,
+                                  borderRadius: BorderRadius.circular(16),
+                                  shadowColor: _showVORPMode ? Colors.green.withOpacity(0.3) : ThemeConfig.gold.withOpacity(0.2),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      _toggleVORPMode();
+                                    },
+                                    icon: Icon(
+                                      _showVORPMode ? Icons.analytics : Icons.bar_chart,
+                                      size: 16,
+                                    ),
+                                    label: Text(_showVORPMode ? 'Exit VORP' : 'VORP Mode', style: const TextStyle(fontSize: 12)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _showVORPMode ? Colors.green.shade600 : ThemeConfig.darkNavy,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      minimumSize: const Size(0, 32),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               Material(
                                 elevation: 1,
                                 borderRadius: BorderRadius.circular(16),
@@ -1375,6 +1568,41 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           setState(() => _sortData('NFL', asc));
         },
       ),
+      // VORP columns (only show when VORP mode is enabled)
+      if (_showVORPMode) ...[
+        DataColumn(
+          label: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: const Text('VORP', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          numeric: true,
+          onSort: (i, asc) {
+            HapticFeedback.lightImpact();
+            setState(() => _sortData('VORP', asc));
+          },
+        ),
+        DataColumn(
+          label: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: const Text('Proj Pts', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          numeric: true,
+          onSort: (i, asc) {
+            HapticFeedback.lightImpact();
+            setState(() => _sortData('Projected Points', asc));
+          },
+        ),
+        DataColumn(
+          label: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: const Text('Tier', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          onSort: (i, asc) {
+            HapticFeedback.lightImpact();
+            setState(() => _sortData('VORP Tier', asc));
+          },
+        ),
+      ],
       ..._customColumns.map((col) => DataColumn(
             label: Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1503,6 +1731,13 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           DataCell(_buildRankingCell(player.additionalRanks['Yahoo'], index)),
           DataCell(_buildRankingCell(player.additionalRanks['NFL'], index)),
           
+          // VORP columns (only show when VORP mode is enabled)
+          if (_showVORPMode) ...[
+            DataCell(_buildVORPCell(player.additionalRanks['VORP'], index)),
+            DataCell(_buildRankingCell(player.additionalRanks['Projected Points'], index)),
+            DataCell(_buildVORPTierCell(player.additionalRanks['VORP Tier'], index)),
+          ],
+          
           // Custom columns
           ..._customColumns.map((col) {
             final value = col.values[player.id];
@@ -1555,6 +1790,83 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         ),
       ),
     );
+  }
+
+  Widget _buildVORPCell(dynamic value, int index) {
+    if (value == null) return _buildRankingCell(value, index);
+    
+    final vorp = value as double;
+    final isPositive = vorp >= 0;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: isPositive 
+          ? Colors.green.withOpacity(0.1)
+          : Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isPositive 
+            ? Colors.green.withOpacity(0.3)
+            : Colors.red.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        isPositive ? '+${vorp.toStringAsFixed(1)}' : vorp.toStringAsFixed(1),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: isPositive ? Colors.green.shade700 : Colors.red.shade700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVORPTierCell(dynamic value, int index) {
+    if (value == null) return _buildRankingCell(value, index);
+    
+    final tier = value.toString();
+    final tierColor = _getVORPTierColor(tier);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Color(tierColor).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: Color(tierColor).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        tier,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Color(tierColor),
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  int _getVORPTierColor(String tier) {
+    switch (tier) {
+      case 'Elite':
+        return 0xFF4CAF50; // Green
+      case 'High':
+        return 0xFF8BC34A; // Light Green
+      case 'Solid':
+        return 0xFF2196F3; // Blue
+      case 'Decent':
+        return 0xFFFF9800; // Orange
+      case 'Replacement':
+        return 0xFF9E9E9E; // Grey
+      case 'Below Replacement':
+        return 0xFFF44336; // Red
+      default:
+        return 0xFF9E9E9E; // Default Grey
+    }
   }
 
   Widget _buildPaginationControls() {
