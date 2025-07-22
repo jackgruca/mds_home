@@ -2,9 +2,55 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
+// Helper function to parse query values (numbers, booleans)
+function parseQueryValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+    if (!isNaN(value) && value.trim() !== '' && value.indexOf('.') !== -1) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) return num;
+    } else if (!isNaN(value) && value.trim() !== '') {
+        const num = parseInt(value, 10);
+        if (!isNaN(num)) return num;
+    }
+  }
+  return value; // Return as string if not obviously a number or boolean
+}
+
+// Helper function to log missing index requests to Firestore
+async function logMissingIndexRequest(error, queryDetails, screenName) {
+    if (error.code === 'failed-precondition' && error.message) {
+        console.log(`!!! FAILED PRECONDITION DETECTED for ${screenName}. Logging index request automatically. !!!`);
+        const db = admin.firestore();
+        // Extract the URL from the error message
+        const urlRegex = /(https:\/\/[^\s]+)/;
+        const match = error.message.match(urlRegex);
+        const indexUrl = match ? match[0] : 'Could not parse URL from error.';
+
+        // Create a simple description of the query that failed
+        const queryDetailsString = JSON.stringify(queryDetails);
+
+        try {
+            await db.collection('admin_index_requests').add({
+                indexUrl: indexUrl,
+                queryDetails: queryDetailsString,
+                screen: screenName,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'pending',
+                errorDetails: error.message,
+            });
+            console.log("--- SUCCESSFULLY LOGGED index request to Firestore. ---");
+        } catch (loggingError) {
+            console.error("!!! CRITICAL: FAILED TO LOG THE INDEX REQUEST. !!!", loggingError);
+        }
+    }
+}
+
 exports.dailyAnalyticsAggregation = functions.runWith({
     timeoutSeconds: 300,  // Increase timeout to 5 minutes
-    memory: '1GB'         // Increase memory allocation
+    memory: '2GB'         // Increase memory allocation to 2GB
 })
 .pubsub
 .schedule('0 2 * * *')  // Run at 2 AM every day
@@ -1018,3 +1064,594 @@ async function aggregatePlayerDeviations(analyticsSnapshot) {
     console.log('Player deviations aggregation completed');
     return { players: averageDeviations, byPosition };
 }
+
+// New function to fetch historical matchups with filtering
+exports.getHistoricalMatchups = functions.https.onCall(async (data, context) => {
+    const db = admin.firestore();
+    console.log('getHistoricalMatchups called with full request data:', JSON.stringify(data, null, 2));
+
+    const filters = data.filters || {};
+    const limit = data.limit ? parseInt(data.limit, 10) : 25; // Default limit for pagination
+    // FORCING primary orderBy to 'gameID' for unique cursor generation.
+    const orderByField = 'gameID'; 
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc'; // Use client-provided direction for stability
+    const cursor = data.cursor; // The cursor for keyset pagination
+
+    let query = db.collection('historicalMatchups');
+
+    console.log('Applying filters:', JSON.stringify(filters, null, 2));
+    for (const fieldKey in filters) {
+        if (Object.prototype.hasOwnProperty.call(filters, fieldKey)) {
+            const filterValue = filters[fieldKey];
+            if (filterValue !== null && filterValue !== undefined && filterValue !== '') {
+                const parsedValue = parseQueryValue(filterValue);
+                console.log(`  -> Querying: ${fieldKey} == ${parsedValue} (original value: '${filterValue}', type: ${typeof parsedValue})`);
+                query = query.where(fieldKey, '==', parsedValue);
+            }
+        }
+    }
+
+    try {
+        // Optimized way to get total count for filtered query
+        const countSnapshot = await query.count().get();
+        const totalRecords = countSnapshot.data().count;
+        console.log(`Total records found for filters: ${totalRecords}`);
+
+        // Applying fixed orderBy: 'gameID' and documentId for guaranteed unique cursor pagination.
+        console.log(`Applying fixed orderBy: ${orderByField} ${orderDirection}, then documentId`);
+        query = query.orderBy(orderByField, orderDirection)
+                     .orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+        // Apply cursor-based pagination
+        if (cursor) {
+            console.log(`Applying startAfter cursor: ${JSON.stringify(cursor)}`);
+            query = query.startAfter(...cursor);
+        }
+
+        query = query.limit(limit);
+
+        const snapshot = await query.get();
+
+        if (snapshot.empty) {
+            console.log('No matching documents found for the current page/limit.');
+            return {
+                data: [],
+                totalRecords: totalRecords,
+                nextCursor: null, // No next page
+                message: 'No documents found for the current page/criteria.'
+            };
+        }
+
+        const matchups = snapshot.docs.map(doc => {
+            const docData = doc.data();
+            for (const key in docData) {
+                if (docData[key] instanceof admin.firestore.Timestamp) {
+                    docData[key] = docData[key].toDate().toISOString(); 
+                }
+            }
+            return { id: doc.id, ...docData }; // Include document ID for the cursor
+        });
+
+        let nextCursor = null;
+        // Determine nextCursor: if we fetched a full page, the last document is the cursor for the next page
+        // This also handles the case where the last page has fewer than 'limit' documents.
+        if (snapshot.docs.length === limit) {
+            const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+            // EXPLICITLY use 'gameID' and documentId for the nextCursor to guarantee uniqueness.
+            const gameIdValue = lastDoc.get('gameID');
+            const docIdValue = lastDoc.id;
+
+            console.log(`Debug: lastDoc values - gameID: ${gameIdValue}, documentId: ${docIdValue}`);
+            
+            // The cursor MUST contain the values for all orderBy fields in order.
+            nextCursor = [gameIdValue, docIdValue]; // Now a 2-element cursor using gameID
+            console.log(`Generated nextCursor: ${JSON.stringify(nextCursor)}`);
+        } else {
+            console.log('Fewer docs than limit, indicating last page. nextCursor will be null.');
+        }
+
+        console.log(`Returning ${matchups.length} documents for current page.`);
+        return {
+            data: matchups,
+            totalRecords: totalRecords,
+            nextCursor: nextCursor, // Send the cursor for the next page
+            message: `Successfully fetched ${matchups.length} records.`
+        };
+
+    } catch (error) {
+        console.error('Error in getHistoricalMatchups Cloud Function:', error);
+        // --- SUREFIRE FIX: Log index request directly from the backend ---
+        await logMissingIndexRequest(error, filters, 'HistoricalDataScreen');
+        // --- END FIX ---
+        throw new functions.https.HttpsError('internal', `Failed to fetch historical matchups: ${error.message}`, error.details || {originalError: error.toString()});
+    }
+});
+
+exports.getWrModelStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('wrModelStats');
+
+    console.log('getWrModelStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination (Firestore count() is efficient)
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting if provided, and always add documentId as secondary sort for stable pagination
+    let orderByField = data.orderBy || 'season'; // Default sort field
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    console.log(`Applying orderBy: ${orderByField} ${orderDirection}, then documentId`);
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      // The cursor will be an array: [orderByFieldValue, documentId]
+      console.log(`Applying startAfter cursor: ${JSON.stringify(data.cursor)}`);
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    // Execute query
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      console.warn('No documents found for wrModelStats query.');
+      return {
+        data: [],
+        totalRecords: totalRecords,
+        nextCursor: null, // No next page
+        message: 'No WR model stats found for the current query.'
+      };
+    }
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    // Determine nextCursor: if we fetched a full page, the last document is the cursor for the next page
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+        console.log(`Generated nextCursor: ${JSON.stringify(nextCursor)}`);
+    } else {
+        console.log('Fewer docs than limit, indicating last page. nextCursor will be null.');
+    }
+
+    console.log(`Returning ${results.length} WR model records.`);
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor // Send the cursor for the next page
+    };
+  } catch (error) {
+    console.error('Error in getWrModelStats:', error);
+    // --- SUREFIRE FIX: Log index request directly from the backend ---
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'WRModelScreen');
+    // --- END FIX ---
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch WR Model data: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for Player Season Stats
+exports.getPlayerSeasonStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('playerSeasonStats');
+
+    console.log('getPlayerSeasonStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'season'; // Default sort field
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { data: [], totalRecords: totalRecords, nextCursor: null };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor
+    };
+  } catch (error) {
+    console.error('Error in getPlayerSeasonStats:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'PlayerSeasonStatsScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch Player Season Stats: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for Historical Game Data
+exports.getHistoricalGameData = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('historicalGameData');
+
+    console.log('getHistoricalGameData called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'game_date'; // Default sort by game date
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { 
+        data: [], 
+        totalRecords: totalRecords, 
+        nextCursor: null,
+        message: 'No historical game data found for the current query.'
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    console.log(`Returning ${results.length} historical game data records.`);
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor,
+      message: `Successfully fetched ${results.length} historical game records.`
+    };
+  } catch (error) {
+    console.error('Error in getHistoricalGameData:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'HistoricalGameDataScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch Historical Game Data: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for NFL Rosters
+exports.getNflRosters = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('nflRosters');
+
+    console.log('getNflRosters called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Get total count for pagination
+    const totalSnapshot = await query.count().get();
+    const totalRecords = totalSnapshot.data().count;
+    console.log('Total records for query:', totalRecords);
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'season'; // Default sort by season
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    query = query.orderBy(orderByField, orderDirection).orderBy(admin.firestore.FieldPath.documentId(), orderDirection);
+
+    // Apply cursor-based pagination
+    if (data.cursor) {
+      query = query.startAfter(...data.cursor);
+    }
+
+    if (data.limit) {
+      query = query.limit(data.limit);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { 
+        data: [], 
+        totalRecords: totalRecords, 
+        nextCursor: null,
+        message: 'No NFL roster data found for the current query.'
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData }; // Include document ID for the cursor
+    });
+
+    let nextCursor = null;
+    if (snapshot.docs.length === data.limit) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        nextCursor = [lastDoc.get(orderByField), lastDoc.id];
+    }
+
+    console.log(`Returning ${results.length} NFL roster records.`);
+    return {
+      data: results,
+      totalRecords: totalRecords,
+      nextCursor: nextCursor,
+      message: `Successfully fetched ${results.length} NFL roster records.`
+    };
+  } catch (error) {
+    console.error('Error in getNflRosters:', error);
+    await logMissingIndexRequest(error, { filters: data.filters, orderBy: data.orderBy }, 'NflRostersScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to fetch NFL Roster data: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function for Player Stats (for comparison tool)
+exports.getPlayerStats = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    let query = db.collection('playerSeasonStats');
+
+    console.log('getPlayerStats called with data:', JSON.stringify(data, null, 2));
+
+    // Apply filters if provided
+    if (data.filters && typeof data.filters === 'object') {
+      Object.entries(data.filters).forEach(([field, value]) => {
+        const parsedValue = parseQueryValue(value);
+        console.log(`Applying filter: ${field} == ${parsedValue}`);
+        if (parsedValue !== null) {
+          query = query.where(field, '==', parsedValue);
+        }
+      });
+    }
+
+    // Apply search query if provided (search by player name)
+    if (data.searchQuery && data.searchQuery.trim() !== '') {
+      const searchTerm = data.searchQuery.trim().toLowerCase();
+      console.log(`Applying search for: ${searchTerm}`);
+      
+      // Create a range query for player name search
+      const searchStart = searchTerm;
+      const searchEnd = searchTerm + '\uf8ff'; // Unicode character for range queries
+      
+      query = query.where('player_display_name_lower', '>=', searchStart)
+                   .where('player_display_name_lower', '<=', searchEnd);
+    }
+
+    // Apply sorting
+    let orderByField = data.orderBy || 'fantasy_points_ppr'; // Default sort by fantasy points
+    const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
+    
+    // If we're doing a search, we need to order by the search field first
+    if (data.searchQuery && data.searchQuery.trim() !== '') {
+      query = query.orderBy('player_display_name_lower', 'asc');
+      if (orderByField !== 'player_display_name_lower') {
+        query = query.orderBy(orderByField, orderDirection);
+      }
+    } else {
+      query = query.orderBy(orderByField, orderDirection);
+    }
+    
+    // Always add document ID for consistent pagination
+    query = query.orderBy(admin.firestore.FieldPath.documentId(), 'asc');
+
+    // Apply limit
+    const limit = data.limit || 50;
+    query = query.limit(limit);
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      return { 
+        data: [], 
+        message: 'No players found for the current search criteria.'
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData };
+    });
+
+    console.log(`Returning ${results.length} player stats records for comparison.`);
+    return {
+      data: results,
+      message: `Successfully found ${results.length} players matching your search.`
+    };
+  } catch (error) {
+    console.error('Error in getPlayerStats:', error);
+    await logMissingIndexRequest(error, { 
+      filters: data.filters, 
+      searchQuery: data.searchQuery,
+      orderBy: data.orderBy 
+    }, 'PlayerComparisonScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to search player stats: ${error.message}`,
+      error
+    );
+  }
+});
+
+// New function to get top players by position for defaults
+exports.getTopPlayersByPosition = functions.https.onCall(async (data, context) => {
+  try {
+    const db = admin.firestore();
+    const { position, season, limit = 10 } = data;
+    
+    console.log(`getTopPlayersByPosition called for position: ${position}, season: ${season}, limit: ${limit}`);
+
+    let query = db.collection('playerSeasonStats');
+    
+    // Filter by position if provided
+    if (position && position !== 'All') {
+      query = query.where('position', '==', position);
+    }
+    
+    // Filter by season if provided
+    if (season) {
+      query = query.where('season', '==', parseInt(season));
+    }
+    
+    // Order by fantasy points PPR (descending) to get top performers
+    query = query.orderBy('fantasy_points_ppr', 'desc')
+                 .limit(limit);
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      console.log(`No players found for position: ${position}, season: ${season}`);
+      return { 
+        data: [], 
+        message: `No players found for ${position} in ${season}.`
+      };
+    }
+    
+    const results = snapshot.docs.map(doc => {
+      const docData = doc.data();
+      // Convert any Firestore Timestamps to ISO strings
+      Object.keys(docData).forEach(key => {
+        if (docData[key] instanceof admin.firestore.Timestamp) {
+          docData[key] = docData[key].toDate().toISOString();
+        }
+      });
+      return { id: doc.id, ...docData };
+    });
+
+    console.log(`Returning top ${results.length} ${position} players for ${season}.`);
+    return {
+      data: results,
+      message: `Successfully found top ${results.length} ${position} players for ${season}.`
+    };
+  } catch (error) {
+    console.error('Error in getTopPlayersByPosition:', error);
+    await logMissingIndexRequest(error, { 
+      position: data.position,
+      season: data.season,
+      limit: data.limit
+    }, 'PlayerComparisonScreen');
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to get top players by position: ${error.message}`,
+      error
+    );
+  }
+});

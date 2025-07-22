@@ -63,7 +63,7 @@ void initState() {
           ),
         ],
       ),
-        drawer: const AppDrawer(currentRoute: '/blog'),
+      drawer: const AppDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _posts.isEmpty
@@ -115,7 +115,7 @@ void initState() {
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Container(
                                     height: 180,
-                                    color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed.withOpacity(0.1),
+                                    color: isDarkMode ? ThemeConfig.darkNavy : ThemeConfig.deepRed.withOpacity(0.1),
                                     child: Center(
                                       child: Icon(
                                         Icons.image_not_supported,
@@ -181,7 +181,7 @@ void initState() {
                                   Text(
                                     'Read More',
                                     style: TextStyle(
-                                      color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                                      color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

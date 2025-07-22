@@ -142,7 +142,7 @@ class _AuthDialogState extends State<AuthDialog> {
                   children: [
                     Icon(
                       _authMode == AuthMode.signIn ? Icons.login : Icons.person_add,
-                      color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                      color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -258,7 +258,7 @@ class _AuthDialogState extends State<AuthDialog> {
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
-                        foregroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                        foregroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                       ),
                       child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
                     ),
@@ -294,9 +294,12 @@ class _AuthDialogState extends State<AuthDialog> {
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: ThemeConfig.darkNavy,
+                    foregroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
@@ -307,7 +310,13 @@ class _AuthDialogState extends State<AuthDialog> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Text(_authMode == AuthMode.signIn ? 'Sign In' : 'Create Account'),
+                      : Text(
+                          _authMode == AuthMode.signIn ? 'Sign In' : 'Create Account',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
+                          ),
+                        ),
                 ),
                 
                 const SizedBox(height: 16),
@@ -320,7 +329,7 @@ class _AuthDialogState extends State<AuthDialog> {
                         ? 'Don\'t have an account? Sign Up'
                         : 'Already have an account? Sign In',
                     style: TextStyle(
-                      color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                      color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
                     ),
                   ),
                 ),

@@ -6,6 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/blog_post.dart';
 import '../../services/blog_service.dart';
 import '../../utils/theme_config.dart';
+import '../../widgets/common/top_nav_bar.dart';
+import '../../widgets/common/custom_app_bar.dart';
+import '../../widgets/auth/auth_dialog.dart';
 
 class BlogDetailScreen extends StatefulWidget {
   final String postId;
@@ -55,10 +58,35 @@ void initState() {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isLoading ? 'Loading...' : (_post?.title ?? 'Blog Post')),
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            if (Navigator.canPop(context))
+              IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.maybePop(context)),
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ElevatedButton(
+              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 14),
+              ),
+              child: const Text('Sign In / Sign Up'),
+            ),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -95,7 +123,7 @@ void initState() {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             height: 240,
-                            color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed.withOpacity(0.1),
+                            color: isDarkMode ? ThemeConfig.darkNavy : ThemeConfig.deepRed.withOpacity(0.1),
                             child: Center(
                               child: Icon(
                                 Icons.image_not_supported,

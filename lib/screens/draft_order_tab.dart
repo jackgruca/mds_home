@@ -56,8 +56,8 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
             needs.add(need);
           }
         }
-        // Return the top 3 needs
-        return needs.take(3).toList();
+        // Return all needs
+        return needs;
       }
     }
     return [];
@@ -90,7 +90,9 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
                              draftPick.pickNumber == widget.currentPickNumber;
         
         // Add key for better list diffing and animation
-        return AnimatedDraftPickCard(
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+          child: AnimatedDraftPickCard(
   key: ValueKey('draft-pick-${draftPick.pickNumber}'),
   draftPick: draftPick,
   isUserTeam: isUserTeam,
@@ -106,7 +108,8 @@ class _DraftOrderTabState extends State<DraftOrderTab> {
         widget.onPlayerSelected!(player.id);
       }
     } : null,
-);
+),
+        );
       },
     );
   }

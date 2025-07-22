@@ -41,3 +41,44 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase service account key - DO NOT COMMIT
+firebase/scripts/serviceAccountKey.json
+
+# Flutter
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Secrets - IMPORTANT
+/data_processing/serviceAccountKey.json
+google-services.json
+
+# Dependencies
+/ios/Pods/
+/ios/Flutter/App.framework
+/ios/Flutter/engine
+/ios/Flutter/flutter_assets
+/ios/ServiceDefinitions.json
+
+# Node
+/node_modules/
+/nfl-draft-scraper/node_modules/
+/data_processing/node_modules/
+/functions/node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+/data_processing/player_stats.json
+/data_processing/package-lock.json
+*.rdb

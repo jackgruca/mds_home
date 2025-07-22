@@ -110,7 +110,7 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
             children: [
               Icon(
                 Icons.lock_reset,
-                color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
               ),
               const SizedBox(width: 8),
               const Text(
@@ -248,7 +248,7 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
           ElevatedButton(
             onPressed: _isSubmitting ? null : _resetPassword,
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+              backgroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),

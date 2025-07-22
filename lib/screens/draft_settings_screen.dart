@@ -166,7 +166,7 @@ void initState() {
           ],
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            indicatorColor: AppTheme.gold, // Or AppTheme.brightBlue
+            indicatorColor: ThemeConfig.gold, // Or ThemeConfig.gold
         ),
         actions: [
           // Login button next to save

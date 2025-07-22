@@ -11,6 +11,7 @@ class AppConstants {
   
   // UI constants
   static const double teamLogoSize = 100.0;
+  static const double kCardBorderRadius = 12.0; // Added for consistent card styling
   
   // Default image for missing team logos
   static const String defaultTeamLogoUrl = 

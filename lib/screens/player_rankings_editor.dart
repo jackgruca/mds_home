@@ -377,7 +377,7 @@ Widget build(BuildContext context) {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade200,
+              color: Colors.blue.shade700,
               border: Border(
                 bottom: BorderSide(
                   color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
@@ -387,12 +387,12 @@ Widget build(BuildContext context) {
             child: const Row(
               children: [
                 SizedBox(width: 32), // space for drag handle
-                SizedBox(width: 50, child: Center(child: Text('Rank', style: TextStyle(fontWeight: FontWeight.bold)))),
+                SizedBox(width: 50, child: Center(child: Text('Rank', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)))),
                 SizedBox(width: 8),
-                Expanded(child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold))),
-                SizedBox(width: 80, child: Center(child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold)))),
+                Expanded(child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                SizedBox(width: 80, child: Center(child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)))),
                 SizedBox(width: 8),
-                Text('School', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('School', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                 SizedBox(width: 40), // Space for edit button
               ],
             ),

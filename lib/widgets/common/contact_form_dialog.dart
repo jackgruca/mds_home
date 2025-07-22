@@ -121,7 +121,7 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
         children: [
           Icon(
             Icons.contact_mail,
-            color: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                                    color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -291,8 +291,12 @@ class _ContactFormDialogState extends State<ContactFormDialog> {
         ElevatedButton(
           onPressed: _isSubmitting ? null : _submitForm,
           style: ElevatedButton.styleFrom(
-            backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+            backgroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
             foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           child: _isSubmitting
               ? const SizedBox(

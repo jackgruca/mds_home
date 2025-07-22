@@ -190,7 +190,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
               ElevatedButton(
                 onPressed: _tabController.index == 0 ? _saveFavoriteTeams : _saveDraftPreferences,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                  backgroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
@@ -718,7 +718,7 @@ class _UserPreferencesScreenState extends State<UserPreferencesScreen> with Sing
                   ),
                   Wrap(
                     spacing: 8,
-                    children: [2023, 2024, 2025].map((year) {
+                    children: [2023, 2024, 2025, 2026].map((year) {
                       final isSelected = _defaultYear == year;
                       
                       return ElevatedButton(

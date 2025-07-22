@@ -56,7 +56,7 @@ class AuthStatusWidget extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 12,
-                backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+                backgroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                 child: Text(
                   user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
                   style: const TextStyle(
@@ -136,9 +136,9 @@ class AuthStatusWidget extends StatelessWidget {
           return ElevatedButton(
             onPressed: () => _showAuthDialog(context, initialMode: AuthMode.signIn),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
+              backgroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               minimumSize: const Size(0, 32),
               textStyle: const TextStyle(fontSize: 12),
             ),

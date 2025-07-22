@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read access to NFL Rosters collection
+    match /nflRosters/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to historical game data (betting data)
+    match /historicalGameData/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to player season stats
+    match /playerSeasonStats/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to QB rankings
+    match /qbRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to team QB tiers
+    match /teamQbTiers/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to WR rankings
+    match /wr_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to WR rankings (alternative collection name)
+    match /wrRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to RB rankings
+    match /rb_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to RB rankings (alternative collection name)
+    match /rbRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to TE rankings
+    match /te_rankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to TE rankings (alternative collection name)
+    match /teRankings/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to comprehensive rankings collections
+    match /rb_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /wr_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /te_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    match /qb_rankings_comprehensive/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to depth charts
+    match /depthCharts/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to the new player game logs collection
+    match /playerGameLogs/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to all precomputed analytics data
+    match /precomputedAnalytics/{docId} {
+      allow read: if true;
+    }
+    
+    // Allow read access to other analytics collections
+    match /analyticsResults/{document} {
+      allow read: if true;
+    }
+    
+    match /draftAnalytics/{document} {
+      allow read: if true;
+    }
+    
+    match /teamNeeds/{document} {
+      allow read: if true;
+    }
+    
+    match /positionBreakdown/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to bust evaluation data
+    match /bust_evaluation/{document} {
+      allow read: if true;
+    }
+    match /bust_evaluation_timeline/{document} {
+      allow read: if true;
+    }
+    match /bust_evaluation_context/{document} {
+      allow read: if true;
+    }
+    
+    // Allow read access to blog posts
+    match /blogPosts/{document} {
+      allow read: if true;
+    }
+    
+    // Allow authenticated users to read and write their own user data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read and write draft data
+    match /drafts/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write custom drafts
+    match /customDrafts/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write trade offers
+    match /tradeOffers/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write custom boards
+    match /customBoards/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read and write fantasy leagues
+    match /fantasyLeagues/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Catch-all deny for safety.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

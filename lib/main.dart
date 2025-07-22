@@ -1,12 +1,19 @@
 // lib/main.dart (MODIFIED)
 import 'package:flutter/material.dart';
 import 'package:mds_home/screens/blog/blog_list_screen.dart';
+import 'package:mds_home/screens/home_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
 import 'package:provider/provider.dart';
-import 'screens/betting_analytics_screen.dart';
-import 'screens/player_projections_screen.dart';
+
 import 'screens/team_selection_screen.dart';
 import 'screens/historical_data_screen.dart';
+import 'screens/hubs/gm_hub_screen.dart';
+import 'screens/hubs/fantasy_hub_screen.dart';
+import 'screens/hubs/data_explorer_screen.dart';
+import 'screens/wr_model_screen.dart';
+import 'screens/player_season_stats_screen.dart';
+import 'screens/nfl_rosters_screen.dart';
+import 'screens/historical_game_data_screen.dart';
 import 'services/analytics_query_service.dart';
 import 'services/analytics_service.dart';
 import 'services/firebase_service.dart';
@@ -20,6 +27,23 @@ import 'package:flutter/foundation.dart';
 import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'screens/fantasy/big_board_screen.dart';
+import 'screens/fantasy/player_comparison_screen.dart';
+import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
+import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
+import 'screens/rankings/rankings_placeholder_screen.dart';
+import 'screens/rankings/qb_rankings_screen.dart';
+import 'screens/depth_charts_screen.dart';
+import 'screens/fantasy/player_trends_screen.dart';
+import 'screens/fantasy/bust_evaluation_screen.dart';
+import 'screens/custom_rankings/custom_rankings_home_screen.dart';
+import 'screens/projections/player_projections_screen.dart';
+import 'screens/rankings/wr_rankings_screen.dart';
+import 'screens/rankings/rb_rankings_screen.dart';
+import 'screens/rankings/te_rankings_screen.dart';
+import 'screens/projections/wr_projections_2025_screen.dart';
+import 'screens/projections/player_stat_predictor_screen.dart';
+
 
 // Secret tap counter for admin access
 
@@ -100,50 +124,131 @@ class _MyAppState extends State<MyApp> {
     });
     testDraftCount();
   }
+
   void testDraftCount() async {
-  int? count = await AnalyticsQueryService.getDraftCount();
-  print('🔥 Total drafts in Firestore: $count');
-}
+    int? count = await AnalyticsQueryService.getDraftCount();
+    print('🔥 Total drafts in Firestore: $count');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeManager>(
       builder: (context, themeManager, _) {
         return MaterialApp(
-  navigatorObservers: [AnalyticsRouteObserver()],
-  debugShowCheckedModeBanner: false,
-  title: 'NFL Draft Simulator',
-  theme: AppTheme.lightTheme,
-  darkTheme: AppTheme.darkTheme,
-  themeMode: themeManager.themeMode,
-  home: const TeamSelectionScreen(),
-  // Add these lines:
-  onGenerateRoute: (settings) {
-    final blogRoute = BlogRouter.handleBlogRoute(settings);
-    if (blogRoute != null) {
-      return blogRoute;
-    }
-    
-    // Otherwise handle regular routes
-    switch (settings.name) {
-    case '/':
-      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-    case '/blog':
-      return MaterialPageRoute(builder: (_) => const BlogListScreen());
-    case '/player-projections':
-      return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
-    case '/betting-analytics':
-      return MaterialPageRoute(builder: (_) => const BettingAnalyticsScreen());
-    case '/historical-data':
-      return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
-    default:
-      return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
-  }
-  },
-  initialRoute: '/',
-  // Add this to use path URL strategy instead of hash
-  useInheritedMediaQuery: true, // This helps with web responsiveness
-);
+          navigatorObservers: [AnalyticsRouteObserver()],
+          debugShowCheckedModeBanner: false,
+          title: 'StickToTheModel',
+          theme: themeManager.lightTheme,
+          darkTheme: themeManager.darkTheme,
+          themeMode: themeManager.themeMode,
+          home: const HomeScreen(),
+          onGenerateRoute: (settings) {
+            // Handle blog routes first
+            final blogRoute = BlogRouter.handleBlogRoute(settings);
+            if (blogRoute != null) {
+              return blogRoute;
+            }
+            
+            // Handle regular routes
+            switch (settings.name) {
+              case '/':
+                return MaterialPageRoute(builder: (_) => const HomeScreen());
+              case '/draft':
+                return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+              case '/draft/fantasy':
+                return MaterialPageRoute(builder: (_) => const FFHomeScreen());
+              case '/mock-draft-sim':
+                return MaterialPageRoute(builder: (_) => const FFHomeScreen());
+              case '/mock-draft-sim/setup':
+                return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
+              case '/data':
+                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+              case '/data/passing':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'QB'}),
+                );
+              case '/data/rushing':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'RB'}),
+                );
+              case '/data/receiving':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'WR'}),
+                );
+              case '/data/fantasy':
+                return MaterialPageRoute(
+                  builder: (_) => const PlayerSeasonStatsScreen(),
+                  settings: const RouteSettings(arguments: {'position': 'FANTASY'}),
+                );
+              case '/projections':
+                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+              case '/blog':
+                return MaterialPageRoute(builder: (_) => const BlogListScreen());
+              case '/gm-hub': 
+                return MaterialPageRoute(builder: (_) => GmHubScreen());
+              case '/fantasy':
+                return MaterialPageRoute(builder: (_) => const FantasyHubScreen());
+              case '/fantasy/big-board':
+                return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+              case '/fantasy/player-comparison':
+                return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+              case '/fantasy/trends':
+                return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
+              case '/gm-hub/bust-evaluation':
+                return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
+              case '/fantasy/custom-rankings':
+                return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
+              case '/fantasy/player-projections':
+                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+              case '/projections/wr-2025':
+                return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
+              case '/projections/stat-predictor':
+                return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
+              // Rankings section - placeholder routes
+              case '/rankings':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
+              case '/rankings/qb':
+                return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
+              case '/rankings/rb':
+                return MaterialPageRoute(builder: (_) => const RBRankingsScreen());
+              case '/rankings/wr':
+                return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
+              case '/rankings/te':
+                return MaterialPageRoute(builder: (_) => const TERankingsScreen());
+              case '/rankings/ol':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'OL Rankings'));
+              case '/rankings/dl':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'DL Rankings'));
+              case '/rankings/lb':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'LB Rankings'));
+              case '/rankings/secondary':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Secondary Rankings'));
+              case '/rankings/coaching':
+                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Coaching Rankings'));
+              case '/data/historical':
+                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+              case '/historical-data':
+                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+              case '/wr-model':
+                return MaterialPageRoute(builder: (_) => const WRModelScreen());
+              case '/player-season-stats':
+                return MaterialPageRoute(builder: (_) => const PlayerSeasonStatsScreen());
+              case '/nfl-rosters':
+                return MaterialPageRoute(builder: (_) => const NflRostersScreen());
+              case '/historical-game-data':
+                return MaterialPageRoute(builder: (_) => const HistoricalGameDataScreen());
+              case '/depth-charts':
+                return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
+              default:
+                return MaterialPageRoute(builder: (_) => const HomeScreen());
+            }
+          },
+          initialRoute: '/',
+          useInheritedMediaQuery: true,
+        );
       },
     );
   }

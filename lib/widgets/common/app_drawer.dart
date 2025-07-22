@@ -4,259 +4,186 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme_config.dart';
 import '../auth/auth_dialog.dart';
+import './top_nav_bar.dart'; // Import the top navigation items structure
+import 'package:collection/collection.dart'; // Needed for firstWhereOrNull if we use it
 
 class AppDrawer extends StatelessWidget {
-  final String currentRoute;
-
-  const AppDrawer({
-    super.key,
-    this.currentRoute = '/',
-  });
+  const AppDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    return Drawer(
-      child: Column(
-        children: [
-          // DrawerHeader
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: isDarkMode ? AppTheme.darkNavy : AppTheme.deepRed,
+    final theme = Theme.of(context);
+    final currentRoute = ModalRoute.of(context)?.settings.name; 
+    const Color activeColor = Colors.amber; // Consistent active color
+
+    // Helper to build ListTiles for sub-items
+    List<Widget> buildSubItems(BuildContext context, NavItem hubItem, List<NavItem> subItems, String? currentRoute) {
+      List<Widget> tiles = [];
+
+      // 1. Add the main Hub link first
+      bool isMainHubActive = currentRoute == hubItem.route;
+      tiles.add(
+        Padding(
+          padding: const EdgeInsets.only(left: 16.0), // Indent main hub link slightly less
+          child: ListTile(
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            title: Text(
+              hubItem.title, // Title like "GM Hub Landing"
+              style: TextStyle(
+                fontWeight: isMainHubActive ? FontWeight.bold : FontWeight.normal,
+                color: hubItem.isPlaceholder ? Colors.grey : (isMainHubActive ? activeColor : null),
+              ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'NFL Draft Tools',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Plan, Analyze, Win',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
+            selected: isMainHubActive,
+            selectedTileColor: activeColor.withOpacity(0.1),
+            enabled: !hubItem.isPlaceholder,
+            onTap: hubItem.isPlaceholder ? null : () {
+              Navigator.pop(context); // Close drawer
+              if (currentRoute != hubItem.route) {
+                Navigator.pushNamed(context, hubItem.route);
+              }
+            },
           ),
-          
-          // Auth Widget
+        )
+      );
+      
+      // Add a divider
+       tiles.add(const Divider(height: 1, indent: 32, endIndent: 16));
+
+      // 2. Sort and add sub-item links
+      List<NavItem> sortedSubItems = List.from(subItems);
+      sortedSubItems.sort((a, b) {
+        if (a.isPlaceholder != b.isPlaceholder) {
+          return a.isPlaceholder ? 1 : -1; // Non-placeholders first
+        }
+        return a.title.compareTo(b.title); // Then alphabetical
+      });
+
+      for (var subItem in sortedSubItems) {
+        bool isSubItemActive = currentRoute == subItem.route;
+        tiles.add(
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Consumer<AuthProvider>(
-              builder: (context, authProvider, _) {
-                if (authProvider.isLoading) {
-                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-                }
-                
-                if (authProvider.isLoggedIn) {
-                  // Show user info
-                  final user = authProvider.user;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                            child: Text(
-                              user?.name.isNotEmpty == true ? user!.name[0].toUpperCase() : '?',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user?.name ?? 'User',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                Text(
-                                  user?.email ?? '',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          authProvider.signOut();
-                          Navigator.pop(context); // Close drawer after sign out
-                        },
-                        icon: const Icon(Icons.logout, size: 16),
-                        label: const Text('Sign Out'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  // Show sign in button
-                  return ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context); // Close drawer first
-                      showDialog(
-                        context: context,
-                        builder: (context) => const AuthDialog(initialMode: AuthMode.signIn),
-                      );
-                    },
-                    icon: const Icon(Icons.login, size: 16),
-                    label: const Text('Sign In / Register'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                  );
+            padding: const EdgeInsets.only(left: 24.0), // Indent sub-items more
+            child: ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              title: Text(
+                subItem.title + (subItem.isPlaceholder ? ' *' : ''),
+                style: TextStyle(
+                  fontWeight: isSubItemActive ? FontWeight.bold : FontWeight.normal,
+                  color: subItem.isPlaceholder ? Colors.grey : (isSubItemActive ? activeColor : null),
+                ),
+              ),
+              selected: isSubItemActive,
+              selectedTileColor: activeColor.withOpacity(0.1),
+              enabled: !subItem.isPlaceholder,
+              onTap: subItem.isPlaceholder ? null : () {
+                Navigator.pop(context); // Close drawer
+                if (currentRoute != subItem.route) {
+                  Navigator.pushNamed(context, subItem.route);
                 }
               },
             ),
-          ),
-          
-          const Divider(),
-          
-          // Menu Items
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.sports_football),
-                  title: const Text('Mock Draft Simulator'),
-                  selected: currentRoute == '/',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    if (currentRoute != '/') {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, '/');
-                    } else {
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
-                
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text('Player Projections'),
-                  selected: currentRoute == '/player-projections',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/player-projections') {
-                      Navigator.pushNamed(context, '/player-projections');
-                    }
-                  },
-                ),
-                
-                ListTile(
-                  leading: const Icon(Icons.trending_up),
-                  title: const Text('Betting Analytics'),
-                  selected: currentRoute == '/betting-analytics',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/betting-analytics') {
-                      Navigator.pushNamed(context, '/betting-analytics');
-                    }
-                  },
-                ),
-                
-                ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text('Historical Data'),
-                  selected: currentRoute == '/historical-data',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/historical-data') {
-                      Navigator.pushNamed(context, '/historical-data');
-                    }
-                  },
-                ),
-                
-                ListTile(
-                  leading: const Icon(Icons.article),
-                  title: const Text('Blog'),
-                  selected: currentRoute == '/blog',
-                  selectedTileColor: isDarkMode ? 
-                      AppTheme.darkNavy.withOpacity(0.1) : 
-                      AppTheme.deepRed.withOpacity(0.1),
-                  selectedColor: isDarkMode ? AppTheme.brightBlue : AppTheme.deepRed,
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (currentRoute != '/blog') {
-                      Navigator.pushNamed(context, '/blog');
-                    }
-                  },
-                ),
-                
-                const Divider(),
-                
-                ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: const Text('Help & FAQ'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Help & FAQ coming soon'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                ),
-              ],
+          )
+        );
+      }
+      return tiles;
+    }
+
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          DrawerHeader(
+            decoration: BoxDecoration(
+              // Optional: Use a gradient or image? For now, keep primary color
+              color: theme.primaryColor,
             ),
-          ),
-          
-          // Footer with version
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'v1.0.0',
+            child: const Text(
+              'StickToTheModel', // Use App Name or similar
               style: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700,
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          // Dynamically generate navigation items
+          ...topNavItems.map((item) {
+            bool isHubActive = isRouteInHub(currentRoute, item);
+            bool isDirectlyActive = currentRoute == item.route;
+
+            if (item.subItems == null || item.subItems!.isEmpty) {
+              // Simple ListTile for items without sub-items (Home, Blog)
+              return ListTile(
+                leading: item.icon != null ? Icon(item.icon, color: isDirectlyActive ? activeColor : null) : null,
+                title: Text(
+                    item.title,
+                     style: TextStyle(
+                       fontWeight: isDirectlyActive ? FontWeight.bold : FontWeight.normal,
+                       color: isDirectlyActive ? activeColor : null,
+                     ),
+                    ),
+                selected: isDirectlyActive,
+                selectedTileColor: activeColor.withOpacity(0.1),
+                onTap: () {
+                  Navigator.pop(context); // Close drawer
+                   if (currentRoute != item.route) {
+                    Navigator.pushNamed(context, item.route);
+                  }
+                },
+              );
+            } else {
+              // ExpansionTile for items with sub-items (Hubs)
+              return ExpansionTile(
+                 leading: item.icon != null ? Icon(item.icon, color: isHubActive ? activeColor : null) : null,
+                 title: Text(
+                   item.title,
+                   style: TextStyle(
+                      fontWeight: isHubActive ? FontWeight.bold : FontWeight.normal,
+                      color: isHubActive ? activeColor : null,
+                   ),
+                 ),
+                 // Maintain expanded state if a child route is active
+                 initiallyExpanded: isHubActive,
+                 // Use slightly different background if the hub is active
+                 backgroundColor: isHubActive ? activeColor.withOpacity(0.05) : null,
+                 // Carefully adjust icon colors on expansion
+                 collapsedIconColor: isHubActive ? activeColor : null,
+                 iconColor: isHubActive ? activeColor : null,
+                 children: buildSubItems(context, item, item.subItems!, currentRoute),
+               );
+            }
+          }).toList(),
+          
+           const Divider(), // Add a divider before potential auth actions
+
+          // Updated Consumer<AuthProvider> block
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              // Check if user is authenticated (assuming 'user != null' is the correct check)
+              if (authProvider.user != null) {
+                return ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Logout'),
+                  onTap: () {
+                    Navigator.pop(context); 
+                    authProvider.signOut();
+                     Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                  },
+                );
+              } else {
+                return ListTile(
+                  leading: const Icon(Icons.login),
+                  title: const Text('Sign In / Sign Up'),
+                  onTap: () {
+                    Navigator.pop(context); 
+                    showDialog(context: context, builder: (_) => const AuthDialog());
+                  },
+                );
+              }
+            },
           ),
         ],
       ),
