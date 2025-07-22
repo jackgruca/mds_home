@@ -7,9 +7,10 @@ class ThemeConfig {
   static const Color darkNavy = Color(0xFF1A1A2E);
   static const Color gold = Color(0xFFFFD700);
   static const Color deepRed = Color(0xFF8B0000);
-  static const Color brightRed = Color(0xFFCF0A0A); // Brighter red for better visibility as secondary
+  static const Color brightRed =
+      Color(0xFFCF0A0A); // Brighter red for better visibility as secondary
   static const Color successGreen = Color(0xFF4CAF50);
-  
+
   // Additional supporting colors
   static const Color lightGray = Color(0xFFF5F5F5);
   static const Color mediumGray = Color(0xFF9E9E9E);
@@ -22,7 +23,7 @@ class ThemeConfig {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      
+
       // Color Scheme
       colorScheme: const ColorScheme.light(
         primary: darkNavy,
@@ -36,7 +37,7 @@ class ThemeConfig {
         error: deepRed,
         onError: white,
       ),
-      
+
       // Typography
       textTheme: GoogleFonts.interTextTheme().copyWith(
         // Display styles for major headings (e.g., screen titles)
@@ -57,7 +58,7 @@ class ThemeConfig {
           fontWeight: FontWeight.w700, // Changed from w600
           color: darkNavy,
         ),
-        
+
         // Headline styles for section titles
         headlineLarge: GoogleFonts.inter(
           fontSize: 22,
@@ -74,7 +75,7 @@ class ThemeConfig {
           fontWeight: FontWeight.w600,
           color: darkNavy,
         ),
-        
+
         // Title styles for subtitles and component headers
         titleLarge: GoogleFonts.inter(
           fontSize: 16,
@@ -91,7 +92,7 @@ class ThemeConfig {
           fontWeight: FontWeight.w500,
           color: darkNavy,
         ),
-        
+
         // Body styles for all regular text content
         bodyLarge: GoogleFonts.inter(
           fontSize: 16,
@@ -128,7 +129,7 @@ class ThemeConfig {
           color: mediumGray,
         ),
       ),
-      
+
       // App Bar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: darkNavy,
@@ -141,9 +142,9 @@ class ThemeConfig {
           color: white,
         ),
       ),
-      
+
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: white,
         elevation: 2,
         shadowColor: darkNavy.withOpacity(0.1),
@@ -151,7 +152,7 @@ class ThemeConfig {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      
+
       // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -167,7 +168,7 @@ class ThemeConfig {
           ),
         ),
       ),
-      
+
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -178,7 +179,7 @@ class ThemeConfig {
           ),
         ),
       ),
-      
+
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
@@ -191,7 +192,8 @@ class ThemeConfig {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: brightRed, width: 2), // Changed from darkNavy to brightRed
+          borderSide: const BorderSide(
+              color: brightRed, width: 2), // Changed from darkNavy to brightRed
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -206,7 +208,7 @@ class ThemeConfig {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      
+
       // Color Scheme
       colorScheme: const ColorScheme.dark(
         primary: darkNavy, // Changed from gold to darkNavy
@@ -220,7 +222,7 @@ class ThemeConfig {
         error: deepRed,
         onError: white,
       ),
-      
+
       // Typography (similar to light but with appropriate colors)
       textTheme: GoogleFonts.interTextTheme().copyWith(
         displayLarge: GoogleFonts.inter(
@@ -303,7 +305,7 @@ class ThemeConfig {
           color: mediumGray,
         ),
       ),
-      
+
       // App Bar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: const Color(0xFF2A2A2A),
@@ -316,9 +318,9 @@ class ThemeConfig {
           color: white,
         ),
       ),
-      
+
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: const Color(0xFF2A2A2A),
         elevation: 2,
         shadowColor: Colors.black26,
@@ -326,7 +328,7 @@ class ThemeConfig {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      
+
       // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -342,7 +344,7 @@ class ThemeConfig {
           ),
         ),
       ),
-      
+
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -353,7 +355,7 @@ class ThemeConfig {
           ),
         ),
       ),
-      
+
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
@@ -366,7 +368,8 @@ class ThemeConfig {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: brightRed, width: 2), // Changed from gold to brightRed
+          borderSide: const BorderSide(
+              color: brightRed, width: 2), // Changed from gold to brightRed
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
