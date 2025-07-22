@@ -5,6 +5,7 @@ import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/widgets/design_system/mds_button.dart';
 import 'package:mds_home/widgets/design_system/mds_card.dart';
 import 'questionnaire_wizard_screen.dart';
+import '../../screens/fantasy/my_rankings_screen.dart';
 
 class CustomRankingsHomeScreen extends StatelessWidget {
   const CustomRankingsHomeScreen({super.key});
@@ -105,26 +106,56 @@ class CustomRankingsHomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _startQuestionnaire(context),
-            icon: const Icon(Icons.rocket_launch, size: 18, color: Colors.white),
-            label: const Text(
-              'Start Building Your Rankings',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _startQuestionnaire(context),
+                  icon: const Icon(Icons.rocket_launch, size: 18, color: Colors.white),
+                  label: const Text(
+                    'Start Building Your Rankings',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeConfig.successGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
+                    shadowColor: Colors.black.withOpacity(0.2),
+                  ),
+                ),
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ThemeConfig.successGreen,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _viewSavedRankings(context),
+                  icon: const Icon(Icons.folder_outlined, size: 18, color: Colors.white),
+                  label: const Text(
+                    'Manage Saved Rankings',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeConfig.darkNavy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
+                    shadowColor: Colors.black.withOpacity(0.2),
+                  ),
+                ),
               ),
-              elevation: 2,
-              shadowColor: Colors.black.withOpacity(0.2),
-            ),
+            ],
           ),
         ],
       ),
@@ -272,6 +303,14 @@ class CustomRankingsHomeScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const QuestionnaireWizardScreen(),
+      ),
+    );
+  }
+
+  void _viewSavedRankings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MyRankingsScreen(),
       ),
     );
   }

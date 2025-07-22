@@ -43,6 +43,9 @@ import 'screens/rankings/rb_rankings_screen.dart';
 import 'screens/rankings/te_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
+import 'screens/fantasy/my_rankings_screen.dart';
+import 'screens/vorp/my_custom_rankings_screen.dart';
+import 'screens/vorp/custom_big_board_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -218,6 +221,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
               case '/rankings/te':
                 return MaterialPageRoute(builder: (_) => const TERankingsScreen());
+              case '/my-rankings':
+                return MaterialPageRoute(builder: (_) => const MyRankingsScreen());
+              case '/vorp/my-rankings':
+                return MaterialPageRoute(builder: (_) => const MyCustomRankingsScreen());
               case '/rankings/ol':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'OL Rankings'));
               case '/rankings/dl':

@@ -12,9 +12,11 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../models/custom_weight_config.dart';
-import '../../widgets/rankings/weight_adjustment_panel.dart';
+import '../../models/consensus_weight_config.dart';
+import '../../widgets/rankings/consensus_weight_adjustment_panel.dart';
 import '../../services/fantasy/vorp_service.dart';
 import '../../models/fantasy/vorp_big_board.dart';
+import '../../services/vorp/custom_vorp_ranking_service.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -56,8 +58,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   
   // Weight customization variables
   bool _showWeightPanel = false;
-  CustomWeightConfig _currentWeights = CustomWeightConfig.createDefaultConsensusWeights();
+  ConsensusWeightConfig _consensusWeights = ConsensusWeightConfig.createDefault();
   bool _usingCustomWeights = false;
+  bool _includeCustomRankings = false;
+  final CustomVorpRankingService _customRankingService = CustomVorpRankingService();
   
   // VORP variables
   bool _showVORPMode = false;
@@ -215,35 +219,63 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     });
   }
 
-  void _onWeightsChanged(CustomWeightConfig newWeights) {
+  void _onWeightsChanged(ConsensusWeightConfig newWeights) {
     setState(() {
-      _currentWeights = newWeights;
+      _consensusWeights = newWeights;
       _usingCustomWeights = true;
+      _includeCustomRankings = newWeights.includeCustomRankings;
       _applyCustomWeights();
     });
   }
 
   void _resetWeights() {
     setState(() {
-      _currentWeights = CustomWeightConfig.createDefaultConsensusWeights();
+      _consensusWeights = ConsensusWeightConfig.createDefault();
       _usingCustomWeights = false;
+      _includeCustomRankings = false;
       _applyCustomWeights();
     });
   }
 
-  void _applyCustomWeights() {
+  Future<void> _applyCustomWeights() async {
     // Apply weighted ranking calculation to update consensus rankings
+    Map<String, Map<String, double>>? customRankingsData;
+    
+    // Load custom rankings data if included in consensus
+    if (_includeCustomRankings) {
+      try {
+        customRankingsData = await _loadCustomRankingsData();
+      } catch (e) {
+        // Handle error - continue without custom rankings
+        print('Error loading custom rankings: $e');
+      }
+    }
+    
     for (final player in _rankings) {
       final weightedRanks = <double>[];
       double totalWeight = 0.0;
       
-      _currentWeights.weights.forEach((platform, weight) {
+      // Apply platform weights
+      _consensusWeights.platformWeights.forEach((platform, weight) {
         final rank = player.additionalRanks[platform];
         if (rank != null && rank > 0) {
           weightedRanks.add(rank * weight);
           totalWeight += weight;
         }
       });
+      
+      // Apply custom rankings weight if available
+      if (_includeCustomRankings && 
+          customRankingsData != null && 
+          _consensusWeights.customRankingsWeight > 0) {
+        final customRank = customRankingsData[player.position.toLowerCase()]?[player.id];
+        if (customRank != null && customRank > 0) {
+          weightedRanks.add(customRank * _consensusWeights.customRankingsWeight);
+          totalWeight += _consensusWeights.customRankingsWeight;
+          // Add custom ranking to player's additional ranks for display
+          player.additionalRanks['My Custom Rankings'] = customRank;
+        }
+      }
       
       if (weightedRanks.isNotEmpty && totalWeight > 0) {
         final weightedConsensus = weightedRanks.reduce((a, b) => a + b) / totalWeight;
@@ -274,6 +306,22 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     if (_showVORPMode) {
       _calculateVORPBoard();
     }
+  }
+
+  /// Load custom rankings data and convert to position-based player rankings
+  Future<Map<String, Map<String, double>>> _loadCustomRankingsData() async {
+    final rankings = await _customRankingService.getAllRankings();
+    final result = <String, Map<String, double>>{};
+    
+    for (final ranking in rankings) {
+      final positionMap = <String, double>{};
+      for (final playerRank in ranking.playerRanks) {
+        positionMap[playerRank.playerId] = playerRank.customRank.toDouble();
+      }
+      result[ranking.position.toLowerCase()] = positionMap;
+    }
+    
+    return result;
   }
 
   void _toggleVORPMode() {
@@ -313,7 +361,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
         // Use custom weights for VORP calculation
         vorpBoard = VORPService.calculateVORPWithCustomWeights(
           playersData,
-          _currentWeights.weights,
+          _consensusWeights.allWeights,
           leagueSettings: _leagueSettings,
           scoringSystem: _scoringSystem,
         );
@@ -329,7 +377,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       setState(() {
         _vorpBoard = VORPBigBoard.fromVORPBoard(
           vorpBoard,
-          customWeights: _usingCustomWeights ? _currentWeights.weights : null,
+          customWeights: _usingCustomWeights ? _consensusWeights.allWeights : null,
           usingCustomWeights: _usingCustomWeights,
         );
         
@@ -860,6 +908,11 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       {'label': 'NFL', 'value': player.additionalRanks['NFL']},
     ];
 
+    // Add custom rankings if active
+    if (_includeCustomRankings && player.additionalRanks['My Custom Rankings'] != null) {
+      rankings.insert(0, {'label': 'My Custom', 'value': player.additionalRanks['My Custom Rankings']});
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -885,37 +938,59 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
             runSpacing: 8,
             children: rankings.map((ranking) {
               final value = ranking['value'];
+              final isCustom = ranking['label'] == 'My Custom';
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: value != null 
-                    ? theme.colorScheme.surface
-                    : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  color: isCustom 
+                    ? ThemeConfig.gold.withOpacity(0.2)
+                    : (value != null 
+                        ? theme.colorScheme.surface
+                        : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5)),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: value != null 
-                      ? ThemeConfig.darkNavy.withOpacity(0.2)
-                      : theme.dividerColor.withOpacity(0.3),
+                    color: isCustom 
+                      ? ThemeConfig.gold
+                      : (value != null 
+                          ? ThemeConfig.darkNavy.withOpacity(0.2)
+                          : theme.dividerColor.withOpacity(0.3)),
                   ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      ranking['label'] as String,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isCustom) ...[
+                          Icon(
+                            Icons.star,
+                            size: 12,
+                            color: ThemeConfig.gold,
+                          ),
+                          const SizedBox(width: 2),
+                        ],
+                        Text(
+                          ranking['label'] as String,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: isCustom ? FontWeight.bold : FontWeight.w500,
+                            color: isCustom 
+                              ? ThemeConfig.darkNavy
+                              : theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       value?.toString() ?? '-',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: value != null 
+                        color: isCustom 
                           ? ThemeConfig.darkNavy
-                          : theme.colorScheme.onSurface.withOpacity(0.5),
+                          : (value != null 
+                              ? ThemeConfig.darkNavy
+                              : theme.colorScheme.onSurface.withOpacity(0.5)),
                       ),
                     ),
                   ],
@@ -1113,8 +1188,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                   ),
                                   label: Text(_showWeightPanel ? 'Close' : 'Customize', style: const TextStyle(fontSize: 12)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy,
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: _includeCustomRankings 
+                                        ? ThemeConfig.gold 
+                                        : (_usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy),
+                                    foregroundColor: _includeCustomRankings ? ThemeConfig.darkNavy : Colors.white,
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                     minimumSize: const Size(0, 32),
                                     shape: RoundedRectangleBorder(
@@ -1373,9 +1450,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
               top: 0,
               right: 0,
               bottom: 0,
-              child: WeightAdjustmentPanel(
+              child: ConsensusWeightAdjustmentPanel(
                 position: 'consensus',
-                currentWeights: _currentWeights,
+                currentWeights: _consensusWeights,
                 onWeightsChanged: _onWeightsChanged,
                 onReset: _resetWeights,
                 onClose: () {
@@ -1568,6 +1645,32 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           setState(() => _sortData('NFL', asc));
         },
       ),
+      // Custom Rankings column (only show when custom rankings are active)
+      if (_includeCustomRankings)
+        DataColumn(
+          label: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.star,
+                  size: 14,
+                  color: ThemeConfig.gold,
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'My Custom',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          onSort: (i, asc) {
+            HapticFeedback.lightImpact();
+            setState(() => _sortData('My Custom Rankings', asc));
+          },
+        ),
       // VORP columns (only show when VORP mode is enabled)
       if (_showVORPMode) ...[
         DataColumn(
@@ -1731,6 +1834,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           DataCell(_buildRankingCell(player.additionalRanks['Yahoo'], index)),
           DataCell(_buildRankingCell(player.additionalRanks['NFL'], index)),
           
+          // Custom Rankings column (only show when custom rankings are active)
+          if (_includeCustomRankings)
+            DataCell(_buildCustomRankingCell(player.additionalRanks['My Custom Rankings'], index)),
+          
           // VORP columns (only show when VORP mode is enabled)
           if (_showVORPMode) ...[
             DataCell(_buildVORPCell(player.additionalRanks['VORP'], index)),
@@ -1788,6 +1895,43 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
             : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           fontSize: 12,
         ),
+      ),
+    );
+  }
+
+  Widget _buildCustomRankingCell(dynamic value, int index) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: value != null 
+          ? ThemeConfig.gold.withOpacity(0.2)
+          : ThemeConfig.gold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: ThemeConfig.gold.withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.star,
+            size: 10,
+            color: ThemeConfig.gold,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            value?.toString() ?? '-',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: value != null 
+                ? ThemeConfig.darkNavy
+                : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

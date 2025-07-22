@@ -78,6 +78,7 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
       NavItem(title: 'Stat Predictor', route: '/projections/stat-predictor', icon: Icons.analytics_outlined, isPlaceholder: false),
       NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', icon: Icons.tune, isPlaceholder: false),
+      NavItem(title: 'My Custom Rankings', route: '/vorp/my-rankings', icon: Icons.folder_outlined, isPlaceholder: false),
       NavItem(title: 'Fantasy Draft Simulator', route: '/mock-draft-sim', isPlaceholder: false),
       NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
       NavItem(title: 'Player Trends', route: '/fantasy/trends', icon: Icons.show_chart, isPlaceholder: false),

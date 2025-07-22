@@ -8,6 +8,15 @@ import 'package:mds_home/models/custom_weight_config.dart';
 import 'package:mds_home/services/rankings/ranking_calculation_service.dart';
 import '../../widgets/custom_rankings/results/ranking_table_widget.dart';
 import '../../widgets/custom_rankings/results/ranking_analysis_widget.dart';
+import '../../widgets/rankings/draggable_ranking_list.dart';
+import '../../widgets/rankings/save_custom_ranking_dialog.dart';
+import '../../services/fantasy/custom_ranking_service.dart';
+import '../../models/fantasy/custom_position_ranking.dart';
+import '../../services/vorp/custom_vorp_ranking_service.dart';
+import '../../services/vorp/historical_points_service.dart';
+import '../../widgets/vorp/drag_drop_position_ranking_list.dart' as vorp_widgets;
+import '../../widgets/vorp/save_custom_vorp_ranking_dialog.dart';
+import '../../models/vorp/custom_position_ranking.dart' as vorp;
 
 class CustomRankingsResultsScreen extends StatefulWidget {
   final String position;
@@ -43,6 +52,16 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   late CustomWeightConfig _currentWeights;
   late CustomWeightConfig _defaultWeights;
   int _selectedTab = 0; // 0 = weights, 1 = what-if
+  
+  // Drag-and-drop and VORP state
+  bool _showDragDropMode = false;
+  bool _showVORPPreview = false;
+  bool _isCalculatingVORP = false;
+  List<vorp_widgets.RankingPlayerItem> _dragDropPlayers = [];
+  
+  // VORP services
+  final CustomVorpRankingService _vorpRankingService = CustomVorpRankingService();
+  final HistoricalPointsService _historicalPointsService = HistoricalPointsService();
 
   @override
   void initState() {
@@ -104,6 +123,23 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
               label: Text(_showCustomizePanel ? 'Close' : 'Customize'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _showCustomizePanel ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
+          // Manual Adjustments button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleDragDropMode,
+              icon: Icon(
+                _showDragDropMode ? Icons.close : Icons.edit,
+                size: 16,
+              ),
+              label: Text(_showDragDropMode ? 'Exit Manual' : 'Manual Adjust'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _showDragDropMode ? Colors.green.shade600 : ThemeConfig.darkNavy,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
@@ -196,10 +232,117 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
   }
 
   Widget _buildMainContent() {
+    if (_showDragDropMode) {
+      return _buildDragDropMode();
+    }
+    
     return Column(
       children: [
         _buildSummaryHeader(),
         Expanded(child: _buildRankingsTab()),
+      ],
+    );
+  }
+
+  Widget _buildDragDropMode() {
+    return Column(
+      children: [
+        // Drag-and-drop header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            border: Border(bottom: BorderSide(color: Colors.green.shade200)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.green.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'Manual Adjustments Mode',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+              const Spacer(),
+              // VORP Calculate/Toggle button
+              if (!_showVORPPreview)
+                ElevatedButton.icon(
+                  onPressed: _isCalculatingVORP ? null : _calculateVORPForDragDropPlayers,
+                  icon: _isCalculatingVORP 
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.calculate, size: 16),
+                  label: Text(_isCalculatingVORP ? 'Calculating...' : 'Calculate VORP'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                )
+              else
+                TextButton.icon(
+                  onPressed: _toggleVORPPreview,
+                  icon: const Icon(Icons.visibility_off, size: 16),
+                  label: const Text('Hide VORP'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.green.shade700,
+                  ),
+                ),
+              const SizedBox(width: 8),
+              // Save Button
+              ElevatedButton.icon(
+                onPressed: _saveCustomRanking,
+                icon: const Icon(Icons.save, size: 16),
+                label: const Text('Save As Custom'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Instructions
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.green.shade50,
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.green.shade600),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Drag and drop players to reorder your rankings. Toggle VORP to see projected fantasy points and value over replacement.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Draggable list
+        Expanded(
+          child: _dragDropPlayers.isEmpty
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : vorp_widgets.DragDropPositionRankingList(
+                  players: _dragDropPlayers,
+                  onReorder: _onDragDropReorder,
+                  onRankChange: _onDragDropRankChange,
+                  onVORPCalculate: _calculateVORPForDragDropPlayers,
+                  showVORP: _showVORPPreview,
+                  isLoading: _isCalculatingVORP,
+                  position: widget.position.toLowerCase(),
+                ),
+        ),
       ],
     );
   }
@@ -1223,6 +1366,183 @@ class _CustomRankingsResultsScreenState extends State<CustomRankingsResultsScree
         _showCustomizePanel = false; // Close customize panel when opening health panel
       }
     });
+  }
+
+  void _toggleDragDropMode() {
+    setState(() {
+      _showDragDropMode = !_showDragDropMode;
+      if (_showDragDropMode) {
+        _initializeDragDropPlayers();
+        // Close other panels
+        _showCustomizePanel = false;
+        _showHealthPanel = false;
+      }
+    });
+  }
+
+  void _initializeDragDropPlayers() {
+    _dragDropPlayers = _currentResults.map((result) {
+      return vorp_widgets.RankingPlayerItem(
+        id: result.playerId,
+        name: result.playerName,
+        team: result.team ?? '',
+        position: widget.position.toLowerCase(),
+        originalRank: result.rank,
+        customRank: result.rank,
+        originalData: {
+          'totalScore': result.totalScore,
+          'attributeScores': result.attributeScores,
+        },
+      );
+    }).toList();
+  }
+
+  void _toggleVORPPreview() {
+    setState(() {
+      _showVORPPreview = !_showVORPPreview;
+    });
+    
+    if (_showVORPPreview) {
+      _calculateVORPForDragDropPlayers();
+    }
+  }
+
+  Future<void> _calculateVORPForDragDropPlayers() async {
+    setState(() {
+      _isCalculatingVORP = true;
+    });
+
+    try {
+      // Calculate projected points and VORP for custom rankings
+      for (int i = 0; i < _dragDropPlayers.length; i++) {
+        final player = _dragDropPlayers[i];
+        
+        // Get projected points based on rank
+        final projectedPoints = await _historicalPointsService.getProjectedPointsForRank(
+          widget.position.toLowerCase(), 
+          player.customRank,
+        );
+        
+        // Calculate VORP
+        final vorp = await _historicalPointsService.calculateVORPForPlayer(
+          widget.position.toLowerCase(),
+          player.customRank,
+          projectedPoints,
+        );
+        
+        _dragDropPlayers[i] = player.copyWith(
+          projectedPoints: projectedPoints,
+          vorp: vorp,
+        );
+      }
+      
+      setState(() {
+        _showVORPPreview = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error calculating VORP: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isCalculatingVORP = false;
+      });
+    }
+  }
+
+  void _onDragDropReorder(List<vorp_widgets.RankingPlayerItem> reorderedPlayers) {
+    setState(() {
+      _dragDropPlayers = reorderedPlayers;
+    });
+
+    // Recalculate VORP if preview is showing
+    if (_showVORPPreview) {
+      _calculateVORPForDragDropPlayers();
+    }
+  }
+
+  void _onDragDropRankChange(vorp_widgets.RankingPlayerItem player, int newRank) {
+    if (newRank < 1 || newRank > _dragDropPlayers.length) return;
+    
+    setState(() {
+      // Remove player from current position
+      _dragDropPlayers.removeWhere((p) => p.id == player.id);
+      
+      // Insert at new position (convert to 0-based index)
+      _dragDropPlayers.insert(newRank - 1, player.copyWith(customRank: newRank));
+      
+      // Update custom ranks for all players based on their new positions
+      for (int i = 0; i < _dragDropPlayers.length; i++) {
+        _dragDropPlayers[i] = _dragDropPlayers[i].copyWith(customRank: i + 1);
+      }
+    });
+
+    // Recalculate VORP if preview is showing
+    if (_showVORPPreview) {
+      _calculateVORPForDragDropPlayers();
+    }
+  }
+
+  Future<void> _saveCustomRanking() async {
+    showDialog(
+      context: context,
+      builder: (context) => SaveCustomVorpRankingDialog(
+        position: widget.position.toLowerCase(),
+        existingName: widget.rankingName.isNotEmpty ? '${widget.rankingName} - Manual' : null,
+        onSave: (name) async {
+          try {
+            // Convert RankingPlayerItem list to CustomPlayerRank list
+            final playerRanks = _dragDropPlayers.map((player) => 
+              vorp.CustomPlayerRank(
+                playerId: player.id,
+                playerName: player.name,
+                team: player.team,
+                customRank: player.customRank,
+                projectedPoints: player.projectedPoints,
+                vorp: player.vorp,
+              )
+            ).toList();
+
+            final customRanking = vorp.CustomPositionRanking(
+              id: _vorpRankingService.generateRankingId(),
+              userId: 'anonymous_user', // For MVP
+              position: widget.position.toLowerCase(),
+              name: name,
+              playerRanks: playerRanks,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+
+            final success = await _vorpRankingService.saveRanking(customRanking);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(success 
+                      ? 'Custom ${widget.position.toUpperCase()} rankings saved successfully!'
+                      : 'Failed to save custom rankings.'),
+                  backgroundColor: success ? Colors.green : Colors.red,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving rankings: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
   Future<void> _shareRankings(String action) async {

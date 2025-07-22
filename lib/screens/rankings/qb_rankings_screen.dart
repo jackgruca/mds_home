@@ -582,6 +582,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     );
   }
 
+
   Widget _buildDataTable() {
     if (_qbRankings.isEmpty) {
       return const Center(
