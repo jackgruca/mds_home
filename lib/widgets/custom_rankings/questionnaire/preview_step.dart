@@ -69,22 +69,30 @@ class _PreviewStepState extends State<PreviewStep> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: Theme.of(context).brightness == Brightness.dark 
+          ? Colors.blue.shade900.withOpacity(0.2) 
+          : Colors.blue.shade50,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark 
+          ? Colors.blue.shade700.withOpacity(0.5) 
+          : Colors.blue.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.analytics_outlined, color: Colors.blue.shade700),
+              Icon(Icons.analytics_outlined, color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.blue.shade300 
+                : Colors.blue.shade700),
               const SizedBox(width: 8),
               Text(
                 'Next Year Predictions',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade700,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.blue.shade300 
+                    : Colors.blue.shade700,
                 ),
               ),
             ],
@@ -93,7 +101,9 @@ class _PreviewStepState extends State<PreviewStep> {
           Text(
             'Include AI-generated next year stat predictions in your rankings. These predictions consider team context, target share projections, and historical performance patterns.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.blue.shade700,
+              color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.blue.shade300 
+                : Colors.blue.shade700,
             ),
           ),
           const SizedBox(height: 16),
@@ -106,14 +116,18 @@ class _PreviewStepState extends State<PreviewStep> {
                     _includeNextYearPredictions = value ?? false;
                   });
                 },
-                activeColor: Colors.blue.shade700,
+                activeColor: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.blue.shade300 
+                  : Colors.blue.shade700,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Include next year predictions as ranking factors',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.blue.shade700,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.blue.shade300 
+                      : Colors.blue.shade700,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -125,9 +139,11 @@ class _PreviewStepState extends State<PreviewStep> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.shade100),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.blue.shade700.withOpacity(0.3) 
+                  : Colors.blue.shade100),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +152,9 @@ class _PreviewStepState extends State<PreviewStep> {
                     'Prediction Data Included:',
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.blue.shade800,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.blue.shade200 
+                        : Colors.blue.shade800,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -146,7 +164,9 @@ class _PreviewStepState extends State<PreviewStep> {
                     '• Expected receiving yards and TDs\n'
                     '• Team context and tier adjustments',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.blue.shade700,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.blue.shade300 
+                        : Colors.blue.shade700,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -157,7 +177,9 @@ class _PreviewStepState extends State<PreviewStep> {
                     child: Text(
                       'Customize predictions in Stat Predictor →',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.blue.shade600,
+                        color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.blue.shade400 
+                          : Colors.blue.shade600,
                         fontWeight: FontWeight.w500,
                         decoration: TextDecoration.underline,
                       ),
@@ -261,7 +283,7 @@ class _PreviewStepState extends State<PreviewStep> {
           Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
           Text(
@@ -303,9 +325,9 @@ class _PreviewStepState extends State<PreviewStep> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -327,7 +349,7 @@ class _PreviewStepState extends State<PreviewStep> {
                 Text(
                   attribute.category,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -337,7 +359,7 @@ class _PreviewStepState extends State<PreviewStep> {
             width: 60,
             height: 6,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
               borderRadius: BorderRadius.circular(3),
             ),
             child: FractionallySizedBox(
@@ -383,16 +405,16 @@ class _PreviewStepState extends State<PreviewStep> {
         Text(
           'Here\'s how your rankings will look once calculated with real player data:',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: Colors.grey.shade600,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
           ),
           child: Column(
             children: [
@@ -404,7 +426,7 @@ class _PreviewStepState extends State<PreviewStep> {
                 child: Text(
                   '... and more players',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade500,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -453,7 +475,7 @@ class _PreviewStepState extends State<PreviewStep> {
           Text(
             team,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
           const SizedBox(width: 12),

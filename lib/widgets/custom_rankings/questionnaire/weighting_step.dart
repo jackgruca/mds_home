@@ -86,7 +86,7 @@ class WeightingStep extends StatelessWidget {
                     ? 'Weights are well balanced'
                     : 'Consider adjusting weights for better balance',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -125,8 +125,17 @@ class WeightingStep extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: ThemeConfig.darkNavy,
-        side: const BorderSide(color: ThemeConfig.darkNavy),
+        foregroundColor: Theme.of(context).brightness == Brightness.dark 
+          ? ThemeConfig.darkNavy 
+          : ThemeConfig.darkNavy,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark 
+          ? Colors.white 
+          : Colors.transparent,
+        side: BorderSide(
+          color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : ThemeConfig.darkNavy,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
       child: Text(
@@ -144,9 +153,9 @@ class WeightingStep extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +176,7 @@ class WeightingStep extends StatelessWidget {
                     Text(
                       attribute.category,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
                   ],
@@ -194,7 +203,7 @@ class WeightingStep extends StatelessWidget {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: ThemeConfig.darkNavy,
-              inactiveTrackColor: Colors.grey.shade300,
+              inactiveTrackColor: Theme.of(context).colorScheme.outline.withOpacity(0.3),
               thumbColor: ThemeConfig.darkNavy,
               overlayColor: ThemeConfig.darkNavy.withValues(alpha: 0.2),
               trackHeight: 6,
@@ -217,13 +226,13 @@ class WeightingStep extends StatelessWidget {
               Text(
                 'Not Important',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               Text(
                 'Very Important',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ],

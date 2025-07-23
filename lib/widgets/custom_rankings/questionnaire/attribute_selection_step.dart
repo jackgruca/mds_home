@@ -69,12 +69,12 @@ class AttributeSelectionStep extends StatelessWidget {
       decoration: BoxDecoration(
         color: selectedAttributes.isNotEmpty 
           ? ThemeConfig.successGreen.withValues(alpha: 0.1)
-          : Colors.grey.shade100,
+          : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: selectedAttributes.isNotEmpty 
             ? ThemeConfig.successGreen.withValues(alpha: 0.3)
-            : Colors.grey.shade300,
+            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -83,7 +83,7 @@ class AttributeSelectionStep extends StatelessWidget {
             selectedAttributes.isNotEmpty ? Icons.check_circle : Icons.info_outline,
             color: selectedAttributes.isNotEmpty 
               ? ThemeConfig.successGreen
-              : Colors.grey.shade600,
+              : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -98,14 +98,14 @@ class AttributeSelectionStep extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: selectedAttributes.isNotEmpty 
                       ? ThemeConfig.successGreen
-                      : Colors.grey.shade600,
+                      : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
                 if (selectedAttributes.isNotEmpty)
                   Text(
                     selectedAttributes.map((attr) => attr.displayName).join(', '),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
               ],
@@ -169,9 +169,17 @@ class AttributeSelectionStep extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isSelected ? ThemeConfig.darkNavy.withValues(alpha: 0.1) : Colors.white,
+            color: isSelected 
+              ? (Theme.of(context).brightness == Brightness.dark 
+                  ? ThemeConfig.darkNavy 
+                  : ThemeConfig.darkNavy.withValues(alpha: 0.1)) 
+              : Theme.of(context).colorScheme.surface,
             border: Border.all(
-              color: isSelected ? ThemeConfig.darkNavy : Colors.grey.shade300,
+              color: isSelected 
+                ? (Theme.of(context).brightness == Brightness.dark 
+                    ? ThemeConfig.gold 
+                    : ThemeConfig.darkNavy) 
+                : Theme.of(context).colorScheme.outline.withOpacity(0.3),
               width: isSelected ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(8),
@@ -180,7 +188,11 @@ class AttributeSelectionStep extends StatelessWidget {
             children: [
               Icon(
                 isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: isSelected ? ThemeConfig.darkNavy : Colors.grey.shade400,
+                color: isSelected 
+                  ? (Theme.of(context).brightness == Brightness.dark 
+                      ? ThemeConfig.gold 
+                      : ThemeConfig.darkNavy) 
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -193,7 +205,11 @@ class AttributeSelectionStep extends StatelessWidget {
                           attribute.displayName,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? ThemeConfig.darkNavy : null,
+                            color: isSelected 
+                              ? (Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.white 
+                                  : ThemeConfig.darkNavy) 
+                              : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         if (attribute.unit != null)
@@ -201,7 +217,7 @@ class AttributeSelectionStep extends StatelessWidget {
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -236,7 +252,7 @@ class AttributeSelectionStep extends StatelessWidget {
                         child: Text(
                           attribute.description!,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                           ),
                         ),
                       ),

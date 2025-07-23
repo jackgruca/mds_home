@@ -69,6 +69,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   bool _sortAscending = false;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ScrollController _horizontalScrollController = ScrollController();
   
   // Available years for selection (past 5 years)
   final List<String> _availableYears = ['2024', '2023', '2022', '2021', '2020'];
@@ -129,6 +130,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   @override
   void dispose() {
     _newQueryValueController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -535,7 +537,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
               child: Column(
                 children: [
                   _buildControls(),
-                  _buildCollapsibleQuerySection(),
                   Expanded(
                     child: _isLoading
                         ? const Center(child: CircularProgressIndicator())
@@ -577,13 +578,20 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest 
+                    : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Position: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Position: ', style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Colors.black87,
+                    )),
                     DropdownButton<String>(
                       value: _selectedPosition,
                       underline: const SizedBox(),
@@ -598,7 +606,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                       items: <String>['RB', 'WR', 'TE', 'QB'].map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(value, style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).brightness == Brightness.dark 
+                              ? Colors.white 
+                              : Colors.black87,
+                          )),
                         );
                       }).toList(),
                     ),
@@ -868,197 +881,101 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       );
     }
 
-    return Column(
-      children: [
-        _buildSectionHeaders(),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.surface,
-                  Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(
-                color: ThemeConfig.gold.withOpacity(0.2),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: ThemeConfig.darkNavy.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              child: MdsTable(
-                style: MdsTableStyle.premium,
-                density: MdsTableDensity.comfortable,
-                columns: _getMdsColumns(),
-                rows: _getMdsRows(),
-                sortColumn: _sortColumn,
-                sortAscending: _sortAscending,
-                showBorder: false, // Remove border since we're handling it with the container
-                padding: EdgeInsets.zero, // Remove default padding
-                onSort: (columnKey, ascending) {
-                  setState(() {
-                    _sortColumn = columnKey;
-                    _sortAscending = ascending;
-                    _sortData();
-                  });
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeaders() {
-    // Calculate exact column counts based on actual column structure
-    final toDateCount = _getToDateColumnCount();
-    final recentCount = _getRecentColumnCount();
-    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           colors: [
-            ThemeConfig.darkNavy,
-            ThemeConfig.darkNavy.withOpacity(0.9),
+            Theme.of(context).colorScheme.surface,
+            Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         border: Border.all(
-          color: const Color(0xFFFFD700), // Gold trim
-          width: 2,
+          color: ThemeConfig.gold.withOpacity(0.2),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: ThemeConfig.darkNavy.withOpacity(0.1),
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Table(
-        columnWidths: {
-          0: const FlexColumnWidth(1), // Player column
-          1: FlexColumnWidth(toDateCount.toDouble()), // Season To-Date columns
-          2: FlexColumnWidth(recentCount.toDouble()), // Recent columns  
-          3: const FlexColumnWidth(2), // Trends columns
-        },
-        children: [
-          TableRow(
-            children: [
-              Container(
-                height: 48,
-                alignment: Alignment.center,
-                child: const Text(
-                  '',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _horizontalScrollController,
+          child: SizedBox(
+            width: _getTotalTableWidth(),
+            child: CustomScrollView(
+              slivers: [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TwoLevelHeaderDelegate(
+                    child: _buildTwoLevelHeaders(),
                   ),
                 ),
-              ),
-              Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: Colors.white24, width: 1),
-                    right: BorderSide(color: Colors.white24, width: 1),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final filteredData = _getFilteredData();
+                      if (index >= filteredData.length) return null;
+                      
+                      final player = filteredData[index];
+                      return _buildPlayerDataRow(player, index);
+                    },
+                    childCount: _getFilteredData().length,
                   ),
                 ),
-                child: Text(
-                  'Season To-Date ($_selectedYear)',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  border: Border(
-                    right: BorderSide(color: Colors.white24, width: 1),
-                  ),
-                ),
-                child:                 Text(
-                  'Recent ${_selectedWeeks.round()} Weeks ($_selectedYear)',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                height: 48,
-                alignment: Alignment.center,
-                child: const Text(
-                  'Trends',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  int _getToDateColumnCount() {
-    int count = 2; // Games + PPR
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      count += 4; // Tgt, Rec, Yds, TD
-    } else if (_selectedPosition == 'RB') {
-      count += 5; // Car, RuYd, Tgt, ReYd, TD
-    } else if (_selectedPosition == 'QB') {
-      count += 6; // Att, PaYd, PaTD, RAtt, RuYd, RuTD
+
+  Map<String, int> _calculateColumnSpans() {
+    final columns = _getMdsColumns();
+    int seasonToDateCount = 0;
+    int recentCount = 0;
+    int trendsCount = 0;
+    
+    for (final column in columns) {
+      if (column.key == 'playerName') {
+        // Skip player column, it's separate
+        continue;
+      } else if (column.key.startsWith('full_')) {
+        seasonToDateCount++;
+      } else if (column.key.startsWith('recent_')) {
+        recentCount++;
+      } else if (column.key.endsWith('_value') || column.key == 'usage_flag' || column.key == 'result_flag') {
+        trendsCount++;
+      }
     }
-    return count;
+    
+    return {
+      'seasonToDate': seasonToDateCount,
+      'recent': recentCount,
+      'trends': trendsCount,
+    };
   }
 
-  int _getRecentColumnCount() {
-    int count = 3; // Games + PPR + Med
-    if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      count += 4; // Tgt, Rec, Yds, TD
-    } else if (_selectedPosition == 'RB') {
-      count += 5; // Car, RuYd, Tgt, ReYd, TD
-    } else if (_selectedPosition == 'QB') {
-      count += 6; // Att, PaYd, PaTD, RAtt, RuYd, RuTD
+  double _getTotalTableWidth() {
+    final columns = _getMdsColumns();
+    double totalWidth = 0;
+    for (final column in columns) {
+      totalWidth += column.key == 'playerName' ? 150 : 100;
     }
-    return count;
+    return totalWidth;
   }
+
   
   List<MdsTableColumn> _getMdsColumns() {
     List<MdsTableColumn> columns = [
@@ -1223,5 +1140,213 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       // Interpolate between Yellow and Green
       return Color.lerp(Colors.yellow.shade600, Colors.green.shade500, clampedValue / 0.3)!;
     }
+  }
+
+  Widget _buildTwoLevelHeaders() {
+    final columns = _getMdsColumns();
+    final columnSpans = _calculateColumnSpans();
+    
+    return Container(
+      color: ThemeConfig.darkNavy,
+      child: Column(
+        children: [
+          // Top level: Group headers
+          Row(
+              children: [
+                // Player column header
+                Container(
+                  width: 150,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: Colors.white24, width: 1)),
+                  ),
+                  child: const Text(
+                    '',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                // Season To-Date group
+                Container(
+                  width: columnSpans['seasonToDate']! * 100.0,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: Colors.white24, width: 1),
+                      right: BorderSide(color: Colors.white24, width: 1),
+                    ),
+                  ),
+                  child: Text(
+                    'Season To-Date ($_selectedYear)',
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                // Recent group
+                Container(
+                  width: columnSpans['recent']! * 100.0,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    border: Border(right: BorderSide(color: Colors.white24, width: 1)),
+                  ),
+                  child: Text(
+                    'Recent ${_selectedWeeks.round()} Weeks ($_selectedYear)',
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                // Trends group
+                Container(
+                  width: columnSpans['trends']! * 100.0,
+                  height: 40,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Trends',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          // Bottom level: Individual column headers
+          Row(
+              children: columns.map((column) {
+                return Container(
+                  width: column.key == 'playerName' ? 150 : 100,
+                  height: 40,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24, width: 0.5),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  ),
+                  child: Center(
+                    child: Text(
+                      column.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark 
+                          ? Colors.white 
+                          : Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerDataRow(Map<String, dynamic> player, int index) {
+    final columns = _getMdsColumns();
+    final isEven = index % 2 == 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark 
+          ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+          : (isEven ? Colors.white : Colors.grey.shade50),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+      ),
+      child: Row(
+          children: columns.map((column) {
+            final value = player[column.key];
+            return Container(
+              width: column.key == 'playerName' ? 150 : 100,
+              height: 52,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade200, width: 0.5),
+              ),
+              child: Center(
+                child: _buildCellContent(column, value, index, player),
+              ),
+            );
+          }).toList(),
+        ),
+    );
+  }
+
+  Widget _buildCellContent(MdsTableColumn column, dynamic value, int index, Map<String, dynamic> player) {
+    // Handle custom cell builders
+    if (column.cellBuilder != null) {
+      return column.cellBuilder!(value, index, null);
+    }
+    
+    // Handle player name column with team logo
+    if (column.key == 'playerName') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (player['team'] != null && (player['team'] as String).isNotEmpty)
+            TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 20),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              player['playerName'] as String? ?? 'N/A',
+              style: const TextStyle(
+                fontSize: 12, 
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // Handle numeric values
+    if (column.numeric && value is num) {
+      final displayValue = column.isDoubleField ? value.toStringAsFixed(1) : value.round().toString();
+      return Text(
+        displayValue,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
+        ),
+        textAlign: TextAlign.center,
+      );
+    }
+    
+    return Text(
+      value?.toString() ?? '-',
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: Colors.black87,
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+class _TwoLevelHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  
+  _TwoLevelHeaderDelegate({required this.child});
+  
+  @override
+  double get minExtent => 80.0; // Two rows: 40 + 40
+  
+  @override
+  double get maxExtent => 80.0;
+  
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+  
+  @override
+  bool shouldRebuild(_TwoLevelHeaderDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 } 

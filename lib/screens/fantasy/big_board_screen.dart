@@ -866,7 +866,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                   player.name,
                                   style: theme.textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: ThemeConfig.darkNavy,
+                                    color: theme.brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : ThemeConfig.darkNavy,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -1482,9 +1484,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                           },
                                         );
                                       } else {
-                                        return SingleChildScrollView(
-                                          child: _buildModernTable(),
-                                        );
+                                        return _buildTableWithStickyHeader();
                                       }
                                     },
                                   ),
@@ -1518,6 +1518,68 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTableWithStickyHeader() {
+    final theme = Theme.of(context);
+    
+    return Column(
+      children: [
+        // Sticky header
+        Container(
+          decoration: BoxDecoration(
+            color: ThemeAwareColors.getTableHeaderColor(context),
+            border: Border(
+              bottom: BorderSide(
+                color: theme.dividerColor.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(Colors.transparent),
+              headingTextStyle: TextStyle(
+                color: ThemeAwareColors.getTableHeaderTextColor(context),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                letterSpacing: 0.5,
+              ),
+              dataRowMinHeight: 56,
+              dataRowMaxHeight: 56,
+              showCheckboxColumn: false,
+              sortColumnIndex: _sortColumnIndex,
+              sortAscending: _sortAscending,
+              columnSpacing: 24,
+              horizontalMargin: 20,
+              dividerThickness: 0,
+              columns: _getModernColumns(),
+              rows: [], // Empty rows for header only
+            ),
+          ),
+        ),
+        // Scrollable content
+        Expanded(
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 0, // Hide header in scrollable content
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 56,
+                showCheckboxColumn: false,
+                columnSpacing: 24,
+                horizontalMargin: 20,
+                dividerThickness: 0,
+                columns: _getModernColumns(),
+                rows: _getModernRows(),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1827,9 +1889,11 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           DataCell(
             Text(
               player.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: ThemeConfig.darkNavy,
+                color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white 
+                  : ThemeConfig.darkNavy,
               ),
             ),
           ),

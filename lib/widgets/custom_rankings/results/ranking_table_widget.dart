@@ -481,7 +481,10 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                   Expanded(
                     child: Text(
                       result.playerName.isEmpty ? 'Unknown Player' : result.playerName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -493,7 +496,9 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
               width: 60,
               child: Text(
                 result.team.isEmpty ? 'N/A' : result.team,
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.black87,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -573,6 +578,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                                 result.playerName,
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
                                 ),
                               ),
                             ],
@@ -582,7 +588,7 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
                               Text(
                                 '${result.position} • ${result.team}',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey.shade600,
+                                  color: Colors.black87,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -670,10 +676,12 @@ class _RankingTableWidgetState extends State<RankingTableWidget> {
               child: Center(
                 child: Text(
                   _showRanks ? '#${rankValue.toInt()}' : _formatStatValue(rawValue, 'decimal1'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),

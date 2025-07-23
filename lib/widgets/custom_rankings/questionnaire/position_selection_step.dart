@@ -115,9 +115,17 @@ class PositionSelectionStep extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.05) : Colors.white,
+          color: isSelected 
+            ? (Theme.of(context).brightness == Brightness.dark 
+                ? ThemeConfig.darkNavy 
+                : Theme.of(context).colorScheme.primary.withOpacity(0.05)) 
+            : Theme.of(context).colorScheme.surface,
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            color: isSelected 
+              ? (Theme.of(context).brightness == Brightness.dark 
+                  ? ThemeConfig.gold 
+                  : Theme.of(context).colorScheme.primary) 
+              : Theme.of(context).colorScheme.outline.withOpacity(0.3),
             width: isSelected ? 2.5 : 1,
           ),
           borderRadius: BorderRadius.circular(16),
@@ -139,7 +147,13 @@ class PositionSelectionStep extends StatelessWidget {
                 position['position'] as String,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Theme.of(context).colorScheme.primary : ThemeConfig.darkNavy,
+                  color: isSelected 
+                    ? (Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Theme.of(context).colorScheme.primary) 
+                    : (Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : ThemeConfig.darkNavy),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -147,7 +161,7 @@ class PositionSelectionStep extends StatelessWidget {
               Text(
                 position['name'] as String,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -178,11 +192,11 @@ class PositionSelectionStep extends StatelessWidget {
                       return Container(
                         height: 120,
                         width: 120,
-                        color: Colors.grey.shade200,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         child: Icon(
                           position['icon'] as IconData,
                           size: 40,
-                          color: Colors.grey.shade400,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                         ),
                       );
                     },
@@ -209,16 +223,26 @@ class PositionSelectionStep extends StatelessWidget {
                     .map((attr) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.grey.shade100,
+                            color: isSelected 
+                              ? (Theme.of(context).brightness == Brightness.dark 
+                                  ? ThemeConfig.gold.withOpacity(0.2) 
+                                  : Theme.of(context).colorScheme.primary.withOpacity(0.1)) 
+                              : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                             borderRadius: BorderRadius.circular(8),
                             border: isSelected ? Border.all(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                ? ThemeConfig.gold.withOpacity(0.5) 
+                                : Theme.of(context).colorScheme.primary.withOpacity(0.3),
                             ) : null,
                           ),
                           child: Text(
                             attr,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                              color: isSelected 
+                                ? (Theme.of(context).brightness == Brightness.dark 
+                                    ? Colors.white 
+                                    : Theme.of(context).colorScheme.primary) 
+                                : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                               fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
