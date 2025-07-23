@@ -29,6 +29,7 @@ import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'screens/fantasy/big_board_screen.dart';
 import 'screens/draft/draft_big_board_screen.dart';
+import 'screens/draft/historical_drafts_screen.dart';
 import 'screens/fantasy/player_comparison_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
@@ -264,6 +265,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const HistoricalGameDataScreen());
               case '/depth-charts':
                 return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
+              case '/historical-drafts':
+                return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }

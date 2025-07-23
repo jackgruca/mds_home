@@ -35,6 +35,11 @@ class TeamLogoUtils {
     // If we can't find it in the mapping, check if it's already an abbreviation
     if (abbr == null && teamName.trim().length <= 3) {
       abbr = teamName.trim();
+      
+      // Check historical abbreviation mapping
+      if (NFLTeamMappings.historicalAbbreviationMap.containsKey(abbr!.toUpperCase())) {
+        abbr = NFLTeamMappings.historicalAbbreviationMap[abbr.toUpperCase()];
+      }
     }
     
     // If we still don't have an abbreviation or it's empty, create a placeholder
@@ -68,13 +73,38 @@ class TeamLogoUtils {
         child: Image.network(
           logoUrl,
           fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+              ),
+            );
+          },
           errorBuilder: (context, error, stackTrace) {
             // On error, return the placeholder
-            return _buildPlaceholderLogo(
-              teamName,
-              size: size,
-              color: Colors.blue.shade700,
-              customBuilder: placeholderBuilder,
+            debugPrint('Error loading team logo for $teamName ($abbr): $error');
+            return Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.shade700,
+              ),
+              child: Center(
+                child: Text(
+                  _getTeamInitials(teamName),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: size * 0.4,
+                  ),
+                ),
+              ),
             );
           },
         ),

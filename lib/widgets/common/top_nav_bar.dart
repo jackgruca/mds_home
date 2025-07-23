@@ -79,6 +79,7 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', isPlaceholder: false),
+      NavItem(title: 'Historical Drafts', route: '/historical-drafts', isPlaceholder: false),
     ],
   ),
   

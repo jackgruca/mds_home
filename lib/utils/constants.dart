@@ -105,6 +105,16 @@ class NFLTeamMappings {
     "Tennessee Titans": "TEN",
     "Washington Commanders": "WAS"
   };
+
+  // Historical team abbreviations mapping for older data
+  static const Map<String, String> historicalAbbreviationMap = {
+    "LVR": "LV", // Las Vegas Raiders (old abbreviation)
+    "OAK": "LV", // Oakland Raiders
+    "SD": "LAC", // San Diego Chargers  
+    "STL": "LAR", // St. Louis Rams
+    "WAS": "WAS", // Washington (various names)
+    "WSH": "WAS", // Washington
+  };
 }
 
 class NFLTeamColors {
