@@ -50,6 +50,8 @@ import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
+import 'package:mds_home/Authentication/user.dart';
+import 'package:mds_home/Authentication/user_auth.dart' as firebase_auth;
 
 // Secret tap counter for admin access
 
@@ -88,6 +90,12 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeManager()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // Provide the Firebase-authenticated mdsUser stream throughout the app
+        StreamProvider<mdsUser?>.value(
+          value: firebase_auth.AuthService().user,
+          initialData: null,
+          catchError: (_, __) => null,
+        ),
       ],
       child: const MyApp(),
     ),

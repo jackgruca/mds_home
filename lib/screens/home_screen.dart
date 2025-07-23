@@ -248,12 +248,14 @@ class _HomeScreenState extends State<HomeScreen>
           if (user != null)
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                'Welcome ${user.name}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text('Welcome, ${user.name}',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              // child: Text(
+              //   'Welcome ${user.name}',
+              //   style: theme.textTheme.titleMedium?.copyWith(
+              //     fontWeight: FontWeight.w600,
+              //   ),
+              // ),,
             ),
         ],
       ),
