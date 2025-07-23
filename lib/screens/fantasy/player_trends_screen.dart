@@ -70,6 +70,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _frozenColumnScrollController = ScrollController();
   
   // Available years for selection (past 5 years)
   final List<String> _availableYears = ['2024', '2023', '2022', '2021', '2020'];
@@ -124,13 +126,33 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   void initState() {
     super.initState();
     _currentFilter = const FilterQuery();
+    _setupScrollSynchronization();
     _fetchAndProcessPlayerTrends();
+  }
+
+  void _setupScrollSynchronization() {
+    // Bidirectional vertical scroll synchronization
+    _verticalScrollController.addListener(() {
+      if (_frozenColumnScrollController.hasClients && 
+          _frozenColumnScrollController.offset != _verticalScrollController.offset) {
+        _frozenColumnScrollController.jumpTo(_verticalScrollController.offset);
+      }
+    });
+    
+    _frozenColumnScrollController.addListener(() {
+      if (_verticalScrollController.hasClients && 
+          _verticalScrollController.offset != _frozenColumnScrollController.offset) {
+        _verticalScrollController.jumpTo(_frozenColumnScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _newQueryValueController.dispose();
     _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
+    _frozenColumnScrollController.dispose();
     super.dispose();
   }
 
@@ -907,34 +929,67 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _horizontalScrollController,
-          child: SizedBox(
-            width: _getTotalTableWidth(),
-            child: CustomScrollView(
-              slivers: [
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _TwoLevelHeaderDelegate(
-                    child: _buildTwoLevelHeaders(),
+        child: Row(
+          children: [
+            // FROZEN FIRST COLUMN (Player names + header)
+            Container(
+              width: 150,
+              child: Column(
+                children: [
+                  // Player header (always visible)
+                  _buildFrozenColumnHeader(),
+                  // Player data (scrolls vertically)
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _frozenColumnScrollController,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _getFilteredData().length,
+                      itemBuilder: (context, index) {
+                        final filteredData = _getFilteredData();
+                        final player = filteredData[index];
+                        return _buildFrozenPlayerCell(player, index);
+                      },
+                    ),
                   ),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final filteredData = _getFilteredData();
-                      if (index >= filteredData.length) return null;
-                      
-                      final player = filteredData[index];
-                      return _buildPlayerDataRow(player, index);
-                    },
-                    childCount: _getFilteredData().length,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            // SCROLLABLE DATA AREA (headers + data move together)
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification notification) {
+                  // Let scroll notifications propagate to synchronize both ListViews
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: _horizontalScrollController,
+                  child: SizedBox(
+                    width: _getScrollableTableWidth(),
+                    child: Column(
+                      children: [
+                        // STICKY HEADERS (move horizontally with data, stay at top)
+                        _buildScrollableHeaders(),
+                        // DATA (scrolls both ways)
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _verticalScrollController,
+                            physics: const ClampingScrollPhysics(),
+                            itemCount: _getFilteredData().length,
+                            itemBuilder: (context, index) {
+                              final filteredData = _getFilteredData();
+                              final player = filteredData[index];
+                              return _buildScrollableDataCells(player, index);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -967,11 +1022,14 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     };
   }
 
-  double _getTotalTableWidth() {
+
+  double _getScrollableTableWidth() {
     final columns = _getMdsColumns();
     double totalWidth = 0;
     for (final column in columns) {
-      totalWidth += column.key == 'playerName' ? 150 : 100;
+      if (column.key != 'playerName') {
+        totalWidth += 100;
+      }
     }
     return totalWidth;
   }
@@ -1083,18 +1141,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     return columns;
   }
 
-  List<MdsTableRow> _getMdsRows() {
-    final filteredData = _getFilteredData();
-    return filteredData.asMap().entries.map((entry) {
-      final int index = entry.key;
-      final player = entry.value;
-      
-      return MdsTableRow(
-        id: 'player_$index',
-        data: player,
-      );
-    }).toList();
-  }
 
 
 
@@ -1142,8 +1188,52 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     }
   }
 
-  Widget _buildTwoLevelHeaders() {
-    final columns = _getMdsColumns();
+  Widget _buildFrozenColumnHeader() {
+    return Container(
+      color: ThemeConfig.darkNavy,
+      child: Column(
+        children: [
+          // Top level: Empty space for group headers
+          Container(
+            width: 150,
+            height: 40,
+            alignment: Alignment.center,
+            child: const Text(
+              '',
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+          // Bottom level: Player column header
+          Container(
+            width: 150,
+            height: 40,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white24, width: 0.5),
+              color: ThemeConfig.darkNavy,
+            ),
+            child: const Center(
+              child: Text(
+                'Player',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildScrollableHeaders() {
+    final columns = _getMdsColumns().where((col) => col.key != 'playerName').toList();
     final columnSpans = _calculateColumnSpans();
     
     return Container(
@@ -1153,19 +1243,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           // Top level: Group headers
           Row(
               children: [
-                // Player column header
-                Container(
-                  width: 150,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    border: Border(right: BorderSide(color: Colors.white24, width: 1)),
-                  ),
-                  child: const Text(
-                    '',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
                 // Season To-Date group
                 Container(
                   width: columnSpans['seasonToDate']! * 100.0,
@@ -1210,27 +1287,53 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           // Bottom level: Individual column headers
           Row(
               children: columns.map((column) {
-                return Container(
-                  width: column.key == 'playerName' ? 150 : 100,
-                  height: 40,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white24, width: 0.5),
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  child: Center(
-                    child: Text(
-                      column.label,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white 
-                          : Colors.black87,
+                return GestureDetector(
+                  onTap: column.numeric ? () {
+                    setState(() {
+                      if (_sortColumn == column.key) {
+                        _sortAscending = !_sortAscending;
+                      } else {
+                        _sortColumn = column.key;
+                        _sortAscending = false;
+                      }
+                      _sortData();
+                    });
+                  } : null,
+                  child: Container(
+                    width: 100,
+                    height: 40,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white24, width: 0.5),
+                      color: ThemeConfig.darkNavy,
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              column.label,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (column.numeric && _sortColumn == column.key) ...[
+                            const SizedBox(width: 2),
+                            Icon(
+                              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 );
@@ -1241,38 +1344,81 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 
-  Widget _buildPlayerDataRow(Map<String, dynamic> player, int index) {
-    final columns = _getMdsColumns();
+  Widget _buildFrozenPlayerCell(Map<String, dynamic> player, int index) {
     final isEven = index % 2 == 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rowColor = isDark 
+      ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+      : (isEven ? Colors.white : Colors.grey.shade50);
     
     return Container(
+      width: 150,
+      height: 52,
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: isDark 
-          ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
-          : (isEven ? Colors.white : Colors.grey.shade50),
+        color: rowColor,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+          right: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (player['team'] != null && (player['team'] as String).isNotEmpty)
+            TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 20),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              player['playerName'] as String? ?? 'N/A',
+              style: const TextStyle(
+                fontSize: 12, 
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrollableDataCells(Map<String, dynamic> player, int index) {
+    final columns = _getMdsColumns().where((col) => col.key != 'playerName').toList();
+    final isEven = index % 2 == 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final rowColor = isDark 
+      ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+      : (isEven ? Colors.white : Colors.grey.shade50);
+    
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: rowColor,
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
       ),
       child: Row(
-          children: columns.map((column) {
-            final value = player[column.key];
-            return Container(
-              width: column.key == 'playerName' ? 150 : 100,
-              height: 52,
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200, width: 0.5),
-              ),
-              child: Center(
-                child: _buildCellContent(column, value, index, player),
-              ),
-            );
-          }).toList(),
-        ),
+        children: columns.map((column) {
+          final value = player[column.key];
+          return Container(
+            width: 100,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+            ),
+            child: Center(
+              child: _buildCellContent(column, value, index, player),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
+
+
 
   Widget _buildCellContent(MdsTableColumn column, dynamic value, int index, Map<String, dynamic> player) {
     // Handle custom cell builders
@@ -1329,24 +1475,4 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   }
 }
 
-class _TwoLevelHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-  
-  _TwoLevelHeaderDelegate({required this.child});
-  
-  @override
-  double get minExtent => 80.0; // Two rows: 40 + 40
-  
-  @override
-  double get maxExtent => 80.0;
-  
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return child;
-  }
-  
-  @override
-  bool shouldRebuild(_TwoLevelHeaderDelegate oldDelegate) {
-    return oldDelegate.child != child;
-  }
-} 
+ 
