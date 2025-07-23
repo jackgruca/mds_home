@@ -47,7 +47,7 @@ final List<NavItem> topNavItems = [
     icon: Icons.assignment_ind,
     isPlaceholder: false,
     subItems: [
-      NavItem(title: 'Consensus Big Board', route: '/big-board', isPlaceholder: false), // Using same big board
+      NavItem(title: 'Draft Big Board', route: '/draft-big-board', isPlaceholder: false),
       NavItem(title: 'Mock Draft Simulator', route: '/draft', isPlaceholder: false),
       NavItem(title: 'Bust or Brilliant', route: '/gm-hub/bust-evaluation', isPlaceholder: false),
       NavItem(title: 'Depth Chart', route: '/depth-charts', isPlaceholder: false),

@@ -28,6 +28,7 @@ import 'widgets/admin/analytics_setup_widget.dart';
 import 'widgets/admin/message_admin_panel.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'screens/fantasy/big_board_screen.dart';
+import 'screens/draft/draft_big_board_screen.dart';
 import 'screens/fantasy/player_comparison_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_home_screen.dart';
 import 'package:mds_home/ff_draft/screens/ff_draft_setup_screen.dart';
@@ -212,6 +213,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
               case '/fantasy/player-projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+              case '/fantasy/draft-big-board':
+                return MaterialPageRoute(builder: (_) => const DraftBigBoardScreen());
+              case '/draft-big-board':
+                return MaterialPageRoute(builder: (_) => const DraftBigBoardScreen());
               case '/projections/wr-2025':
                 return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
               case '/projections/stat-predictor':

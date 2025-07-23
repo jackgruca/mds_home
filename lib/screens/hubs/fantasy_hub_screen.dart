@@ -423,8 +423,14 @@ class _ToolGrid extends StatelessWidget {
     {
       'icon': Icons.leaderboard,
       'title': 'Big Board',
-      'subtitle': 'Player rankings & tiers',
+      'subtitle': 'Fantasy player rankings & tiers',
       'route': '/fantasy/big-board',
+    },
+    {
+      'icon': Icons.star_border,
+      'title': 'Draft Big Board',
+      'subtitle': '2026 NFL Draft prospect rankings',
+      'route': '/fantasy/draft-big-board',
     },
     {
       'icon': Icons.tune,
