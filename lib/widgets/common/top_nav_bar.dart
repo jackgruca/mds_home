@@ -19,111 +19,70 @@ class NavItem {
   });
 }
 
-// Define the main navigation structure - Updated
+// Define the main navigation structure - Updated per user requirements
 final List<NavItem> topNavItems = [
-  NavItem(title: 'Home', route: '/', icon: Icons.home), // Implemented
+  NavItem(title: 'Home', route: '/', icon: Icons.home),
+  
+  // 1. Fantasy Football
   NavItem(
-    title: 'GM Hub', // Renamed back
-    route: '/gm-hub', // Renamed route for clarity
-    icon: Icons.assignment_ind, // Changed Icon back
-    isPlaceholder: false, // <<< Changed to false: Landing page exists
+    title: 'Fantasy Football',
+    route: '/fantasy',
+    icon: Icons.sports_football,
+    isPlaceholder: false,
     subItems: [
-      // --- Implemented --- 
-      NavItem(title: 'Mock Draft Simulator', route: '/draft', isPlaceholder: false),
-      NavItem(title: 'Draft Big Board', route: '/draft/big-board', isPlaceholder: false),
-      NavItem(title: 'Bust or Brilliant?', route: '/gm-hub/bust-evaluation', icon: Icons.psychology, isPlaceholder: false),
-      // --- Placeholders --- 
-      // DRAFT
-      NavItem(title: 'Team Needs Analyzer', route: '/team-builder/needs', isPlaceholder: true),
-      NavItem(title: 'Prospect Comparisons', route: '/team-builder/prospects', isPlaceholder: true),
-      // FREE AGENCY
-      NavItem(title: 'Free Agent Tracker', route: '/team-builder/fa-tracker', isPlaceholder: true),
-      NavItem(title: 'Contract Projections', route: '/team-builder/contracts', isPlaceholder: true),
-      NavItem(title: 'Cap Space Analysis', route: '/team-builder/cap', isPlaceholder: true),
-      NavItem(title: 'Team Fit Evaluator', route: '/team-builder/fit', isPlaceholder: true),
-      // TEAM MANAGEMENT
-      NavItem(title: 'Roster Builder', route: '/team-builder/roster', isPlaceholder: true),
-      NavItem(title: 'Trade Finder', route: '/team-builder/trade', isPlaceholder: true),
-      NavItem(title: 'Team Performance Forecaster', route: '/team-builder/forecast', isPlaceholder: true),
-      NavItem(title: 'Depth Chart Analyzer', route: '/team-builder/depth', isPlaceholder: true),
+      NavItem(title: 'Fantasy Big Board', route: '/big-board', isPlaceholder: false),
+      NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', isPlaceholder: false),
+      NavItem(title: 'Fantasy Draft Simulator', route: '/mock-draft-simulator', isPlaceholder: false),
+      NavItem(title: 'My Custom Rankings', route: '/my-rankings', isPlaceholder: false),
+      NavItem(title: 'Player Comparison', route: '/player-comparison', isPlaceholder: false),
+      NavItem(title: 'Player Trends', route: '/fantasy/trends', isPlaceholder: false),
+      NavItem(title: 'Stat Predictor', route: '/stat-predictor', isPlaceholder: false),
     ],
   ),
+  
+  // 2. Be A GM
+  NavItem(
+    title: 'Be A GM',
+    route: '/gm-hub',
+    icon: Icons.assignment_ind,
+    isPlaceholder: false,
+    subItems: [
+      NavItem(title: 'Consensus Big Board', route: '/big-board', isPlaceholder: false), // Using same big board
+      NavItem(title: 'Mock Draft Simulator', route: '/draft', isPlaceholder: false),
+      NavItem(title: 'Bust or Brilliant', route: '/gm-hub/bust-evaluation', isPlaceholder: false),
+      NavItem(title: 'Depth Chart', route: '/depth-charts', isPlaceholder: false),
+      NavItem(title: 'Rosters', route: '/nfl-rosters', isPlaceholder: false),
+    ],
+  ),
+  
+  // 3. Rankings
   NavItem(
     title: 'Rankings',
     route: '/rankings',
     icon: Icons.leaderboard,
-    isPlaceholder: true, // Landing page to be created
-    subItems: [
-      // OFFENSE
-      NavItem(title: 'QB Rankings', route: '/rankings/qb', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'RB Rankings', route: '/rankings/rb', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'WR Rankings', route: '/rankings/wr', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'TE Rankings', route: '/rankings/te', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'OL Rankings', route: '/rankings/ol', icon: Icons.sports_football, isPlaceholder: true),
-      // DEFENSE
-      NavItem(title: 'DL Rankings', route: '/rankings/dl', icon: Icons.shield, isPlaceholder: true),
-      NavItem(title: 'LB Rankings', route: '/rankings/lb', icon: Icons.shield, isPlaceholder: true),
-      NavItem(title: 'Secondary Rankings', route: '/rankings/secondary', icon: Icons.shield, isPlaceholder: true),
-      // SPECIAL
-      NavItem(title: 'Coaching Rankings', route: '/rankings/coaching', icon: Icons.person_pin, isPlaceholder: true),
-    ],
-  ),
-  NavItem(
-    title: 'Fantasy Hub',
-    route: '/fantasy', // Landing page route
-    icon: Icons.sports_football,
     isPlaceholder: false,
     subItems: [
-      // --- Implemented --- 
-      NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
-      NavItem(title: 'Stat Predictor', route: '/projections/stat-predictor', icon: Icons.analytics_outlined, isPlaceholder: false),
-      NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', icon: Icons.tune, isPlaceholder: false),
-      NavItem(title: 'My Custom Rankings', route: '/vorp/my-rankings', icon: Icons.folder_outlined, isPlaceholder: false),
-      NavItem(title: 'Fantasy Draft Simulator', route: '/mock-draft-sim', isPlaceholder: false),
-      NavItem(title: 'Player Comparison Tool', route: '/fantasy/player-comparison', icon: Icons.compare_arrows, isPlaceholder: false),
-      NavItem(title: 'Player Trends', route: '/fantasy/trends', icon: Icons.show_chart, isPlaceholder: false),
-       // --- Placeholders --- 
-      // PREPARE
-      NavItem(title: 'Player Rankings', route: '/fantasy/rankings', isPlaceholder: true),
-      NavItem(title: 'Draft Strategy Planner', route: '/fantasy/strategy', isPlaceholder: true),
-      NavItem(title: 'ADP Analysis Tool', route: '/fantasy/adp', isPlaceholder: true),
-      // COMPETE
-      NavItem(title: 'Trade Analyzer', route: '/fantasy/trade', isPlaceholder: true),
-      NavItem(title: 'Waiver Wire Assistant', route: '/fantasy/waiver', isPlaceholder: true),
-      NavItem(title: 'Start/Sit Optimizer', route: '/fantasy/start-sit', isPlaceholder: true),
-      NavItem(title: 'Matchup Analyzer', route: '/fantasy/matchups', isPlaceholder: true),
-      // ANALYZE
-      NavItem(title: 'Performance Tracker', route: '/fantasy/performance', isPlaceholder: true),
-      NavItem(title: 'League Analyzer', route: '/fantasy/league', isPlaceholder: true),
-      NavItem(title: 'Historical Comparisons', route: '/fantasy/historical', isPlaceholder: true),
-   ]),
-   NavItem(
-    title: 'Data Explorer',
-    route: '/data', // Landing page route
-    icon: Icons.analytics,
-    isPlaceholder: false, // Landing page exists
-    subItems: [
-      // NavItem(title: 'Historical Game Results', route: '/historical-data', icon: Icons.history, isPlaceholder: false),
-      // NavItem(title: 'WR Season Stats', route: '/wr-model', icon: Icons.analytics, isPlaceholder: false),
-      NavItem(title: 'Player Season Stats', route: '/player-season-stats', icon: Icons.query_stats, isPlaceholder: false),
-      NavItem(title: 'Historical Game Data', route: '/historical-game-data', icon: Icons.sports_football, isPlaceholder: false),
-      NavItem(title: 'NFL Rosters', route: '/nfl-rosters', icon: Icons.groups, isPlaceholder: false),
-      NavItem(title: 'Depth Charts', route: '/depth-charts', icon: Icons.format_list_numbered, isPlaceholder: false),
-      // --- Placeholders ---
-      NavItem(title: 'Player Career Statistics', route: '/data/player-stats', isPlaceholder: true),
-      NavItem(title: 'Team Performance Trends', route: '/data/team-trends', isPlaceholder: true),
-      NavItem(title: 'Advanced Metrics Database', route: '/data/metrics', isPlaceholder: true),
-      NavItem(title: 'Interactive Charts', route: '/data/charts', isPlaceholder: true),
-      NavItem(title: 'Comparison Tools', route: '/data/compare', isPlaceholder: true),
-      NavItem(title: 'Trend Spotters', route: '/data/trends', isPlaceholder: true),
-      NavItem(title: 'Situational Analysis', route: '/data/situational', isPlaceholder: true),
-      NavItem(title: 'Custom Query Builder', route: '/data/query', isPlaceholder: true),
-      NavItem(title: 'Data Export Tools', route: '/data/export', isPlaceholder: true),
-      NavItem(title: 'Statistical Significance Tester', route: '/data/sig-test', isPlaceholder: true),
-      NavItem(title: 'Correlation Finder', route: '/data/correlation', isPlaceholder: true),
+      NavItem(title: 'Rankings Hub', route: '/rankings', isPlaceholder: false),
+      NavItem(title: 'QB', route: '/rankings/qb', isPlaceholder: false),
+      NavItem(title: 'WR', route: '/rankings/wr', isPlaceholder: false),
+      NavItem(title: 'TE', route: '/rankings/te', isPlaceholder: false),
+      NavItem(title: 'RB', route: '/rankings/rb', isPlaceholder: false),
     ],
   ),
-   NavItem(title: 'Blog', route: '/blog', icon: Icons.article), // Implemented
+  
+  // 4. Data Center
+  NavItem(
+    title: 'Data Center',
+    route: '/data',
+    icon: Icons.analytics,
+    isPlaceholder: false,
+    subItems: [
+      NavItem(title: 'Historical Game Data', route: '/historical-game-data', isPlaceholder: false),
+      NavItem(title: 'Player Season Stats', route: '/player-season-stats', isPlaceholder: false),
+    ],
+  ),
+  
+  NavItem(title: 'Blog', route: '/blog', icon: Icons.article),
 ];
 
 // Helper function to check if a route belongs to a hub (more robustly)
@@ -215,14 +174,8 @@ class TopNavBarContent extends StatelessWidget {
                     ),
                   );
 
-                // 2. Sort sub-items: implemented first, then placeholders, then alphabetically
+                // 2. Keep sub-items in the exact order specified (no sorting)
                 List<NavItem> sortedSubItems = List.from(item.subItems!);
-                sortedSubItems.sort((a, b) {
-                  if (a.isPlaceholder != b.isPlaceholder) {
-                    return a.isPlaceholder ? 1 : -1; // Non-placeholders first
-                  }
-                  return a.title.compareTo(b.title); // Then alphabetical
-                });
 
                 // 3. Create menu items for sub-items
                 List<PopupMenuItem<String>> subMenuItems = sortedSubItems.map((subItem) {

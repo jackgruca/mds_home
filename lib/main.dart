@@ -220,7 +220,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
               case '/vorp-calculator':
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen()); // VORP is part of Big Board
-              // Rankings section - placeholder routes
+              // Rankings section
               case '/rankings':
                 return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
               case '/rankings/qb':

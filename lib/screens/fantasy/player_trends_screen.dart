@@ -11,6 +11,8 @@ import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/theme_config.dart';
 import '../../widgets/design_system/mds_table.dart';
+import '../../services/rankings/filter_service.dart';
+import '../../widgets/rankings/filter_panel.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -78,6 +80,11 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController = TextEditingController();
   
+  // Filter panel state
+  bool _showFilterPanel = false;
+  bool _usingFilters = false;
+  late FilterQuery _currentFilter;
+  
   // Available fields for querying based on position
   List<String> get _availableQueryFields {
     final baseFields = ['playerName', 'team'];
@@ -115,6 +122,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   @override
   void initState() {
     super.initState();
+    _currentFilter = const FilterQuery();
     _fetchAndProcessPlayerTrends();
   }
 
@@ -122,6 +130,73 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   void dispose() {
     _newQueryValueController.dispose();
     super.dispose();
+  }
+
+  void _toggleFilterPanel() {
+    setState(() {
+      _showFilterPanel = !_showFilterPanel;
+      if (_showFilterPanel) {
+        _isQueryBuilderExpanded = false; // Close query builder when opening filter panel
+      }
+    });
+  }
+
+  void _onFilterChanged(FilterQuery newFilter) {
+    setState(() {
+      _currentFilter = newFilter;
+      _usingFilters = newFilter.hasActiveFilters;
+    });
+    _fetchAndProcessPlayerTrends();
+  }
+
+  Map<String, Map<String, dynamic>> _getFilterableStats() {
+    // Return available stats for filtering based on current position
+    final stats = <String, Map<String, dynamic>>{};
+    
+    // Common stats for all positions
+    stats['playerName'] = {'label': 'Player Name', 'type': 'text'};
+    stats['team'] = {'label': 'Team', 'type': 'text'};
+    
+    if (_selectedPosition == 'RB') {
+      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points (PPR)', 'type': 'number'};
+      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points (PPR)', 'type': 'number'};
+      stats['recent_avg_carries'] = {'label': 'Recent Carries', 'type': 'number'};
+      stats['full_avg_carries'] = {'label': 'Season Carries', 'type': 'number'};
+      stats['recent_avg_rushing_yards'] = {'label': 'Recent Rushing Yards', 'type': 'number'};
+      stats['full_avg_rushing_yards'] = {'label': 'Season Rushing Yards', 'type': 'number'};
+      stats['recent_avg_targets'] = {'label': 'Recent Targets', 'type': 'number'};
+      stats['full_avg_targets'] = {'label': 'Season Targets', 'type': 'number'};
+      stats['recent_avg_receptions'] = {'label': 'Recent Receptions', 'type': 'number'};
+      stats['full_avg_receptions'] = {'label': 'Season Receptions', 'type': 'number'};
+      stats['recent_avg_total_td'] = {'label': 'Recent TDs', 'type': 'number'};
+      stats['full_avg_total_td'] = {'label': 'Season TDs', 'type': 'number'};
+    } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
+      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points (PPR)', 'type': 'number'};
+      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points (PPR)', 'type': 'number'};
+      stats['recent_avg_targets'] = {'label': 'Recent Targets', 'type': 'number'};
+      stats['full_avg_targets'] = {'label': 'Season Targets', 'type': 'number'};
+      stats['recent_avg_receptions'] = {'label': 'Recent Receptions', 'type': 'number'};
+      stats['full_avg_receptions'] = {'label': 'Season Receptions', 'type': 'number'};
+      stats['recent_avg_receiving_yards'] = {'label': 'Recent Receiving Yards', 'type': 'number'};
+      stats['full_avg_receiving_yards'] = {'label': 'Season Receiving Yards', 'type': 'number'};
+      stats['recent_avg_receiving_td'] = {'label': 'Recent Receiving TDs', 'type': 'number'};
+      stats['full_avg_receiving_td'] = {'label': 'Season Receiving TDs', 'type': 'number'};
+    } else if (_selectedPosition == 'QB') {
+      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points', 'type': 'number'};
+      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points', 'type': 'number'};
+      stats['recent_avg_passing_yards'] = {'label': 'Recent Passing Yards', 'type': 'number'};
+      stats['full_avg_passing_yards'] = {'label': 'Season Passing Yards', 'type': 'number'};
+      stats['recent_avg_passing_td'] = {'label': 'Recent Passing TDs', 'type': 'number'};
+      stats['full_avg_passing_td'] = {'label': 'Season Passing TDs', 'type': 'number'};
+      stats['recent_avg_interceptions'] = {'label': 'Recent Interceptions', 'type': 'number'};
+      stats['full_avg_interceptions'] = {'label': 'Season Interceptions', 'type': 'number'};
+      stats['recent_avg_rushing_yards'] = {'label': 'Recent Rushing Yards', 'type': 'number'};
+      stats['full_avg_rushing_yards'] = {'label': 'Season Rushing Yards', 'type': 'number'};
+      stats['recent_avg_rushing_td'] = {'label': 'Recent Rushing TDs', 'type': 'number'};
+      stats['full_avg_rushing_td'] = {'label': 'Season Rushing TDs', 'type': 'number'};
+    }
+    
+    return stats;
   }
 
   void _addQueryCondition() {
@@ -160,53 +235,63 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   }
 
   List<Map<String, dynamic>> _getFilteredData() {
-    if (_queryConditions.isEmpty) return _playerData;
+    List<Map<String, dynamic>> filteredData = _playerData;
     
-    return _playerData.where((player) {
-      return _queryConditions.every((condition) {
-        final value = player[condition.field];
-        final queryValue = condition.value.toLowerCase();
-        
-        switch (condition.operator) {
-          case QueryOperator.equals:
-            if (value is num) {
-              return value == double.tryParse(condition.value);
-            }
-            return value.toString().toLowerCase() == queryValue;
-          case QueryOperator.notEquals:
-            if (value is num) {
-              return value != double.tryParse(condition.value);
-            }
-            return value.toString().toLowerCase() != queryValue;
-          case QueryOperator.greaterThan:
-            if (value is num) {
-              final numValue = double.tryParse(condition.value);
-              return numValue != null && value > numValue;
-            }
-            return false;
-          case QueryOperator.greaterThanOrEquals:
-            if (value is num) {
-              final numValue = double.tryParse(condition.value);
-              return numValue != null && value >= numValue;
-            }
-            return false;
-          case QueryOperator.lessThan:
-            if (value is num) {
-              final numValue = double.tryParse(condition.value);
-              return numValue != null && value < numValue;
-            }
-            return false;
-          case QueryOperator.lessThanOrEquals:
-            if (value is num) {
-              final numValue = double.tryParse(condition.value);
-              return numValue != null && value <= numValue;
-            }
-            return false;
-          case QueryOperator.contains:
-            return value.toString().toLowerCase().contains(queryValue);
-        }
-      });
-    }).toList();
+    // Apply filter panel filters first
+    if (_currentFilter.hasActiveFilters) {
+      filteredData = FilterService.applyFilters(filteredData, _currentFilter);
+    }
+    
+    // Apply legacy query conditions
+    if (_queryConditions.isNotEmpty) {
+      filteredData = filteredData.where((player) {
+        return _queryConditions.every((condition) {
+          final value = player[condition.field];
+          final queryValue = condition.value.toLowerCase();
+          
+          switch (condition.operator) {
+            case QueryOperator.equals:
+              if (value is num) {
+                return value == double.tryParse(condition.value);
+              }
+              return value.toString().toLowerCase() == queryValue;
+            case QueryOperator.notEquals:
+              if (value is num) {
+                return value != double.tryParse(condition.value);
+              }
+              return value.toString().toLowerCase() != queryValue;
+            case QueryOperator.greaterThan:
+              if (value is num) {
+                final numValue = double.tryParse(condition.value);
+                return numValue != null && value > numValue;
+              }
+              return false;
+            case QueryOperator.greaterThanOrEquals:
+              if (value is num) {
+                final numValue = double.tryParse(condition.value);
+                return numValue != null && value >= numValue;
+              }
+              return false;
+            case QueryOperator.lessThan:
+              if (value is num) {
+                final numValue = double.tryParse(condition.value);
+                return numValue != null && value < numValue;
+              }
+              return false;
+            case QueryOperator.lessThanOrEquals:
+              if (value is num) {
+                final numValue = double.tryParse(condition.value);
+                return numValue != null && value <= numValue;
+              }
+              return false;
+            case QueryOperator.contains:
+              return value.toString().toLowerCase().contains(queryValue);
+          }
+        });
+      }).toList();
+    }
+    
+    return filteredData;
   }
   
   double _getMedian(List<double> arr) {
@@ -440,25 +525,44 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Card(
-          elevation: 2,
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              _buildControls(),
-              _buildCollapsibleQuerySection(),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _getFilteredData().isEmpty 
-                        ? const Center(child: Text('No data available for the selected filters.'))
-                        : _buildDataTable(),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Card(
+              elevation: 2,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  _buildControls(),
+                  _buildCollapsibleQuerySection(),
+                  Expanded(
+                    child: _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _getFilteredData().isEmpty 
+                            ? const Center(child: Text('No data available for the selected filters.'))
+                            : _buildDataTable(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (_showFilterPanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: FilterPanel(
+                currentQuery: _currentFilter,
+                onFilterChanged: _onFilterChanged,
+                onClose: _toggleFilterPanel,
+                isVisible: _showFilterPanel,
+                availableTeams: FilterService.getAvailableTeams(_playerData),
+                availableSeasons: FilterService.getAvailableSeasons(_playerData),
+                statFields: _getFilterableStats(),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -537,6 +641,23 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                 ),
               ),
               const Spacer(),
+              // Filter button
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _toggleFilterPanel,
+                  icon: Icon(
+                    _showFilterPanel ? Icons.close : Icons.filter_list,
+                    size: 16,
+                  ),
+                  label: Text(_showFilterPanel ? 'Close' : 'Filter'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _usingFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: _isLoading ? null : _fetchAndProcessPlayerTrends,
                 icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
@@ -564,6 +685,14 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        onExpansionChanged: (expanded) {
+          setState(() {
+            _isQueryBuilderExpanded = expanded;
+            if (expanded) {
+              _showFilterPanel = false; // Close filter panel when opening query builder
+            }
+          });
+        },
         title: Row(
           children: [
             Icon(Icons.filter_alt_outlined, color: Theme.of(context).primaryColor, size: 20),
@@ -589,12 +718,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
               ),
           ],
         ),
-        initiallyExpanded: _isQueryBuilderExpanded,
-        onExpansionChanged: (expanded) {
-          setState(() {
-            _isQueryBuilderExpanded = expanded;
-          });
-        },
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
