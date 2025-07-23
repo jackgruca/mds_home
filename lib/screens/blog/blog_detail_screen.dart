@@ -1,4 +1,4 @@
-// lib/screens/blog_detail_screen.dart 
+// lib/screens/blog_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mds_home/utils/seo_helper.dart';
@@ -8,7 +8,7 @@ import '../../services/blog_service.dart';
 import '../../utils/theme_config.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/common/custom_app_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 
 class BlogDetailScreen extends StatefulWidget {
   final String postId;
@@ -24,10 +24,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   bool _isLoading = true;
 
   @override
-void initState() {
-  super.initState();
-  _loadPost();
-}
+  void initState() {
+    super.initState();
+    _loadPost();
+  }
 
   Future<void> _loadPost() async {
     setState(() {
@@ -51,8 +51,8 @@ void initState() {
       }
     }
     if (_post != null) {
-    SEOHelper.updateForBlogPost(_post!);
-  }
+      SEOHelper.updateForBlogPost(_post!);
+    }
   }
 
   @override
@@ -66,8 +66,11 @@ void initState() {
         titleWidget: Row(
           children: [
             if (Navigator.canPop(context))
-              IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.maybePop(context)),
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+              IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.maybePop(context)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -76,11 +79,13 @@ void initState() {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 textStyle: const TextStyle(fontSize: 14),
               ),
               child: const Text('Sign In / Sign Up'),
@@ -98,14 +103,18 @@ void initState() {
                       Icon(
                         Icons.error_outline,
                         size: 64,
-                        color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+                        color: isDarkMode
+                            ? Colors.grey.shade600
+                            : Colors.grey.shade400,
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'Blog post not found',
                         style: TextStyle(
                           fontSize: 18,
-                          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade700,
+                          color: isDarkMode
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade700,
                         ),
                       ),
                     ],
@@ -123,11 +132,15 @@ void initState() {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             height: 240,
-                            color: isDarkMode ? ThemeConfig.darkNavy : ThemeConfig.deepRed.withOpacity(0.1),
+                            color: isDarkMode
+                                ? ThemeConfig.darkNavy
+                                : ThemeConfig.deepRed.withOpacity(0.1),
                             child: Center(
                               child: Icon(
                                 Icons.image_not_supported,
-                                color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
+                                color: isDarkMode
+                                    ? Colors.grey.shade600
+                                    : Colors.grey.shade400,
                               ),
                             ),
                           ),
@@ -151,74 +164,91 @@ void initState() {
                                 Icon(
                                   Icons.person,
                                   size: 16,
-                                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  color: isDarkMode
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _post!.author,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDarkMode
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
                                   ),
                                 ),
                                 const SizedBox(width: 16),
                                 Icon(
                                   Icons.calendar_today,
                                   size: 16,
-                                  color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  color: isDarkMode
+                                      ? Colors.grey.shade400
+                                      : Colors.grey.shade600,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${_post!.publishedDate.month}/${_post!.publishedDate.day}/${_post!.publishedDate.year}',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
+                                    color: isDarkMode
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 24),
                             MarkdownBody(
-  data: _post!.content,
-  styleSheet: MarkdownStyleSheet(
-    p: const TextStyle(fontSize: 16, height: 1.6),
-    h1: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.bold,
-      color: isDarkMode ? Colors.white : Colors.black,
-    ),
-    h2: TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      color: isDarkMode ? Colors.white : Colors.black,
-    ),
-    h3: TextStyle(
-      fontSize: 18,
-      fontWeight: FontWeight.bold,
-      color: isDarkMode ? Colors.white : Colors.black,
-    ),
-    code: TextStyle(
-      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-      fontFamily: 'monospace',
-    ),
-    blockquote: TextStyle(
-      color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
-      fontStyle: FontStyle.italic,
-    ),
-    listBullet: TextStyle(
-      color: isDarkMode ? Colors.white : Colors.black,
-    ),
-  ),
-  selectable: true, // Makes text selectable
-  onTapLink: (text, href, title) async {
-  if (href != null) {
-    final uri = Uri.parse(href);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-},
-),
+                              data: _post!.content,
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(fontSize: 16, height: 1.6),
+                                h1: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                                h2: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                                h3: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                                code: TextStyle(
+                                  backgroundColor: isDarkMode
+                                      ? Colors.grey[800]
+                                      : Colors.grey[200],
+                                  fontFamily: 'monospace',
+                                ),
+                                blockquote: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.grey[400]
+                                      : Colors.grey[700],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                listBullet: TextStyle(
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              selectable: true, // Makes text selectable
+                              onTapLink: (text, href, title) async {
+                                if (href != null) {
+                                  final uri = Uri.parse(href);
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri,
+                                        mode: LaunchMode.externalApplication);
+                                  }
+                                }
+                              },
+                            ),
                           ],
                         ),
                       ),

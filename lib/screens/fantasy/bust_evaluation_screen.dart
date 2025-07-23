@@ -4,7 +4,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../models/bust_evaluation.dart';
 import '../../services/bust_evaluation_service.dart';
 import '../../utils/theme_config.dart';
@@ -19,23 +19,24 @@ class BustEvaluationScreen extends StatefulWidget {
   State<BustEvaluationScreen> createState() => _BustEvaluationScreenState();
 }
 
-class _BustEvaluationScreenState extends State<BustEvaluationScreen> with TickerProviderStateMixin {
+class _BustEvaluationScreenState extends State<BustEvaluationScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  
+
   List<BustEvaluationPlayer> _searchResults = [];
   List<BustEvaluationPlayer> _featuredPlayers = [];
   BustEvaluationPlayer? _selectedPlayer;
   List<BustTimelineData> _playerTimeline = [];
-  
+
   bool _isSearching = false;
   bool _isLoadingPlayer = false;
   bool _isLoadingFeatured = true;
-  
+
   String _selectedPosition = 'All';
   String _selectedCategory = 'All';
   int _selectedRound = 0; // 0 means all rounds
-  
+
   late AnimationController _searchAnimationController;
   late AnimationController _playerCardController;
   late Animation<double> _searchAnimation;
@@ -58,9 +59,10 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    
+
     _searchAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _searchAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+          parent: _searchAnimationController, curve: Curves.easeInOut),
     );
     _playerCardAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _playerCardController, curve: Curves.easeOutBack),
@@ -79,7 +81,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   Future<void> _loadFeaturedPlayers() async {
     setState(() => _isLoadingFeatured = true);
     try {
-      final controversial = await BustEvaluationService.getRandomControversialPlayers();
+      final controversial =
+          await BustEvaluationService.getRandomControversialPlayers();
       setState(() {
         _featuredPlayers = controversial;
         _isLoadingFeatured = false;
@@ -116,12 +119,15 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   Future<void> _performSearch(String query) async {
     try {
       final results = await BustEvaluationService.searchPlayers(query);
-      
+
       // Apply filters
       final filteredResults = results.where((player) {
-        if (_selectedPosition != 'All' && player.position != _selectedPosition) return false;
-        if (_selectedCategory != 'All' && player.bustCategory != _selectedCategory) return false;
-        if (_selectedRound != 0 && player.draftRound != _selectedRound) return false;
+        if (_selectedPosition != 'All' && player.position != _selectedPosition)
+          return false;
+        if (_selectedCategory != 'All' &&
+            player.bustCategory != _selectedCategory) return false;
+        if (_selectedRound != 0 && player.draftRound != _selectedRound)
+          return false;
         return true;
       }).toList();
 
@@ -134,10 +140,11 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   Future<void> _selectPlayer(BustEvaluationPlayer player) async {
     HapticFeedback.mediumImpact();
     setState(() => _isLoadingPlayer = true);
-    
+
     try {
-      final timeline = await BustEvaluationService.getPlayerTimeline(player.gsisId);
-      
+      final timeline =
+          await BustEvaluationService.getPlayerTimeline(player.gsisId);
+
       setState(() {
         _selectedPlayer = player;
         _playerTimeline = timeline;
@@ -171,13 +178,14 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
-    
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -192,14 +200,18 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               child: ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  showDialog(context: context, builder: (_) => const AuthDialog());
+                  showDialog(
+                      context: context, builder: (_) => const AuthDialog());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeConfig.darkNavy,
                   foregroundColor: ThemeConfig.gold,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
                 ),
                 child: const Text('Sign In / Sign Up'),
               ),
@@ -216,7 +228,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
             _buildSearchSection(),
             _buildFilters(),
             Expanded(
-              child: _selectedPlayer != null 
+              child: _selectedPlayer != null
                   ? _buildPlayerAnalysis()
                   : _buildSearchResults(),
             ),
@@ -262,17 +274,18 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   children: [
                     Text(
                       'Bust or Brilliant?',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Evaluate NFL draft picks vs. expectations',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                      ),
+                            color: Colors.white.withOpacity(0.8),
+                          ),
                     ),
                   ],
                 ),
@@ -306,7 +319,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               focusNode: _searchFocusNode,
               decoration: InputDecoration(
                 hintText: 'Search any drafted player (2010-2024)...',
-                                  prefixIcon: Icon(Icons.search, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                prefixIcon: Icon(Icons.search,
+                    color: ThemeAwareColors.getSecondaryTextColor(context)),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -321,8 +335,9 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                                  fillColor: ThemeAwareColors.getSearchBarFillColor(context),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                fillColor: ThemeAwareColors.getSearchBarFillColor(context),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
           ),
@@ -338,7 +353,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                     backgroundColor: ThemeConfig.gold,
                     foregroundColor: ThemeConfig.darkNavy,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -351,7 +367,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   style: OutlinedButton.styleFrom(
                     foregroundColor: ThemeConfig.darkNavy,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -374,16 +391,46 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Expanded(child: _buildFilterDropdown('Position', _selectedPosition, 
-                    ['All', 'QB', 'RB', 'WR', 'TE'], (value) => setState(() => _selectedPosition = value!))),
+                  Expanded(
+                      child: _buildFilterDropdown(
+                          'Position',
+                          _selectedPosition,
+                          ['All', 'QB', 'RB', 'WR', 'TE'],
+                          (value) =>
+                              setState(() => _selectedPosition = value!))),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildFilterDropdown('Category', _selectedCategory,
-                    ['All', 'Steal', 'Met Expectations', 'Disappointing', 'Bust'], 
-                    (value) => setState(() => _selectedCategory = value!))),
+                  Expanded(
+                      child: _buildFilterDropdown(
+                          'Category',
+                          _selectedCategory,
+                          [
+                            'All',
+                            'Steal',
+                            'Met Expectations',
+                            'Disappointing',
+                            'Bust'
+                          ],
+                          (value) =>
+                              setState(() => _selectedCategory = value!))),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildFilterDropdown('Round', _selectedRound == 0 ? 'All' : 'Round $_selectedRound',
-                    ['All', 'Round 1', 'Round 2', 'Round 3', 'Round 4', 'Round 5', 'Round 6', 'Round 7'],
-                    (value) => setState(() => _selectedRound = value == 'All' ? 0 : int.parse(value!.split(' ')[1])))),
+                  Expanded(
+                      child: _buildFilterDropdown(
+                          'Round',
+                          _selectedRound == 0 ? 'All' : 'Round $_selectedRound',
+                          [
+                            'All',
+                            'Round 1',
+                            'Round 2',
+                            'Round 3',
+                            'Round 4',
+                            'Round 5',
+                            'Round 6',
+                            'Round 7'
+                          ],
+                          (value) => setState(() => _selectedRound =
+                              value == 'All'
+                                  ? 0
+                                  : int.parse(value!.split(' ')[1])))),
                 ],
               ),
             ),
@@ -393,7 +440,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
     );
   }
 
-  Widget _buildFilterDropdown(String label, String value, List<String> options, ValueChanged<String?> onChanged) {
+  Widget _buildFilterDropdown(String label, String value, List<String> options,
+      ValueChanged<String?> onChanged) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -405,7 +453,10 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
         value: value,
         isExpanded: true,
         underline: const SizedBox(),
-        items: options.map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+        items: options
+            .map((option) =>
+                DropdownMenuItem(value: option, child: Text(option)))
+            .toList(),
         onChanged: (newValue) {
           onChanged(newValue);
           if (_searchController.text.isNotEmpty) {
@@ -417,15 +468,24 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   }
 
   Widget _buildSearchResults() {
-    if (_isSearching && _searchResults.isEmpty && _searchController.text.isNotEmpty) {
+    if (_isSearching &&
+        _searchResults.isEmpty &&
+        _searchController.text.isNotEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: ThemeAwareColors.getSecondaryTextColor(context)),
+            Icon(Icons.search_off,
+                size: 64,
+                color: ThemeAwareColors.getSecondaryTextColor(context)),
             const SizedBox(height: 16),
-            Text('No players found', style: TextStyle(fontSize: 18, color: ThemeAwareColors.getSecondaryTextColor(context))),
-            Text('Try adjusting your search or filters', style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context))),
+            Text('No players found',
+                style: TextStyle(
+                    fontSize: 18,
+                    color: ThemeAwareColors.getSecondaryTextColor(context))),
+            Text('Try adjusting your search or filters',
+                style: TextStyle(
+                    color: ThemeAwareColors.getSecondaryTextColor(context))),
           ],
         ),
       );
@@ -451,13 +511,13 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
       'WR': [],
       'TE': [],
     };
-    
+
     for (final player in players) {
       if (playersByPosition.containsKey(player.position)) {
         playersByPosition[player.position]!.add(player);
       }
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -466,9 +526,9 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
           child: Text(
             title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: ThemeConfig.darkNavy,
-            ),
+                  fontWeight: FontWeight.bold,
+                  color: ThemeConfig.darkNavy,
+                ),
           ),
         ),
         Expanded(
@@ -479,16 +539,24 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // QB Column
-                  Expanded(child: _buildPositionColumn('QB', playersByPosition['QB']!)),
+                  Expanded(
+                      child:
+                          _buildPositionColumn('QB', playersByPosition['QB']!)),
                   const SizedBox(width: 8),
-                  // RB Column  
-                  Expanded(child: _buildPositionColumn('RB', playersByPosition['RB']!)),
+                  // RB Column
+                  Expanded(
+                      child:
+                          _buildPositionColumn('RB', playersByPosition['RB']!)),
                   const SizedBox(width: 8),
                   // WR Column
-                  Expanded(child: _buildPositionColumn('WR', playersByPosition['WR']!)),
+                  Expanded(
+                      child:
+                          _buildPositionColumn('WR', playersByPosition['WR']!)),
                   const SizedBox(width: 8),
                   // TE Column
-                  Expanded(child: _buildPositionColumn('TE', playersByPosition['TE']!)),
+                  Expanded(
+                      child:
+                          _buildPositionColumn('TE', playersByPosition['TE']!)),
                 ],
               ),
             ),
@@ -498,7 +566,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
     );
   }
 
-  Widget _buildPositionColumn(String position, List<BustEvaluationPlayer> players) {
+  Widget _buildPositionColumn(
+      String position, List<BustEvaluationPlayer> players) {
     return Column(
       children: [
         // Position header
@@ -579,8 +648,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.white 
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
                             : Colors.black87,
                       ),
                       maxLines: 1,
@@ -595,8 +664,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                 player.draftRoundDisplay,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white70 
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
                       : Colors.grey[600],
                 ),
               ),
@@ -606,8 +675,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                 player.careerSpanDisplay,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Theme.of(context).brightness == Brightness.dark 
-                      ? Colors.white60 
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white60
                       : Colors.grey[700],
                 ),
               ),
@@ -617,7 +686,8 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
                       color: _getBustCategoryColor(player.bustCategory),
                       borderRadius: BorderRadius.circular(4),
@@ -651,7 +721,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
 
   Widget _buildPlayerAnalysis() {
     if (_selectedPlayer == null) return const SizedBox();
-    
+
     return AnimatedBuilder(
       animation: _playerCardAnimation,
       builder: (context, child) {
@@ -681,7 +751,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   Widget _buildPlayerHeader() {
     final player = _selectedPlayer!;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -710,8 +780,9 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isDarkMode 
-                        ? ThemeConfig.darkNavy.withOpacity(0.9) // Darker in dark mode
+                    color: isDarkMode
+                        ? ThemeConfig.darkNavy
+                            .withOpacity(0.9) // Darker in dark mode
                         : ThemeConfig.darkNavy, // Keep dark in light mode
                   ),
                 ),
@@ -740,12 +811,16 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               color: isDarkMode ? ThemeConfig.gold : ThemeConfig.darkNavy,
             ),
             style: IconButton.styleFrom(
-              backgroundColor: isDarkMode 
-                  ? ThemeConfig.darkNavy.withOpacity(0.8) // Dark navy background in dark mode
-                  : ThemeConfig.gold.withOpacity(0.1), // Light gold background in light mode
-              side: isDarkMode 
-                  ? BorderSide(color: ThemeConfig.gold.withOpacity(0.3), width: 1)
-                  : BorderSide(color: ThemeConfig.darkNavy.withOpacity(0.2), width: 1),
+              backgroundColor: isDarkMode
+                  ? ThemeConfig.darkNavy
+                      .withOpacity(0.8) // Dark navy background in dark mode
+                  : ThemeConfig.gold
+                      .withOpacity(0.1), // Light gold background in light mode
+              side: isDarkMode
+                  ? BorderSide(
+                      color: ThemeConfig.gold.withOpacity(0.3), width: 1)
+                  : BorderSide(
+                      color: ThemeConfig.darkNavy.withOpacity(0.2), width: 1),
             ),
           ),
         ],
@@ -757,7 +832,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
     final player = _selectedPlayer!;
     final leftStats = player.getLeftSideStats();
     final rightStats = player.getRightSideStats();
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -768,16 +843,16 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                      Text(
-              'Career Stats vs Expectations',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: ThemeAwareColors.getOnSurfaceColor(context),
-              ),
+          Text(
+            'Career Stats vs Expectations',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: ThemeAwareColors.getOnSurfaceColor(context),
             ),
+          ),
           const SizedBox(height: 16),
-          
+
           // For QB and RB, show left/right split
           if (player.position == 'QB' || player.position == 'RB') ...[
             Row(
@@ -789,7 +864,9 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        player.position == 'QB' ? 'Passing Stats' : 'Rushing Stats',
+                        player.position == 'QB'
+                            ? 'Passing Stats'
+                            : 'Rushing Stats',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -797,18 +874,20 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ...leftStats.map((stat) => _buildStatRow(stat)).toList(),
+                      ...leftStats.map((stat) => _buildStatRow(stat)),
                     ],
                   ),
                 ),
                 const SizedBox(width: 24),
-                // Right side stats  
+                // Right side stats
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        player.position == 'QB' ? 'Rushing Stats' : 'Receiving Stats',
+                        player.position == 'QB'
+                            ? 'Rushing Stats'
+                            : 'Receiving Stats',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -816,7 +895,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                         ),
                       ),
                       const SizedBox(height: 12),
-                      ...rightStats.map((stat) => _buildStatRow(stat)).toList(),
+                      ...rightStats.map((stat) => _buildStatRow(stat)),
                     ],
                   ),
                 ),
@@ -824,7 +903,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
             ),
           ] else ...[
             // For WR/TE, show single column
-            ...leftStats.map((stat) => _buildStatRow(stat)).toList(),
+            ...leftStats.map((stat) => _buildStatRow(stat)),
           ],
         ],
       ),
@@ -833,7 +912,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
 
   Widget _buildTransparencySection() {
     final player = _selectedPlayer!;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -897,30 +976,38 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
                   ),
                 );
               }
-              
-              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+
+              if (snapshot.hasError ||
+                  !snapshot.hasData ||
+                  snapshot.data!.isEmpty) {
                 // Fallback to hardcoded examples
                 final examples = player.getSimilarPlayerExamples();
                 return Wrap(
                   spacing: 8,
                   runSpacing: 4,
-                  children: examples.map((example) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: ThemeAwareColors.getDividerColor(context),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      example,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  )).toList(),
+                  children: examples
+                      .map((example) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: ThemeAwareColors.getDividerColor(context),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              example,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ))
+                      .toList(),
                 );
               }
-              
+
               final similarPlayers = snapshot.data!;
               return Column(
-                children: similarPlayers.map((p) => _buildSimilarPlayerCard(p['player'] as BustEvaluationPlayer)).toList(),
+                children: similarPlayers
+                    .map((p) => _buildSimilarPlayerCard(
+                        p['player'] as BustEvaluationPlayer))
+                    .toList(),
               );
             },
           ),
@@ -971,9 +1058,11 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getCategoryColor(player.bustCategory).withOpacity(0.2),
+                  color:
+                      _getCategoryColor(player.bustCategory).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _getCategoryColor(player.bustCategory)),
+                  border:
+                      Border.all(color: _getCategoryColor(player.bustCategory)),
                 ),
                 child: Text(
                   player.bustCategory,
@@ -986,9 +1075,9 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Key stats with percentages
           const Text(
             'Key Performance Metrics',
@@ -999,7 +1088,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Stats grid with icons and percentages
           Wrap(
             spacing: 8,
@@ -1016,37 +1105,54 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
     final leftStats = player.getLeftSideStats();
     final rightStats = player.getRightSideStats();
     final allStats = [...leftStats, ...rightStats];
-    
+
     // Show top 4 most relevant stats for the position
-    final relevantStats = _getRelevantStatsForPosition(player.position, allStats);
-    
+    final relevantStats =
+        _getRelevantStatsForPosition(player.position, allStats);
+
     for (final stat in relevantStats.take(4)) {
       if (stat.ratio != null) {
         chips.add(_buildStatChip(stat));
       }
     }
-    
+
     return chips;
   }
 
-  List<BustStatComparison> _getRelevantStatsForPosition(String position, List<BustStatComparison> stats) {
+  List<BustStatComparison> _getRelevantStatsForPosition(
+      String position, List<BustStatComparison> stats) {
     switch (position) {
       case 'QB':
         // Prioritize pass yards, pass TDs, INTs, rush yards
-        return stats.where((s) => [
-          'Passing Yards', 'Passing TDs', 'Interceptions', 'Rushing Yards'
-        ].contains(s.label)).toList();
+        return stats
+            .where((s) => [
+                  'Passing Yards',
+                  'Passing TDs',
+                  'Interceptions',
+                  'Rushing Yards'
+                ].contains(s.label))
+            .toList();
       case 'RB':
         // Prioritize rush yards, rush TDs, rec yards, carries
-        return stats.where((s) => [
-          'Rushing Yards', 'Rushing TDs', 'Receiving Yards', 'Carries'
-        ].contains(s.label)).toList();
+        return stats
+            .where((s) => [
+                  'Rushing Yards',
+                  'Rushing TDs',
+                  'Receiving Yards',
+                  'Carries'
+                ].contains(s.label))
+            .toList();
       case 'WR':
       case 'TE':
         // Prioritize rec yards, receptions, rec TDs, targets
-        return stats.where((s) => [
-          'Receiving Yards', 'Receptions', 'Receiving TDs', 'Targets'
-        ].contains(s.label)).toList();
+        return stats
+            .where((s) => [
+                  'Receiving Yards',
+                  'Receptions',
+                  'Receiving TDs',
+                  'Targets'
+                ].contains(s.label))
+            .toList();
       default:
         return stats.take(4).toList();
     }
@@ -1055,12 +1161,12 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
   Widget _buildStatChip(BustStatComparison stat) {
     final percentage = stat.percentage;
     final isGood = stat.isOverPerforming;
-    final color = stat.isSignificantlyOver 
-        ? Colors.green 
-        : stat.isSignificantlyUnder 
-            ? Colors.red 
+    final color = stat.isSignificantlyOver
+        ? Colors.green
+        : stat.isSignificantlyUnder
+            ? Colors.red
             : Colors.orange;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1191,7 +1297,7 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
 
   Widget _buildTimelineChart() {
     if (_playerTimeline.isEmpty) return const SizedBox();
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1292,12 +1398,12 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
 
   Widget _buildStatRow(BustStatComparison stat) {
     final ratio = stat.ratio ?? 1.0;
-    final color = stat.isSignificantlyOver 
-        ? Colors.green 
-        : stat.isSignificantlyUnder 
-            ? Colors.red 
+    final color = stat.isSignificantlyOver
+        ? Colors.green
+        : stat.isSignificantlyUnder
+            ? Colors.red
             : Colors.orange;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -1363,4 +1469,4 @@ class _BustEvaluationScreenState extends State<BustEvaluationScreen> with Ticker
       ),
     );
   }
-} 
+}

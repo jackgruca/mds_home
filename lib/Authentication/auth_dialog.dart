@@ -1,9 +1,11 @@
 // lib/widgets/auth/auth_dialog.dart
 import 'package:flutter/material.dart';
+import 'package:mds_home/Authentication/user_auth.dart';
+import 'package:mds_home/screens/home_screen.dart';
 import 'package:provider/provider.dart';
-import '../../utils/theme_config.dart';
-import '../../providers/auth_provider.dart';
-import 'forgot_password_dialog.dart';
+import '../utils/theme_config.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/auth/forgot_password_dialog.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -25,7 +27,10 @@ class _AuthDialogState extends State<AuthDialog> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
+  final AuthService _auth = AuthService(); // New User Auth Service
+  String registerError = '';
+
   bool _isSubmitting = false;
   bool _subscribeToUpdates = true; // Auto-checked by default
   bool _obscurePassword = true;
@@ -46,7 +51,8 @@ class _AuthDialogState extends State<AuthDialog> {
 
   void _switchAuthMode() {
     setState(() {
-      _authMode = _authMode == AuthMode.signIn ? AuthMode.signUp : AuthMode.signIn;
+      _authMode =
+          _authMode == AuthMode.signIn ? AuthMode.signUp : AuthMode.signIn;
       // Clear form fields when switching
       if (_authMode == AuthMode.signIn) {
         _nameController.clear();
@@ -79,14 +85,14 @@ class _AuthDialogState extends State<AuthDialog> {
             isSubscribed: _subscribeToUpdates,
           );
         }
-        
+
         if (mounted) {
           if (success) {
             // Close the dialog with success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(_authMode == AuthMode.signIn 
-                    ? 'Successfully signed in!' 
+                content: Text(_authMode == AuthMode.signIn
+                    ? 'Successfully signed in!'
                     : 'Account created successfully!'),
                 backgroundColor: Colors.green,
               ),
@@ -96,7 +102,8 @@ class _AuthDialogState extends State<AuthDialog> {
             // Show error message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error: ${authProvider.error ?? "Unknown error"}'),
+                content:
+                    Text('Error: ${authProvider.error ?? "Unknown error"}'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -141,12 +148,17 @@ class _AuthDialogState extends State<AuthDialog> {
                 Row(
                   children: [
                     Icon(
-                      _authMode == AuthMode.signIn ? Icons.login : Icons.person_add,
-                      color: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+                      _authMode == AuthMode.signIn
+                          ? Icons.login
+                          : Icons.person_add,
+                      color:
+                          isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _authMode == AuthMode.signIn ? 'Sign In' : 'Create Account',
+                      _authMode == AuthMode.signIn
+                          ? 'Sign In'
+                          : 'Create Account',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -158,13 +170,15 @@ class _AuthDialogState extends State<AuthDialog> {
                       icon: const Icon(Icons.close),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => {
+                        Navigator.of(context).pop(),
+                      },
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Name field (sign up only)
                 if (_authMode == AuthMode.signUp)
                   TextFormField(
@@ -173,7 +187,9 @@ class _AuthDialogState extends State<AuthDialog> {
                       labelText: 'Name',
                       border: const OutlineInputBorder(),
                       filled: true,
-                      fillColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
+                      fillColor: isDarkMode
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade50,
                       prefixIcon: const Icon(Icons.person),
                     ),
                     textInputAction: TextInputAction.next,
@@ -186,9 +202,9 @@ class _AuthDialogState extends State<AuthDialog> {
                           }
                         : null,
                   ),
-                
+
                 if (_authMode == AuthMode.signUp) const SizedBox(height: 16),
-                
+
                 // Email field
                 TextFormField(
                   controller: _emailController,
@@ -196,7 +212,8 @@ class _AuthDialogState extends State<AuthDialog> {
                     labelText: 'Email',
                     border: const OutlineInputBorder(),
                     filled: true,
-                    fillColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
+                    fillColor:
+                        isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
                     prefixIcon: const Icon(Icons.email),
                   ),
                   keyboardType: TextInputType.emailAddress,
@@ -211,9 +228,9 @@ class _AuthDialogState extends State<AuthDialog> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Password field
                 TextFormField(
                   controller: _passwordController,
@@ -221,10 +238,13 @@ class _AuthDialogState extends State<AuthDialog> {
                     labelText: 'Password',
                     border: const OutlineInputBorder(),
                     filled: true,
-                    fillColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
+                    fillColor:
+                        isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;
@@ -250,23 +270,26 @@ class _AuthDialogState extends State<AuthDialog> {
                     child: TextButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close current dialog
-                        showDialog(
-                          context: context,
-                          builder: (context) => const ForgotPasswordDialog(),
-                        );
+                        // @TODO GRUCA: Add forgot password dialog
+                        // showDialog(
+                        //   context: context,
+                        //   builder: (context) => const ForgotPasswordDialog(),
+                        // );
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
-                        foregroundColor: isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
+                        foregroundColor:
+                            isDarkMode ? ThemeConfig.gold : ThemeConfig.deepRed,
                       ),
-                      child: const Text('Forgot Password?', style: TextStyle(fontSize: 12)),
+                      child: const Text('Forgot Password?',
+                          style: TextStyle(fontSize: 12)),
                     ),
                   ),
                 ],
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Subscribe checkbox (sign up only)
                 if (_authMode == AuthMode.signUp)
                   CheckboxListTile(
@@ -287,16 +310,29 @@ class _AuthDialogState extends State<AuthDialog> {
                     controlAffinity: ListTileControlAffinity.leading,
                     dense: true,
                   ),
-                
+
                 const SizedBox(height: 24),
-                
-                // Submit button
+
+                // CREATE ACCOUNT BUTTON
                 ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
+                  onPressed: _isSubmitting
+                      ? null
+                      : () {
+                          debugPrint("Button clicked...");
+                          debugPrint("Name given: ${_nameController.text}");
+                          debugPrint("Email given: ${_emailController.text}");
+                          debugPrint(
+                              "Password given: ${_passwordController.text}");
+                          _registerUser(
+                              _emailController.text, _passwordController.text);
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ThemeConfig.darkNavy,
-                    foregroundColor: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    foregroundColor: isDarkMode
+                        ? ThemeConfig.brightRed
+                        : ThemeConfig.deepRed,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -307,20 +343,25 @@ class _AuthDialogState extends State<AuthDialog> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : Text(
-                          _authMode == AuthMode.signIn ? 'Sign In' : 'Create Account',
+                          _authMode == AuthMode.signIn
+                              ? 'Sign In'
+                              : 'Create Account',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
+                            color: isDarkMode
+                                ? ThemeConfig.brightRed
+                                : ThemeConfig.deepRed,
                           ),
                         ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Switch authentication mode
                 TextButton(
                   onPressed: _switchAuthMode,
@@ -329,7 +370,9 @@ class _AuthDialogState extends State<AuthDialog> {
                         ? 'Don\'t have an account? Sign Up'
                         : 'Already have an account? Sign In',
                     style: TextStyle(
-                      color: isDarkMode ? ThemeConfig.brightRed : ThemeConfig.deepRed,
+                      color: isDarkMode
+                          ? ThemeConfig.brightRed
+                          : ThemeConfig.deepRed,
                     ),
                   ),
                 ),
@@ -339,5 +382,35 @@ class _AuthDialogState extends State<AuthDialog> {
         ),
       ),
     );
+  }
+
+  void _registerUser(String email, String password) async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSubmitting = true);
+      debugPrint(email);
+      debugPrint(password);
+      dynamic result =
+          await _auth.registerWithEmailAndPassword(email, password);
+      debugPrint("========================================");
+      debugPrint("      Attempting to Register New User...");
+      debugPrint("Information Recieved: ");
+      debugPrint("Email : $email");
+
+      if (result == null) {
+        setState(() {
+          registerError = 'Please enter a valid email address11.';
+          debugPrint("Registration Unsuccessful: $registerError...");
+          _isSubmitting = false;
+        });
+      } else {
+        debugPrint("Registration Successful: Navigating User to HomePage...");
+        debugPrint("========================================");
+        Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    }
   }
 }

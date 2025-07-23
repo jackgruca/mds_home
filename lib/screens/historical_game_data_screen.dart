@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
 import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
-import 'package:mds_home/widgets/auth/auth_dialog.dart';
+import 'package:mds_home/Authentication/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
@@ -109,15 +109,109 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
 
   // Field groups for tabbed view - game data categories
   static final Map<String, List<String>> _gameDataCategoryFieldGroups = {
-    'Game Basics': ['home_team', 'away_team', 'season', 'week', 'game_id', 'game_date', 'weekday', 'away_score', 'home_score', 'total_points', 'point_differential', 'result', 'overtime'],
-    'Fantasy Edge': ['home_team', 'away_team', 'season', 'week', 'away_qb_name', 'home_qb_name', 'temp', 'wind', 'dome_game', 'outdoor_game', 'away_rest', 'home_rest', 'rest_advantage', 'high_scoring', 'low_scoring', 'blowout', 'close_game'],
-    'Betting Angles': ['home_team', 'away_team', 'season', 'week', 'prime_time', 'playoff_game', 'div_game', 'away_rest', 'home_rest', 'rest_advantage', 'referee', 'cold_weather', 'hot_weather', 'windy_conditions', 'surface', 'roof'],
-    'Game Context': ['home_team', 'away_team', 'season', 'week', 'prime_time', 'playoff_game', 'div_game', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'early_season', 'mid_season', 'late_season'],
-    'Environment': ['home_team', 'away_team', 'season', 'week', 'stadium', 'roof', 'surface', 'temp', 'wind', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'],
-    'Personnel': ['home_team', 'away_team', 'season', 'week', 'away_qb_name', 'home_qb_name', 'away_coach', 'home_coach', 'referee'],
-    'Custom': ['home_team', 'away_team', 'season', 'week'], // User-defined category with basic identifiers
+    'Game Basics': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'game_id',
+      'game_date',
+      'weekday',
+      'away_score',
+      'home_score',
+      'total_points',
+      'point_differential',
+      'result',
+      'overtime'
+    ],
+    'Fantasy Edge': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'away_qb_name',
+      'home_qb_name',
+      'temp',
+      'wind',
+      'dome_game',
+      'outdoor_game',
+      'away_rest',
+      'home_rest',
+      'rest_advantage',
+      'high_scoring',
+      'low_scoring',
+      'blowout',
+      'close_game'
+    ],
+    'Betting Angles': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'prime_time',
+      'playoff_game',
+      'div_game',
+      'away_rest',
+      'home_rest',
+      'rest_advantage',
+      'referee',
+      'cold_weather',
+      'hot_weather',
+      'windy_conditions',
+      'surface',
+      'roof'
+    ],
+    'Game Context': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'prime_time',
+      'playoff_game',
+      'div_game',
+      'blowout',
+      'close_game',
+      'high_scoring',
+      'low_scoring',
+      'early_season',
+      'mid_season',
+      'late_season'
+    ],
+    'Environment': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'stadium',
+      'roof',
+      'surface',
+      'temp',
+      'wind',
+      'cold_weather',
+      'hot_weather',
+      'windy_conditions',
+      'dome_game',
+      'outdoor_game'
+    ],
+    'Personnel': [
+      'home_team',
+      'away_team',
+      'season',
+      'week',
+      'away_qb_name',
+      'home_qb_name',
+      'away_coach',
+      'home_coach',
+      'referee'
+    ],
+    'Custom': [
+      'home_team',
+      'away_team',
+      'season',
+      'week'
+    ], // User-defined category with basic identifiers
   };
-  
+
   String _selectedGameDataCategory = 'Game Basics';
 
   // All operators for query
@@ -134,9 +228,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   ];
 
   // Field types for formatting
-  final Set<String> doubleFields = {
-    'temp', 'wind'
-  };
+  final Set<String> doubleFields = {'temp', 'wind'};
 
   // Helper function to format header names prettily with abbreviations
   String _formatHeaderName(String header) {
@@ -197,12 +289,14 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     if (headerMap.containsKey(header)) {
       return headerMap[header]!;
     }
-    
+
     // For unmapped headers, convert snake_case to Title Case
     return header
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .map((word) => word.isEmpty
+            ? ''
+            : word[0].toUpperCase() + word.substring(1).toLowerCase())
         .join(' ');
   }
 
@@ -222,7 +316,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     'point_differential': 'Margin of Victory',
     'result': 'Game Result (W/L)',
     'overtime': 'Overtime Game (1=Yes, 0=No)',
-    
+
     // Fantasy Edge
     'away_qb_name': 'Away Team Starting QB',
     'home_qb_name': 'Home Team Starting QB',
@@ -237,7 +331,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     'low_scoring': 'Low Scoring Game (1=Yes, 0=No)',
     'blowout': 'Blowout Game (1=Yes, 0=No)',
     'close_game': 'Close Game (1=Yes, 0=No)',
-    
+
     // Game Context
     'prime_time': 'Prime Time Game (1=Yes, 0=No)',
     'playoff_game': 'Playoff Game (1=Yes, 0=No)',
@@ -246,13 +340,13 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     'surface': 'Playing Surface',
     'stadium': 'Stadium Name',
     'neutral_site': 'Neutral Site Game (1=Yes, 0=No)',
-    
+
     // Environment
     'cold_weather': 'Cold Weather Game (1=Yes, 0=No)',
     'hot_weather': 'Hot Weather Game (1=Yes, 0=No)',
     'windy_conditions': 'Windy Conditions (1=Yes, 0=No)',
     'precipitation': 'Precipitation Present (1=Yes, 0=No)',
-    
+
     // Personnel
     'referee': 'Head Referee',
     'away_coach': 'Away Team Head Coach',
@@ -274,10 +368,29 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> intFields = {
-      'season', 'week', 'away_score', 'home_score', 'total_points', 'point_differential',
-      'result', 'away_rest', 'home_rest', 'rest_advantage', 'prime_time',
-      'overtime', 'blowout', 'close_game', 'high_scoring', 'low_scoring', 'div_game',
-      'playoff_game', 'cold_weather', 'hot_weather', 'windy_conditions', 'dome_game', 'outdoor_game'
+      'season',
+      'week',
+      'away_score',
+      'home_score',
+      'total_points',
+      'point_differential',
+      'result',
+      'away_rest',
+      'home_rest',
+      'rest_advantage',
+      'prime_time',
+      'overtime',
+      'blowout',
+      'close_game',
+      'high_scoring',
+      'low_scoring',
+      'div_game',
+      'playoff_game',
+      'cold_weather',
+      'hot_weather',
+      'windy_conditions',
+      'dome_game',
+      'outdoor_game'
     };
     if (doubleFields.contains(field)) return 'double';
     if (intFields.contains(field)) return 'int';
@@ -350,18 +463,23 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
       }
       _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
-      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
-      if (e.message != null && e.message!.contains('The query requires an index')) {
+      print(
+          'FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null &&
+          e.message!.contains('The query requires an index')) {
         // Extract the URL and log it to a new Firebase function
-        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        final indexUrlMatch = RegExp(
+                r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+')
+            .firstMatch(e.message!);
         if (indexUrlMatch != null) {
           final missingIndexUrl = indexUrlMatch.group(0);
           print('Missing index URL found: $missingIndexUrl');
-          
+
           // Call a new Cloud Function to log this URL
           print('Attempting to call logMissingIndex Cloud Function...');
           try {
-            final result = await functions.httpsCallable('logMissingIndex').call({
+            final result =
+                await functions.httpsCallable('logMissingIndex').call({
               'url': missingIndexUrl,
               'timestamp': DateTime.now().toIso8601String(),
               'screenName': 'HistoricalGameDataScreen',
@@ -382,7 +500,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
         }
         if (mounted) {
           setState(() {
-            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _error =
+                "We're working to expand our data. Please check back later or contact support if the issue persists.";
             _isLoading = false;
           });
         }
@@ -495,91 +614,90 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
   void _showCustomizeColumnsDialog() {
     // Create a temporary list to hold selected fields until confirmed
     List<String> tempSelected = List.from(_selectedFields);
-    
+
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Customize Columns'),
-              content: SizedBox(
-                width: 400,
-                height: 500, // Set explicit height to make it scrollable
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search Fields',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            // No need to change anything here, just trigger a rebuild
-                          });
-                        },
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Customize Columns'),
+            content: SizedBox(
+              width: 400,
+              height: 500, // Set explicit height to make it scrollable
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Search Fields',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          // No need to change anything here, just trigger a rebuild
+                        });
+                      },
                     ),
-                    Expanded(
-                      child: ListView(
-                        children: _headers
-                            .where((header) => header.toLowerCase().contains(''))
-                            .map((header) {
-                              return CheckboxListTile(
-                                title: Text(header),
-                                value: tempSelected.contains(header),
-                                onChanged: (checked) {
-                                  setState(() {
-                                    if (checked == true) {
-                                      tempSelected.add(header);
-                                    } else {
-                                      tempSelected.remove(header);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: _headers
+                          .where((header) => header.toLowerCase().contains(''))
+                          .map((header) {
+                        return CheckboxListTile(
+                          title: Text(header),
+                          value: tempSelected.contains(header),
+                          onChanged: (checked) {
+                            setState(() {
+                              if (checked == true) {
+                                tempSelected.add(header);
+                              } else {
+                                tempSelected.remove(header);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Select all fields
-                    setState(() {
-                      tempSelected = List.from(_headers);
-                    });
-                  },
-                  child: const Text('Select All'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    // Apply changes and close dialog
-                    this.setState(() {
-                      _selectedFields = List.from(tempSelected);
-                      // Switch to Custom category when customizing fields
-                      _selectedGameDataCategory = 'Custom';
-                      // Update the Custom category fields
-                      _gameDataCategoryFieldGroups['Custom'] = _selectedFields;
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Apply'),
-                ),
-              ],
-            );
-          }
-        );
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Select all fields
+                  setState(() {
+                    tempSelected = List.from(_headers);
+                  });
+                },
+                child: const Text('Select All'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Apply changes and close dialog
+                  this.setState(() {
+                    _selectedFields = List.from(tempSelected);
+                    // Switch to Custom category when customizing fields
+                    _selectedGameDataCategory = 'Custom';
+                    // Update the Custom category fields
+                    _gameDataCategoryFieldGroups['Custom'] = _selectedFields;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Apply'),
+              ),
+            ],
+          );
+        });
       },
     );
   }
@@ -639,7 +757,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -648,8 +767,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () =>
-                  showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
@@ -762,10 +881,12 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                             flex: 2,
                             child: TextField(
                               controller: _newQueryValueController,
-                              decoration: const InputDecoration(labelText: 'Value'),
+                              decoration:
+                                  const InputDecoration(labelText: 'Value'),
                               keyboardType: _newQueryField != null
                                   ? (getFieldType(_newQueryField!) == 'int' ||
-                                          getFieldType(_newQueryField!) == 'double')
+                                          getFieldType(_newQueryField!) ==
+                                              'double')
                                       ? TextInputType.number
                                       : TextInputType.text
                                   : TextInputType.text,
@@ -788,7 +909,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                         Wrap(
                           spacing: 8.0,
                           runSpacing: 4.0,
-                          children: _queryConditions.asMap().entries.map((entry) {
+                          children:
+                              _queryConditions.asMap().entries.map((entry) {
                             final index = entry.key;
                             final condition = entry.value;
                             return Chip(
@@ -846,8 +968,10 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: _gameDataCategoryFieldGroups.keys.map((category) {
-                        final isSelected = _selectedGameDataCategory == category;
+                      children:
+                          _gameDataCategoryFieldGroups.keys.map((category) {
+                        final isSelected =
+                            _selectedGameDataCategory == category;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: FilterChip(
@@ -857,7 +981,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                               if (selected) {
                                 setState(() {
                                   _selectedGameDataCategory = category;
-                                  _selectedFields = List.from(_gameDataCategoryFieldGroups[category]!);
+                                  _selectedFields = List.from(
+                                      _gameDataCategoryFieldGroups[category]!);
                                 });
                               }
                             },
@@ -881,7 +1006,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                     padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(12)),
                     ),
                     child: Row(
                       children: [
@@ -960,20 +1086,28 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
     if (_rawRows.isNotEmpty) {
       for (final field in _rawRows.first.keys) {
         // Exclude text fields and identifiers from shading
-        if (field != 'game_id' && field != 'home_team' && field != 'away_team' && 
-            field != 'season' && field != 'week' && field != 'game_type' &&
-            field != 'game_date' && field != 'stadium' && field != 'surface' &&
-            field != 'roof' && field != 'weather_description' && field != 'div_game' &&
-            field != 'playoff' && field != 'neutral_site' &&
+        if (field != 'game_id' &&
+            field != 'home_team' &&
+            field != 'away_team' &&
+            field != 'season' &&
+            field != 'week' &&
+            field != 'game_type' &&
+            field != 'game_date' &&
+            field != 'stadium' &&
+            field != 'surface' &&
+            field != 'roof' &&
+            field != 'weather_description' &&
+            field != 'div_game' &&
+            field != 'playoff' &&
+            field != 'neutral_site' &&
             _rawRows.any((row) => row[field] != null && row[field] is num)) {
           numericShadingColumns.add(field);
         }
       }
     }
 
-    final List<String> displayFields = _selectedFields
-        .where((field) => _headers.contains(field))
-        .toList();
+    final List<String> displayFields =
+        _selectedFields.where((field) => _headers.contains(field)).toList();
 
     // Ensure we always have at least one column to prevent DataTable assertion error
     if (displayFields.isEmpty && _headers.isNotEmpty) {
@@ -984,7 +1118,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
       children: [
         // Add row with action buttons and pagination info
         Padding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+          padding: const EdgeInsets.only(
+              left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -992,7 +1127,9 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                 _rawRows.isEmpty
                     ? ''
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords games.',
-                style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context), fontSize: 13),
+                style: TextStyle(
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
+                    fontSize: 13),
               ),
               Row(
                 children: [
@@ -1009,7 +1146,8 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Customize Columns'),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       textStyle: const TextStyle(fontSize: 13),
                     ),
                     onPressed: _showCustomizeColumnsDialog,
@@ -1019,45 +1157,49 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
             ],
           ),
         ),
-        
+
         Expanded(
           child: MdsTable(
             style: MdsTableStyle.premium,
             density: MdsTableDensity.comfortable,
-                  columns: displayFields.map((header) {
-              final isNumeric = _rawRows.isNotEmpty && 
-                  _rawRows.any((row) => row[header] != null && row[header] is num);
-              final isTeamColumn = header == 'home_team' || header == 'away_team';
-              
+            columns: displayFields.map((header) {
+              final isNumeric = _rawRows.isNotEmpty &&
+                  _rawRows
+                      .any((row) => row[header] != null && row[header] is num);
+              final isTeamColumn =
+                  header == 'home_team' || header == 'away_team';
+
               return MdsTableColumn(
                 key: header,
                 label: _formatHeaderName(header),
                 numeric: isNumeric,
                 enablePercentileShading: numericShadingColumns.contains(header),
                 isDoubleField: doubleFields.contains(header),
-                cellBuilder: isTeamColumn ? (value, index, percentile) {
-                  return Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TeamLogoUtils.buildNFLTeamLogo(
-                                        value.toString(),
-                                        size: 24.0,
-                                      ),
-                                      const SizedBox(width: 8),
-                      Text(value.toString()),
-                                    ],
-                  );
-                } : null,
+                cellBuilder: isTeamColumn
+                    ? (value, index, percentile) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TeamLogoUtils.buildNFLTeamLogo(
+                              value.toString(),
+                              size: 24.0,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(value.toString()),
+                          ],
                         );
-                      }).toList(),
+                      }
+                    : null,
+              );
+            }).toList(),
             rows: _rawRows.asMap().entries.map((entry) {
               final int rowIndex = entry.key;
               final Map<String, dynamic> row = entry.value;
               return MdsTableRow(
                 id: row['game_id']?.toString() ?? rowIndex.toString(),
                 data: row,
-                    );
-                  }).toList(),
+              );
+            }).toList(),
             sortColumn: _sortColumn,
             sortAscending: _sortAscending,
             onSort: (column, ascending) {
@@ -1069,7 +1211,7 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
             },
           ),
         ),
-        
+
         // Pagination Controls
         if (_rawRows.isNotEmpty)
           Padding(
@@ -1078,25 +1220,30 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _currentPage > 0 ? () => setState(() {
-                    _currentPage--;
-                    _fetchDataFromFirebase();
-                  }) : null,
+                  onPressed: _currentPage > 0
+                      ? () => setState(() {
+                            _currentPage--;
+                            _fetchDataFromFirebase();
+                          })
+                      : null,
                   child: const Text('Previous'),
                 ),
                 const SizedBox(width: 16),
-                Text('Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}'),
+                Text(
+                    'Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}'),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _nextCursor != null ? () {
-                    setState(() {
-                      _currentPage++;
-                      if (_pageCursors.length <= _currentPage) {
-                        _pageCursors.add(_nextCursor);
-                      }
-                      _fetchDataFromFirebase();
-                    });
-                  } : null,
+                  onPressed: _nextCursor != null
+                      ? () {
+                          setState(() {
+                            _currentPage++;
+                            if (_pageCursors.length <= _currentPage) {
+                              _pageCursors.add(_nextCursor);
+                            }
+                            _fetchDataFromFirebase();
+                          });
+                        }
+                      : null,
                   child: const Text('Next'),
                 ),
               ],
@@ -1105,4 +1252,4 @@ class _HistoricalGameDataScreenState extends State<HistoricalGameDataScreen> {
       ],
     );
   }
-} 
+}

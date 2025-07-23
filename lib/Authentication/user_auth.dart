@@ -20,7 +20,7 @@ class AuthService {
       User? user = result.user;
 
       // Create user data in Firestore
-      await _userDB.createUser(user!.uid, user.email!);
+      await _userDB.createUser(user!.uid, user.email!, user.displayName!);
       return user;
     } catch (e) {
       debugPrint(e.toString());
@@ -67,6 +67,7 @@ class AuthService {
     return mdsUser(
       uid: user.uid,
       email: user.email.toString(),
+      name: user.displayName.toString(),
       isPremium: false,
     );
   }

@@ -6,12 +6,12 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 
 class PlayerComparisonScreen extends StatefulWidget {
-  const PlayerComparisonScreen({Key? key}) : super(key: key);
+  const PlayerComparisonScreen({super.key});
 
   @override
   State<PlayerComparisonScreen> createState() => _PlayerComparisonScreenState();
@@ -26,7 +26,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   String selectedSeason = '2023';
   int activeSearchIndex = -1;
   final TextEditingController searchController = TextEditingController();
-  
+
   final List<String> seasons = ['2023', '2022', '2021', '2020', '2019'];
 
   @override
@@ -43,14 +43,15 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
   Future<void> _loadDefaultPlayers() async {
     if (!mounted) return;
-    
+
     try {
       setState(() {
         isLoading = true;
         errorMessage = '';
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('getTopPlayersByPosition');
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('getTopPlayersByPosition');
       final result = await callable.call({
         'position': 'WR',
         'season': int.parse(selectedSeason),
@@ -61,7 +62,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
       if (result.data['data'] != null && result.data['data'].isNotEmpty) {
         setState(() {
-          selectedPlayers = List<Map<String, dynamic>>.from(result.data['data']);
+          selectedPlayers =
+              List<Map<String, dynamic>>.from(result.data['data']);
           isLoading = false;
         });
       } else {
@@ -93,7 +95,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         isSearching = true;
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('getPlayerStats');
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('getPlayerStats');
       final result = await callable.call({
         'searchQuery': query,
         'filters': {
@@ -105,7 +108,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       if (!mounted) return;
 
       setState(() {
-        searchResults = List<Map<String, dynamic>>.from(result.data['data'] ?? []);
+        searchResults =
+            List<Map<String, dynamic>>.from(result.data['data'] ?? []);
         isSearching = false;
       });
     } catch (e) {
@@ -149,32 +153,35 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
   String _handleFirebaseError(dynamic error, String operation) {
     final errorString = error.toString();
-    
-    if (errorString.contains('FAILED_PRECONDITION') && errorString.contains('index')) {
-      final urlMatch = RegExp(r'https://console\.firebase\.google\.com[^\s]+').firstMatch(errorString);
+
+    if (errorString.contains('FAILED_PRECONDITION') &&
+        errorString.contains('index')) {
+      final urlMatch = RegExp(r'https://console\.firebase\.google\.com[^\s]+')
+          .firstMatch(errorString);
       final indexUrl = urlMatch?.group(0) ?? '';
-      
+
       if (indexUrl.isNotEmpty) {
         _logMissingIndex(indexUrl, operation);
       }
-      
+
       return 'Missing Database Index Required - Check console for setup link';
     }
-    
+
     if (errorString.contains('permission-denied')) {
       return 'Permission denied. Please sign in to access this feature.';
     }
-    
+
     if (errorString.contains('unavailable')) {
       return 'Service temporarily unavailable. Please try again in a moment.';
     }
-    
+
     return 'Error $operation: ${errorString.length > 100 ? '${errorString.substring(0, 100)}...' : errorString}';
   }
 
   Future<void> _logMissingIndex(String indexUrl, String operation) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('logMissingIndex');
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('logMissingIndex');
       await callable.call({
         'url': indexUrl,
         'timestamp': DateTime.now().toIso8601String(),
@@ -201,7 +208,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -216,13 +224,16 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  showDialog(context: context, builder: (_) => const AuthDialog());
+                  showDialog(
+                      context: context, builder: (_) => const AuthDialog());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeConfig.darkNavy,
                   foregroundColor: ThemeConfig.gold,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -262,7 +273,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
@@ -272,7 +284,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   dropdownColor: ThemeConfig.darkNavy,
                   underline: const SizedBox(),
                   style: const TextStyle(color: ThemeConfig.gold, fontSize: 14),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: ThemeConfig.gold, size: 16),
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: ThemeConfig.gold, size: 16),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       setState(() {
@@ -285,7 +298,9 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   items: seasons.map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
-                      child: Text(value, style: const TextStyle(color: ThemeConfig.gold, fontSize: 14)),
+                      child: Text(value,
+                          style: const TextStyle(
+                              color: ThemeConfig.gold, fontSize: 14)),
                     );
                   }).toList(),
                 ),
@@ -319,10 +334,12 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       _loadDefaultPlayers();
                     },
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       minimumSize: Size.zero,
                     ),
-                    child: const Text('Retry', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    child: const Text('Retry',
+                        style: TextStyle(color: Colors.red, fontSize: 12)),
                   ),
                 ],
               ),
@@ -345,7 +362,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                     children: [
                       const Text(
                         'Search for a player',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const Spacer(),
                       IconButton(
@@ -360,34 +378,36 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       ),
                     ],
                   ),
-                                     const SizedBox(height: 8),
-                   TextField(
-                     controller: searchController,
-                     autofocus: true,
-                     decoration: InputDecoration(
-                       hintText: 'Type player name...',
-                       prefixIcon: const Icon(Icons.search, size: 20),
-                       suffixIcon: isSearching
-                           ? const SizedBox(
-                               width: 16,
-                               height: 16,
-                               child: Padding(
-                                 padding: EdgeInsets.all(8),
-                                 child: CircularProgressIndicator(strokeWidth: 2),
-                               ),
-                             )
-                           : null,
-                       border: OutlineInputBorder(
-                         borderRadius: BorderRadius.circular(6),
-                       ),
-                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                     ),
-                     onChanged: _searchPlayers,
-                   ),
-                   if (searchResults.isNotEmpty) ...[
-                     const SizedBox(height: 12),
-                     Container(
-                       constraints: const BoxConstraints(maxHeight: 150),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: searchController,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Type player name...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: isSearching
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: Padding(
+                                padding: EdgeInsets.all(8),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    onChanged: _searchPlayers,
+                  ),
+                  if (searchResults.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 150),
                       child: ListView.builder(
                         shrinkWrap: true,
                         itemCount: searchResults.length,
@@ -404,7 +424,9 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                                 ),
                               ),
                             ),
-                            title: Text(player['player_display_name']?.toString() ?? 'Unknown'),
+                            title: Text(
+                                player['player_display_name']?.toString() ??
+                                    'Unknown'),
                             subtitle: Text(
                               '${player['team']?.toString().trim().isNotEmpty == true ? player['team'] : 'Unknown Team'} • ${player['position'] ?? 'Unknown'} • ${player['fantasy_points_ppr']?.toStringAsFixed(1) ?? '0.0'} PPR',
                             ),
@@ -418,7 +440,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
               ),
             ),
           ],
-          
+
           // Player Cards Row
           Row(
             children: [
@@ -430,24 +452,25 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   'Player 1',
                 ),
               ),
-                             const SizedBox(width: 16),
-               // VS indicator
-               Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                 decoration: BoxDecoration(
-                   color: Colors.white.withOpacity(0.1),
-                   borderRadius: BorderRadius.circular(20),
-                 ),
-                 child: const Text(
-                   'VS',
-                   style: TextStyle(
-                     color: Colors.white,
-                     fontWeight: FontWeight.bold,
-                     fontSize: 14,
-                   ),
-                 ),
-               ),
-               const SizedBox(width: 16),
+              const SizedBox(width: 16),
+              // VS indicator
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'VS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
               // Player 2
               Expanded(
                 child: _buildLargePlayerCard(
@@ -458,47 +481,49 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
               ),
             ],
           ),
-          
-                     // Additional Players Row (if any)
-           if (selectedPlayers.length > 2 || activeSearchIndex >= 2) ...[
-             const SizedBox(height: 16),
-             Row(
-               children: [
-                 if (selectedPlayers.length > 2 || activeSearchIndex == 2)
-                   Expanded(
-                     child: _buildLargePlayerCard(
-                       selectedPlayers.length > 2 ? selectedPlayers[2] : null,
-                       2,
-                       'Player 3',
-                     ),
-                   ),
-                 if (selectedPlayers.length > 2 || activeSearchIndex == 2) const SizedBox(width: 16),
-                 if (selectedPlayers.length > 3 || activeSearchIndex == 3)
-                   Expanded(
-                     child: _buildLargePlayerCard(
-                       selectedPlayers.length > 3 ? selectedPlayers[3] : null,
-                       3,
-                       'Player 4',
-                     ),
-                   ),
-                 if (selectedPlayers.length <= 2 && activeSearchIndex < 2)
-                   Expanded(
-                     child: _buildAddPlayerButton(),
-                   ),
-               ],
-             ),
-           ] else ...[
-             const SizedBox(height: 16),
-             _buildAddPlayerButton(),
-           ],
+
+          // Additional Players Row (if any)
+          if (selectedPlayers.length > 2 || activeSearchIndex >= 2) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (selectedPlayers.length > 2 || activeSearchIndex == 2)
+                  Expanded(
+                    child: _buildLargePlayerCard(
+                      selectedPlayers.length > 2 ? selectedPlayers[2] : null,
+                      2,
+                      'Player 3',
+                    ),
+                  ),
+                if (selectedPlayers.length > 2 || activeSearchIndex == 2)
+                  const SizedBox(width: 16),
+                if (selectedPlayers.length > 3 || activeSearchIndex == 3)
+                  Expanded(
+                    child: _buildLargePlayerCard(
+                      selectedPlayers.length > 3 ? selectedPlayers[3] : null,
+                      3,
+                      'Player 4',
+                    ),
+                  ),
+                if (selectedPlayers.length <= 2 && activeSearchIndex < 2)
+                  Expanded(
+                    child: _buildAddPlayerButton(),
+                  ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 16),
+            _buildAddPlayerButton(),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildLargePlayerCard(Map<String, dynamic>? player, int index, String placeholder) {
+  Widget _buildLargePlayerCard(
+      Map<String, dynamic>? player, int index, String placeholder) {
     final bool hasPlayer = player != null;
-    
+
     return Container(
       height: 140,
       decoration: BoxDecoration(
@@ -547,7 +572,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          player['player_display_name']?.toString() ?? 'Unknown Player',
+                          player['player_display_name']?.toString() ??
+                              'Unknown Player',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -618,10 +644,10 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-                     decoration: BoxDecoration(
-             border: Border.all(color: Colors.grey[300]!, width: 2),
-             borderRadius: BorderRadius.circular(16),
-           ),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!, width: 2),
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -663,7 +689,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
   Widget _buildAddPlayerButton() {
     if (selectedPlayers.length >= 4) return const SizedBox();
-    
+
     return SizedBox(
       height: 60,
       child: Material(
@@ -820,29 +846,37 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
               ),
             ),
             ...selectedPlayers.map((player) => DataColumn(
-              label: SizedBox(
-                width: 100,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      (player['player_display_name']?.toString() ?? 'Unknown').length > 15 
-                          ? '${(player['player_display_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
-                          : player['player_display_name']?.toString() ?? 'Unknown',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
+                  label: SizedBox(
+                    width: 100,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          (player['player_display_name']?.toString() ??
+                                          'Unknown')
+                                      .length >
+                                  15
+                              ? '${(player['player_display_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
+                              : player['player_display_name']?.toString() ??
+                                  'Unknown',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.white),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
+                        Text(
+                          '${player['team']} ${player['position']}',
+                          style:
+                              TextStyle(color: Colors.grey[400], fontSize: 10),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${player['team']} ${player['position']}',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 10),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )),
+                  ),
+                )),
           ],
           rows: _buildComparisonRows(),
         ),
@@ -855,45 +889,86 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       // Basic Stats
       {'category': 'Basic Stats'},
       {'label': 'Games Played', 'field': 'games'},
-      {'label': 'Fantasy Points (PPR)', 'field': 'fantasy_points_ppr', 'format': 'decimal'},
-      {'label': 'PPR Points/Game', 'field': 'ppr_points_per_game', 'format': 'decimal'},
-      {'label': 'Fantasy Points (Standard)', 'field': 'fantasy_points_std', 'format': 'decimal'},
-      
+      {
+        'label': 'Fantasy Points (PPR)',
+        'field': 'fantasy_points_ppr',
+        'format': 'decimal'
+      },
+      {
+        'label': 'PPR Points/Game',
+        'field': 'ppr_points_per_game',
+        'format': 'decimal'
+      },
+      {
+        'label': 'Fantasy Points (Standard)',
+        'field': 'fantasy_points_std',
+        'format': 'decimal'
+      },
+
       // Passing Stats (if applicable)
       if (selectedPlayers.any((p) => p['position'] == 'QB')) ...[
         {'category': 'Passing'},
         {'label': 'Passing Yards', 'field': 'passing_yards'},
         {'label': 'Passing TDs', 'field': 'passing_tds'},
         {'label': 'Interceptions', 'field': 'interceptions'},
-        {'label': 'Completion %', 'field': 'completion_percentage', 'format': 'percentage'},
-        {'label': 'Passer Rating', 'field': 'passer_rating', 'format': 'decimal'},
+        {
+          'label': 'Completion %',
+          'field': 'completion_percentage',
+          'format': 'percentage'
+        },
+        {
+          'label': 'Passer Rating',
+          'field': 'passer_rating',
+          'format': 'decimal'
+        },
       ],
-      
+
       // Rushing Stats
       if (selectedPlayers.any((p) => ['RB', 'QB'].contains(p['position']))) ...[
         {'category': 'Rushing'},
         {'label': 'Rushing Yards', 'field': 'rushing_yards'},
         {'label': 'Rushing TDs', 'field': 'rushing_tds'},
         {'label': 'Rushing Attempts', 'field': 'carries'},
-        {'label': 'Yards per Carry', 'field': 'rushing_yards_per_attempt', 'format': 'decimal'},
+        {
+          'label': 'Yards per Carry',
+          'field': 'rushing_yards_per_attempt',
+          'format': 'decimal'
+        },
       ],
-      
+
       // Receiving Stats
-      if (selectedPlayers.any((p) => ['WR', 'TE', 'RB'].contains(p['position']))) ...[
+      if (selectedPlayers
+          .any((p) => ['WR', 'TE', 'RB'].contains(p['position']))) ...[
         {'category': 'Receiving'},
         {'label': 'Receiving Yards', 'field': 'receiving_yards'},
         {'label': 'Receiving TDs', 'field': 'receiving_tds'},
         {'label': 'Receptions', 'field': 'receptions'},
         {'label': 'Targets', 'field': 'targets'},
-        {'label': 'Catch %', 'field': 'catch_percentage', 'format': 'percentage'},
-        {'label': 'Target Share', 'field': 'target_share', 'format': 'percentage'},
+        {
+          'label': 'Catch %',
+          'field': 'catch_percentage',
+          'format': 'percentage'
+        },
+        {
+          'label': 'Target Share',
+          'field': 'target_share',
+          'format': 'percentage'
+        },
       ],
-      
+
       // Advanced Stats
       {'category': 'Advanced'},
-      {'label': 'Air Yards Share', 'field': 'air_yards_share', 'format': 'percentage'},
+      {
+        'label': 'Air Yards Share',
+        'field': 'air_yards_share',
+        'format': 'percentage'
+      },
       {'label': 'WOPR', 'field': 'wopr', 'format': 'decimal'},
-      {'label': 'Yards per Touch', 'field': 'yards_per_touch', 'format': 'decimal'},
+      {
+        'label': 'Yards per Touch',
+        'field': 'yards_per_touch',
+        'format': 'decimal'
+      },
     ];
 
     List<DataRow> rows = [];
@@ -933,17 +1008,18 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             ...selectedPlayers.map((player) {
               final value = player[stat['field']];
               String displayValue = '-';
-              
+
               if (value != null) {
                 if (stat['format'] == 'decimal') {
                   displayValue = (value as num).toStringAsFixed(1);
                 } else if (stat['format'] == 'percentage') {
-                  displayValue = '${((value as num) * 100).toStringAsFixed(1)}%';
+                  displayValue =
+                      '${((value as num) * 100).toStringAsFixed(1)}%';
                 } else {
                   displayValue = value.toString();
                 }
               }
-              
+
               return DataCell(
                 Text(
                   displayValue,
@@ -959,4 +1035,4 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
     return rows;
   }
-} 
+}

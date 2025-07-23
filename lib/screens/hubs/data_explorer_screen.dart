@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 
@@ -16,8 +16,14 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
   String _selectedSeason = '2023';
   bool _isLoading = true;
   Map<String, List<Map<String, dynamic>>> _topPerformers = {};
-  
-  final List<String> _availableSeasons = ['2024', '2023', '2022', '2021', '2020'];
+
+  final List<String> _availableSeasons = [
+    '2024',
+    '2023',
+    '2022',
+    '2021',
+    '2020'
+  ];
 
   @override
   void initState() {
@@ -27,24 +33,24 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
 
   Future<void> _loadTopPerformers() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final functions = FirebaseFunctions.instance;
-      
+
       // Load top performers for each category
       final futures = [
         _getTopPerformers('QB', 'passing_yards', 'Passing'),
-        _getTopPerformers('RB', 'rushing_yards', 'Rushing'), 
+        _getTopPerformers('RB', 'rushing_yards', 'Rushing'),
         _getTopPerformers('WR', 'receiving_yards', 'Receiving'),
         _getTopPerformers('All', 'fantasy_points_ppr', 'Fantasy'),
       ];
-      
+
       final results = await Future.wait(futures);
-      
+
       setState(() {
         _topPerformers = {
           'Passing': results[0],
-          'Rushing': results[1], 
+          'Rushing': results[1],
           'Receiving': results[2],
           'Fantasy': results[3],
         };
@@ -56,16 +62,18 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getTopPerformers(String position, String statField, String category) async {
+  Future<List<Map<String, dynamic>>> _getTopPerformers(
+      String position, String statField, String category) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('getTopPlayersByPosition');
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('getTopPlayersByPosition');
       final result = await callable.call({
         'position': position,
         'season': int.parse(_selectedSeason),
         'limit': 5,
         'orderBy': statField,
       });
-      
+
       return List<Map<String, dynamic>>.from(result.data['data'] ?? []);
     } catch (e) {
       print('Error getting top $category performers: $e');
@@ -82,7 +90,8 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -91,11 +100,13 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 textStyle: const TextStyle(fontSize: 14),
               ),
               child: const Text('Sign In / Sign Up'),
@@ -104,31 +115,31 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: _isLoading ? 
-        const Center(child: CircularProgressIndicator()) :
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                theme.colorScheme.surface,
-                theme.colorScheme.surface.withOpacity(0.8),
-              ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.colorScheme.surface,
+                    theme.colorScheme.surface.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeroSection(),
+                    _buildSeasonFilter(),
+                    _buildStatCategories(),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
             ),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeroSection(),
-                _buildSeasonFilter(),
-                _buildStatCategories(),
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ),
     );
   }
 
@@ -170,19 +181,20 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
                   children: [
                     Text(
                       'NFL Data Hub',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 32,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 32,
+                              ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Comprehensive player statistics and performance analytics',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                        fontWeight: FontWeight.w400,
-                      ),
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w400,
+                          ),
                     ),
                   ],
                 ),
@@ -261,7 +273,7 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              Icons.calendar_today, 
+              Icons.calendar_today,
               color: Theme.of(context).colorScheme.primary,
               size: 20,
             ),
@@ -270,8 +282,8 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
           Text(
             'Season:',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(width: 16),
           Container(
@@ -283,16 +295,18 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedSeason,
-                items: _availableSeasons.map((season) => DropdownMenuItem(
-                  value: season,
-                  child: Text(
-                    season,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                )).toList(),
+                items: _availableSeasons
+                    .map((season) => DropdownMenuItem(
+                          value: season,
+                          child: Text(
+                            season,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ))
+                    .toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedSeason = value);
@@ -316,16 +330,17 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
           Text(
             'Top Performers',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 28,
-            ),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 28,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Leading players in each statistical category',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            ),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                ),
           ),
           const SizedBox(height: 32),
           GridView.count(
@@ -337,33 +352,29 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
             childAspectRatio: 1.3,
             children: [
               _buildModernStatCard(
-                'Passing', 
-                Icons.sports_football, 
-                const Color(0xFF3B82F6), // Blue
-                '/data/passing',
-                'QB Stats'
-              ),
+                  'Passing',
+                  Icons.sports_football,
+                  const Color(0xFF3B82F6), // Blue
+                  '/data/passing',
+                  'QB Stats'),
               _buildModernStatCard(
-                'Rushing', 
-                Icons.directions_run, 
-                const Color(0xFF10B981), // Green
-                '/data/rushing',
-                'RB Stats'
-              ),
+                  'Rushing',
+                  Icons.directions_run,
+                  const Color(0xFF10B981), // Green
+                  '/data/rushing',
+                  'RB Stats'),
               _buildModernStatCard(
-                'Receiving', 
-                Icons.sports_baseball, 
-                const Color(0xFFF59E0B), // Orange
-                '/data/receiving',
-                'WR/TE Stats'
-              ),
+                  'Receiving',
+                  Icons.sports_baseball,
+                  const Color(0xFFF59E0B), // Orange
+                  '/data/receiving',
+                  'WR/TE Stats'),
               _buildModernStatCard(
-                'Fantasy', 
-                Icons.star, 
-                const Color(0xFF8B5CF6), // Purple
-                '/data/fantasy',
-                'All Positions'
-              ),
+                  'Fantasy',
+                  Icons.star,
+                  const Color(0xFF8B5CF6), // Purple
+                  '/data/fantasy',
+                  'All Positions'),
             ],
           ),
         ],
@@ -371,9 +382,10 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
     );
   }
 
-  Widget _buildModernStatCard(String category, IconData icon, Color color, String route, String subtitle) {
+  Widget _buildModernStatCard(String category, IconData icon, Color color,
+      String route, String subtitle) {
     final performers = _topPerformers[category] ?? [];
-    
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -414,16 +426,25 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
                         children: [
                           Text(
                             category,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: color,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
                           ),
                           Text(
                             subtitle,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.6),
+                                ),
                           ),
                         ],
                       ),
@@ -431,83 +452,90 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Top performers list
                 Expanded(
-                  child: performers.isEmpty 
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.hourglass_empty, color: color.withOpacity(0.5)),
-                            const SizedBox(height: 8),
-                            Text('Loading...', style: TextStyle(color: color.withOpacity(0.7))),
-                          ],
-                        ),
-                      )
-                    : Column(
-                        children: performers.take(3).map((player) {
-                          final index = performers.indexOf(player);
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        color: color,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                  child: performers.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.hourglass_empty,
+                                  color: color.withOpacity(0.5)),
+                              const SizedBox(height: 8),
+                              Text('Loading...',
+                                  style:
+                                      TextStyle(color: color.withOpacity(0.7))),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: performers.take(3).map((player) {
+                            final index = performers.indexOf(player);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: TextStyle(
+                                          color: color,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        player['player_display_name'] ?? '',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          player['player_display_name'] ?? '',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        player['recent_team'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                        Text(
+                                          player['recent_team'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withOpacity(0.6),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  _formatStatValue(player, category),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                    fontSize: 14,
+                                  Text(
+                                    _formatStatValue(player, category),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
                 ),
-                
+
                 // View all button
                 const SizedBox(height: 16),
                 Container(
@@ -558,4 +586,4 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
         return '';
     }
   }
-} 
+}

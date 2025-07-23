@@ -8,7 +8,7 @@ import 'dart:math';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../utils/theme_config.dart';
 import '../../widgets/design_system/mds_table.dart';
 import '../../services/rankings/filter_service.dart';
@@ -28,13 +28,20 @@ enum QueryOperator {
 // Helper to convert QueryOperator to a display string
 String queryOperatorToString(QueryOperator op) {
   switch (op) {
-    case QueryOperator.equals: return '==';
-    case QueryOperator.notEquals: return '!=';
-    case QueryOperator.greaterThan: return '>';
-    case QueryOperator.greaterThanOrEquals: return '>=';
-    case QueryOperator.lessThan: return '<';
-    case QueryOperator.lessThanOrEquals: return '<=';
-    case QueryOperator.contains: return 'Contains';
+    case QueryOperator.equals:
+      return '==';
+    case QueryOperator.notEquals:
+      return '!=';
+    case QueryOperator.greaterThan:
+      return '>';
+    case QueryOperator.greaterThanOrEquals:
+      return '>=';
+    case QueryOperator.lessThan:
+      return '<';
+    case QueryOperator.lessThanOrEquals:
+      return '<=';
+    case QueryOperator.contains:
+      return 'Contains';
   }
 }
 
@@ -44,7 +51,8 @@ class QueryCondition {
   final QueryOperator operator;
   final String value;
 
-  QueryCondition({required this.field, required this.operator, required this.value});
+  QueryCondition(
+      {required this.field, required this.operator, required this.value});
 
   @override
   String toString() {
@@ -72,7 +80,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _frozenColumnScrollController = ScrollController();
-  
+
   // Available years for selection (past 5 years)
   final List<String> _availableYears = ['2024', '2023', '2022', '2021', '2020'];
 
@@ -81,44 +89,65 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   final List<QueryCondition> _queryConditions = [];
   String? _newQueryField;
   QueryOperator? _newQueryOperator;
-  final TextEditingController _newQueryValueController = TextEditingController();
-  
+  final TextEditingController _newQueryValueController =
+      TextEditingController();
+
   // Filter panel state
   bool _showFilterPanel = false;
   bool _usingFilters = false;
   late FilterQuery _currentFilter;
-  
+
   // Available fields for querying based on position
   List<String> get _availableQueryFields {
     final baseFields = ['playerName', 'team'];
     const recentPrefix = 'recent_';
     const fullPrefix = 'full_';
-    
+
     if (_selectedPosition == 'RB') {
-      return baseFields + [
-        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
-        '${recentPrefix}avg_carries', '${fullPrefix}avg_carries',
-        '${recentPrefix}avg_rushing_yards', '${fullPrefix}avg_rushing_yards',
-        '${recentPrefix}avg_targets', '${fullPrefix}avg_targets',
-        '${recentPrefix}avg_receptions', '${fullPrefix}avg_receptions',
-        '${recentPrefix}avg_total_td', '${fullPrefix}avg_total_td',
-      ];
+      return baseFields +
+          [
+            '${recentPrefix}avg_fantasy_points_ppr',
+            '${fullPrefix}avg_fantasy_points_ppr',
+            '${recentPrefix}avg_carries',
+            '${fullPrefix}avg_carries',
+            '${recentPrefix}avg_rushing_yards',
+            '${fullPrefix}avg_rushing_yards',
+            '${recentPrefix}avg_targets',
+            '${fullPrefix}avg_targets',
+            '${recentPrefix}avg_receptions',
+            '${fullPrefix}avg_receptions',
+            '${recentPrefix}avg_total_td',
+            '${fullPrefix}avg_total_td',
+          ];
     } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      return baseFields + [
-        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
-        '${recentPrefix}avg_targets', '${fullPrefix}avg_targets',
-        '${recentPrefix}avg_receptions', '${fullPrefix}avg_receptions',
-        '${recentPrefix}avg_receiving_yards', '${fullPrefix}avg_receiving_yards',
-        '${recentPrefix}avg_total_td', '${fullPrefix}avg_total_td',
-      ];
-    } else { // QB
-      return baseFields + [
-        '${recentPrefix}avg_fantasy_points_ppr', '${fullPrefix}avg_fantasy_points_ppr',
-        '${recentPrefix}avg_passing_attempts', '${fullPrefix}avg_passing_attempts',
-        '${recentPrefix}avg_passing_yards', '${fullPrefix}avg_passing_yards',
-        '${recentPrefix}avg_passing_tds', '${fullPrefix}avg_passing_tds',
-        '${recentPrefix}avg_rushing_yards_qb', '${fullPrefix}avg_rushing_yards_qb',
-      ];
+      return baseFields +
+          [
+            '${recentPrefix}avg_fantasy_points_ppr',
+            '${fullPrefix}avg_fantasy_points_ppr',
+            '${recentPrefix}avg_targets',
+            '${fullPrefix}avg_targets',
+            '${recentPrefix}avg_receptions',
+            '${fullPrefix}avg_receptions',
+            '${recentPrefix}avg_receiving_yards',
+            '${fullPrefix}avg_receiving_yards',
+            '${recentPrefix}avg_total_td',
+            '${fullPrefix}avg_total_td',
+          ];
+    } else {
+      // QB
+      return baseFields +
+          [
+            '${recentPrefix}avg_fantasy_points_ppr',
+            '${fullPrefix}avg_fantasy_points_ppr',
+            '${recentPrefix}avg_passing_attempts',
+            '${fullPrefix}avg_passing_attempts',
+            '${recentPrefix}avg_passing_yards',
+            '${fullPrefix}avg_passing_yards',
+            '${recentPrefix}avg_passing_tds',
+            '${fullPrefix}avg_passing_tds',
+            '${recentPrefix}avg_rushing_yards_qb',
+            '${fullPrefix}avg_rushing_yards_qb',
+          ];
     }
   }
 
@@ -133,15 +162,17 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   void _setupScrollSynchronization() {
     // Bidirectional vertical scroll synchronization
     _verticalScrollController.addListener(() {
-      if (_frozenColumnScrollController.hasClients && 
-          _frozenColumnScrollController.offset != _verticalScrollController.offset) {
+      if (_frozenColumnScrollController.hasClients &&
+          _frozenColumnScrollController.offset !=
+              _verticalScrollController.offset) {
         _frozenColumnScrollController.jumpTo(_verticalScrollController.offset);
       }
     });
-    
+
     _frozenColumnScrollController.addListener(() {
-      if (_verticalScrollController.hasClients && 
-          _verticalScrollController.offset != _frozenColumnScrollController.offset) {
+      if (_verticalScrollController.hasClients &&
+          _verticalScrollController.offset !=
+              _frozenColumnScrollController.offset) {
         _verticalScrollController.jumpTo(_frozenColumnScrollController.offset);
       }
     });
@@ -160,7 +191,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     setState(() {
       _showFilterPanel = !_showFilterPanel;
       if (_showFilterPanel) {
-        _isQueryBuilderExpanded = false; // Close query builder when opening filter panel
+        _isQueryBuilderExpanded =
+            false; // Close query builder when opening filter panel
       }
     });
   }
@@ -176,55 +208,144 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   Map<String, Map<String, dynamic>> _getFilterableStats() {
     // Return available stats for filtering based on current position
     final stats = <String, Map<String, dynamic>>{};
-    
+
     // Common stats for all positions
     stats['playerName'] = {'label': 'Player Name', 'type': 'text'};
     stats['team'] = {'label': 'Team', 'type': 'text'};
-    
+
     if (_selectedPosition == 'RB') {
-      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points (PPR)', 'type': 'number'};
-      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points (PPR)', 'type': 'number'};
-      stats['recent_avg_carries'] = {'label': 'Recent Carries', 'type': 'number'};
+      stats['recent_avg_fantasy_points_ppr'] = {
+        'label': 'Recent Fantasy Points (PPR)',
+        'type': 'number'
+      };
+      stats['full_avg_fantasy_points_ppr'] = {
+        'label': 'Season Fantasy Points (PPR)',
+        'type': 'number'
+      };
+      stats['recent_avg_carries'] = {
+        'label': 'Recent Carries',
+        'type': 'number'
+      };
       stats['full_avg_carries'] = {'label': 'Season Carries', 'type': 'number'};
-      stats['recent_avg_rushing_yards'] = {'label': 'Recent Rushing Yards', 'type': 'number'};
-      stats['full_avg_rushing_yards'] = {'label': 'Season Rushing Yards', 'type': 'number'};
-      stats['recent_avg_targets'] = {'label': 'Recent Targets', 'type': 'number'};
+      stats['recent_avg_rushing_yards'] = {
+        'label': 'Recent Rushing Yards',
+        'type': 'number'
+      };
+      stats['full_avg_rushing_yards'] = {
+        'label': 'Season Rushing Yards',
+        'type': 'number'
+      };
+      stats['recent_avg_targets'] = {
+        'label': 'Recent Targets',
+        'type': 'number'
+      };
       stats['full_avg_targets'] = {'label': 'Season Targets', 'type': 'number'};
-      stats['recent_avg_receptions'] = {'label': 'Recent Receptions', 'type': 'number'};
-      stats['full_avg_receptions'] = {'label': 'Season Receptions', 'type': 'number'};
+      stats['recent_avg_receptions'] = {
+        'label': 'Recent Receptions',
+        'type': 'number'
+      };
+      stats['full_avg_receptions'] = {
+        'label': 'Season Receptions',
+        'type': 'number'
+      };
       stats['recent_avg_total_td'] = {'label': 'Recent TDs', 'type': 'number'};
       stats['full_avg_total_td'] = {'label': 'Season TDs', 'type': 'number'};
     } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points (PPR)', 'type': 'number'};
-      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points (PPR)', 'type': 'number'};
-      stats['recent_avg_targets'] = {'label': 'Recent Targets', 'type': 'number'};
+      stats['recent_avg_fantasy_points_ppr'] = {
+        'label': 'Recent Fantasy Points (PPR)',
+        'type': 'number'
+      };
+      stats['full_avg_fantasy_points_ppr'] = {
+        'label': 'Season Fantasy Points (PPR)',
+        'type': 'number'
+      };
+      stats['recent_avg_targets'] = {
+        'label': 'Recent Targets',
+        'type': 'number'
+      };
       stats['full_avg_targets'] = {'label': 'Season Targets', 'type': 'number'};
-      stats['recent_avg_receptions'] = {'label': 'Recent Receptions', 'type': 'number'};
-      stats['full_avg_receptions'] = {'label': 'Season Receptions', 'type': 'number'};
-      stats['recent_avg_receiving_yards'] = {'label': 'Recent Receiving Yards', 'type': 'number'};
-      stats['full_avg_receiving_yards'] = {'label': 'Season Receiving Yards', 'type': 'number'};
-      stats['recent_avg_receiving_td'] = {'label': 'Recent Receiving TDs', 'type': 'number'};
-      stats['full_avg_receiving_td'] = {'label': 'Season Receiving TDs', 'type': 'number'};
+      stats['recent_avg_receptions'] = {
+        'label': 'Recent Receptions',
+        'type': 'number'
+      };
+      stats['full_avg_receptions'] = {
+        'label': 'Season Receptions',
+        'type': 'number'
+      };
+      stats['recent_avg_receiving_yards'] = {
+        'label': 'Recent Receiving Yards',
+        'type': 'number'
+      };
+      stats['full_avg_receiving_yards'] = {
+        'label': 'Season Receiving Yards',
+        'type': 'number'
+      };
+      stats['recent_avg_receiving_td'] = {
+        'label': 'Recent Receiving TDs',
+        'type': 'number'
+      };
+      stats['full_avg_receiving_td'] = {
+        'label': 'Season Receiving TDs',
+        'type': 'number'
+      };
     } else if (_selectedPosition == 'QB') {
-      stats['recent_avg_fantasy_points_ppr'] = {'label': 'Recent Fantasy Points', 'type': 'number'};
-      stats['full_avg_fantasy_points_ppr'] = {'label': 'Season Fantasy Points', 'type': 'number'};
-      stats['recent_avg_passing_yards'] = {'label': 'Recent Passing Yards', 'type': 'number'};
-      stats['full_avg_passing_yards'] = {'label': 'Season Passing Yards', 'type': 'number'};
-      stats['recent_avg_passing_td'] = {'label': 'Recent Passing TDs', 'type': 'number'};
-      stats['full_avg_passing_td'] = {'label': 'Season Passing TDs', 'type': 'number'};
-      stats['recent_avg_interceptions'] = {'label': 'Recent Interceptions', 'type': 'number'};
-      stats['full_avg_interceptions'] = {'label': 'Season Interceptions', 'type': 'number'};
-      stats['recent_avg_rushing_yards'] = {'label': 'Recent Rushing Yards', 'type': 'number'};
-      stats['full_avg_rushing_yards'] = {'label': 'Season Rushing Yards', 'type': 'number'};
-      stats['recent_avg_rushing_td'] = {'label': 'Recent Rushing TDs', 'type': 'number'};
-      stats['full_avg_rushing_td'] = {'label': 'Season Rushing TDs', 'type': 'number'};
+      stats['recent_avg_fantasy_points_ppr'] = {
+        'label': 'Recent Fantasy Points',
+        'type': 'number'
+      };
+      stats['full_avg_fantasy_points_ppr'] = {
+        'label': 'Season Fantasy Points',
+        'type': 'number'
+      };
+      stats['recent_avg_passing_yards'] = {
+        'label': 'Recent Passing Yards',
+        'type': 'number'
+      };
+      stats['full_avg_passing_yards'] = {
+        'label': 'Season Passing Yards',
+        'type': 'number'
+      };
+      stats['recent_avg_passing_td'] = {
+        'label': 'Recent Passing TDs',
+        'type': 'number'
+      };
+      stats['full_avg_passing_td'] = {
+        'label': 'Season Passing TDs',
+        'type': 'number'
+      };
+      stats['recent_avg_interceptions'] = {
+        'label': 'Recent Interceptions',
+        'type': 'number'
+      };
+      stats['full_avg_interceptions'] = {
+        'label': 'Season Interceptions',
+        'type': 'number'
+      };
+      stats['recent_avg_rushing_yards'] = {
+        'label': 'Recent Rushing Yards',
+        'type': 'number'
+      };
+      stats['full_avg_rushing_yards'] = {
+        'label': 'Season Rushing Yards',
+        'type': 'number'
+      };
+      stats['recent_avg_rushing_td'] = {
+        'label': 'Recent Rushing TDs',
+        'type': 'number'
+      };
+      stats['full_avg_rushing_td'] = {
+        'label': 'Season Rushing TDs',
+        'type': 'number'
+      };
     }
-    
+
     return stats;
   }
 
   void _addQueryCondition() {
-    if (_newQueryField != null && _newQueryOperator != null && _newQueryValueController.text.isNotEmpty) {
+    if (_newQueryField != null &&
+        _newQueryOperator != null &&
+        _newQueryValueController.text.isNotEmpty) {
       setState(() {
         _queryConditions.add(QueryCondition(
           field: _newQueryField!,
@@ -260,19 +381,19 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
   List<Map<String, dynamic>> _getFilteredData() {
     List<Map<String, dynamic>> filteredData = _playerData;
-    
+
     // Apply filter panel filters first
     if (_currentFilter.hasActiveFilters) {
       filteredData = FilterService.applyFilters(filteredData, _currentFilter);
     }
-    
+
     // Apply legacy query conditions
     if (_queryConditions.isNotEmpty) {
       filteredData = filteredData.where((player) {
         return _queryConditions.every((condition) {
           final value = player[condition.field];
           final queryValue = condition.value.toLowerCase();
-          
+
           switch (condition.operator) {
             case QueryOperator.equals:
               if (value is num) {
@@ -314,10 +435,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         });
       }).toList();
     }
-    
+
     return filteredData;
   }
-  
+
   double _getMedian(List<double> arr) {
     if (arr.isEmpty) return 0;
     final sorted = [...arr]..sort((a, b) => a.compareTo(b));
@@ -333,60 +454,69 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     if (logs.isEmpty) return {};
 
     final games = logs.length.toDouble();
-    
+
     // Generic stats for all positions
-    final pprPoints = logs.map((l) => (l['fantasy_points_ppr'] as num? ?? 0).toDouble()).toList();
-    
+    final pprPoints = logs
+        .map((l) => (l['fantasy_points_ppr'] as num? ?? 0).toDouble())
+        .toList();
+
     // Position-specific stats
-    List<double> targets = [], receptions = [], receivingYards = [], receivingTds = [];
+    List<double> targets = [],
+        receptions = [],
+        receivingYards = [],
+        receivingTds = [];
     List<double> carries = [], rushingYards = [], rushingTds = [];
     List<double> passAttempts = [], passYards = [], passTds = [];
-    
+
     for (var log in logs) {
-        targets.add((log['targets'] as num? ?? 0).toDouble());
-        receptions.add((log['receptions'] as num? ?? 0).toDouble());
-        receivingYards.add((log['receiving_yards'] as num? ?? 0).toDouble());
-        receivingTds.add((log['receiving_tds'] as num? ?? 0).toDouble());
-        carries.add((log['carries'] as num? ?? 0).toDouble());
-        rushingYards.add((log['rushing_yards'] as num? ?? 0).toDouble());
-        rushingTds.add((log['rushing_tds'] as num? ?? 0).toDouble());
-        passAttempts.add((log['attempts'] as num? ?? 0).toDouble());
-        passYards.add((log['passing_yards'] as num? ?? 0).toDouble());
-        passTds.add((log['passing_tds'] as num? ?? 0).toDouble());
+      targets.add((log['targets'] as num? ?? 0).toDouble());
+      receptions.add((log['receptions'] as num? ?? 0).toDouble());
+      receivingYards.add((log['receiving_yards'] as num? ?? 0).toDouble());
+      receivingTds.add((log['receiving_tds'] as num? ?? 0).toDouble());
+      carries.add((log['carries'] as num? ?? 0).toDouble());
+      rushingYards.add((log['rushing_yards'] as num? ?? 0).toDouble());
+      rushingTds.add((log['rushing_tds'] as num? ?? 0).toDouble());
+      passAttempts.add((log['attempts'] as num? ?? 0).toDouble());
+      passYards.add((log['passing_yards'] as num? ?? 0).toDouble());
+      passTds.add((log['passing_tds'] as num? ?? 0).toDouble());
     }
 
     final totalPPR = pprPoints.fold(0.0, (a, b) => a + b);
 
     // Combine rushing and receiving TDs for RBs and WRs/TEs
-    final totalCombinedTds = List.generate(logs.length, (i) => receivingTds[i] + rushingTds[i]).fold(0.0, (a,b) => a+b);
+    final totalCombinedTds =
+        List.generate(logs.length, (i) => receivingTds[i] + rushingTds[i])
+            .fold(0.0, (a, b) => a + b);
 
     return {
       'games': games,
       'avg_fantasy_points_ppr': totalPPR / games,
       'median_fantasy_points_ppr': _getMedian(pprPoints),
-      
+
       // WR/TE
-      'avg_targets': targets.fold(0.0, (a,b) => a+b) / games,
-      'avg_receptions': receptions.fold(0.0, (a,b) => a+b) / games,
-      'avg_receiving_yards': receivingYards.fold(0.0, (a,b) => a+b) / games,
-      
+      'avg_targets': targets.fold(0.0, (a, b) => a + b) / games,
+      'avg_receptions': receptions.fold(0.0, (a, b) => a + b) / games,
+      'avg_receiving_yards': receivingYards.fold(0.0, (a, b) => a + b) / games,
+
       // RB
-      'avg_carries': carries.fold(0.0, (a,b) => a+b) / games,
-      'avg_rushing_yards': rushingYards.fold(0.0, (a,b) => a+b) / games,
+      'avg_carries': carries.fold(0.0, (a, b) => a + b) / games,
+      'avg_rushing_yards': rushingYards.fold(0.0, (a, b) => a + b) / games,
       'avg_total_td': totalCombinedTds / games,
 
       // QB
-      'avg_passing_attempts': passAttempts.fold(0.0, (a,b) => a+b) / games,
-      'avg_passing_yards': passYards.fold(0.0, (a,b) => a+b) / games,
-      'avg_passing_tds': passTds.fold(0.0, (a,b) => a+b) / games,
-      'avg_rushing_attempts_qb': carries.fold(0.0, (a,b) => a+b) / games,
-      'avg_rushing_yards_qb': rushingYards.fold(0.0, (a,b) => a+b) / games,
-      'avg_rushing_tds_qb': rushingTds.fold(0.0, (a,b) => a+b) / games,
+      'avg_passing_attempts': passAttempts.fold(0.0, (a, b) => a + b) / games,
+      'avg_passing_yards': passYards.fold(0.0, (a, b) => a + b) / games,
+      'avg_passing_tds': passTds.fold(0.0, (a, b) => a + b) / games,
+      'avg_rushing_attempts_qb': carries.fold(0.0, (a, b) => a + b) / games,
+      'avg_rushing_yards_qb': rushingYards.fold(0.0, (a, b) => a + b) / games,
+      'avg_rushing_tds_qb': rushingTds.fold(0.0, (a, b) => a + b) / games,
     };
   }
 
   Future<void> _fetchAndProcessPlayerTrends() async {
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final querySnapshot = await _firestore
@@ -396,10 +526,13 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        setState(() { _playerData = []; _isLoading = false; });
+        setState(() {
+          _playerData = [];
+          _isLoading = false;
+        });
         return;
       }
-      
+
       final playersData = <String, dynamic>{};
       for (var doc in querySnapshot.docs) {
         final log = doc.data();
@@ -419,46 +552,50 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
       final List<Map<String, dynamic>> results = [];
       playersData.forEach((playerId, player) {
-        final allLogs = (player['logs'] as List<Map<String, dynamic>>)..sort((a,b) => (b['week'] as int).compareTo(a['week'] as int));
+        final allLogs = (player['logs'] as List<Map<String, dynamic>>)
+          ..sort((a, b) => (b['week'] as int).compareTo(a['week'] as int));
         if (allLogs.isEmpty) return;
-        
+
         final maxWeek = allLogs.first['week'] as int;
         final startWeek = max(1, maxWeek - _selectedWeeks.toInt() + 1);
-        final recentLogs = allLogs.where((log) => (log['week'] as int) >= startWeek).toList();
+        final recentLogs =
+            allLogs.where((log) => (log['week'] as int) >= startWeek).toList();
 
         final fullSeasonStats = _calculateStatsForLogs(allLogs);
         final recentStats = _calculateStatsForLogs(recentLogs);
-        
+
         // --- Calculate Trend Flags ---
         final Map<String, dynamic> trends = {};
         if (fullSeasonStats.isNotEmpty && recentStats.isNotEmpty) {
-            // Define key metrics for trend calculation
-            double fullUsage = 0, recentUsage = 0;
-            final fullResult = fullSeasonStats['avg_fantasy_points_ppr'] ?? 0;
-            final recentResult = recentStats['avg_fantasy_points_ppr'] ?? 0;
+          // Define key metrics for trend calculation
+          double fullUsage = 0, recentUsage = 0;
+          final fullResult = fullSeasonStats['avg_fantasy_points_ppr'] ?? 0;
+          final recentResult = recentStats['avg_fantasy_points_ppr'] ?? 0;
 
-            if (_selectedPosition == 'RB') {
-                fullUsage = (fullSeasonStats['avg_carries'] ?? 0) + (fullSeasonStats['avg_targets'] ?? 0);
-                recentUsage = (recentStats['avg_carries'] ?? 0) + (recentStats['avg_targets'] ?? 0);
-            } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
-                fullUsage = fullSeasonStats['avg_targets'] ?? 0;
-                recentUsage = recentStats['avg_targets'] ?? 0;
-            } else if (_selectedPosition == 'QB') {
-                fullUsage = fullSeasonStats['avg_passing_attempts'] ?? 0;
-                recentUsage = recentStats['avg_passing_attempts'] ?? 0;
-            }
+          if (_selectedPosition == 'RB') {
+            fullUsage = (fullSeasonStats['avg_carries'] ?? 0) +
+                (fullSeasonStats['avg_targets'] ?? 0);
+            recentUsage = (recentStats['avg_carries'] ?? 0) +
+                (recentStats['avg_targets'] ?? 0);
+          } else if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
+            fullUsage = fullSeasonStats['avg_targets'] ?? 0;
+            recentUsage = recentStats['avg_targets'] ?? 0;
+          } else if (_selectedPosition == 'QB') {
+            fullUsage = fullSeasonStats['avg_passing_attempts'] ?? 0;
+            recentUsage = recentStats['avg_passing_attempts'] ?? 0;
+          }
 
-            // Calculate percentage change and set flags
-            if (fullUsage > 0) {
-                final usageChange = (recentUsage - fullUsage) / fullUsage;
-                trends['usage_value'] = usageChange;
-            }
-            if (fullResult > 0) {
-                final resultChange = (recentResult - fullResult) / fullResult;
-                trends['result_value'] = resultChange;
-            }
+          // Calculate percentage change and set flags
+          if (fullUsage > 0) {
+            final usageChange = (recentUsage - fullUsage) / fullUsage;
+            trends['usage_value'] = usageChange;
+          }
+          if (fullResult > 0) {
+            final resultChange = (recentResult - fullResult) / fullResult;
+            trends['result_value'] = resultChange;
+          }
         }
-        
+
         final combinedData = <String, dynamic>{
           'playerName': player['player_name'],
           'team': player['team'],
@@ -474,13 +611,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
         results.add(combinedData);
       });
-      
+
       setState(() {
         _playerData = results;
         _sortData();
         _isLoading = false;
       });
-
     } catch (e) {
       debugPrint("Error processing player trends: $e");
       if (mounted) {
@@ -488,17 +624,18 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           SnackBar(content: Text('Error processing data: ${e.toString()}')),
         );
       }
-      setState(() { _playerData = []; _isLoading = false; });
+      setState(() {
+        _playerData = [];
+        _isLoading = false;
+      });
     }
   }
-  
-
 
   void _sortData() {
     _playerData.sort((a, b) {
       final aValue = a[_sortColumn] as num?;
       final bValue = b[_sortColumn] as num?;
-      
+
       if (aValue == null && bValue == null) return 0;
       if (aValue == null) return _sortAscending ? -1 : 1;
       if (bValue == null) return _sortAscending ? 1 : -1;
@@ -516,7 +653,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -531,13 +669,16 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  showDialog(context: context, builder: (_) => const AuthDialog());
+                  showDialog(
+                      context: context, builder: (_) => const AuthDialog());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeConfig.darkNavy,
                   foregroundColor: ThemeConfig.gold,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -562,8 +703,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                   Expanded(
                     child: _isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : _getFilteredData().isEmpty 
-                            ? const Center(child: Text('No data available for the selected filters.'))
+                        : _getFilteredData().isEmpty
+                            ? const Center(
+                                child: Text(
+                                    'No data available for the selected filters.'))
                             : _buildDataTable(),
                   ),
                 ],
@@ -581,7 +724,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                 onClose: _toggleFilterPanel,
                 isVisible: _showFilterPanel,
                 availableTeams: FilterService.getAvailableTeams(_playerData),
-                availableSeasons: FilterService.getAvailableSeasons(_playerData),
+                availableSeasons:
+                    FilterService.getAvailableSeasons(_playerData),
                 statFields: _getFilterableStats(),
               ),
             ),
@@ -598,22 +742,24 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark 
-                    ? Theme.of(context).colorScheme.surfaceContainerHighest 
-                    : Colors.grey.shade100,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                      : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Position: ', style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).brightness == Brightness.dark 
-                        ? Colors.white 
-                        : Colors.black87,
-                    )),
+                    Text('Position: ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black87,
+                        )),
                     DropdownButton<String>(
                       value: _selectedPosition,
                       underline: const SizedBox(),
@@ -625,15 +771,18 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                           });
                         }
                       },
-                      items: <String>['RB', 'WR', 'TE', 'QB'].map<DropdownMenuItem<String>>((String value) {
+                      items: <String>['RB', 'WR', 'TE', 'QB']
+                          .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value, style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).brightness == Brightness.dark 
-                              ? Colors.white 
-                              : Colors.black87,
-                          )),
+                          child: Text(value,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black87,
+                              )),
                         );
                       }).toList(),
                     ),
@@ -642,7 +791,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
               ),
               const SizedBox(width: 16),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -651,9 +801,11 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
+                    Icon(Icons.calendar_today,
+                        size: 16, color: Colors.blue.shade700),
                     const SizedBox(width: 6),
-                    const Text('Year: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text('Year: ',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                     DropdownButton<String>(
                       value: _selectedYear,
                       underline: const SizedBox(),
@@ -665,10 +817,14 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                           });
                         }
                       },
-                      items: _availableYears.map<DropdownMenuItem<String>>((String value) {
+                      items: _availableYears
+                          .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                          child: Text(value,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700)),
                         );
                       }).toList(),
                     ),
@@ -687,15 +843,23 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                   ),
                   label: Text(_showFilterPanel ? 'Close' : 'Filter'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _usingFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                    backgroundColor: _usingFilters
+                        ? Colors.blue.shade600
+                        : ThemeConfig.darkNavy,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ),
               ElevatedButton.icon(
                 onPressed: _isLoading ? null : _fetchAndProcessPlayerTrends,
-                icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh),
                 label: Text(_isLoading ? 'Loading...' : 'Reload Data'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade600,
@@ -705,7 +869,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          _buildSlider('Compare Recent Weeks:', _selectedWeeks, 1, 17, (val) => setState(() => _selectedWeeks = val)),
+          _buildSlider('Compare Recent Weeks:', _selectedWeeks, 1, 17,
+              (val) => setState(() => _selectedWeeks = val)),
         ],
       ),
     );
@@ -724,16 +889,21 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           setState(() {
             _isQueryBuilderExpanded = expanded;
             if (expanded) {
-              _showFilterPanel = false; // Close filter panel when opening query builder
+              _showFilterPanel =
+                  false; // Close filter panel when opening query builder
             }
           });
         },
         title: Row(
           children: [
-            Icon(Icons.filter_alt_outlined, color: Theme.of(context).primaryColor, size: 20),
+            Icon(Icons.filter_alt_outlined,
+                color: Theme.of(context).primaryColor, size: 20),
             const SizedBox(width: 8),
             Text('Advanced Filters',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const Spacer(),
             if (_queryConditions.isNotEmpty)
               Container(
@@ -768,10 +938,13 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                       final index = entry.key;
                       final condition = entry.value;
                       return Chip(
-                        label: Text(condition.toString(), style: const TextStyle(fontSize: 12)),
+                        label: Text(condition.toString(),
+                            style: const TextStyle(fontSize: 12)),
                         deleteIcon: const Icon(Icons.close, size: 16),
                         onDeleted: () => _removeQueryCondition(index),
-                        backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        backgroundColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.1),
                       );
                     }).toList(),
                   ),
@@ -786,10 +959,13 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Field',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           isDense: true,
                         ),
-                        value: _availableQueryFields.contains(_newQueryField) ? _newQueryField : null,
+                        value: _availableQueryFields.contains(_newQueryField)
+                            ? _newQueryField
+                            : null,
                         items: _availableQueryFields.map((field) {
                           String displayName = field;
                           if (field.startsWith('recent_')) {
@@ -799,7 +975,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                           }
                           return DropdownMenuItem(
                             value: field,
-                            child: Text(displayName, style: const TextStyle(fontSize: 13)),
+                            child: Text(displayName,
+                                style: const TextStyle(fontSize: 13)),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -816,14 +993,18 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Operator',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           isDense: true,
                         ),
                         value: _newQueryOperator,
-                        items: QueryOperator.values.map((op) => DropdownMenuItem(
-                          value: op,
-                          child: Text(queryOperatorToString(op), style: const TextStyle(fontSize: 13)),
-                        )).toList(),
+                        items: QueryOperator.values
+                            .map((op) => DropdownMenuItem(
+                                  value: op,
+                                  child: Text(queryOperatorToString(op),
+                                      style: const TextStyle(fontSize: 13)),
+                                ))
+                            .toList(),
                         onChanged: (value) {
                           setState(() {
                             _newQueryOperator = value;
@@ -839,7 +1020,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Value',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           isDense: true,
                         ),
                         style: const TextStyle(fontSize: 13),
@@ -851,7 +1033,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                       icon: const Icon(Icons.add, size: 16),
                       label: const Text('Add', style: TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                       ),
                     ),
                   ],
@@ -863,7 +1046,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
                     children: [
                       TextButton(
                         onPressed: _clearAllQueryConditions,
-                        child: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                        child: const Text('Clear All',
+                            style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
@@ -876,7 +1060,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 
-  Widget _buildSlider(String label, double value, double min, double max, ValueChanged<double> onChanged) {
+  Widget _buildSlider(String label, double value, double min, double max,
+      ValueChanged<double> onChanged) {
     return Row(
       children: [
         Text(label),
@@ -910,7 +1095,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         gradient: LinearGradient(
           colors: [
             Theme.of(context).colorScheme.surface,
-            Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withOpacity(0.3),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -932,7 +1120,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         child: Row(
           children: [
             // FROZEN FIRST COLUMN (Player names + header)
-            Container(
+            SizedBox(
               width: 150,
               child: Column(
                 children: [
@@ -995,13 +1183,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 
-
   Map<String, int> _calculateColumnSpans() {
     final columns = _getMdsColumns();
     int seasonToDateCount = 0;
     int recentCount = 0;
     int trendsCount = 0;
-    
+
     for (final column in columns) {
       if (column.key == 'playerName') {
         // Skip player column, it's separate
@@ -1010,18 +1197,19 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         seasonToDateCount++;
       } else if (column.key.startsWith('recent_')) {
         recentCount++;
-      } else if (column.key.endsWith('_value') || column.key == 'usage_flag' || column.key == 'result_flag') {
+      } else if (column.key.endsWith('_value') ||
+          column.key == 'usage_flag' ||
+          column.key == 'result_flag') {
         trendsCount++;
       }
     }
-    
+
     return {
       'seasonToDate': seasonToDateCount,
       'recent': recentCount,
       'trends': trendsCount,
     };
   }
-
 
   double _getScrollableTableWidth() {
     final columns = _getMdsColumns();
@@ -1034,7 +1222,6 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     return totalWidth;
   }
 
-  
   List<MdsTableColumn> _getMdsColumns() {
     List<MdsTableColumn> columns = [
       MdsTableColumn(
@@ -1047,7 +1234,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (player['team'] != null && (player['team'] as String).isNotEmpty)
+              if (player['team'] != null &&
+                  (player['team'] as String).isNotEmpty)
                 TeamLogoUtils.buildNFLTeamLogo(player['team'], size: 24),
               const SizedBox(width: 8),
               Text(player['playerName'] as String? ?? 'N/A'),
@@ -1059,90 +1247,262 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
 
     // --- TO-DATE STATS ---
     columns.addAll([
-      const MdsTableColumn(key: 'full_games', label: 'G', numeric: true, enablePercentileShading: true),
-      const MdsTableColumn(key: 'full_avg_fantasy_points_ppr', label: 'PPR', numeric: true, enablePercentileShading: true, isDoubleField: true),
+      const MdsTableColumn(
+          key: 'full_games',
+          label: 'G',
+          numeric: true,
+          enablePercentileShading: true),
+      const MdsTableColumn(
+          key: 'full_avg_fantasy_points_ppr',
+          label: 'PPR',
+          numeric: true,
+          enablePercentileShading: true,
+          isDoubleField: true),
     ]);
 
     if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
       columns.addAll([
-        const MdsTableColumn(key: 'full_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_receptions', label: 'Rec', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_receiving_yards', label: 'Yds', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_targets',
+            label: 'Tgt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_receptions',
+            label: 'Rec',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_receiving_yards',
+            label: 'Yds',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_total_td',
+            label: 'TD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'RB') {
       columns.addAll([
-        const MdsTableColumn(key: 'full_avg_carries', label: 'Car', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_rushing_yards', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_receiving_yards', label: 'ReYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_carries',
+            label: 'Car',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_rushing_yards',
+            label: 'RuYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_targets',
+            label: 'Tgt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_receiving_yards',
+            label: 'ReYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_total_td',
+            label: 'TD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'QB') {
       columns.addAll([
-        const MdsTableColumn(key: 'full_avg_passing_attempts', label: 'Att', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_passing_yards', label: 'PaYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_passing_tds', label: 'PaTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_rushing_attempts_qb', label: 'RAtt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_rushing_yards_qb', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'full_avg_rushing_tds_qb', label: 'RuTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_passing_attempts',
+            label: 'Att',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_passing_yards',
+            label: 'PaYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_passing_tds',
+            label: 'PaTD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_rushing_attempts_qb',
+            label: 'RAtt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_rushing_yards_qb',
+            label: 'RuYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'full_avg_rushing_tds_qb',
+            label: 'RuTD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     }
 
     // --- RECENT STATS ---
     columns.addAll([
-      const MdsTableColumn(key: 'recent_games', label: 'G', numeric: true, enablePercentileShading: true),
-      const MdsTableColumn(key: 'recent_avg_fantasy_points_ppr', label: 'PPR', numeric: true, enablePercentileShading: true, isDoubleField: true),
-      const MdsTableColumn(key: 'recent_median_fantasy_points_ppr', label: 'Med', numeric: true, enablePercentileShading: true, isDoubleField: true),
+      const MdsTableColumn(
+          key: 'recent_games',
+          label: 'G',
+          numeric: true,
+          enablePercentileShading: true),
+      const MdsTableColumn(
+          key: 'recent_avg_fantasy_points_ppr',
+          label: 'PPR',
+          numeric: true,
+          enablePercentileShading: true,
+          isDoubleField: true),
+      const MdsTableColumn(
+          key: 'recent_median_fantasy_points_ppr',
+          label: 'Med',
+          numeric: true,
+          enablePercentileShading: true,
+          isDoubleField: true),
     ]);
 
     if (_selectedPosition == 'WR' || _selectedPosition == 'TE') {
       columns.addAll([
-        const MdsTableColumn(key: 'recent_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_receptions', label: 'Rec', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_receiving_yards', label: 'Yds', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_targets',
+            label: 'Tgt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_receptions',
+            label: 'Rec',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_receiving_yards',
+            label: 'Yds',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_total_td',
+            label: 'TD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'RB') {
       columns.addAll([
-        const MdsTableColumn(key: 'recent_avg_carries', label: 'Car', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_rushing_yards', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_targets', label: 'Tgt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_receiving_yards', label: 'ReYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_total_td', label: 'TD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_carries',
+            label: 'Car',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_rushing_yards',
+            label: 'RuYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_targets',
+            label: 'Tgt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_receiving_yards',
+            label: 'ReYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_total_td',
+            label: 'TD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     } else if (_selectedPosition == 'QB') {
       columns.addAll([
-        const MdsTableColumn(key: 'recent_avg_passing_attempts', label: 'Att', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_passing_yards', label: 'PaYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_passing_tds', label: 'PaTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_rushing_attempts_qb', label: 'RAtt', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_rushing_yards_qb', label: 'RuYd', numeric: true, enablePercentileShading: true, isDoubleField: true),
-        const MdsTableColumn(key: 'recent_avg_rushing_tds_qb', label: 'RuTD', numeric: true, enablePercentileShading: true, isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_passing_attempts',
+            label: 'Att',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_passing_yards',
+            label: 'PaYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_passing_tds',
+            label: 'PaTD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_rushing_attempts_qb',
+            label: 'RAtt',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_rushing_yards_qb',
+            label: 'RuYd',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
+        const MdsTableColumn(
+            key: 'recent_avg_rushing_tds_qb',
+            label: 'RuTD',
+            numeric: true,
+            enablePercentileShading: true,
+            isDoubleField: true),
       ]);
     }
 
     // --- TRENDS ---
     columns.addAll([
       MdsTableColumn(
-        key: 'usage_value', 
-        label: 'Usage', 
+        key: 'usage_value',
+        label: 'Usage',
         numeric: true,
-        cellBuilder: (value, rowIndex, percentile) => _buildTrendCellContent(value),
+        cellBuilder: (value, rowIndex, percentile) =>
+            _buildTrendCellContent(value),
       ),
       MdsTableColumn(
-        key: 'result_value', 
-        label: 'Result', 
+        key: 'result_value',
+        label: 'Result',
         numeric: true,
-        cellBuilder: (value, rowIndex, percentile) => _buildTrendCellContent(value),
+        cellBuilder: (value, rowIndex, percentile) =>
+            _buildTrendCellContent(value),
       ),
     ]);
 
     return columns;
   }
-
-
-
 
   Widget _buildTrendCellContent(dynamic value) {
     if (value == null) {
@@ -1155,7 +1515,8 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     }
 
     final color = _getColorForPercentage(doubleValue);
-    final textColor = color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+    final textColor =
+        color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
     final text = '${(doubleValue * 100).toStringAsFixed(1)}%';
 
     return Container(
@@ -1181,10 +1542,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     // Red -> Yellow -> Green gradient
     if (clampedValue < 0) {
       // Interpolate between Yellow and Red
-      return Color.lerp(Colors.yellow.shade600, Colors.red.shade500, clampedValue.abs() / 0.3)!;
+      return Color.lerp(Colors.yellow.shade600, Colors.red.shade500,
+          clampedValue.abs() / 0.3)!;
     } else {
       // Interpolate between Yellow and Green
-      return Color.lerp(Colors.yellow.shade600, Colors.green.shade500, clampedValue / 0.3)!;
+      return Color.lerp(
+          Colors.yellow.shade600, Colors.green.shade500, clampedValue / 0.3)!;
     }
   }
 
@@ -1200,7 +1563,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
             alignment: Alignment.center,
             child: const Text(
               '',
-              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600),
             ),
           ),
           // Bottom level: Player column header
@@ -1231,114 +1597,128 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 
-
   Widget _buildScrollableHeaders() {
-    final columns = _getMdsColumns().where((col) => col.key != 'playerName').toList();
+    final columns =
+        _getMdsColumns().where((col) => col.key != 'playerName').toList();
     final columnSpans = _calculateColumnSpans();
-    
+
     return Container(
       color: ThemeConfig.darkNavy,
       child: Column(
         children: [
           // Top level: Group headers
           Row(
-              children: [
-                // Season To-Date group
-                Container(
-                  width: columnSpans['seasonToDate']! * 100.0,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      left: BorderSide(color: Colors.white24, width: 1),
-                      right: BorderSide(color: Colors.white24, width: 1),
-                    ),
-                  ),
-                  child: Text(
-                    'Season To-Date ($_selectedYear)',
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            children: [
+              // Season To-Date group
+              Container(
+                width: columnSpans['seasonToDate']! * 100.0,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: Colors.white24, width: 1),
+                    right: BorderSide(color: Colors.white24, width: 1),
                   ),
                 ),
-                // Recent group
-                Container(
-                  width: columnSpans['recent']! * 100.0,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    border: Border(right: BorderSide(color: Colors.white24, width: 1)),
-                  ),
-                  child: Text(
-                    'Recent ${_selectedWeeks.round()} Weeks ($_selectedYear)',
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
+                child: Text(
+                  'Season To-Date ($_selectedYear)',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
                 ),
-                // Trends group
-                Container(
-                  width: columnSpans['trends']! * 100.0,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Trends',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
+              ),
+              // Recent group
+              Container(
+                width: columnSpans['recent']! * 100.0,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  border: Border(
+                      right: BorderSide(color: Colors.white24, width: 1)),
                 ),
-              ],
-            ),
+                child: Text(
+                  'Recent ${_selectedWeeks.round()} Weeks ($_selectedYear)',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+              // Trends group
+              Container(
+                width: columnSpans['trends']! * 100.0,
+                height: 40,
+                alignment: Alignment.center,
+                child: const Text(
+                  'Trends',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
           // Bottom level: Individual column headers
           Row(
-              children: columns.map((column) {
-                return GestureDetector(
-                  onTap: column.numeric ? () {
-                    setState(() {
-                      if (_sortColumn == column.key) {
-                        _sortAscending = !_sortAscending;
-                      } else {
-                        _sortColumn = column.key;
-                        _sortAscending = false;
+            children: columns.map((column) {
+              return GestureDetector(
+                onTap: column.numeric
+                    ? () {
+                        setState(() {
+                          if (_sortColumn == column.key) {
+                            _sortAscending = !_sortAscending;
+                          } else {
+                            _sortColumn = column.key;
+                            _sortAscending = false;
+                          }
+                          _sortData();
+                        });
                       }
-                      _sortData();
-                    });
-                  } : null,
-                  child: Container(
-                    width: 100,
-                    height: 40,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white24, width: 0.5),
-                      color: ThemeConfig.darkNavy,
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              column.label,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (column.numeric && _sortColumn == column.key) ...[
-                            const SizedBox(width: 2),
-                            Icon(
-                              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                              size: 12,
+                    : null,
+                child: Container(
+                  width: 100,
+                  height: 40,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24, width: 0.5),
+                    color: ThemeConfig.darkNavy,
+                  ),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            column.label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                               color: Colors.white,
                             ),
-                          ],
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (column.numeric && _sortColumn == column.key) ...[
+                          const SizedBox(width: 2),
+                          Icon(
+                            _sortAscending
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
+                            size: 12,
+                            color: Colors.white,
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                );
-              }).toList(),
-            ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
@@ -1347,10 +1727,10 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   Widget _buildFrozenPlayerCell(Map<String, dynamic> player, int index) {
     final isEven = index % 2 == 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rowColor = isDark 
-      ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
-      : (isEven ? Colors.white : Colors.grey.shade50);
-    
+    final rowColor = isDark
+        ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+        : (isEven ? Colors.white : Colors.grey.shade50);
+
     return Container(
       width: 150,
       height: 52,
@@ -1372,7 +1752,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
             child: Text(
               player['playerName'] as String? ?? 'N/A',
               style: const TextStyle(
-                fontSize: 12, 
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.black,
               ),
@@ -1385,13 +1765,14 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   }
 
   Widget _buildScrollableDataCells(Map<String, dynamic> player, int index) {
-    final columns = _getMdsColumns().where((col) => col.key != 'playerName').toList();
+    final columns =
+        _getMdsColumns().where((col) => col.key != 'playerName').toList();
     final isEven = index % 2 == 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rowColor = isDark 
-      ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
-      : (isEven ? Colors.white : Colors.grey.shade50);
-    
+    final rowColor = isDark
+        ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+        : (isEven ? Colors.white : Colors.grey.shade50);
+
     return Container(
       height: 52,
       decoration: BoxDecoration(
@@ -1418,14 +1799,13 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 
-
-
-  Widget _buildCellContent(MdsTableColumn column, dynamic value, int index, Map<String, dynamic> player) {
+  Widget _buildCellContent(MdsTableColumn column, dynamic value, int index,
+      Map<String, dynamic> player) {
     // Handle custom cell builders
     if (column.cellBuilder != null) {
       return column.cellBuilder!(value, index, null);
     }
-    
+
     // Handle player name column with team logo
     if (column.key == 'playerName') {
       return Row(
@@ -1438,7 +1818,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
             child: Text(
               player['playerName'] as String? ?? 'N/A',
               style: const TextStyle(
-                fontSize: 12, 
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.black,
               ),
@@ -1448,10 +1828,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         ],
       );
     }
-    
+
     // Handle numeric values
     if (column.numeric && value is num) {
-      final displayValue = column.isDoubleField ? value.toStringAsFixed(1) : value.round().toString();
+      final displayValue = column.isDoubleField
+          ? value.toStringAsFixed(1)
+          : value.round().toString();
       return Text(
         displayValue,
         style: const TextStyle(
@@ -1462,7 +1844,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         textAlign: TextAlign.center,
       );
     }
-    
+
     return Text(
       value?.toString() ?? '-',
       style: const TextStyle(
@@ -1474,5 +1856,3 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     );
   }
 }
-
- 

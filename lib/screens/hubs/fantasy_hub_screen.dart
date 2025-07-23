@@ -10,7 +10,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/common/responsive_layout_builder.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../widgets/design_system/index.dart';
 import 'package:collection/collection.dart';
 
@@ -25,13 +25,14 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Update SEO for Fantasy Hub
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SEOHelper.updateForFantasyHub();
       SEOHelper.updateToolStructuredData(
         toolName: 'Fantasy Football Hub',
-        description: 'Complete fantasy football toolkit with VORP big board, custom rankings, player comparison tools, and advanced analytics',
+        description:
+            'Complete fantasy football toolkit with VORP big board, custom rankings, player comparison tools, and advanced analytics',
         url: 'https://sticktothemodel.com/fantasy',
       );
     });
@@ -46,7 +47,8 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -55,11 +57,13 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 textStyle: const TextStyle(fontSize: 14),
               ),
               child: const Text('Sign In / Sign Up'),
@@ -152,7 +156,8 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
     );
   }
 
-  Widget _buildHeroContent(BuildContext context, ThemeData theme, {required bool isMobile}) {
+  Widget _buildHeroContent(BuildContext context, ThemeData theme,
+      {required bool isMobile}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -226,12 +231,29 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
     );
   }
 
-  Widget _buildFlowDiagram(BuildContext context, ThemeData theme, {required bool isMobile}) {
+  Widget _buildFlowDiagram(BuildContext context, ThemeData theme,
+      {required bool isMobile}) {
     final steps = [
-      {'icon': Icons.leaderboard, 'title': 'Rankings', 'desc': 'Analyze expert consensus'},
-      {'icon': Icons.trending_up, 'title': 'Projections', 'desc': 'Customize player stats'},
-      {'icon': Icons.dashboard, 'title': 'Big Board', 'desc': 'Build your board'},
-      {'icon': Icons.sports, 'title': 'Mock Draft', 'desc': 'Practice & perfect'},
+      {
+        'icon': Icons.leaderboard,
+        'title': 'Rankings',
+        'desc': 'Analyze expert consensus'
+      },
+      {
+        'icon': Icons.trending_up,
+        'title': 'Projections',
+        'desc': 'Customize player stats'
+      },
+      {
+        'icon': Icons.dashboard,
+        'title': 'Big Board',
+        'desc': 'Build your board'
+      },
+      {
+        'icon': Icons.sports,
+        'title': 'Mock Draft',
+        'desc': 'Practice & perfect'
+      },
       {'icon': Icons.analytics, 'title': 'Tools', 'desc': 'Compare & analyze'},
     ];
 
@@ -262,13 +284,14 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
     );
   }
 
-  Widget _buildMobileFlowSteps(List<Map<String, dynamic>> steps, ThemeData theme) {
+  Widget _buildMobileFlowSteps(
+      List<Map<String, dynamic>> steps, ThemeData theme) {
     return Column(
       children: steps.asMap().entries.map((entry) {
         final index = entry.key;
         final step = entry.value;
         final isLast = index == steps.length - 1;
-        
+
         return Column(
           children: [
             _buildFlowStep(step, theme, index + 1),
@@ -287,13 +310,14 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
     );
   }
 
-  Widget _buildDesktopFlowSteps(List<Map<String, dynamic>> steps, ThemeData theme) {
+  Widget _buildDesktopFlowSteps(
+      List<Map<String, dynamic>> steps, ThemeData theme) {
     return Row(
       children: steps.asMap().entries.map((entry) {
         final index = entry.key;
         final step = entry.value;
         final isLast = index == steps.length - 1;
-        
+
         return Expanded(
           child: Row(
             children: [
@@ -314,7 +338,8 @@ class _FantasyHubScreenState extends State<FantasyHubScreen> {
     );
   }
 
-  Widget _buildFlowStep(Map<String, dynamic> step, ThemeData theme, int stepNumber) {
+  Widget _buildFlowStep(
+      Map<String, dynamic> step, ThemeData theme, int stepNumber) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -408,7 +433,10 @@ class _Header extends StatelessWidget {
             Text(
               'Your command center for dominating your fantasy league.',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
                   ),
             ),
           ],
@@ -484,9 +512,11 @@ class _ToolGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSection(context, 'Preseason Tools', _preseasonTools, crossAxisCount: 2),
+        _buildSection(context, 'Preseason Tools', _preseasonTools,
+            crossAxisCount: 2),
         const SizedBox(height: 32),
-        _buildSection(context, 'In-Season Tools', _inSeasonTools, crossAxisCount: 2),
+        _buildSection(context, 'In-Season Tools', _inSeasonTools,
+            crossAxisCount: 2),
       ],
     );
   }
@@ -495,22 +525,26 @@ class _ToolGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSection(context, 'Preseason Tools', _preseasonTools, crossAxisCount: 4),
+        _buildSection(context, 'Preseason Tools', _preseasonTools,
+            crossAxisCount: 4),
         const SizedBox(height: 32),
-        _buildSection(context, 'In-Season Tools', _inSeasonTools, crossAxisCount: 4),
+        _buildSection(context, 'In-Season Tools', _inSeasonTools,
+            crossAxisCount: 4),
       ],
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, List<Map<String, dynamic>> tools, {required int crossAxisCount}) {
+  Widget _buildSection(
+      BuildContext context, String title, List<Map<String, dynamic>> tools,
+      {required int crossAxisCount}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+                fontWeight: FontWeight.bold,
+              ),
         ),
         const SizedBox(height: 16),
         GridView.builder(
@@ -533,7 +567,8 @@ class _ToolGrid extends StatelessWidget {
                 child: FadeInAnimation(
                   child: MdsCard(
                     type: MdsCardType.elevated,
-                    onTap: () => Navigator.pushNamed(context, tool['route'] as String),
+                    onTap: () =>
+                        Navigator.pushNamed(context, tool['route'] as String),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -546,16 +581,22 @@ class _ToolGrid extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           tool['title'] as String,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           tool['subtitle'] as String,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color
+                                        ?.withOpacity(0.7),
+                                  ),
                         ),
                       ],
                     ),
@@ -568,4 +609,4 @@ class _ToolGrid extends StatelessWidget {
       ],
     );
   }
-} 
+}

@@ -9,11 +9,12 @@ class UserDatabase {
   // Creates a new user document in Firestore
   // Stored via thier UID... contains their email and if they are a premium user
   // Default is not premium...
-  Future<void> createUser(String uid, String email) async {
+  Future<void> createUser(String uid, String email, String displayName) async {
     try {
       await userCollection.doc(uid).set({
         'email': email,
         'isPremium': false,
+        'name': displayName,
       });
     } catch (e) {
       debugPrint("Error creating user: $e");
@@ -30,6 +31,7 @@ class UserDatabase {
         return mdsUser(
           uid: snapshot.id,
           email: data['email'] ?? '',
+          name: data['name'] ?? '',
           isPremium: data['isPremium'] ?? false,
         );
       }

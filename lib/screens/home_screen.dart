@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:mds_home/Authentication/user.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
+import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
 import '../utils/theme_config.dart';
 import '../utils/seo_helper.dart';
-import '../widgets/auth/auth_dialog.dart';
+import '../Authentication/auth_dialog.dart';
 import '../widgets/common/responsive_layout_builder.dart';
 import '../widgets/common/app_drawer.dart';
 import '../widgets/common/top_nav_bar.dart';
@@ -20,69 +22,79 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   // Animation controller for scroll-triggered animations
   late AnimationController _scrollAnimationController;
   final ScrollController _scrollController = ScrollController();
-  
+
   // Global key for scrolling to tools section
   final GlobalKey _toolsSectionKey = GlobalKey();
 
   final Map<String, Map<String, dynamic>> _toolCategories = {
     'Fantasy Football': {
-      'description': 'Dominate your fantasy leagues with data-driven insights and strategic tools',
+      'description':
+          'Dominate your fantasy leagues with data-driven insights and strategic tools',
       'tools': [
         {
           'icon': Icons.sports_football,
           'title': 'Fantasy Hub',
-          'desc': 'Central hub for all your fantasy football needs, insights, and tools.',
+          'desc':
+              'Central hub for all your fantasy football needs, insights, and tools.',
           'route': '/fantasy/hub',
           'image': null,
         },
         {
           'icon': Icons.analytics,
           'title': 'Customize Player Rankings',
-          'desc': 'Create personalized player rankings based on your league settings and preferences.',
+          'desc':
+              'Create personalized player rankings based on your league settings and preferences.',
           'route': '/custom-rankings',
           'image': null,
         },
         {
           'icon': Icons.sports,
           'title': 'Fantasy Draft Simulator',
-          'desc': 'Simulate fantasy drafts with real-time ADP and expert insights.',
+          'desc':
+              'Simulate fantasy drafts with real-time ADP and expert insights.',
           'route': '/draft/fantasy',
           'image': 'assets/images/FF/shiva.png',
         },
       ],
     },
     'Be A GM: Team Construction': {
-      'description': 'Understand the business side of a championship team with premium scouting and player profile tools',
+      'description':
+          'Understand the business side of a championship team with premium scouting and player profile tools',
       'tools': [
         {
           'icon': Icons.home,
           'title': 'GM Hub',
-          'desc': 'Your command center for all GM tools and team-building resources.',
+          'desc':
+              'Your command center for all GM tools and team-building resources.',
           'route': '/gm/hub',
           'image': null,
         },
         {
           'icon': Icons.format_list_numbered,
           'title': 'Mock Draft Simulator',
-          'desc': 'Interactive 7-round draft simulator with team needs and trade scenarios.',
+          'desc':
+              'Interactive 7-round draft simulator with team needs and trade scenarios.',
           'route': '/draft',
           'image': 'assets/images/GM/PIT Draft.png',
         },
         {
           'icon': Icons.flash_on,
           'title': 'Boom or Bust',
-          'desc': 'Analyze prospects with boom-or-bust potential using advanced analytics.',
+          'desc':
+              'Analyze prospects with boom-or-bust potential using advanced analytics.',
           'route': '/boom-or-bust',
           'image': null,
         },
       ],
     },
     'Betting': {
-      'description': 'Make smarter wagers with data-driven insights and predictive models',
+      'description':
+          'Make smarter wagers with data-driven insights and predictive models',
       'tools': [
         {
           'icon': Icons.paid,
@@ -101,19 +113,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         {
           'icon': Icons.calculate,
           'title': 'Create Your Model',
-          'desc': 'Build and test your own betting models with custom parameters.',
+          'desc':
+              'Build and test your own betting models with custom parameters.',
           'route': '/betting/model',
           'image': null,
         },
       ],
     },
     'Data Hub': {
-      'description': 'Access comprehensive NFL analytics and performance insights',
+      'description':
+          'Access comprehensive NFL analytics and performance insights',
       'tools': [
         {
           'icon': Icons.hub,
           'title': 'Data Hub',
-          'desc': 'Explore all NFL data, analytics, and research tools in one place.',
+          'desc':
+              'Explore all NFL data, analytics, and research tools in one place.',
           'route': '/data/hub',
           'image': null,
         },
@@ -144,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     //   'route': '/blog/draft-surprises'
     // },
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -152,15 +167,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    
+
     _scrollController.addListener(_onScroll);
-    
+
     // Update SEO for homepage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SEOHelper.updateForHomepage();
     });
   }
-  
+
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
@@ -168,12 +183,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _scrollAnimationController.dispose();
     super.dispose();
   }
-  
+
   void _onScroll() {
     // Update animation controller based on scroll position
     final scrollPosition = _scrollController.position.pixels;
     final maxScroll = _scrollController.position.maxScrollExtent;
-    
+
     // Normalize the scroll position to a value between 0 and 1
     final scrollFraction = (scrollPosition / 500).clamp(0.0, 1.0);
     _scrollAnimationController.value = scrollFraction;
@@ -185,41 +200,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final user = Provider.of<mdsUser?>(context);
+
+    debugPrint(" Current User: ${user?.email}");
 
     return Scaffold(
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(24),
-              shadowColor: ThemeConfig.brightRed.withOpacity(0.3),
-              child: ElevatedButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact(); // Add haptic feedback
-                  showDialog(context: context, builder: (_) => const AuthDialog());
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ThemeConfig.darkNavy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+          // If the user is not logged in, show the sign in/sign up button
+          if (user == null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Material(
+                elevation: 2,
+                borderRadius: BorderRadius.circular(24),
+                shadowColor: ThemeConfig.brightRed.withOpacity(0.3),
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    showDialog(
+                        context: context, builder: (_) => const AuthDialog());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeConfig.darkNavy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    textStyle: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
+                  child: const Text('Sign In / Sign Up'),
                 ),
-                child: const Text('Sign In / Sign Up'),
               ),
             ),
-          ),
+          // If the user is logged in, show the welcome message
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Text(
+                'Welcome ${user.name}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
         ],
       ),
       drawer: const AppDrawer(),
@@ -263,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 ),
               ),
-              
+
               // Main content
               SingleChildScrollView(
                 controller: _scrollController,
@@ -293,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                     ),
-                    
+
                     // Feature Section
                     AnimationConfiguration.synchronized(
                       duration: const Duration(milliseconds: 800),
@@ -307,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                     ),
-                    
+
                     // Stats section
                     AnimationConfiguration.synchronized(
                       duration: const Duration(milliseconds: 800),
@@ -318,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                     ),
-                    
+
                     // Blog Section (if there are blog posts)
                     if (_blogPosts.isNotEmpty)
                       AnimationConfiguration.synchronized(
@@ -330,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                         ),
                       ),
-                    
+
                     // Footer Signup
                     AnimationConfiguration.synchronized(
                       duration: const Duration(milliseconds: 800),
@@ -358,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: FeatureSection(categorizedTools: _toolCategories),
     );
   }
-  
+
   Widget _buildStatsSection(BuildContext context) {
     // Use a blue gradient background and gold text for the header
     return Container(
@@ -387,10 +422,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Text(
             'TRUSTED BY SERIOUS FOOTBALL MINDS',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: ThemeConfig.gold,
-            ),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: ThemeConfig.gold,
+                ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
@@ -407,8 +442,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
-  
-  List<Widget> _buildStatItems(BuildContext context, {Color textColor = Colors.white}) {
+
+  List<Widget> _buildStatItems(BuildContext context,
+      {Color textColor = Colors.white}) {
     final stats = [
       {'number': '300K+', 'label': 'Mock Drafts Run'},
       {'number': '25K+', 'label': 'Users'},
@@ -422,17 +458,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Text(
               stat['number']!,
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: textColor,
-              ),
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               stat['label']!,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: textColor.withOpacity(0.8),
-              ),
+                    fontWeight: FontWeight.w500,
+                    color: textColor.withOpacity(0.8),
+                  ),
             ),
           ],
         ),
@@ -466,19 +502,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Text(
             'Ready to elevate your football IQ?',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-            ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
             'Join our community of data-driven football minds and get full access to all our premium tools.',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.white.withOpacity(0.85),
-              fontWeight: FontWeight.w500,
-            ),
+                  color: Colors.white.withOpacity(0.85),
+                  fontWeight: FontWeight.w500,
+                ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
@@ -489,16 +525,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             child: ElevatedButton(
               onPressed: () {
                 HapticFeedback.lightImpact();
-                showDialog(context: context, builder: (_) => const AuthDialog());
+                showDialog(
+                    context: context, builder: (_) => const AuthDialog());
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: ThemeConfig.brightRed,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
                 textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(32),
                 ),
@@ -510,4 +548,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
-} 
+}

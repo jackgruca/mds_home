@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mds_home/widgets/common/app_drawer.dart';
 import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
-import 'package:mds_home/widgets/auth/auth_dialog.dart';
+import 'package:mds_home/Authentication/auth_dialog.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
@@ -94,31 +94,62 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   // Position Filter
   String _selectedPosition = 'All'; // Default position filter
   final List<String> _positions = ['All', 'QB', 'RB', 'WR', 'TE'];
-  
+
   // Season Filter
   String _selectedSeason = 'All';
   final List<String> _seasons = ['All', '2024', '2023', '2022', '2021', '2020'];
-  
+
   // Team Filter
   String _selectedTeam = 'All';
   final List<String> _teams = [
-    'All', 'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 
-    'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LV', 'LAC', 'LAR', 'MIA', 'MIN', 
-    'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SF', 'SEA', 'TB', 'TEN', 'WAS'
+    'All',
+    'ARI',
+    'ATL',
+    'BAL',
+    'BUF',
+    'CAR',
+    'CHI',
+    'CIN',
+    'CLE',
+    'DAL',
+    'DEN',
+    'DET',
+    'GB',
+    'HOU',
+    'IND',
+    'JAX',
+    'KC',
+    'LV',
+    'LAC',
+    'LAR',
+    'MIA',
+    'MIN',
+    'NE',
+    'NO',
+    'NYG',
+    'NYJ',
+    'PHI',
+    'PIT',
+    'SF',
+    'SEA',
+    'TB',
+    'TEN',
+    'WAS'
   ];
-  
+
   // Tab controller for Basic/Advanced/Visualizations
   late TabController _tabController;
-  
+
   // New: Position-aware filtering state
-  bool _showAllPositionsInTab = false; // Toggle to show all positions in position-specific tabs
-  
+  bool _showAllPositionsInTab =
+      false; // Toggle to show all positions in position-specific tabs
+
   // Helper method to get the position filter for the current tab
   String _getEffectivePositionFilter() {
     if (_showAllPositionsInTab) {
       return _selectedPosition; // Use the dropdown filter when showing all positions
     }
-    
+
     // Auto-filter by position based on the selected tab
     switch (_selectedStatCategory) {
       case 'QB Stats':
@@ -131,7 +162,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return _selectedPosition; // For other tabs, use the dropdown filter
     }
   }
-  
+
   // Helper method to determine if we should include TE in WR/TE Stats
   bool _shouldIncludeTE() {
     return _selectedStatCategory == 'WR/TE Stats' && !_showAllPositionsInTab;
@@ -151,34 +182,165 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   FirebaseFunctions functions = FirebaseFunctions.instance;
 
   // Field groups for tabbed view - organized by position with Basic/Advanced/Visualizations structure
-  static final Map<String, Map<String, List<String>>> _statCategoryFieldGroups = {
+  static final Map<String, Map<String, List<String>>> _statCategoryFieldGroups =
+      {
     'QB Stats': {
-      'Basic': ['player_name', 'recent_team', 'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'completion_percentage', 'passer_rating'],
-      'Advanced': ['player_name', 'recent_team', 'season', 'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 'avg_air_yards_differential', 'aggressiveness', 'completion_percentage_above_expectation', 'rushing_attempts', 'rushing_yards'],
-      'Visualizations': ['player_name', 'recent_team', 'season', 'passing_yards', 'passing_tds', 'passer_rating', 'completion_percentage', 'fantasy_points', 'fantasy_points_ppr']
+      'Basic': [
+        'player_name',
+        'recent_team',
+        'season',
+        'games',
+        'completions',
+        'attempts',
+        'passing_yards',
+        'passing_tds',
+        'interceptions',
+        'completion_percentage',
+        'passer_rating'
+      ],
+      'Advanced': [
+        'player_name',
+        'recent_team',
+        'season',
+        'avg_time_to_throw',
+        'avg_completed_air_yards',
+        'avg_intended_air_yards',
+        'avg_air_yards_differential',
+        'aggressiveness',
+        'completion_percentage_above_expectation',
+        'rushing_attempts',
+        'rushing_yards'
+      ],
+      'Visualizations': [
+        'player_name',
+        'recent_team',
+        'season',
+        'passing_yards',
+        'passing_tds',
+        'passer_rating',
+        'completion_percentage',
+        'fantasy_points',
+        'fantasy_points_ppr'
+      ]
     },
     'RB Stats': {
-      'Basic': ['player_name', 'recent_team', 'season', 'games', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'yards_per_carry', 'receptions', 'receiving_yards', 'fantasy_points', 'fantasy_points_ppr'],
-      'Advanced': ['player_name', 'recent_team', 'season', 'rush_efficiency', 'avg_time_to_los', 'rush_yards_over_expected', 'rush_yards_over_expected_per_att', 'rush_pct_over_expected', 'target_share', 'yards_per_touch'],
-      'Visualizations': ['player_name', 'recent_team', 'season', 'rushing_yards', 'rushing_tds', 'receiving_yards', 'fantasy_points', 'fantasy_points_ppr', 'yards_per_carry']
+      'Basic': [
+        'player_name',
+        'recent_team',
+        'season',
+        'games',
+        'rushing_attempts',
+        'rushing_yards',
+        'rushing_tds',
+        'yards_per_carry',
+        'receptions',
+        'receiving_yards',
+        'fantasy_points',
+        'fantasy_points_ppr'
+      ],
+      'Advanced': [
+        'player_name',
+        'recent_team',
+        'season',
+        'rush_efficiency',
+        'avg_time_to_los',
+        'rush_yards_over_expected',
+        'rush_yards_over_expected_per_att',
+        'rush_pct_over_expected',
+        'target_share',
+        'yards_per_touch'
+      ],
+      'Visualizations': [
+        'player_name',
+        'recent_team',
+        'season',
+        'rushing_yards',
+        'rushing_tds',
+        'receiving_yards',
+        'fantasy_points',
+        'fantasy_points_ppr',
+        'yards_per_carry'
+      ]
     },
     'WR/TE Stats': {
-      'Basic': ['player_name', 'recent_team', 'position', 'season', 'games', 'targets', 'receptions', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'fantasy_points', 'fantasy_points_ppr'],
-      'Advanced': ['player_name', 'recent_team', 'position', 'season', 'target_share', 'air_yards_share', 'wopr', 'avg_depth_of_target', 'avg_cushion', 'avg_separation', 'catch_percentage', 'racr'],
-      'Visualizations': ['player_name', 'recent_team', 'position', 'season', 'receiving_yards', 'receiving_tds', 'targets', 'target_share', 'fantasy_points', 'fantasy_points_ppr']
+      'Basic': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'games',
+        'targets',
+        'receptions',
+        'receiving_yards',
+        'receiving_tds',
+        'yards_per_reception',
+        'fantasy_points',
+        'fantasy_points_ppr'
+      ],
+      'Advanced': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'target_share',
+        'air_yards_share',
+        'wopr',
+        'avg_depth_of_target',
+        'avg_cushion',
+        'avg_separation',
+        'catch_percentage',
+        'racr'
+      ],
+      'Visualizations': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'receiving_yards',
+        'receiving_tds',
+        'targets',
+        'target_share',
+        'fantasy_points',
+        'fantasy_points_ppr'
+      ]
     },
     'Fantasy Focus': {
-      'Basic': ['player_name', 'recent_team', 'position', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr', 'fantasy_points_per_game'],
-      'Advanced': ['player_name', 'recent_team', 'position', 'season', 'targets', 'target_share', 'red_zone_targets', 'wopr', 'yards_per_touch'],
-      'Visualizations': ['player_name', 'recent_team', 'position', 'season', 'fantasy_points', 'fantasy_points_ppr', 'targets', 'receiving_yards', 'rushing_yards']
+      'Basic': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'games',
+        'fantasy_points',
+        'fantasy_points_ppr',
+        'fantasy_points_per_game'
+      ],
+      'Advanced': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'targets',
+        'target_share',
+        'red_zone_targets',
+        'wopr',
+        'yards_per_touch'
+      ],
+      'Visualizations': [
+        'player_name',
+        'recent_team',
+        'position',
+        'season',
+        'fantasy_points',
+        'fantasy_points_ppr',
+        'targets',
+        'receiving_yards',
+        'rushing_yards'
+      ]
     },
-    'Custom': {
-      'Basic': [],
-      'Advanced': [],
-      'Visualizations': []
-    }
+    'Custom': {'Basic': [], 'Advanced': [], 'Visualizations': []}
   };
-  
+
   String _selectedStatCategory = 'QB Stats';
   String _selectedSubCategory = 'Basic'; // Basic, Advanced, Visualizations
 
@@ -198,20 +360,25 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   // Field types for formatting
   final Set<String> doubleFields = {
     'passing_yards_per_attempt', 'passing_tds_per_attempt',
-    'rushing_yards_per_attempt', 'rushing_tds_per_attempt', 
+    'rushing_yards_per_attempt', 'rushing_tds_per_attempt',
     'receiving_yards_per_reception', 'receiving_tds_per_reception',
-    'completion_percentage', 'passer_rating', 'qbr', 'yards_per_carry', 'yards_per_reception',
+    'completion_percentage', 'passer_rating', 'qbr', 'yards_per_carry',
+    'yards_per_reception',
     'target_share', 'air_yards_share', 'wopr', 'racr', 'avg_depth_of_target',
     'yards_per_touch', 'catch_percentage',
     // NextGen Passing Stats
-    'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
-    'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
-    'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+    'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards',
+    'avg_air_yards_differential', 'aggressiveness',
+    'max_completed_air_distance',
+    'avg_air_distance', 'avg_air_yards_to_sticks',
+    'completion_percentage_above_expectation',
     // NextGen Rushing Stats
-    'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+    'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los',
+    'rush_yards_over_expected',
     'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
     // NextGen Receiving Stats
-    'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards'
+    'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards',
+    'percent_share_of_intended_air_yards'
   };
 
   // Helper function to format header names prettily with abbreviations
@@ -261,7 +428,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       // NextGen Passing
       'avg_time_to_throw': 'Avg TTT',
       'avg_completed_air_yards': 'CAY',
-      'avg_intended_air_yards': 'IAY', 
+      'avg_intended_air_yards': 'IAY',
       'avg_air_yards_differential': 'AYD',
       'aggressiveness': 'AGG%',
       'max_completed_air_distance': 'MCAD',
@@ -285,12 +452,14 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     if (headerMap.containsKey(header)) {
       return headerMap[header]!;
     }
-    
+
     // For unmapped headers, convert snake_case to Title Case
     return header
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .map((word) => word.isEmpty
+            ? ''
+            : word[0].toUpperCase() + word.substring(1).toLowerCase())
         .join(' ');
   }
 
@@ -302,7 +471,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'position': 'Position (QB, RB, WR, TE)',
     'season': 'NFL Season Year',
     'games': 'Games Played',
-    
+
     // Passing Stats
     'completions': 'Pass Completions',
     'attempts': 'Pass Attempts',
@@ -314,13 +483,13 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'qbr': 'ESPN QBR (0-100)',
     'sacks': 'Times Sacked',
     'sack_yards': 'Yards Lost to Sacks',
-    
+
     // Rushing Stats
     'rushing_attempts': 'Rushing Attempts',
     'rushing_yards': 'Rushing Yards',
     'rushing_tds': 'Rushing Touchdowns',
     'yards_per_carry': 'Yards Per Carry (Y/C)',
-    
+
     // Receiving Stats
     'receptions': 'Receptions',
     'targets': 'Targets',
@@ -329,18 +498,18 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'yards_per_reception': 'Yards Per Reception',
     'target_share': 'Target Share (%)',
     'catch_rate': 'Catch Rate (%)',
-    
+
     // Advanced Receiving
     'air_yards_share': 'Air Yards Share (%)',
     'avg_depth_of_target': 'Average Depth of Target',
     'racr': 'Receiver Air Conversion Ratio',
     'wopr': 'Weighted Opportunity Rating',
-    
+
     // Fantasy Stats
     'fantasy_points': 'Fantasy Points (Standard)',
     'fantasy_points_ppr': 'Fantasy Points (PPR)',
     'fantasy_points_per_game': 'Fantasy Points Per Game',
-    
+
     // NextGen Passing
     'avg_time_to_throw': 'Average Time to Throw (seconds)',
     'avg_completed_air_yards': 'Average Completed Air Yards',
@@ -351,7 +520,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'avg_air_distance': 'Average Air Distance',
     'avg_air_yards_to_sticks': 'Average Air Yards to Sticks',
     'completion_percentage_above_expectation': 'Completion % Above Expectation',
-    
+
     // NextGen Rushing
     'rush_efficiency': 'Rushing Efficiency',
     'pct_attempts_vs_eight_plus': '8+ Defenders in Box (%)',
@@ -359,7 +528,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'rush_yards_over_expected': 'Rush Yards Over Expected',
     'rush_yards_over_expected_per_att': 'Rush Yards Over Expected Per Attempt',
     'rush_pct_over_expected': 'Rush % Over Expected',
-    
+
     // NextGen Receiving
     'avg_cushion': 'Average Cushion (yards)',
     'avg_separation': 'Average Separation (yards)',
@@ -371,11 +540,13 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // Basic, Advanced, Visualizations
-    
+    _tabController = TabController(
+        length: 3, vsync: this); // Basic, Advanced, Visualizations
+
     // Handle route parameters from data hub
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null && args['position'] != null) {
         final position = args['position'] as String;
         setState(() {
@@ -421,21 +592,39 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       'yards_per_reception', 'receiving_tds_per_reception',
       'yards_per_touch', 'wopr',
       // NextGen Passing Stats
-      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards', 
-      'avg_air_yards_differential', 'aggressiveness', 'max_completed_air_distance',
-      'avg_air_distance', 'avg_air_yards_to_sticks', 'completion_percentage_above_expectation',
+      'avg_time_to_throw', 'avg_completed_air_yards', 'avg_intended_air_yards',
+      'avg_air_yards_differential', 'aggressiveness',
+      'max_completed_air_distance',
+      'avg_air_distance', 'avg_air_yards_to_sticks',
+      'completion_percentage_above_expectation',
       // NextGen Rushing Stats
-      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los', 'rush_yards_over_expected',
+      'rush_efficiency', 'pct_attempts_vs_eight_plus', 'avg_time_to_los',
+      'rush_yards_over_expected',
       'rush_yards_over_expected_per_att', 'rush_pct_over_expected',
       // NextGen Receiving Stats
-      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards', 'percent_share_of_intended_air_yards',
+      'avg_cushion', 'avg_separation', 'rec_avg_intended_air_yards',
+      'percent_share_of_intended_air_yards',
       'catch_percentage'
     };
     const Set<String> intFields = {
-      'season', 'games', 'completions', 'attempts', 'passing_yards', 'passing_tds',
-      'interceptions', 'sacks', 'sack_yards', 'rushing_attempts', 'rushing_yards',
-      'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds',
-      'fantasy_points', 'fantasy_points_ppr',
+      'season',
+      'games',
+      'completions',
+      'attempts',
+      'passing_yards',
+      'passing_tds',
+      'interceptions',
+      'sacks',
+      'sack_yards',
+      'rushing_attempts',
+      'rushing_yards',
+      'rushing_tds',
+      'receptions',
+      'targets',
+      'receiving_yards',
+      'receiving_tds',
+      'fantasy_points',
+      'fantasy_points_ppr',
     };
     if (doubleFields.contains(field)) return 'double';
     if (intFields.contains(field)) return 'int';
@@ -448,7 +637,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     print('🔍 [DEBUG] Current stat category: $_selectedStatCategory');
     print('🔍 [DEBUG] Show all positions in tab: $_showAllPositionsInTab');
     print('🔍 [DEBUG] Selected position: $_selectedPosition');
-    
+
     // Check if the requested page is already preloaded
     if (_preloadedPages.containsKey(_currentPage)) {
       print('[Preload] Using preloaded data for page $_currentPage');
@@ -472,36 +661,37 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    
+
     // Add season filter
     if (_selectedSeason != 'All') {
       filtersForFunction['season'] = _selectedSeason;
     }
-    
+
     // Add team filter
     if (_selectedTeam != 'All') {
       filtersForFunction['recent_team'] = _selectedTeam;
     }
-    
+
     // Intelligent position filtering
     String effectivePositionFilter = _getEffectivePositionFilter();
     bool shouldIncludeTE = _shouldIncludeTE();
-    
+
     // DEBUG LOGGING - Track position filtering logic
     print('🔍 [DEBUG] Effective position filter: $effectivePositionFilter');
     print('🔍 [DEBUG] Should include TE: $shouldIncludeTE');
-    
+
     if (effectivePositionFilter != 'All') {
       if (shouldIncludeTE) {
         // For WR/TE Stats tab, don't add position filter - we'll filter client-side
         // This avoids Firebase index issues with position_in arrays
-        print('🔍 [DEBUG] WR/TE Stats: No position filter added, will filter client-side');
+        print(
+            '🔍 [DEBUG] WR/TE Stats: No position filter added, will filter client-side');
       } else {
         filtersForFunction['position'] = effectivePositionFilter;
         print('🔍 [DEBUG] Added position filter: $effectivePositionFilter');
       }
     }
-    
+
     print('🔍 [DEBUG] Final filters for Firebase: $filtersForFunction');
 
     final dynamic currentCursor =
@@ -521,18 +711,21 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       if (mounted) {
         setState(() {
           final List<dynamic> data = result.data['data'] ?? [];
-          List<Map<String, dynamic>> allRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
-          
+          List<Map<String, dynamic>> allRows =
+              data.map((item) => Map<String, dynamic>.from(item)).toList();
+
           // Client-side filtering for WR/TE Stats tab
           if (_shouldIncludeTE() && _selectedStatCategory == 'WR/TE Stats') {
-            _rawRows = allRows.where((row) => 
-              row['position'] == 'WR' || row['position'] == 'TE'
-            ).toList();
-            print('🔍 [DEBUG] Client-side filtered WR/TE: ${_rawRows.length} rows from ${allRows.length} total');
+            _rawRows = allRows
+                .where(
+                    (row) => row['position'] == 'WR' || row['position'] == 'TE')
+                .toList();
+            print(
+                '🔍 [DEBUG] Client-side filtered WR/TE: ${_rawRows.length} rows from ${allRows.length} total');
           } else {
             _rawRows = allRows;
           }
-          
+
           _totalRecords = result.data['totalRecords'] ?? 0;
           _nextCursor = result.data['nextCursor'];
 
@@ -543,14 +736,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
           print('🔍 [DEBUG] Final filtered rows count: ${_rawRows.length}');
           if (_rawRows.isNotEmpty) {
             print('🔍 [DEBUG] First row keys: ${_rawRows.first.keys.toList()}');
-            print('🔍 [DEBUG] First row player: ${_rawRows.first['player_name']}');
-            print('🔍 [DEBUG] First row position: ${_rawRows.first['position']}');
+            print(
+                '🔍 [DEBUG] First row player: ${_rawRows.first['player_name']}');
+            print(
+                '🔍 [DEBUG] First row position: ${_rawRows.first['position']}');
           } else {
             print('🔍 [DEBUG] No rows after filtering!');
-            
+
             // DIAGNOSTIC: If we're looking for WR/TE and got no results, let's check what positions exist
             if (_selectedStatCategory == 'WR/TE Stats') {
-              print('🔍 [DEBUG] DIAGNOSTIC: WR/TE query returned 0 results. Let\'s check what positions exist...');
+              print(
+                  '🔍 [DEBUG] DIAGNOSTIC: WR/TE query returned 0 results. Let\'s check what positions exist...');
               _runPositionDiagnostic();
             }
           }
@@ -570,18 +766,23 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       }
       _startPreloadingNextPages();
     } on FirebaseFunctionsException catch (e) {
-      print('FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
-      if (e.message != null && e.message!.contains('The query requires an index')) {
+      print(
+          'FirebaseFunctionsException: ${e.message}'); // Log the full error for debugging
+      if (e.message != null &&
+          e.message!.contains('The query requires an index')) {
         // Extract the URL and log it to a new Firebase function
-        final indexUrlMatch = RegExp(r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+').firstMatch(e.message!);        
+        final indexUrlMatch = RegExp(
+                r'https://console\.firebase\.google\.com/v1/r/project/[^\s]+')
+            .firstMatch(e.message!);
         if (indexUrlMatch != null) {
           final missingIndexUrl = indexUrlMatch.group(0);
           print('Missing index URL found: $missingIndexUrl');
-          
+
           // Call a new Cloud Function to log this URL
           print('Attempting to call logMissingIndex Cloud Function...');
           try {
-            final result = await functions.httpsCallable('logMissingIndex').call({
+            final result =
+                await functions.httpsCallable('logMissingIndex').call({
               'url': missingIndexUrl,
               'timestamp': DateTime.now().toIso8601String(),
               'screenName': 'PlayerSeasonStatsScreen',
@@ -602,7 +803,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         }
         if (mounted) {
           setState(() {
-            _error = "We're working to expand our data. Please check back later or contact support if the issue persists.";
+            _error =
+                "We're working to expand our data. Please check back later or contact support if the issue persists.";
             _isLoading = false;
           });
         }
@@ -632,17 +834,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     for (var condition in _queryConditions) {
       filtersForFunction[condition.field] = condition.value;
     }
-    
+
     // Add season filter
     if (_selectedSeason != 'All') {
       filtersForFunction['season'] = _selectedSeason;
     }
-    
+
     // Add team filter
     if (_selectedTeam != 'All') {
       filtersForFunction['recent_team'] = _selectedTeam;
     }
-    
+
     // Use the same intelligent position filtering for preloading
     String effectivePositionFilter = _getEffectivePositionFilter();
     if (effectivePositionFilter != 'All') {
@@ -681,15 +883,17 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
 
         if (data.isNotEmpty) {
           if (mounted) {
-            List<Map<String, dynamic>> allRows = data.map((item) => Map<String, dynamic>.from(item)).toList();
-            
+            List<Map<String, dynamic>> allRows =
+                data.map((item) => Map<String, dynamic>.from(item)).toList();
+
             // Apply same client-side filtering for preloaded data
             if (_shouldIncludeTE() && _selectedStatCategory == 'WR/TE Stats') {
-              allRows = allRows.where((row) => 
-                row['position'] == 'WR' || row['position'] == 'TE'
-              ).toList();
+              allRows = allRows
+                  .where((row) =>
+                      row['position'] == 'WR' || row['position'] == 'TE')
+                  .toList();
             }
-            
+
             _preloadedPages[preloadPageIndex] = allRows;
             _preloadedCursors[preloadPageIndex] = receivedNextCursor;
           }
@@ -715,7 +919,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   Future<void> _runPositionDiagnostic() async {
     try {
       print('🔍 [DEBUG] DIAGNOSTIC: Running position diagnostic...');
-      final HttpsCallable callable = functions.httpsCallable('getPlayerSeasonStats');
+      final HttpsCallable callable =
+          functions.httpsCallable('getPlayerSeasonStats');
       final result = await callable.call<Map<String, dynamic>>({
         'filters': {}, // No filters to get all positions
         'limit': 100, // Get a sample
@@ -726,13 +931,19 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       final List<dynamic> data = result.data['data'] ?? [];
       if (data.isNotEmpty) {
         final positions = data.map((item) => item['position']).toSet().toList();
-        print('🔍 [DEBUG] DIAGNOSTIC: Available positions in database: $positions');
+        print(
+            '🔍 [DEBUG] DIAGNOSTIC: Available positions in database: $positions');
         print('🔍 [DEBUG] DIAGNOSTIC: Total sample records: ${data.length}');
-        print('🔍 [DEBUG] DIAGNOSTIC: Sample players: ${data.take(10).map((p) => '${p['player_name']} (${p['position']})').toList()}');
-        
+        print(
+            '🔍 [DEBUG] DIAGNOSTIC: Sample players: ${data.take(10).map((p) => '${p['player_name']} (${p['position']})').toList()}');
+
         // Check if WR/TE exist with different naming
-        final wrLikePositions = positions.where((p) => p.toString().toLowerCase().contains('w')).toList();
-        final teLikePositions = positions.where((p) => p.toString().toLowerCase().contains('t')).toList();
+        final wrLikePositions = positions
+            .where((p) => p.toString().toLowerCase().contains('w'))
+            .toList();
+        final teLikePositions = positions
+            .where((p) => p.toString().toLowerCase().contains('t'))
+            .toList();
         print('🔍 [DEBUG] DIAGNOSTIC: WR-like positions: $wrLikePositions');
         print('🔍 [DEBUG] DIAGNOSTIC: TE-like positions: $teLikePositions');
       } else {
@@ -774,91 +985,91 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   void _showCustomizeColumnsDialog() {
     // Create a temporary list to hold selected fields until confirmed
     List<String> tempSelected = List.from(_selectedFields);
-    
+
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Customize Columns'),
-              content: SizedBox(
-                width: 400,
-                height: 500, // Set explicit height to make it scrollable
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search Fields',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            // No need to change anything here, just trigger a rebuild
-                          });
-                        },
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Customize Columns'),
+            content: SizedBox(
+              width: 400,
+              height: 500, // Set explicit height to make it scrollable
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Search Fields',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          // No need to change anything here, just trigger a rebuild
+                        });
+                      },
                     ),
-                    Expanded(
-                      child: ListView(
-                        children: _headers
-                            .where((header) => header.toLowerCase().contains(''))
-                            .map((header) {
-                              return CheckboxListTile(
-                                title: Text(header),
-                                value: tempSelected.contains(header),
-                                onChanged: (checked) {
-                                  setState(() {
-                                    if (checked == true) {
-                                      tempSelected.add(header);
-                                    } else {
-                                      tempSelected.remove(header);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: _headers
+                          .where((header) => header.toLowerCase().contains(''))
+                          .map((header) {
+                        return CheckboxListTile(
+                          title: Text(header),
+                          value: tempSelected.contains(header),
+                          onChanged: (checked) {
+                            setState(() {
+                              if (checked == true) {
+                                tempSelected.add(header);
+                              } else {
+                                tempSelected.remove(header);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Select all fields
-                    setState(() {
-                      tempSelected = List.from(_headers);
-                    });
-                  },
-                  child: const Text('Select All'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    // Apply changes and close dialog
-                    this.setState(() {
-                      _selectedFields = List.from(tempSelected);
-                      // Switch to Custom category when customizing fields
-                      _selectedStatCategory = 'Custom';
-                      // Update the Custom category fields
-                      _statCategoryFieldGroups['Custom']!['Basic'] = _selectedFields;
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Apply'),
-                ),
-              ],
-            );
-          }
-        );
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  // Select all fields
+                  setState(() {
+                    tempSelected = List.from(_headers);
+                  });
+                },
+                child: const Text('Select All'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Apply changes and close dialog
+                  this.setState(() {
+                    _selectedFields = List.from(tempSelected);
+                    // Switch to Custom category when customizing fields
+                    _selectedStatCategory = 'Custom';
+                    // Update the Custom category fields
+                    _statCategoryFieldGroups['Custom']!['Basic'] =
+                        _selectedFields;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Apply'),
+              ),
+            ],
+          );
+        });
       },
     );
   }
@@ -895,7 +1106,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
+        border:
+            Border(bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
       ),
       child: Column(
         children: [
@@ -923,13 +1135,14 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                               _applyFiltersAndFetch();
                             }
                           },
-                          selectedColor: _getPositionColor().withValues(alpha: 0.2),
+                          selectedColor:
+                              _getPositionColor().withValues(alpha: 0.2),
                           labelStyle: TextStyle(
-                            color: _selectedStatCategory == category 
-                                ? _getPositionColor() 
+                            color: _selectedStatCategory == category
+                                ? _getPositionColor()
                                 : Colors.grey.shade700,
-                            fontWeight: _selectedStatCategory == category 
-                                ? FontWeight.bold 
+                            fontWeight: _selectedStatCategory == category
+                                ? FontWeight.bold
                                 : FontWeight.normal,
                           ),
                         ),
@@ -939,44 +1152,50 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Season Filter
               SizedBox(
                 width: 120,
                 child: DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Season',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   value: _selectedSeason,
-                  items: _seasons.map((season) => DropdownMenuItem(
-                    value: season,
-                    child: Text(season),
-                  )).toList(),
+                  items: _seasons
+                      .map((season) => DropdownMenuItem(
+                            value: season,
+                            child: Text(season),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => _selectedSeason = value!);
                     _applyFiltersAndFetch();
                   },
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // Team Filter
               SizedBox(
                 width: 100,
                 child: DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Team',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     border: OutlineInputBorder(),
                   ),
                   value: _selectedTeam,
-                  items: _teams.map((team) => DropdownMenuItem(
-                    value: team,
-                    child: Text(team),
-                  )).toList(),
+                  items: _teams
+                      .map((team) => DropdownMenuItem(
+                            value: team,
+                            child: Text(team),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => _selectedTeam = value!);
                     _applyFiltersAndFetch();
@@ -985,9 +1204,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Sub-category tabs (Basic/Advanced/Visualizations) - more compact
           SizedBox(
             height: 40,
@@ -1004,7 +1223,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
               ],
               onTap: (index) {
                 setState(() {
-                  _selectedSubCategory = ['Basic', 'Advanced', 'Visualizations'][index];
+                  _selectedSubCategory =
+                      ['Basic', 'Advanced', 'Visualizations'][index];
                 });
               },
             ),
@@ -1013,7 +1233,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       ),
     );
   }
-
 
   Color _getPositionColor() {
     switch (_selectedStatCategory) {
@@ -1054,7 +1273,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -1063,8 +1283,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () =>
-                  showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
@@ -1079,7 +1299,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         children: [
           // Compact Controls Section
           _buildCompactControlsSection(),
-          
+
           // Compact Query Builder
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1088,19 +1308,27 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
               borderRadius: BorderRadius.circular(8),
             ),
             child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               title: Row(
                 children: [
-                  Icon(Icons.tune, color: Theme.of(context).primaryColor, size: 20),
+                  Icon(Icons.tune,
+                      color: Theme.of(context).primaryColor, size: 20),
                   const SizedBox(width: 8),
                   Text('Advanced Filters',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   const Spacer(),
                   if (_queryConditions.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        color: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -1135,7 +1363,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                             child: DropdownButtonFormField<String>(
                               decoration: const InputDecoration(
                                 labelText: 'Position',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
                               value: _selectedPosition,
@@ -1162,7 +1391,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                             child: DropdownButtonFormField<String>(
                               decoration: const InputDecoration(
                                 labelText: 'Field',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
                               value: _headers.contains(_newQueryField)
@@ -1192,7 +1422,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                             child: DropdownButtonFormField<QueryOperator>(
                               decoration: const InputDecoration(
                                 labelText: 'Operator',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
                               value: _newQueryOperator,
@@ -1216,12 +1447,19 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                               controller: _newQueryValueController,
                               decoration: const InputDecoration(
                                 labelText: 'Value',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
-                              keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
-                                  ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
-                                  : TextInputType.text,
+                              keyboardType:
+                                  getFieldType(_newQueryField ?? '') == 'int' ||
+                                          getFieldType(_newQueryField ?? '') ==
+                                              'double'
+                                      ? TextInputType.numberWithOptions(
+                                          decimal: getFieldType(
+                                                  _newQueryField ?? '') ==
+                                              'double')
+                                      : TextInputType.text,
                             ),
                           ),
                           const SizedBox(width: 8.0),
@@ -1262,7 +1500,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                             ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
-                            icon: const Icon(Icons.filter_alt_outlined, size: 16),
+                            icon:
+                                const Icon(Icons.filter_alt_outlined, size: 16),
                             label: const Text('Apply Filters'),
                             onPressed: _applyFiltersAndFetch,
                           ),
@@ -1282,8 +1521,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                         child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Text(_error!,
-                                                          style: TextStyle(
-                                 color: ThemeAwareColors.getErrorColor(context), fontSize: 16),
+                            style: TextStyle(
+                                color: ThemeAwareColors.getErrorColor(context),
+                                fontSize: 16),
                             textAlign: TextAlign.center),
                       ))
                     : _buildDataTable(),
@@ -1301,7 +1541,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       print('🔍 [DEBUG] - _isLoading: $_isLoading');
       print('🔍 [DEBUG] - _error: $_error');
       print('🔍 [DEBUG] - Current stat category: $_selectedStatCategory');
-      
+
       return const Center(
           child: Text('No data found. Try adjusting your filters.',
               style: TextStyle(fontSize: 16)));
@@ -1314,45 +1554,103 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       print('🔍 [DEBUG] getVisibleFieldsForCategory called with:');
       print('🔍 [DEBUG] - category: $category');
       print('🔍 [DEBUG] - position: $position');
-      
+
       List<String> fields;
-      
+
       if (category == 'Custom') {
         // For Custom category, use the selected fields
         fields = _selectedFields;
         print('🔍 [DEBUG] Using custom fields: ${fields.length} fields');
       } else {
         // For predefined categories, use the fields from the category and subcategory
-        fields = _statCategoryFieldGroups[category]?[_selectedSubCategory] ?? [];
+        fields =
+            _statCategoryFieldGroups[category]?[_selectedSubCategory] ?? [];
         print('🔍 [DEBUG] Base fields from category: ${fields.length} fields');
-        
+
         // Special handling for WR/TE Stats tab - always show WR/TE fields regardless of position filter
         if (category == 'WR/TE Stats') {
-          final result = fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
-          print('🔍 [DEBUG] WR/TE Stats tab - filtered fields: ${result.length}');
+          final result = fields
+              .where((f) =>
+                  ![
+                    'completions',
+                    'attempts',
+                    'passing_yards',
+                    'passing_tds',
+                    'interceptions',
+                    'passing_yards_per_attempt',
+                    'rushing_attempts',
+                    'rushing_yards',
+                    'rushing_tds'
+                  ].contains(f) ||
+                  ['player_name', 'season', 'games'].contains(f))
+              .toList();
+          print(
+              '🔍 [DEBUG] WR/TE Stats tab - filtered fields: ${result.length}');
           print('🔍 [DEBUG] WR/TE Stats tab - fields: $result');
           return result;
         }
-        
+
         if (position == 'QB') {
-          return fields.where((f) => !['rushing_attempts', 'rushing_yards', 'rushing_tds', 'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'wopr'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+          return fields
+              .where((f) =>
+                  ![
+                    'rushing_attempts',
+                    'rushing_yards',
+                    'rushing_tds',
+                    'receptions',
+                    'targets',
+                    'receiving_yards',
+                    'receiving_tds',
+                    'yards_per_reception',
+                    'wopr'
+                  ].contains(f) ||
+                  ['player_name', 'season', 'games'].contains(f))
+              .toList();
         }
         if (position == 'RB') {
-           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+          return fields
+              .where((f) =>
+                  ![
+                    'completions',
+                    'attempts',
+                    'passing_yards',
+                    'passing_tds',
+                    'interceptions',
+                    'passing_yards_per_attempt'
+                  ].contains(f) ||
+                  ['player_name', 'season', 'games'].contains(f))
+              .toList();
         }
         if (position == 'WR' || position == 'TE') {
-           return fields.where((f) => !['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions', 'passing_yards_per_attempt', 'rushing_attempts', 'rushing_yards', 'rushing_tds'].contains(f) || ['player_name', 'season', 'games'].contains(f)).toList();
+          return fields
+              .where((f) =>
+                  ![
+                    'completions',
+                    'attempts',
+                    'passing_yards',
+                    'passing_tds',
+                    'interceptions',
+                    'passing_yards_per_attempt',
+                    'rushing_attempts',
+                    'rushing_yards',
+                    'rushing_tds'
+                  ].contains(f) ||
+                  ['player_name', 'season', 'games'].contains(f))
+              .toList();
         }
       }
-      
+
       // 'All' position shows all fields for the category
       return fields;
     }
 
     // Use effective position filter for determining visible fields
-    final String effectivePosition = _showAllPositionsInTab ? _selectedPosition : _getEffectivePositionFilter();
-    final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, effectivePosition);
-    
+    final String effectivePosition = _showAllPositionsInTab
+        ? _selectedPosition
+        : _getEffectivePositionFilter();
+    final List<String> displayFields =
+        getVisibleFieldsForCategory(_selectedStatCategory, effectivePosition);
+
     // DEBUG LOGGING - Track column field calculation
     print('🔍 [DEBUG] Building table with:');
     print('🔍 [DEBUG] - Stat category: $_selectedStatCategory');
@@ -1363,24 +1661,29 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
 
     return Column(
       children: [
-        
         // Position-aware toggle for position-specific tabs
-        if (_isPositionSpecificTab()) 
+        if (_isPositionSpecificTab())
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
+              border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
             ),
             child: Row(
               children: [
-                Icon(Icons.filter_list, size: 16, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                Icon(Icons.filter_list,
+                    size: 16,
+                    color: ThemeAwareColors.getSecondaryTextColor(context)),
                 const SizedBox(width: 8),
                 Text(
-                  _showAllPositionsInTab 
-                    ? 'Showing: ${_selectedPosition == 'All' ? 'All Positions' : '$_selectedPosition Only'}'
-                    : 'Showing: ${_getPositionDisplayText()} Only',
-                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                  _showAllPositionsInTab
+                      ? 'Showing: ${_selectedPosition == 'All' ? 'All Positions' : '$_selectedPosition Only'}'
+                      : 'Showing: ${_getPositionDisplayText()} Only',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: ThemeAwareColors.getSecondaryTextColor(context)),
                 ),
                 const SizedBox(width: 12),
                 Switch(
@@ -1396,23 +1699,29 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                 const SizedBox(width: 8),
                 Text(
                   'Show All Positions',
-                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: ThemeAwareColors.getSecondaryTextColor(context)),
                 ),
               ],
             ),
           ),
-        
+
         // Add row with action buttons
         Padding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+          padding: const EdgeInsets.only(
+              left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Push items to ends
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween, // Push items to ends
             children: [
               Text(
                 _rawRows.isEmpty
                     ? '' // Show nothing if no data for pagination info
                     : 'Page ${(_currentPage) + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}. Total: $_totalRecords records.',
-                style: TextStyle(color: ThemeAwareColors.getSecondaryTextColor(context), fontSize: 13),
+                style: TextStyle(
+                    color: ThemeAwareColors.getSecondaryTextColor(context),
+                    fontSize: 13),
               ),
               Row(
                 children: [
@@ -1429,7 +1738,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Customize Columns'),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       textStyle: const TextStyle(fontSize: 13),
                     ),
                     onPressed: _showCustomizeColumnsDialog,
@@ -1439,36 +1749,48 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
             ],
           ),
         ),
-        
+
         Expanded(
           child: MdsTable(
             style: MdsTableStyle.premium,
             density: MdsTableDensity.comfortable,
-            columns: displayFields.map((header) => MdsTableColumn(
-              key: header,
-              label: _formatHeaderName(header),
-              numeric: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num),
-              enablePercentileShading: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num) && header != 'season' && header != 'games',
-              isDoubleField: doubleFields.contains(header),
-              cellBuilder: header == 'recent_team' ? (value, rowIndex, percentile) {
-                if (value == null) return const Text('N/A');
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TeamLogoUtils.buildNFLTeamLogo(
-                      value.toString(),
-                      size: 24.0,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(value.toString()),
-                  ],
-                );
-              } : null,
-            )).toList(),
-            rows: _rawRows.asMap().entries.map((entry) => MdsTableRow(
-              id: '${entry.key}',
-              data: entry.value,
-            )).toList(),
+            columns: displayFields
+                .map((header) => MdsTableColumn(
+                      key: header,
+                      label: _formatHeaderName(header),
+                      numeric: _rawRows.isNotEmpty &&
+                          _rawRows.any((row) => row[header] is num),
+                      enablePercentileShading: _rawRows.isNotEmpty &&
+                          _rawRows.any((row) => row[header] is num) &&
+                          header != 'season' &&
+                          header != 'games',
+                      isDoubleField: doubleFields.contains(header),
+                      cellBuilder: header == 'recent_team'
+                          ? (value, rowIndex, percentile) {
+                              if (value == null) return const Text('N/A');
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TeamLogoUtils.buildNFLTeamLogo(
+                                    value.toString(),
+                                    size: 24.0,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(value.toString()),
+                                ],
+                              );
+                            }
+                          : null,
+                    ))
+                .toList(),
+            rows: _rawRows
+                .asMap()
+                .entries
+                .map((entry) => MdsTableRow(
+                      id: '${entry.key}',
+                      data: entry.value,
+                    ))
+                .toList(),
             sortColumn: _sortColumn,
             sortAscending: _sortAscending,
             onSort: (columnKey, ascending) {
@@ -1488,25 +1810,30 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _currentPage > 0 ? () => setState(() {
-                    _currentPage--;
-                    _fetchDataFromFirebase();
-                  }) : null,
+                  onPressed: _currentPage > 0
+                      ? () => setState(() {
+                            _currentPage--;
+                            _fetchDataFromFirebase();
+                          })
+                      : null,
                   child: const Text('Previous'),
                 ),
                 const SizedBox(width: 16),
-                Text('Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}'),
+                Text(
+                    'Page ${_currentPage + 1} of ${(_totalRecords / _rowsPerPage).ceil().clamp(1, 9999)}'),
                 const SizedBox(width: 16),
                 ElevatedButton(
-                  onPressed: _nextCursor != null ? () {
-                    setState(() {
-                      _currentPage++;
-                      if (_pageCursors.length <= _currentPage) {
-                        _pageCursors.add(_nextCursor);
-                      }
-                      _fetchDataFromFirebase();
-                    });
-                  } : null,
+                  onPressed: _nextCursor != null
+                      ? () {
+                          setState(() {
+                            _currentPage++;
+                            if (_pageCursors.length <= _currentPage) {
+                              _pageCursors.add(_nextCursor);
+                            }
+                            _fetchDataFromFirebase();
+                          });
+                        }
+                      : null,
                   child: const Text('Next'),
                 ),
               ],
@@ -1518,9 +1845,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
 
   // Helper method to determine if current tab is position-specific
   bool _isPositionSpecificTab() {
-    return ['QB Stats', 'RB Stats', 'WR/TE Stats'].contains(_selectedStatCategory);
+    return ['QB Stats', 'RB Stats', 'WR/TE Stats']
+        .contains(_selectedStatCategory);
   }
-  
+
   // Helper method to get display text for current position filter
   String _getPositionDisplayText() {
     switch (_selectedStatCategory) {
@@ -1534,4 +1862,4 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return _selectedPosition;
     }
   }
-} 
+}

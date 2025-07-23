@@ -6,7 +6,7 @@ import 'dart:convert';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../services/draft/historical_draft_service.dart';
@@ -47,7 +47,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   Map<String, dynamic>? _summaryStats;
   bool _showSummaryStats = false;
 
-  // Filter panel state  
+  // Filter panel state
   bool _showFilterPanel = false;
 
   // Scroll controllers
@@ -72,20 +72,21 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
   Future<void> _initializeData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Load available years, teams, positions, and schools
       final years = await HistoricalDraftService.getAvailableYears();
       final teams = await HistoricalDraftService.getAvailableTeams();
       final positions = await HistoricalDraftService.getAvailablePositions();
       final schools = await HistoricalDraftService.getAvailableSchools();
-      
+
       debugPrint('📋 Available data loaded:');
       debugPrint('  Years: ${years.length} years: $years');
       debugPrint('  Teams: ${teams.length} teams: ${teams.take(10)}...');
       debugPrint('  Positions: ${positions.length} positions: $positions');
-      debugPrint('  Schools: ${schools.length} schools: ${schools.take(10)}...');
-      
+      debugPrint(
+          '  Schools: ${schools.length} schools: ${schools.take(10)}...');
+
       setState(() {
         _availableYears = years;
         _availableTeams = ['All Teams', ...teams];
@@ -94,10 +95,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         _selectedTeam = 'All Teams';
         _selectedPosition = 'All Positions';
         _selectedSchool = 'All Schools';
-        
+
         // Set to most recent year from Firebase data
         if (years.isNotEmpty) {
-          _selectedYear = years.first; // Most recent year (years are sorted desc)
+          _selectedYear =
+              years.first; // Most recent year (years are sorted desc)
           debugPrint('🎯 Set default year to most recent: $_selectedYear');
         }
       });
@@ -132,7 +134,8 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
       final picks = await HistoricalDraftService.getDraftPicks(
         year: _selectedYear,
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
+        position:
+            _selectedPosition == 'All Positions' ? null : _selectedPosition,
         school: _selectedSchool == 'All Schools' ? null : _selectedSchool,
         round: _selectedRound,
         page: _currentPage,
@@ -142,13 +145,15 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
       final totalCount = await HistoricalDraftService.getDraftPicksCount(
         year: _selectedYear,
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
+        position:
+            _selectedPosition == 'All Positions' ? null : _selectedPosition,
         school: _selectedSchool == 'All Schools' ? null : _selectedSchool,
         round: _selectedRound,
       );
 
       // Load summary statistics
-      final summary = await HistoricalDraftService.getDraftSummary(year: _selectedYear);
+      final summary =
+          await HistoricalDraftService.getDraftSummary(year: _selectedYear);
 
       debugPrint('📊 Loaded ${picks.length} picks, total count: $totalCount');
 
@@ -219,24 +224,24 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   void _initializeFromUrl() {
     final uri = Uri.parse(html.window.location.href);
     final params = uri.queryParameters;
-    
+
     if (params.containsKey('year')) {
       final year = int.tryParse(params['year']!);
       if (year != null) _selectedYear = year;
     }
-    
+
     if (params.containsKey('team')) {
       _selectedTeam = params['team'];
     }
-    
+
     if (params.containsKey('position')) {
       _selectedPosition = params['position'];
     }
-    
+
     if (params.containsKey('school')) {
       _selectedSchool = params['school'];
     }
-    
+
     if (params.containsKey('round')) {
       final round = int.tryParse(params['round']!);
       if (round != null) _selectedRound = round;
@@ -246,7 +251,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   void _updateUrlFromFilters() {
     final uri = Uri.parse(html.window.location.href);
     final newParams = <String, String>{};
-    
+
     if (_selectedYear != null) newParams['year'] = _selectedYear.toString();
     if (_selectedTeam != null && _selectedTeam != 'All Teams') {
       newParams['team'] = _selectedTeam!;
@@ -260,20 +265,24 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
     if (_selectedRound != null) {
       newParams['round'] = _selectedRound.toString();
     }
-    
-    final newUri = uri.replace(queryParameters: newParams.isEmpty ? null : newParams);
+
+    final newUri =
+        uri.replace(queryParameters: newParams.isEmpty ? null : newParams);
     html.window.history.replaceState(null, '', newUri.toString());
-    
+
     _updateSEOMetaTags();
   }
 
   void _updateSEOMetaTags() {
     try {
       final yearParam = _selectedYear?.toString() ?? '';
-      final teamParam = (_selectedTeam != null && _selectedTeam != 'All Teams') ? _selectedTeam! : '';
+      final teamParam = (_selectedTeam != null && _selectedTeam != 'All Teams')
+          ? _selectedTeam!
+          : '';
       final description = _getPageDescription();
-      
-      js.context.callMethod('updateDraftPageSEO', [yearParam, teamParam, description]);
+
+      js.context.callMethod(
+          'updateDraftPageSEO', [yearParam, teamParam, description]);
     } catch (e) {
       debugPrint('Error updating SEO meta tags: $e');
     }
@@ -291,7 +300,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   }
 
   String _getSemanticTitle() {
-    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
+    if (_selectedYear != null &&
+        _selectedTeam != null &&
+        _selectedTeam != 'All Teams') {
       return '$_selectedYear $_selectedTeam Draft Results';
     } else if (_selectedYear != null) {
       return '$_selectedYear NFL Draft History';
@@ -300,7 +311,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   }
 
   String _getPageDescription() {
-    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
+    if (_selectedYear != null &&
+        _selectedTeam != null &&
+        _selectedTeam != 'All Teams') {
       return 'Complete $_selectedTeam draft history for $_selectedYear including all rounds, picks, players, positions, and schools.';
     } else if (_selectedYear != null) {
       return 'All NFL teams\' draft picks for $_selectedYear with detailed player information and statistics.';
@@ -316,11 +329,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
   bool get _hasActiveFilters {
     return _selectedYear != null ||
-           (_selectedTeam != null && _selectedTeam != 'All Teams') ||
-           (_selectedPosition != null && _selectedPosition != 'All Positions') ||
-           (_selectedSchool != null && _selectedSchool != 'All Schools') ||
-           (_selectedRound != null) ||
-           _searchQuery.isNotEmpty;
+        (_selectedTeam != null && _selectedTeam != 'All Teams') ||
+        (_selectedPosition != null && _selectedPosition != 'All Positions') ||
+        (_selectedSchool != null && _selectedSchool != 'All Schools') ||
+        (_selectedRound != null) ||
+        _searchQuery.isNotEmpty;
   }
 
   void _showExportDialog() {
@@ -386,7 +399,8 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
       final allPicks = await HistoricalDraftService.getDraftPicks(
         year: _selectedYear,
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
+        position:
+            _selectedPosition == 'All Positions' ? null : _selectedPosition,
         school: _selectedSchool == 'All Schools' ? null : _selectedSchool,
         round: _selectedRound,
         page: 0,
@@ -395,13 +409,14 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
       final csv = _generateCSV(allPicks);
       final fileName = _generateFileName('csv');
-      
+
       _downloadFile(csv, fileName, 'text/csv');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported ${allPicks.length} draft picks to $fileName'),
+            content:
+                Text('Exported ${allPicks.length} draft picks to $fileName'),
             backgroundColor: Colors.green,
           ),
         );
@@ -418,7 +433,8 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
       final allPicks = await HistoricalDraftService.getDraftPicks(
         year: _selectedYear,
         team: _selectedTeam == 'All Teams' ? null : _selectedTeam,
-        position: _selectedPosition == 'All Positions' ? null : _selectedPosition,
+        position:
+            _selectedPosition == 'All Positions' ? null : _selectedPosition,
         school: _selectedSchool == 'All Schools' ? null : _selectedSchool,
         round: _selectedRound,
         page: 0,
@@ -427,13 +443,14 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
       final html = _generateHTML(allPicks);
       final fileName = _generateFileName('xls');
-      
+
       _downloadFile(html, fileName, 'application/vnd.ms-excel');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported ${allPicks.length} draft picks to $fileName'),
+            content:
+                Text('Exported ${allPicks.length} draft picks to $fileName'),
             backgroundColor: Colors.green,
           ),
         );
@@ -446,29 +463,27 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
   String _generateCSV(List<HistoricalDraftPick> picks) {
     final buffer = StringBuffer();
-    
+
     // Headers
     buffer.writeln('Year,Round,Pick,Player,Position,School,Team');
-    
+
     // Data rows
     for (var pick in picks) {
-      buffer.writeln(
-        '"${pick.year}",'
-        '"${pick.round}",'
-        '"${pick.pick}",'
-        '"${pick.displayName}",'
-        '"${pick.displayPosition}",'
-        '"${pick.displaySchool}",'
-        '"${pick.displayTeam}"'
-      );
+      buffer.writeln('"${pick.year}",'
+          '"${pick.round}",'
+          '"${pick.pick}",'
+          '"${pick.displayName}",'
+          '"${pick.displayPosition}",'
+          '"${pick.displaySchool}",'
+          '"${pick.displayTeam}"');
     }
-    
+
     return buffer.toString();
   }
 
   String _generateHTML(List<HistoricalDraftPick> picks) {
     final buffer = StringBuffer();
-    
+
     buffer.writeln('''
     <html>
     <head>
@@ -500,7 +515,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         </thead>
         <tbody>
     ''');
-    
+
     for (var pick in picks) {
       buffer.writeln('''
           <tr>
@@ -514,34 +529,39 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           </tr>
       ''');
     }
-    
+
     buffer.writeln('''
         </tbody>
       </table>
     </body>
     </html>
     ''');
-    
+
     return buffer.toString();
   }
 
   String _generateFileName(String extension) {
     final now = DateTime.now();
-    final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    
+    final dateStr =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+
     String seoName = 'nfl-draft-history';
-    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
-      seoName = '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-${_selectedYear}-draft-picks';
+    if (_selectedYear != null &&
+        _selectedTeam != null &&
+        _selectedTeam != 'All Teams') {
+      seoName =
+          '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-$_selectedYear-draft-picks';
     } else if (_selectedYear != null) {
-      seoName = '${_selectedYear}-nfl-draft-results';
+      seoName = '$_selectedYear-nfl-draft-results';
     } else if (_selectedTeam != null && _selectedTeam != 'All Teams') {
-      seoName = '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-draft-history';
+      seoName =
+          '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-draft-history';
     }
-    
+
     if (_selectedPosition != null && _selectedPosition != 'All Positions') {
       seoName += '-${_selectedPosition!.toLowerCase()}';
     }
-    
+
     return '$seoName-$dateStr.$extension';
   }
 
@@ -549,11 +569,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
     final bytes = utf8.encode(content);
     final blob = html.Blob([bytes], mimeType);
     final url = html.Url.createObjectUrlFromBlob(blob);
-    
+
     final anchor = html.AnchorElement(href: url)
       ..download = fileName
       ..style.display = 'none';
-    
+
     html.document.body?.children.add(anchor);
     anchor.click();
     html.document.body?.children.remove(anchor);
@@ -563,41 +583,42 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   bool _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       // Search shortcut: Ctrl/Cmd + F
-      if ((event.logicalKey == LogicalKeyboardKey.keyF) && 
-          (event.logicalKey == LogicalKeyboardKey.controlLeft || 
-           event.logicalKey == LogicalKeyboardKey.metaLeft)) {
+      if ((event.logicalKey == LogicalKeyboardKey.keyF) &&
+          (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+              event.logicalKey == LogicalKeyboardKey.metaLeft)) {
         _searchFocusNode.requestFocus(); // Use focus node
         return true;
       }
-      
+
       // Export shortcut: Ctrl/Cmd + E
-      if ((event.logicalKey == LogicalKeyboardKey.keyE) && 
-          (event.logicalKey == LogicalKeyboardKey.controlLeft || 
-           event.logicalKey == LogicalKeyboardKey.metaLeft)) {
+      if ((event.logicalKey == LogicalKeyboardKey.keyE) &&
+          (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+              event.logicalKey == LogicalKeyboardKey.metaLeft)) {
         if (!_isLoading && _draftPicks.isNotEmpty) {
           _showExportDialog();
         }
         return true;
       }
-      
+
       // Refresh shortcut: F5 or Ctrl/Cmd + R
       if (event.logicalKey == LogicalKeyboardKey.f5 ||
-          ((event.logicalKey == LogicalKeyboardKey.keyR) && 
-           (event.logicalKey == LogicalKeyboardKey.controlLeft || 
-            event.logicalKey == LogicalKeyboardKey.metaLeft))) {
+          ((event.logicalKey == LogicalKeyboardKey.keyR) &&
+              (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+                  event.logicalKey == LogicalKeyboardKey.metaLeft))) {
         if (!_isLoading) {
           HistoricalDraftService.clearCache();
           _initializeData();
         }
         return true;
       }
-      
+
       // Navigate with arrow keys in pagination
-      if (event.logicalKey == LogicalKeyboardKey.arrowLeft && _currentPage > 0) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+          _currentPage > 0) {
         _onPageChanged(_currentPage - 1);
         return true;
       }
-      
+
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
         final totalPages = (_totalCount / _pageSize).ceil();
         if (_currentPage < totalPages - 1) {
@@ -622,9 +643,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
             appBar: CustomAppBar(
               titleWidget: Row(
                 children: [
-                  const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('StickToTheModel',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 20),
-                  Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
+                  Expanded(
+                      child: TopNavBarContent(currentRoute: currentRouteName)),
                 ],
               ),
               actions: [
@@ -637,13 +660,17 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         HapticFeedback.lightImpact();
-                        showDialog(context: context, builder: (_) => const AuthDialog());
+                        showDialog(
+                            context: context,
+                            builder: (_) => const AuthDialog());
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ThemeConfig.darkNavy,
                         foregroundColor: ThemeConfig.gold,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        textStyle: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -658,13 +685,14 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
             body: Column(
               children: [
                 _buildControls(),
-                if (_summaryStats != null && !_isLoading && _showSummaryStats) _buildSummaryStats(),
+                if (_summaryStats != null && !_isLoading && _showSummaryStats)
+                  _buildSummaryStats(),
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     child: _isLoading
                         ? _buildLoadingState()
-                        : _draftPicks.isEmpty 
+                        : _draftPicks.isEmpty
                             ? _buildEmptyState()
                             : _buildDataTable(),
                   ),
@@ -708,31 +736,31 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                 Text(
                   _getSemanticTitle(),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: ThemeConfig.darkNavy,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: ThemeConfig.darkNavy,
+                      ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     _getPageDescription(),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
                   ),
                 ),
                 if (_draftPicks.isNotEmpty)
                   Text(
                     'Showing ${_draftPicks.length} of $_totalCount picks',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                          color: Colors.grey.shade600,
+                        ),
                   ),
               ],
             ),
           ),
-          
+
           // Compact action buttons
           Row(
             children: [
@@ -745,57 +773,71 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                 ),
                 label: Text(_showFilterPanel ? 'Close' : 'Filter'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasActiveFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                  backgroundColor: _hasActiveFilters
+                      ? Colors.blue.shade600
+                      : ThemeConfig.darkNavy,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
               ),
-              
+
               const SizedBox(width: 8),
-              
+
               // Export button
               ElevatedButton.icon(
-                onPressed: _isLoading || _draftPicks.isEmpty ? null : _showExportDialog,
+                onPressed: _isLoading || _draftPicks.isEmpty
+                    ? null
+                    : _showExportDialog,
                 icon: const Icon(Icons.download, size: 16),
                 label: const Text('Export'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeConfig.gold,
                   foregroundColor: ThemeConfig.darkNavy,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: const TextStyle(fontSize: 12),
                 ),
               ),
-              
+
               const SizedBox(width: 8),
-              
+
               // Stats toggle button
               if (_summaryStats != null && !_isLoading)
                 ElevatedButton.icon(
                   onPressed: () {
                     setState(() => _showSummaryStats = !_showSummaryStats);
                   },
-                  icon: Icon(_showSummaryStats ? Icons.expand_less : Icons.expand_more, size: 16),
+                  icon: Icon(
+                      _showSummaryStats ? Icons.expand_less : Icons.expand_more,
+                      size: 16),
                   label: Text(_showSummaryStats ? 'Hide Stats' : 'Show Stats'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
-              
+
               const SizedBox(width: 8),
-              
+
               // Refresh button
               IconButton(
-                onPressed: _isLoading ? null : () {
-                  HistoricalDraftService.clearCache();
-                  _initializeData();
-                },
-                icon: _isLoading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.refresh),
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        HistoricalDraftService.clearCache();
+                        _initializeData();
+                      },
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh),
                 tooltip: 'Refresh data',
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.grey.shade100,
@@ -810,9 +852,13 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
 
   Widget _buildYearFilter() {
     // Ensure unique years and that the selected year is in the list
-    final uniqueYears = _availableYears.toSet().toList()..sort((a, b) => b.compareTo(a));
-    final validSelectedYear = (_selectedYear != null && uniqueYears.contains(_selectedYear)) ? _selectedYear : null;
-    
+    final uniqueYears = _availableYears.toSet().toList()
+      ..sort((a, b) => b.compareTo(a));
+    final validSelectedYear =
+        (_selectedYear != null && uniqueYears.contains(_selectedYear))
+            ? _selectedYear
+            : null;
+
     return DropdownButtonFormField<int?>(
       value: validSelectedYear,
       decoration: InputDecoration(
@@ -827,9 +873,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           child: Text('All Years'),
         ),
         ...uniqueYears.map((year) => DropdownMenuItem<int?>(
-          value: year,
-          child: Text(year.toString()),
-        )),
+              value: year,
+              child: Text(year.toString()),
+            )),
       ],
       onChanged: (value) {
         setState(() => _selectedYear = value);
@@ -841,8 +887,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   Widget _buildTeamFilter() {
     // Ensure unique teams
     final uniqueTeams = _availableTeams.toSet().toList()..sort();
-    final validSelectedTeam = (_selectedTeam != null && uniqueTeams.contains(_selectedTeam)) ? _selectedTeam : (uniqueTeams.isNotEmpty ? uniqueTeams.first : null);
-    
+    final validSelectedTeam =
+        (_selectedTeam != null && uniqueTeams.contains(_selectedTeam))
+            ? _selectedTeam
+            : (uniqueTeams.isNotEmpty ? uniqueTeams.first : null);
+
     return DropdownButtonFormField<String>(
       value: validSelectedTeam,
       decoration: InputDecoration(
@@ -851,10 +900,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         isDense: true,
       ),
-      items: uniqueTeams.map((team) => DropdownMenuItem<String>(
-        value: team,
-        child: Text(team),
-      )).toList(),
+      items: uniqueTeams
+          .map((team) => DropdownMenuItem<String>(
+                value: team,
+                child: Text(team),
+              ))
+          .toList(),
       onChanged: (value) {
         setState(() => _selectedTeam = value);
         _onFilterChanged();
@@ -865,8 +916,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   Widget _buildPositionFilter() {
     // Ensure unique positions
     final uniquePositions = _availablePositions.toSet().toList()..sort();
-    final validSelectedPosition = (_selectedPosition != null && uniquePositions.contains(_selectedPosition)) ? _selectedPosition : (uniquePositions.isNotEmpty ? uniquePositions.first : null);
-    
+    final validSelectedPosition = (_selectedPosition != null &&
+            uniquePositions.contains(_selectedPosition))
+        ? _selectedPosition
+        : (uniquePositions.isNotEmpty ? uniquePositions.first : null);
+
     return DropdownButtonFormField<String>(
       value: validSelectedPosition,
       decoration: InputDecoration(
@@ -875,10 +929,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         isDense: true,
       ),
-      items: uniquePositions.map((position) => DropdownMenuItem<String>(
-        value: position,
-        child: Text(position),
-      )).toList(),
+      items: uniquePositions
+          .map((position) => DropdownMenuItem<String>(
+                value: position,
+                child: Text(position),
+              ))
+          .toList(),
       onChanged: (value) {
         setState(() => _selectedPosition = value);
         _onFilterChanged();
@@ -889,8 +945,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   Widget _buildSchoolFilter() {
     // Ensure unique schools
     final uniqueSchools = _availableSchools.toSet().toList()..sort();
-    final validSelectedSchool = (_selectedSchool != null && uniqueSchools.contains(_selectedSchool)) ? _selectedSchool : (uniqueSchools.isNotEmpty ? uniqueSchools.first : null);
-    
+    final validSelectedSchool =
+        (_selectedSchool != null && uniqueSchools.contains(_selectedSchool))
+            ? _selectedSchool
+            : (uniqueSchools.isNotEmpty ? uniqueSchools.first : null);
+
     return DropdownButtonFormField<String>(
       value: validSelectedSchool,
       decoration: InputDecoration(
@@ -899,10 +958,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         isDense: true,
       ),
-      items: uniqueSchools.map((school) => DropdownMenuItem<String>(
-        value: school,
-        child: Text(school, overflow: TextOverflow.ellipsis),
-      )).toList(),
+      items: uniqueSchools
+          .map((school) => DropdownMenuItem<String>(
+                value: school,
+                child: Text(school, overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
       onChanged: (value) {
         setState(() => _selectedSchool = value);
         _onFilterChanged();
@@ -921,7 +982,8 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           labelText: 'Search players...',
           hintText: 'Enter player name (Ctrl+F)',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           isDense: true,
           suffixIcon: IconButton(
             icon: const Icon(Icons.search),
@@ -957,13 +1019,18 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
       label: _isLoading ? 'Currently loading data' : 'Refresh draft data',
       hint: 'Press F5 or Ctrl+R to refresh',
       child: ElevatedButton.icon(
-        onPressed: _isLoading ? null : () {
-          HistoricalDraftService.clearCache();
-          _initializeData();
-        },
-        icon: _isLoading 
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-          : const Icon(Icons.refresh),
+        onPressed: _isLoading
+            ? null
+            : () {
+                HistoricalDraftService.clearCache();
+                _initializeData();
+              },
+        icon: _isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.refresh),
         label: Text(_isLoading ? 'Loading...' : 'Refresh'),
         style: ElevatedButton.styleFrom(
           backgroundColor: ThemeConfig.darkNavy,
@@ -1007,9 +1074,11 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
     if (_summaryStats == null) return const SizedBox.shrink();
 
     final totalPicks = _summaryStats!['totalPicks'] as int;
-    final topPositions = _summaryStats!['topPositions'] as List<MapEntry<String, int>>;
+    final topPositions =
+        _summaryStats!['topPositions'] as List<MapEntry<String, int>>;
     final topTeams = _summaryStats!['topTeams'] as List<MapEntry<String, int>>;
-    final topSchools = _summaryStats!['topSchools'] as List<MapEntry<String, int>>;
+    final topSchools =
+        _summaryStats!['topSchools'] as List<MapEntry<String, int>>;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1036,13 +1105,14 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
               Text(
                 'Draft Statistics',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: ThemeConfig.darkNavy,
-                ),
+                      fontWeight: FontWeight.bold,
+                      color: ThemeConfig.darkNavy,
+                    ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: ThemeConfig.darkNavy,
                   borderRadius: BorderRadius.circular(12),
@@ -1059,34 +1129,45 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Statistics Grid
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 800;
-              
+
               if (isWide) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _buildStatsColumn('Top Positions', topPositions, Icons.sports)),
+                    Expanded(
+                        child: _buildStatsColumn(
+                            'Top Positions', topPositions, Icons.sports)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildStatsColumn('Top Teams', topTeams, Icons.groups)),
+                    Expanded(
+                        child: _buildStatsColumn(
+                            'Top Teams', topTeams, Icons.groups)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildStatsColumn('Top Schools', topSchools, Icons.school)),
+                    Expanded(
+                        child: _buildStatsColumn(
+                            'Top Schools', topSchools, Icons.school)),
                   ],
                 );
               } else {
                 return Column(
                   children: [
-                    _buildStatsColumn('Top Positions', topPositions, Icons.sports),
+                    _buildStatsColumn(
+                        'Top Positions', topPositions, Icons.sports),
                     const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildStatsColumn('Top Teams', topTeams, Icons.groups)),
+                        Expanded(
+                            child: _buildStatsColumn(
+                                'Top Teams', topTeams, Icons.groups)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildStatsColumn('Top Schools', topSchools, Icons.school)),
+                        Expanded(
+                            child: _buildStatsColumn(
+                                'Top Schools', topSchools, Icons.school)),
                       ],
                     ),
                   ],
@@ -1099,7 +1180,8 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
     );
   }
 
-  Widget _buildStatsColumn(String title, List<MapEntry<String, int>> data, IconData icon) {
+  Widget _buildStatsColumn(
+      String title, List<MapEntry<String, int>> data, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1126,10 +1208,10 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           ),
           const SizedBox(height: 8),
           ...data.take(5).map((entry) {
-            final percentage = data.isNotEmpty 
+            final percentage = data.isNotEmpty
                 ? (entry.value / data.first.value * 100).round()
                 : 0;
-            
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(
@@ -1186,7 +1268,10 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         gradient: LinearGradient(
           colors: [
             Theme.of(context).colorScheme.surface,
-            Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withOpacity(0.3),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1208,7 +1293,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           controller: _horizontalScrollController,
-          child: Container(
+          child: SizedBox(
             width: _getResponsiveTableWidth(),
             child: Column(
               children: [
@@ -1233,9 +1318,17 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   }
 
   Widget _buildTableHeaders() {
-    final headers = ['Year', 'Round', 'Pick', 'Player', 'Position', 'School', 'Team'];
+    final headers = [
+      'Year',
+      'Round',
+      'Pick',
+      'Player',
+      'Position',
+      'School',
+      'Team'
+    ];
     final columnWidths = _getColumnWidths();
-    
+
     return Container(
       height: 60,
       color: ThemeConfig.darkNavy,
@@ -1243,7 +1336,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         children: headers.asMap().entries.map((entry) {
           final index = entry.key;
           final header = entry.value;
-          
+
           return Container(
             width: columnWidths[index],
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -1271,10 +1364,10 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   Widget _buildTableRow(HistoricalDraftPick pick, int index) {
     final isEven = index % 2 == 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final rowColor = isDark 
-      ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
-      : (isEven ? Colors.white : Colors.grey.shade50);
-    
+    final rowColor = isDark
+        ? (isEven ? Colors.grey.shade100 : Colors.grey.shade200)
+        : (isEven ? Colors.white : Colors.grey.shade50);
+
     final columnWidths = _getColumnWidths();
     final cells = [
       pick.year.toString(),
@@ -1298,11 +1391,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         children: cells.asMap().entries.map((entry) {
           final cellIndex = entry.key;
           final cellValue = entry.value;
-          
-          if (cellIndex == 6) { // Team column with logo
+
+          if (cellIndex == 6) {
+            // Team column with logo
             return _buildTeamCell(pick, columnWidths[cellIndex]);
           }
-          
+
           return Container(
             width: columnWidths[cellIndex],
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
@@ -1314,7 +1408,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                 cellValue,
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: cellIndex == 3 ? FontWeight.w600 : FontWeight.w500, // Bold for player names
+                  fontWeight: cellIndex == 3
+                      ? FontWeight.w600
+                      : FontWeight.w500, // Bold for player names
                   color: Colors.black87,
                 ),
                 textAlign: TextAlign.center,
@@ -1336,45 +1432,45 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: pick.team.isNotEmpty && pick.team != 'Unknown'
-        ? Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TeamLogoUtils.buildNFLTeamLogo(pick.team, size: 16),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  pick.team,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TeamLogoUtils.buildNFLTeamLogo(pick.team, size: 16),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    pick.team,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
+              ],
+            )
+          : Center(
+              child: Text(
+                pick.displayTeam,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
-            ],
-          )
-        : Center(
-            child: Text(
-              pick.displayTeam,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
             ),
-          ),
     );
   }
 
   Widget _buildRoundFilter() {
     final rounds = [0, 1, 2, 3, 4, 5, 6, 7]; // 0 = All Rounds
-    
+
     return DropdownButtonFormField<int?>(
       value: _selectedRound,
       decoration: InputDecoration(
@@ -1383,10 +1479,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         isDense: true,
       ),
-      items: rounds.map((round) => DropdownMenuItem<int?>(
-        value: round == 0 ? null : round,
-        child: Text(round == 0 ? 'All Rounds' : 'Round $round'),
-      )).toList(),
+      items: rounds
+          .map((round) => DropdownMenuItem<int?>(
+                value: round == 0 ? null : round,
+                child: Text(round == 0 ? 'All Rounds' : 'Round $round'),
+              ))
+          .toList(),
       onChanged: (value) {
         setState(() => _selectedRound = value);
         _onFilterChanged();
@@ -1397,12 +1495,12 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   List<double> _getColumnWidths() {
     final screenWidth = MediaQuery.of(context).size.width;
     final availableWidth = screenWidth - 32; // Account for margins
-    
+
     if (screenWidth < 600) {
       // Mobile: tighter columns, wider team column for horizontal layout
       return [60, 60, 60, 140, 70, 120, 80]; // Total: 590
     } else if (screenWidth < 1000) {
-      // Tablet: medium columns, wider team column  
+      // Tablet: medium columns, wider team column
       return [70, 70, 70, 180, 80, 140, 90]; // Total: 700
     } else {
       // Desktop: wider columns, wider team column
@@ -1438,16 +1536,16 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           Text(
             'Loading draft picks...',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: ThemeConfig.darkNavy,
-              fontWeight: FontWeight.w600,
-            ),
+                  color: ThemeConfig.darkNavy,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Fetching NFL draft history',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
         ],
       ),
@@ -1476,22 +1574,23 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
           Text(
             'No draft picks found',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w600,
-            ),
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'Try adjusting your filters or search terms',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade500,
-            ),
+                  color: Colors.grey.shade500,
+                ),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
               setState(() {
-                _selectedYear = _availableYears.isNotEmpty ? _availableYears.first : null;
+                _selectedYear =
+                    _availableYears.isNotEmpty ? _availableYears.first : null;
                 _selectedTeam = 'All Teams';
                 _selectedPosition = 'All Positions';
                 _selectedSchool = 'All Schools';
@@ -1538,7 +1637,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                 label: 'Previous page',
                 hint: 'Use left arrow key to navigate to previous page',
                 child: IconButton(
-                  onPressed: _currentPage > 0 ? () => _onPageChanged(_currentPage - 1) : null,
+                  onPressed: _currentPage > 0
+                      ? () => _onPageChanged(_currentPage - 1)
+                      : null,
                   icon: const Icon(Icons.chevron_left),
                   tooltip: 'Previous page (Left arrow)',
                 ),
@@ -1548,7 +1649,9 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
                 label: 'Next page',
                 hint: 'Use right arrow key to navigate to next page',
                 child: IconButton(
-                  onPressed: _currentPage < totalPages - 1 ? () => _onPageChanged(_currentPage + 1) : null,
+                  onPressed: _currentPage < totalPages - 1
+                      ? () => _onPageChanged(_currentPage + 1)
+                      : null,
                   icon: const Icon(Icons.chevron_right),
                   tooltip: 'Next page (Right arrow)',
                 ),
@@ -1568,104 +1671,104 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         width: 400,
         color: Colors.white,
         child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: ThemeConfig.darkNavy,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.filter_list, color: Colors.white),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Filter Draft Picks',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: ThemeConfig.darkNavy,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.filter_list, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Filter Draft Picks',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: _toggleFilterPanel,
-                  icon: const Icon(Icons.close, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          
-          // Filter Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildYearFilter(),
-                  const SizedBox(height: 16),
-                  _buildTeamFilter(),
-                  const SizedBox(height: 16),
-                  _buildPositionFilter(),
-                  const SizedBox(height: 16),
-                  _buildSchoolFilter(),
-                  const SizedBox(height: 16),
-                  _buildRoundFilter(),
-                  const SizedBox(height: 16),
-                  _buildSearchField(),
-                  const SizedBox(height: 24),
-                  
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedYear = null;
-                              _selectedTeam = 'All Teams';
-                              _selectedPosition = 'All Positions';
-                              _selectedSchool = 'All Schools';
-                              _selectedRound = null;
-                              _searchController.clear();
-                              _searchQuery = '';
-                            });
-                            _onFilterChanged();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade200,
-                            foregroundColor: Colors.black87,
-                          ),
-                          child: const Text('Clear All'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _toggleFilterPanel,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ThemeConfig.darkNavy,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Apply'),
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    onPressed: _toggleFilterPanel,
+                    icon: const Icon(Icons.close, color: Colors.white),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            // Filter Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildYearFilter(),
+                    const SizedBox(height: 16),
+                    _buildTeamFilter(),
+                    const SizedBox(height: 16),
+                    _buildPositionFilter(),
+                    const SizedBox(height: 16),
+                    _buildSchoolFilter(),
+                    const SizedBox(height: 16),
+                    _buildRoundFilter(),
+                    const SizedBox(height: 16),
+                    _buildSearchField(),
+                    const SizedBox(height: 24),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedYear = null;
+                                _selectedTeam = 'All Teams';
+                                _selectedPosition = 'All Positions';
+                                _selectedSchool = 'All Schools';
+                                _selectedRound = null;
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                              _onFilterChanged();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey.shade200,
+                              foregroundColor: Colors.black87,
+                            ),
+                            child: const Text('Clear All'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _toggleFilterPanel,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ThemeConfig.darkNavy,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Apply'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

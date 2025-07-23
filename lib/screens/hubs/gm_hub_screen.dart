@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
-import '../../widgets/auth/auth_dialog.dart';
+import '../../Authentication/auth_dialog.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/home/home_slideshow.dart';
@@ -10,10 +10,10 @@ import '../../widgets/home/stacked_tool_links.dart';
 import 'package:collection/collection.dart'; // For firstWhereOrNull
 import '../../utils/theme_config.dart';
 
-
 // Helper function to find a specific sub-item (tool) within a NavItem hub
 // and format it for the StackedToolLinks widget.
-Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route, {String? desc, IconData? icon}) {
+Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route,
+    {String? desc, IconData? icon}) {
   if (hub?.subItems == null) return null;
   final item = hub!.subItems!.firstWhereOrNull((i) => i.route == route);
   if (item == null) return null;
@@ -27,7 +27,8 @@ Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route, {String? de
 }
 
 // Find the GM Hub NavItem from the main list
-final NavItem? _gmHubNavItem = topNavItems.firstWhereOrNull((item) => item.route == '/gm-hub');
+final NavItem? _gmHubNavItem =
+    topNavItems.firstWhereOrNull((item) => item.route == '/gm-hub');
 
 // Only show these four tools as previews on the GM Hub landing page
 final List<String> _gmHubPreviewRoutes = [
@@ -38,33 +39,36 @@ final List<String> _gmHubPreviewRoutes = [
   '/team-builder/fa-tracker',
 ];
 
-final List<Map<String, dynamic>> _previewTools = _gmHubPreviewRoutes.map((route) {
-  IconData icon = Icons.build_circle_outlined;
-  String desc = 'Access this tool.';
-  switch (route) {
-    case '/draft':
-      icon = Icons.format_list_numbered;
-      desc = 'Simulate the NFL draft with real-time analytics.';
-      break;
-    case '/draft/big-board':
-      icon = Icons.leaderboard;
-      desc = 'View and customize player rankings.';
-      break;
-    case '/gm-hub/bust-evaluation':
-      icon = Icons.psychology;
-      desc = 'Evaluate draft picks against expectations.';
-      break;
-    case '/team-builder/cap':
-      icon = Icons.account_balance_wallet;
-      desc = 'Explore team cap space scenarios.';
-      break;
-    case '/team-builder/fa-tracker':
-      icon = Icons.person_search;
-      desc = 'Track free agent signings and availability.';
-      break;
-  }
-  return _findAndFormatTool(_gmHubNavItem, route, icon: icon, desc: desc);
-}).whereNotNull().toList();
+final List<Map<String, dynamic>> _previewTools = _gmHubPreviewRoutes
+    .map((route) {
+      IconData icon = Icons.build_circle_outlined;
+      String desc = 'Access this tool.';
+      switch (route) {
+        case '/draft':
+          icon = Icons.format_list_numbered;
+          desc = 'Simulate the NFL draft with real-time analytics.';
+          break;
+        case '/draft/big-board':
+          icon = Icons.leaderboard;
+          desc = 'View and customize player rankings.';
+          break;
+        case '/gm-hub/bust-evaluation':
+          icon = Icons.psychology;
+          desc = 'Evaluate draft picks against expectations.';
+          break;
+        case '/team-builder/cap':
+          icon = Icons.account_balance_wallet;
+          desc = 'Explore team cap space scenarios.';
+          break;
+        case '/team-builder/fa-tracker':
+          icon = Icons.person_search;
+          desc = 'Track free agent signings and availability.';
+          break;
+      }
+      return _findAndFormatTool(_gmHubNavItem, route, icon: icon, desc: desc);
+    })
+    .whereNotNull()
+    .toList();
 
 class GmHubScreen extends StatelessWidget {
   GmHubScreen({super.key});
@@ -83,10 +87,11 @@ class GmHubScreen extends StatelessWidget {
       'image': 'assets/images/GM/big board.png', // Use GM big board image
       'route': '/draft',
     },
-     {
+    {
       'title': 'Navigate Free Agency Like a Pro',
       'desc': 'Track player movement and manage your cap space effectively.',
-      'image': 'assets/images/placeholder/gm_hub_slide_3.png', // Placeholder path
+      'image':
+          'assets/images/placeholder/gm_hub_slide_3.png', // Placeholder path
       'route': '/team-builder/fa-tracker',
     },
   ];
@@ -101,7 +106,8 @@ class GmHubScreen extends StatelessWidget {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(width: 20),
             Expanded(child: TopNavBarContent(currentRoute: currentRouteName)),
           ],
@@ -110,11 +116,13 @@ class GmHubScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton(
-              onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+              onPressed: () => showDialog(
+                  context: context, builder: (_) => const AuthDialog()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 textStyle: const TextStyle(fontSize: 14),
               ),
               child: const Text('Sign In / Sign Up'),
@@ -144,7 +152,8 @@ class GmHubScreen extends StatelessWidget {
                     Expanded(flex: 2, child: HomeSlideshow(slides: _slides)),
                     const SizedBox(width: 32),
                     // Use the curated preview tools list
-                    Expanded(flex: 1, child: StackedToolLinks(tools: _previewTools)),
+                    Expanded(
+                        flex: 1, child: StackedToolLinks(tools: _previewTools)),
                   ],
                 ),
               ),
@@ -161,12 +170,17 @@ class GmHubScreen extends StatelessWidget {
   Widget _buildFooterSignup(BuildContext context, bool isDarkMode) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      color: isDarkMode ? Theme.of(context).colorScheme.surface.withOpacity(0.1) : Colors.blue.shade50,
+      color: isDarkMode
+          ? Theme.of(context).colorScheme.surface.withOpacity(0.1)
+          : Colors.blue.shade50,
       child: Column(
         children: [
           Text(
             'Ready to build your dynasty?',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 15),
@@ -177,7 +191,8 @@ class GmHubScreen extends StatelessWidget {
           ),
           const SizedBox(height: 25),
           ElevatedButton(
-            onPressed: () => showDialog(context: context, builder: (_) => const AuthDialog()),
+            onPressed: () => showDialog(
+                context: context, builder: (_) => const AuthDialog()),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
               textStyle: Theme.of(context).textTheme.titleMedium,
@@ -234,7 +249,10 @@ class _ToolCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, size: 36, color: isPlaceholder ? contentColor : theme.colorScheme.primary),
+              Icon(icon,
+                  size: 36,
+                  color:
+                      isPlaceholder ? contentColor : theme.colorScheme.primary),
               const Spacer(),
               Text(
                 title,
@@ -246,7 +264,8 @@ class _ToolCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: theme.textTheme.bodySmall?.copyWith(color: contentColor.withOpacity(0.8)),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: contentColor.withOpacity(0.8)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -256,4 +275,4 @@ class _ToolCard extends StatelessWidget {
       ),
     );
   }
-} 
+}
