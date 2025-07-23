@@ -1,5 +1,7 @@
 // lib/main.dart (MODIFIED)
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:mds_home/firebase_options.dart';
 import 'package:mds_home/screens/blog/blog_list_screen.dart';
 import 'package:mds_home/screens/home_screen.dart';
 import 'package:mds_home/utils/blog_router.dart';
@@ -49,7 +51,6 @@ import 'screens/fantasy/my_rankings_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
 
-
 // Secret tap counter for admin access
 
 void main() async {
@@ -59,9 +60,12 @@ void main() async {
 
   // Initialize Firebase with additional logging
   try {
-    await FirebaseService.initialize();
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     debugPrint('Firebase initialized successfully in main.dart');
-    
+
     // Preload common analytics data in background
     _preloadCommonAnalytics();
   } catch (e) {
@@ -78,7 +82,7 @@ void main() async {
       }
     };
   }
-  
+
   runApp(
     MultiProvider(
       providers: [
@@ -96,15 +100,18 @@ Future<void> _preloadCommonAnalytics() async {
   Future.delayed(Duration.zero, () async {
     try {
       // Get the latest stats timestamp (this also warms up the connection)
-      final timestamp = await PrecomputedAnalyticsService.getLatestStatsTimestamp();
-      debugPrint('Analytics data last updated: ${timestamp?.toString() ?? 'unknown'}');
-      
+      final timestamp =
+          await PrecomputedAnalyticsService.getLatestStatsTimestamp();
+      debugPrint(
+          'Analytics data last updated: ${timestamp?.toString() ?? 'unknown'}');
+
       // Preload team needs data which is commonly used
       await PrecomputedAnalyticsService.getConsensusTeamNeeds();
-      
+
       // Preload overall position distribution
-      await PrecomputedAnalyticsService.getPositionBreakdownByTeam(team: 'All Teams');
-      
+      await PrecomputedAnalyticsService.getPositionBreakdownByTeam(
+          team: 'All Teams');
+
       debugPrint('Preloaded common analytics data');
     } catch (e) {
       debugPrint('Error preloading analytics data: $e');
@@ -153,13 +160,14 @@ class _MyAppState extends State<MyApp> {
             if (blogRoute != null) {
               return blogRoute;
             }
-            
+
             // Handle regular routes
             switch (settings.name) {
               case '/':
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
               case '/draft':
-                return MaterialPageRoute(builder: (_) => const TeamSelectionScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const TeamSelectionScreen());
               case '/draft/fantasy':
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
               case '/mock-draft-sim':
@@ -167,9 +175,11 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-simulator':
                 return MaterialPageRoute(builder: (_) => const FFHomeScreen());
               case '/mock-draft-sim/setup':
-                return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const DataExplorerScreen());
               case '/data/passing':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
@@ -188,85 +198,129 @@ class _MyAppState extends State<MyApp> {
               case '/data/fantasy':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
-                  settings: const RouteSettings(arguments: {'position': 'FANTASY'}),
+                  settings:
+                      const RouteSettings(arguments: {'position': 'FANTASY'}),
                 );
               case '/projections':
-                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerProjectionsScreen());
               case '/blog':
-                return MaterialPageRoute(builder: (_) => const BlogListScreen());
-              case '/gm-hub': 
+                return MaterialPageRoute(
+                    builder: (_) => const BlogListScreen());
+              case '/gm-hub':
                 return MaterialPageRoute(builder: (_) => GmHubScreen());
               case '/fantasy':
-                return MaterialPageRoute(builder: (_) => const FantasyHubScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const FantasyHubScreen());
               case '/fantasy/big-board':
-                return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const BigBoardScreen());
               case '/big-board':
-                return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const BigBoardScreen());
               case '/fantasy/player-comparison':
-                return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerComparisonScreen());
               case '/player-comparison':
-                return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerComparisonScreen());
               case '/fantasy/trends':
-                return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerTrendsScreen());
               case '/gm-hub/bust-evaluation':
-                return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const BustEvaluationScreen());
               case '/fantasy/custom-rankings':
-                return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const CustomRankingsHomeScreen());
               case '/fantasy/player-projections':
-                return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerProjectionsScreen());
               case '/fantasy/draft-big-board':
-                return MaterialPageRoute(builder: (_) => const DraftBigBoardScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const DraftBigBoardScreen());
               case '/draft-big-board':
-                return MaterialPageRoute(builder: (_) => const DraftBigBoardScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const DraftBigBoardScreen());
               case '/projections/wr-2025':
-                return MaterialPageRoute(builder: (_) => const WRProjections2025Screen());
+                return MaterialPageRoute(
+                    builder: (_) => const WRProjections2025Screen());
               case '/projections/stat-predictor':
-                return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerStatPredictorScreen());
               case '/stat-predictor':
-                return MaterialPageRoute(builder: (_) => const PlayerStatPredictorScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerStatPredictorScreen());
               case '/vorp-calculator':
-                return MaterialPageRoute(builder: (_) => const BigBoardScreen()); // VORP is part of Big Board
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        const BigBoardScreen()); // VORP is part of Big Board
               // Rankings section
               case '/rankings':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        const RankingsPlaceholderScreen(title: 'Rankings Hub'));
               case '/rankings/qb':
-                return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const QBRankingsScreen());
               case '/rankings/rb':
-                return MaterialPageRoute(builder: (_) => const RBRankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const RBRankingsScreen());
               case '/rankings/wr':
-                return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const WRRankingsScreen());
               case '/rankings/te':
-                return MaterialPageRoute(builder: (_) => const TERankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const TERankingsScreen());
               case '/my-rankings':
-                return MaterialPageRoute(builder: (_) => const MyRankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const MyRankingsScreen());
               case '/vorp/my-rankings':
-                return MaterialPageRoute(builder: (_) => const MyCustomRankingsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const MyCustomRankingsScreen());
               case '/rankings/ol':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'OL Rankings'));
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        const RankingsPlaceholderScreen(title: 'OL Rankings'));
               case '/rankings/dl':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'DL Rankings'));
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        const RankingsPlaceholderScreen(title: 'DL Rankings'));
               case '/rankings/lb':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'LB Rankings'));
+                return MaterialPageRoute(
+                    builder: (_) =>
+                        const RankingsPlaceholderScreen(title: 'LB Rankings'));
               case '/rankings/secondary':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Secondary Rankings'));
+                return MaterialPageRoute(
+                    builder: (_) => const RankingsPlaceholderScreen(
+                        title: 'Secondary Rankings'));
               case '/rankings/coaching':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Coaching Rankings'));
+                return MaterialPageRoute(
+                    builder: (_) => const RankingsPlaceholderScreen(
+                        title: 'Coaching Rankings'));
               case '/data/historical':
-                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const HistoricalDataScreen());
               case '/historical-data':
-                return MaterialPageRoute(builder: (_) => const HistoricalDataScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const HistoricalDataScreen());
               case '/wr-model':
                 return MaterialPageRoute(builder: (_) => const WRModelScreen());
               case '/player-season-stats':
-                return MaterialPageRoute(builder: (_) => const PlayerSeasonStatsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const PlayerSeasonStatsScreen());
               case '/nfl-rosters':
-                return MaterialPageRoute(builder: (_) => const NflRostersScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const NflRostersScreen());
               case '/historical-game-data':
-                return MaterialPageRoute(builder: (_) => const HistoricalGameDataScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const HistoricalGameDataScreen());
               case '/depth-charts':
-                return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const DepthChartsScreen());
               case '/historical-drafts':
-                return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
+                return MaterialPageRoute(
+                    builder: (_) => const HistoricalDraftsScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }
@@ -290,13 +344,13 @@ class AdminAccessScreen extends StatefulWidget {
 class _AdminAccessScreenState extends State<AdminAccessScreen> {
   final _passwordController = TextEditingController();
   bool _showError = false;
-  
+
   @override
   void dispose() {
     _passwordController.dispose();
     super.dispose();
   }
-  
+
   void _checkPassword() {
     // Simple password for development
     if (_passwordController.text == 'admin123') {
@@ -311,7 +365,7 @@ class _AdminAccessScreenState extends State<AdminAccessScreen> {
       });
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -321,7 +375,8 @@ class _AdminAccessScreenState extends State<AdminAccessScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.admin_panel_settings, size: 64, color: Colors.blue),
+            const Icon(Icons.admin_panel_settings,
+                size: 64, color: Colors.blue),
             const SizedBox(height: 20),
             const Text(
               'Admin Access Required',
