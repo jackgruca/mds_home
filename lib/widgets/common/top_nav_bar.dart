@@ -49,6 +49,7 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Draft Big Board', route: '/draft-big-board', isPlaceholder: false),
       NavItem(title: 'Mock Draft Simulator', route: '/draft', isPlaceholder: false),
+      NavItem(title: 'Historical Drafts', route: '/historical-drafts', isPlaceholder: false),
       NavItem(title: 'Bust or Brilliant', route: '/gm-hub/bust-evaluation', isPlaceholder: false),
       NavItem(title: 'Depth Chart', route: '/depth-charts', isPlaceholder: false),
       NavItem(title: 'Rosters', route: '/nfl-rosters', isPlaceholder: false),
@@ -79,7 +80,6 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', isPlaceholder: false),
-      NavItem(title: 'Historical Drafts', route: '/historical-drafts', isPlaceholder: false),
     ],
   ),
   
