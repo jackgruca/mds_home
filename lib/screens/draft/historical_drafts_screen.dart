@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'dart:convert';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
@@ -57,6 +58,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   void initState() {
     super.initState();
     _initializeData();
+    _initializeFromUrl();
   }
 
   @override
@@ -167,6 +169,7 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
     setState(() {
       _currentPage = 0; // Reset to first page when filters change
     });
+    _updateUrlFromFilters();
     _loadDraftPicks();
   }
 
@@ -211,6 +214,98 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
         SnackBar(content: Text(message)),
       );
     }
+  }
+
+  void _initializeFromUrl() {
+    final uri = Uri.parse(html.window.location.href);
+    final params = uri.queryParameters;
+    
+    if (params.containsKey('year')) {
+      final year = int.tryParse(params['year']!);
+      if (year != null) _selectedYear = year;
+    }
+    
+    if (params.containsKey('team')) {
+      _selectedTeam = params['team'];
+    }
+    
+    if (params.containsKey('position')) {
+      _selectedPosition = params['position'];
+    }
+    
+    if (params.containsKey('school')) {
+      _selectedSchool = params['school'];
+    }
+    
+    if (params.containsKey('round')) {
+      final round = int.tryParse(params['round']!);
+      if (round != null) _selectedRound = round;
+    }
+  }
+
+  void _updateUrlFromFilters() {
+    final uri = Uri.parse(html.window.location.href);
+    final newParams = <String, String>{};
+    
+    if (_selectedYear != null) newParams['year'] = _selectedYear.toString();
+    if (_selectedTeam != null && _selectedTeam != 'All Teams') {
+      newParams['team'] = _selectedTeam!;
+    }
+    if (_selectedPosition != null && _selectedPosition != 'All Positions') {
+      newParams['position'] = _selectedPosition!;
+    }
+    if (_selectedSchool != null && _selectedSchool != 'All Schools') {
+      newParams['school'] = _selectedSchool!;
+    }
+    if (_selectedRound != null) {
+      newParams['round'] = _selectedRound.toString();
+    }
+    
+    final newUri = uri.replace(queryParameters: newParams.isEmpty ? null : newParams);
+    html.window.history.replaceState(null, '', newUri.toString());
+    
+    _updateSEOMetaTags();
+  }
+
+  void _updateSEOMetaTags() {
+    try {
+      final yearParam = _selectedYear?.toString() ?? '';
+      final teamParam = (_selectedTeam != null && _selectedTeam != 'All Teams') ? _selectedTeam! : '';
+      final description = _getPageDescription();
+      
+      js.context.callMethod('updateDraftPageSEO', [yearParam, teamParam, description]);
+    } catch (e) {
+      debugPrint('Error updating SEO meta tags: $e');
+    }
+  }
+
+  String _getPageTitle() {
+    String title = 'NFL Draft History';
+    if (_selectedYear != null) {
+      title = '$_selectedYear NFL Draft';
+      if (_selectedTeam != null && _selectedTeam != 'All Teams') {
+        title = '$_selectedTeam $_selectedYear Draft Picks';
+      }
+    }
+    return title;
+  }
+
+  String _getSemanticTitle() {
+    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
+      return '$_selectedYear $_selectedTeam Draft Results';
+    } else if (_selectedYear != null) {
+      return '$_selectedYear NFL Draft History';
+    }
+    return 'Complete NFL Draft History Database';
+  }
+
+  String _getPageDescription() {
+    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
+      return 'Complete $_selectedTeam draft history for $_selectedYear including all rounds, picks, players, positions, and schools.';
+    } else if (_selectedYear != null) {
+      return 'All NFL teams\' draft picks for $_selectedYear with detailed player information and statistics.';
+    }
+    return 'Search and analyze complete NFL draft history database with filtering, statistics, and export capabilities.';
   }
 
   void _toggleFilterPanel() {
@@ -433,15 +528,21 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
   String _generateFileName(String extension) {
     final now = DateTime.now();
     final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
     
-    String filters = '';
-    if (_selectedYear != null) filters += '_$_selectedYear';
-    if (_selectedTeam != null && _selectedTeam != 'All Teams') filters += '_$_selectedTeam';
-    if (_selectedPosition != null && _selectedPosition != 'All Positions') filters += '_$_selectedPosition';
-    if (_selectedSchool != null && _selectedSchool != 'All Schools') filters += '_${_selectedSchool?.replaceAll(' ', '')}';
+    String seoName = 'nfl-draft-history';
+    if (_selectedYear != null && _selectedTeam != null && _selectedTeam != 'All Teams') {
+      seoName = '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-${_selectedYear}-draft-picks';
+    } else if (_selectedYear != null) {
+      seoName = '${_selectedYear}-nfl-draft-results';
+    } else if (_selectedTeam != null && _selectedTeam != 'All Teams') {
+      seoName = '${_selectedTeam!.toLowerCase().replaceAll(' ', '-')}-draft-history';
+    }
     
-    return 'nfl_draft_history${filters}_${dateStr}_$timeStr.$extension';
+    if (_selectedPosition != null && _selectedPosition != 'All Positions') {
+      seoName += '-${_selectedPosition!.toLowerCase()}';
+    }
+    
+    return '$seoName-$dateStr.$extension';
   }
 
   void _downloadFile(String content, String fileName, String mimeType) {
@@ -605,10 +706,20 @@ class _HistoricalDraftsScreenState extends State<HistoricalDraftsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Historical NFL Drafts',
+                  _getSemanticTitle(),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: ThemeConfig.darkNavy,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    _getPageDescription(),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
                 if (_draftPicks.isNotEmpty)

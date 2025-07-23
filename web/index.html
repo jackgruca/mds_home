@@ -24,7 +24,7 @@
   <title id="page-title">NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics | StickToTheModel</title>
   <meta name="title" content="NFL Mock Draft Simulator | Fantasy Football Big Board & Analytics | StickToTheModel">
   <meta id="page-description" name="description" content="Advanced NFL mock draft simulator with 300K+ completed drafts, VORP calculations, and fantasy football big board. Create custom rankings, analyze player trends, and dominate your league.">
-  <meta name="keywords" content="NFL mock draft simulator, fantasy football big board, VORP calculator, NFL draft rankings, mock draft database, fantasy football rankings, NFL analytics, draft simulator, player comparison tool">
+  <meta name="keywords" content="NFL mock draft simulator, fantasy football big board, VORP calculator, NFL draft rankings, mock draft database, fantasy football rankings, NFL analytics, draft simulator, player comparison tool, NFL draft history, historical draft picks, NFL team draft results, draft pick analysis">
   <meta name="author" content="StickToTheModel">
   
   <!-- Canonical URL -->
@@ -170,6 +170,50 @@
         document.head.appendChild(script);
       } catch (error) {
         console.error('Error updating structured data:', error);
+      }
+    }
+
+    // Function specifically for NFL Draft pages
+    function updateDraftPageSEO(year, team, description) {
+      try {
+        let title, metaDescription, url;
+        
+        if (year && team && team !== 'All Teams') {
+          title = `${team} ${year} NFL Draft Picks - Complete Results & Analysis | StickToTheModel`;
+          metaDescription = `Complete ${team} draft history for ${year} including all rounds, picks, players, positions, and schools. Export data and analyze draft performance.`;
+          url = `https://sticktothemodel.com/draft/history?year=${year}&team=${encodeURIComponent(team)}`;
+        } else if (year) {
+          title = `${year} NFL Draft History - All Teams Results & Analysis | StickToTheModel`;
+          metaDescription = `Complete ${year} NFL draft results for all teams with detailed player information, statistics, and analysis. Search by team, position, or player.`;
+          url = `https://sticktothemodel.com/draft/history?year=${year}`;
+        } else {
+          title = `NFL Draft History Database - Complete Results by Team & Year | StickToTheModel`;
+          metaDescription = `Search and analyze complete NFL draft history database with filtering, statistics, and export capabilities. Historical draft picks from all teams and years.`;
+          url = `https://sticktothemodel.com/draft/history`;
+        }
+        
+        updateMetaTags(title, metaDescription, url);
+        
+        // Add structured data for draft content
+        const draftSchema = {
+          "@context": "https://schema.org",
+          "@type": "Dataset",
+          "name": title,
+          "description": metaDescription,
+          "url": url,
+          "creator": {
+            "@type": "Organization",
+            "name": "StickToTheModel"
+          },
+          "keywords": ["NFL Draft", "Draft History", "NFL Teams", "Draft Picks", "Football Analytics"],
+          "license": "https://creativecommons.org/licenses/by/4.0/",
+          "isAccessibleForFree": true
+        };
+        
+        updateStructuredData(draftSchema);
+        
+      } catch (error) {
+        console.error('Error updating draft page SEO:', error);
       }
     }
   </script>
