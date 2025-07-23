@@ -1,7 +1,8 @@
 // lib/widgets/common/app_drawer.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../Authentication/user.dart';
+import '../../Authentication/user_auth.dart' as firebase_auth;
 import '../../utils/theme_config.dart';
 import '../../Authentication/auth_dialog.dart';
 import './top_nav_bar.dart'; // Import the top navigation items structure
@@ -175,22 +176,27 @@ class AppDrawer extends StatelessWidget {
 
           const Divider(), // Add a divider before potential auth actions
 
-          // Updated Consumer<AuthProvider> block
-          Consumer<AuthProvider>(
-            builder: (context, authProvider, _) {
-              // Check if user is authenticated (assuming 'user != null' is the correct check)
-              if (authProvider.user != null) {
+          // Authentication action
+          Consumer<mdsUser?>(
+            builder: (context, currentUser, _) {
+              if (currentUser != null) {
+                // Logged-in state → show Logout
                 return ListTile(
                   leading: const Icon(Icons.logout),
                   title: const Text('Logout'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    authProvider.signOut();
-                    Navigator.pushNamedAndRemoveUntil(
-                        context, '/', (route) => false);
+                  onTap: () async {
+                    Navigator.pop(context); // close drawer first
+                    await firebase_auth.AuthService().signOut();
+                    // Navigate to home and clear stack
+                    // Ignore errors if already on home
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, '/', (route) => false);
+                    }
                   },
                 );
               } else {
+                // Not logged-in → show Sign In / Sign Up
                 return ListTile(
                   leading: const Icon(Icons.login),
                   title: const Text('Sign In / Sign Up'),
