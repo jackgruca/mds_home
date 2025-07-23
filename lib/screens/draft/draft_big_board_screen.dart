@@ -864,8 +864,8 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
               showCheckboxColumn: false,
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _sortAscending,
-              columnSpacing: 24,
-              horizontalMargin: 20,
+              columnSpacing: 32,
+              horizontalMargin: 16,
               dividerThickness: 0,
               columns: _getModernColumns(),
               rows: [], // Empty rows for header only
@@ -882,8 +882,8 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 56,
                 showCheckboxColumn: false,
-                columnSpacing: 24,
-                horizontalMargin: 20,
+                columnSpacing: 32,
+                horizontalMargin: 16,
                 dividerThickness: 0,
                 columns: _getModernColumns(),
                 rows: _getModernRows(),
@@ -899,7 +899,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
     return [
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Rank'),
         ),
         onSort: (i, asc) {
@@ -909,7 +911,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 140,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.centerLeft,
           child: const Text('Player'),
         ),
         onSort: (i, asc) {
@@ -919,7 +923,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Pos'),
         ),
         onSort: (i, asc) {
@@ -929,7 +935,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 120,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.centerLeft,
           child: const Text('School'),
         ),
         onSort: (i, asc) {
@@ -939,7 +947,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('MDD'),
         ),
         onSort: (i, asc) {
@@ -949,7 +959,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Tank'),
         ),
         onSort: (i, asc) {
@@ -959,7 +971,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Buzz'),
         ),
         onSort: (i, asc) {
@@ -969,7 +983,9 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Avg'),
         ),
         onSort: (i, asc) {
@@ -996,22 +1012,26 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
           // Rank cell with badge
           DataCell(
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    ThemeConfig.gold,
-                    ThemeConfig.gold.withOpacity(0.8),
-                  ],
+              width: 60,
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      ThemeConfig.gold,
+                      ThemeConfig.gold.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${player.rank}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                child: Text(
+                  '${player.rank}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
@@ -1019,13 +1039,18 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
           
           // Player name cell
           DataCell(
-            Text(
-              player.name,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : ThemeConfig.darkNavy,
+            Container(
+              width: 140,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                player.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white 
+                    : ThemeConfig.darkNavy,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -1033,21 +1058,25 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
           // Position cell with colored badge
           DataCell(
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: _getPositionColor(player.position).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _getPositionColor(player.position),
-                  width: 1,
+              width: 50,
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _getPositionColor(player.position).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getPositionColor(player.position),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                player.position,
-                style: TextStyle(
-                  color: _getPositionColor(player.position),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
+                child: Text(
+                  player.position,
+                  style: TextStyle(
+                    color: _getPositionColor(player.position),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ),
@@ -1055,42 +1084,52 @@ class _DraftBigBoardScreenState extends State<DraftBigBoardScreen> with TickerPr
           
           // School cell
           DataCell(
-            Text(
-              player.school,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+            Container(
+              width: 120,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                player.school,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
           
           // Ranking cells
-          DataCell(_buildRankingCell(player.additionalRanks['MDD Rank'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['Tank Rank'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['Buzz Rank'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['Average Rank'], index)),
+          DataCell(_buildRankingCell(player.additionalRanks['MDD Rank'], index, width: 60)),
+          DataCell(_buildRankingCell(player.additionalRanks['Tank Rank'], index, width: 60)),
+          DataCell(_buildRankingCell(player.additionalRanks['Buzz Rank'], index, width: 60)),
+          DataCell(_buildRankingCell(player.additionalRanks['Average Rank'], index, width: 60)),
         ],
       );
     }).toList();
   }
 
-  Widget _buildRankingCell(dynamic value, int index) {
+  Widget _buildRankingCell(dynamic value, int index, {double width = 60}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: value != null 
-          ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
-          : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        value != null ? _formatRankValue(value) : '-',
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
+      width: width,
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
           color: value != null 
-            ? Theme.of(context).colorScheme.onSurface
-            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-          fontSize: 12,
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          value != null ? _formatRankValue(value) : '-',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: value != null 
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            fontSize: 12,
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
