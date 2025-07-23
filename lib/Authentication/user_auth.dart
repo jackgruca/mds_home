@@ -23,9 +23,12 @@ class AuthService {
       // 2. Update the newly created user's display name so that it is persisted
       User? user = result.user;
       await user!.updateDisplayName(name);
+      // Force reload so the latest profile info is available to listeners
+      await user.reload();
+      user = _auth.currentUser;
 
       // 3. Persist user details in Firestore for application-specific data
-      await _userDB.createUser(user.uid, email, name);
+      await _userDB.createUser(user!.uid, email, name);
 
       return user;
     } catch (e) {
@@ -69,19 +72,29 @@ class AuthService {
 // Create user object based upon the FireBase user...
   // This is only used by the login functions... Create seperate getter methods
   // if attempting to retrieve other user data... Like isPremium() for example...
-  mdsUser? _userFromFireBase(User user) {
+  mdsUser _userFromFireBase(User user) {
+    final String resolvedName;
+    if (user.displayName != null && user.displayName!.isNotEmpty) {
+      resolvedName = user.displayName!;
+    } else if (user.email != null && user.email!.isNotEmpty) {
+      resolvedName = user.email!.split('@').first;
+    } else {
+      resolvedName = 'User';
+    }
+
     return mdsUser(
       uid: user.uid,
-      email: user.email.toString(),
-      name: user.displayName.toString(),
+      email: user.email ?? '',
+      name: resolvedName,
       isPremium: false,
     );
   }
 
-  // User Stream  (For when the Auth Changes) ( Don't really need to worry about this )
-  Stream<mdsUser> get user {
-    return _auth
-        .authStateChanges()
-        .map((User? user) => _userFromFireBase(user!)!);
+  // Reactive user stream. Emits on sign-in/out AND profile updates (displayName, email etc.)
+  Stream<mdsUser?> get user {
+    return _auth.userChanges().map((User? firebaseUser) {
+      if (firebaseUser == null) return null;
+      return _userFromFireBase(firebaseUser);
+    });
   }
 }
