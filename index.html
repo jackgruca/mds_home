@@ -68,6 +68,7 @@
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
 
@@ -140,11 +141,18 @@
       console.log("Initializing Firebase from index.html");
       firebase.initializeApp(firebaseConfig);
       firebase.analytics();
+      
+      // Enable persistence for better offline support
+      firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(() => {
+          console.log("Firebase Auth persistence set to LOCAL");
+        })
+        .catch((error) => {
+          console.error("Error setting auth persistence:", error);
+        });
     } else {
       console.error("Firebase SDK not loaded properly");
     }
-
-    
   </script>
 </head>
 <body>
