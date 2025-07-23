@@ -11,16 +11,22 @@ class AuthService {
   // =============================================
   // === REGISTER USER WITH EMAIL AND PASSWORD ===
   // ==============================================
-  Future registerWithEmailAndPassword(String email, String password) async {
+  Future registerWithEmailAndPassword(
+      String name, String email, String password) async {
     try {
+      // 1. Create the Firebase authentication account
       UserCredential result = await _auth.createUserWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
 
-      // Create user object from UserCredential
+      // 2. Update the newly created user's display name so that it is persisted
       User? user = result.user;
+      await user!.updateDisplayName(name);
 
-      // Create user data in Firestore
-      await _userDB.createUser(user!.uid, user.email!, user.displayName!);
+      // 3. Persist user details in Firestore for application-specific data
+      await _userDB.createUser(user.uid, email, name);
+
       return user;
     } catch (e) {
       debugPrint(e.toString());

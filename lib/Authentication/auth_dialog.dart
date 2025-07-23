@@ -30,6 +30,7 @@ class _AuthDialogState extends State<AuthDialog> {
 
   final AuthService _auth = AuthService(); // New User Auth Service
   String registerError = '';
+  String signInError = '';
 
   bool _isSubmitting = false;
   bool _subscribeToUpdates = true; // Auto-checked by default
@@ -60,73 +61,73 @@ class _AuthDialogState extends State<AuthDialog> {
     });
   }
 
-  Future<void> _submitForm() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isSubmitting = true;
-      });
+  // Future<void> _submitForm() async {
+  //   if (_formKey.currentState?.validate() ?? false) {
+  //     setState(() {
+  //       _isSubmitting = true;
+  //     });
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      bool success = false;
+  //     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  //     bool success = false;
 
-      try {
-        if (_authMode == AuthMode.signIn) {
-          // Handle sign in
-          success = await authProvider.signIn(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
-        } else {
-          // Handle sign up
-          success = await authProvider.register(
-            name: _nameController.text,
-            email: _emailController.text,
-            password: _passwordController.text,
-            isSubscribed: _subscribeToUpdates,
-          );
-        }
+  //     try {
+  //       if (_authMode == AuthMode.signIn) {
+  //         // Handle sign in
+  //         success = await authProvider.signIn(
+  //           email: _emailController.text,
+  //           password: _passwordController.text,
+  //         );
+  //       } else {
+  //         // Handle sign up
+  //         success = await authProvider.register(
+  //           name: _nameController.text,
+  //           email: _emailController.text,
+  //           password: _passwordController.text,
+  //           isSubscribed: _subscribeToUpdates,
+  //         );
+  //       }
 
-        if (mounted) {
-          if (success) {
-            // Close the dialog with success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_authMode == AuthMode.signIn
-                    ? 'Successfully signed in!'
-                    : 'Account created successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            Navigator.of(context).pop(true); // Return success
-          } else {
-            // Show error message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content:
-                    Text('Error: ${authProvider.error ?? "Unknown error"}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            setState(() {
-              _isSubmitting = false;
-            });
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          setState(() {
-            _isSubmitting = false;
-          });
-        }
-      }
-    }
-  }
+  //       if (mounted) {
+  //         if (success) {
+  //           // Close the dialog with success message
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             SnackBar(
+  //               content: Text(_authMode == AuthMode.signIn
+  //                   ? 'Successfully signed in!'
+  //                   : 'Account created successfully!'),
+  //               backgroundColor: Colors.green,
+  //             ),
+  //           );
+  //           Navigator.of(context).pop(true); // Return success
+  //         } else {
+  //           // Show error message
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             SnackBar(
+  //               content:
+  //                   Text('Error: ${authProvider.error ?? "Unknown error"}'),
+  //               backgroundColor: Colors.red,
+  //             ),
+  //           );
+  //           setState(() {
+  //             _isSubmitting = false;
+  //           });
+  //         }
+  //       }
+  //     } catch (e) {
+  //       if (mounted) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text('Error: $e'),
+  //             backgroundColor: Colors.red,
+  //           ),
+  //         );
+  //         setState(() {
+  //           _isSubmitting = false;
+  //         });
+  //       }
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +271,7 @@ class _AuthDialogState extends State<AuthDialog> {
                     child: TextButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close current dialog
-                        // @TODO GRUCA: Add forgot password dialog
+                        // @TODO GRUCA: Add forgot password dialog with new auth service
                         // showDialog(
                         //   context: context,
                         //   builder: (context) => const ForgotPasswordDialog(),
@@ -318,13 +319,29 @@ class _AuthDialogState extends State<AuthDialog> {
                   onPressed: _isSubmitting
                       ? null
                       : () {
+                          // Determine action based on current auth mode
                           debugPrint("Button clicked...");
                           debugPrint("Name given: ${_nameController.text}");
                           debugPrint("Email given: ${_emailController.text}");
                           debugPrint(
                               "Password given: ${_passwordController.text}");
-                          _registerUser(
-                              _emailController.text, _passwordController.text);
+
+                          if (_authMode == AuthMode.signIn) {
+                            // Existing user attempting to sign in
+                            debugPrint("LOGGING IN...");
+                            _login(
+                              _emailController.text,
+                              _passwordController.text,
+                            );
+                          } else {
+                            // New user attempting to register
+                            debugPrint("REGISTERING...");
+                            _registerUser(
+                              _nameController.text,
+                              _emailController.text,
+                              _passwordController.text,
+                            );
+                          }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ThemeConfig.darkNavy,
@@ -384,16 +401,18 @@ class _AuthDialogState extends State<AuthDialog> {
     );
   }
 
-  void _registerUser(String email, String password) async {
+  void _registerUser(String name, String email, String password) async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSubmitting = true);
-      debugPrint(email);
-      debugPrint(password);
+      debugPrint("Name: $name");
+      debugPrint("Email: $email");
+      debugPrint("Password: $password");
       dynamic result =
-          await _auth.registerWithEmailAndPassword(email, password);
+          await _auth.registerWithEmailAndPassword(name, email, password);
       debugPrint("========================================");
       debugPrint("      Attempting to Register New User...");
       debugPrint("Information Recieved: ");
+      debugPrint("Name  : $name");
       debugPrint("Email : $email");
 
       if (result == null) {
@@ -404,6 +423,34 @@ class _AuthDialogState extends State<AuthDialog> {
         });
       } else {
         debugPrint("Registration Successful: Navigating User to HomePage...");
+        debugPrint("========================================");
+        Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    }
+  }
+
+  void _login(String email, String password) async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSubmitting = true);
+      dynamic result = await _auth.signInWithEmailAndPassword(email, password);
+
+      debugPrint("========================================");
+      debugPrint("      Attempting to Login...");
+      debugPrint("Information Recieved: ");
+      debugPrint("Email : $email");
+
+      if (result == null) {
+        setState(() {
+          signInError = 'Invalid Login Credentials';
+          debugPrint("Login Unsuccessful: $signInError...");
+          _isSubmitting = false;
+        });
+      } else {
+        debugPrint("Login Successful: Navigating User to HomePage...");
         debugPrint("========================================");
         Navigator.pushReplacement(
           // ignore: use_build_context_synchronously
