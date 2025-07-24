@@ -1521,30 +1521,43 @@ exports.getPlayerStats = functions.https.onCall(async (data, context) => {
 
     // Apply search query if provided (search by player name)
     if (data.searchQuery && data.searchQuery.trim() !== '') {
-      const searchTerm = data.searchQuery.trim().toLowerCase();
+      const searchTerm = data.searchQuery.trim();
       console.log(`Applying search for: ${searchTerm}`);
       
-      // Create a range query for player name search
-      const searchStart = searchTerm;
-      const searchEnd = searchTerm + '\uf8ff'; // Unicode character for range queries
+      // Instead of using a non-existent field, we'll fetch all data and filter in memory
+      // This is not ideal for large datasets, but works for player search
+      // Better approach would be to add the lowercase field during data import
+      const allDocsSnapshot = await query.get();
+      const filteredDocs = allDocsSnapshot.docs.filter(doc => {
+        const playerName = doc.data().player_display_name || doc.data().player_name || '';
+        return playerName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
       
-      query = query.where('player_display_name_lower', '>=', searchStart)
-                   .where('player_display_name_lower', '<=', searchEnd);
+      // Convert filtered docs to results early and return
+      const results = filteredDocs.slice(0, data.limit || 50).map(doc => {
+        const docData = doc.data();
+        // Convert any Firestore Timestamps to ISO strings
+        Object.keys(docData).forEach(key => {
+          if (docData[key] instanceof admin.firestore.Timestamp) {
+            docData[key] = docData[key].toDate().toISOString();
+          }
+        });
+        return { id: doc.id, ...docData };
+      });
+      
+      console.log(`Found ${results.length} players matching search term: ${searchTerm}`);
+      return {
+        data: results,
+        message: `Successfully found ${results.length} players matching your search.`
+      };
     }
 
     // Apply sorting
     let orderByField = data.orderBy || 'fantasy_points_ppr'; // Default sort by fantasy points
     const orderDirection = data.orderDirection === 'asc' ? 'asc' : 'desc';
     
-    // If we're doing a search, we need to order by the search field first
-    if (data.searchQuery && data.searchQuery.trim() !== '') {
-      query = query.orderBy('player_display_name_lower', 'asc');
-      if (orderByField !== 'player_display_name_lower') {
-        query = query.orderBy(orderByField, orderDirection);
-      }
-    } else {
-      query = query.orderBy(orderByField, orderDirection);
-    }
+    // Apply ordering (search is now handled above)
+    query = query.orderBy(orderByField, orderDirection);
     
     // Always add document ID for consistent pagination
     query = query.orderBy(admin.firestore.FieldPath.documentId(), 'asc');

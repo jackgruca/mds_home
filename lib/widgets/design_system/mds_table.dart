@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../utils/theme_config.dart';
+import '../player/player_link_widget.dart';
 
 enum MdsTableStyle {
   standard,    // Basic clean table with alternating rows
@@ -419,17 +420,28 @@ class _MdsTableState extends State<MdsTable> {
 
     String displayValue = _formatValue(column, value);
 
+    // Check if this should be a player link - more aggressive detection
+    Widget cellContent;
+    if (_shouldConvertToPlayerLink(displayValue, column.key)) {
+      cellContent = PlayerLinkWidget(
+        playerName: displayValue,
+        style: textStyle,
+      );
+    } else {
+      cellContent = Text(
+        displayValue,
+        style: textStyle,
+        textAlign: column.textAlign,
+      );
+    }
+
     return Container(
       width: double.infinity,
       height: double.infinity,
       color: backgroundColor,
       alignment: column.numeric ? Alignment.centerRight : Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Text(
-        displayValue,
-        style: textStyle,
-        textAlign: column.textAlign,
-      ),
+      child: cellContent,
     );
   }
 
@@ -445,6 +457,67 @@ class _MdsTableState extends State<MdsTable> {
     }
     
     return value.toString();
+  }
+  
+  bool _shouldConvertToPlayerLink(String value, String columnName) {
+    if (value.trim().isEmpty || value == 'N/A') return false;
+    
+    // Column names that typically contain player names
+    final playerColumns = [
+      'player_name',
+      'name', 
+      'passer_player_name',
+      'rusher_player_name',
+      'receiver_player_name',
+      'fantasy_player_name',
+      'player',
+      'player_display_name',
+    ];
+    
+    // Check column name
+    final lowerColumnName = columnName.toLowerCase();
+    if (playerColumns.any((col) => lowerColumnName.contains(col.toLowerCase()))) {
+      return true;
+    }
+    
+    // Advanced heuristics for player name detection
+    final trimmedValue = value.trim();
+    
+    // Must have at least 2 parts (first and last name)
+    final parts = trimmedValue.split(' ');
+    if (parts.length < 2) return false;
+    
+    // Check if it looks like a name pattern (Title Case)
+    bool looksLikeName = parts.every((part) {
+      if (part.isEmpty) return false;
+      return part[0].toUpperCase() == part[0] && 
+             part.length > 1 && 
+             part.substring(1).toLowerCase() == part.substring(1);
+    });
+    
+    if (!looksLikeName) return false;
+    
+    // Exclude common non-player strings
+    final excludePatterns = [
+      'team',
+      'total',
+      'average',
+      'league',
+      'division',
+      'conference',
+      'null',
+      'n/a',
+    ];
+    
+    final lowerValue = trimmedValue.toLowerCase();
+    if (excludePatterns.any((pattern) => lowerValue.contains(pattern))) {
+      return false;
+    }
+    
+    // Length checks - typical player names
+    if (trimmedValue.length < 4 || trimmedValue.length > 30) return false;
+    
+    return true;
   }
 }
 

@@ -9,7 +9,6 @@ import 'screens/team_selection_screen.dart';
 import 'screens/historical_data_screen.dart';
 import 'screens/hubs/gm_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
-import 'screens/hubs/data_explorer_screen.dart';
 import 'screens/wr_model_screen.dart';
 import 'screens/player_season_stats_screen.dart';
 import 'screens/nfl_rosters_screen.dart';
@@ -48,6 +47,11 @@ import 'screens/rankings/run_offense_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
+import 'screens/player_profile_screen.dart';
+import 'screens/enhanced_data_hub_screen.dart';
+import 'screens/player_link_test_screen.dart';
+import 'services/instant_player_cache.dart';
+import 'services/super_fast_player_service.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
 
@@ -111,6 +115,12 @@ Future<void> _preloadCommonAnalytics() async {
     } catch (e) {
       debugPrint('Error preloading analytics data: $e');
     }
+    
+    // Preload instant player cache
+    InstantPlayerCache.preloadCommonPlayers();
+    await SuperFastPlayerService.initialize();
+    SuperFastPlayerService.preloadCommonPlayers();
+    debugPrint('Preloaded instant player cache');
   });
 }
 
@@ -156,6 +166,16 @@ class _MyAppState extends State<MyApp> {
               return blogRoute;
             }
             
+            // Handle player profile routes
+            if (settings.name != null && settings.name!.startsWith('/player/')) {
+              final playerId = settings.name!.substring('/player/'.length);
+              if (playerId.isNotEmpty) {
+                return MaterialPageRoute(
+                  builder: (_) => PlayerProfileScreen(playerId: playerId),
+                );
+              }
+            }
+            
             // Handle regular routes
             switch (settings.name) {
               case '/':
@@ -171,7 +191,9 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+                return MaterialPageRoute(builder: (_) => const EnhancedDataHubScreen());
+              case '/test/player-links':
+                return MaterialPageRoute(builder: (_) => const PlayerLinkTestScreen());
               case '/data/passing':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
