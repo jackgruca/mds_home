@@ -6,6 +6,30 @@ class OffenseTierService {
   static const String _runOffenseCollection = 'run_offense_rankings';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Safely convert value to double, handling nulls and different number types
+  double _safeToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      return parsed ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  /// Safely convert value to int, handling nulls and different number types
+  int _safeToInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.round();
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      return parsed ?? 0;
+    }
+    return 0;
+  }
+
   /// Calculate pass offense tiers based on R script logic
   Future<List<Map<String, dynamic>>> calculatePassOffenseTiers(String season) async {
     try {
@@ -24,10 +48,10 @@ class OffenseTierService {
           'id': doc.id,
           'posteam': data['posteam'] ?? '',
           'season': data['season'] ?? season,
-          'totalEP': (data['totalEP'] ?? 0.0).toDouble(),
-          'totalYds': (data['totalYds'] ?? 0.0).toDouble(),
-          'totalTD': (data['totalTD'] ?? 0).toInt(),
-          'successRate': (data['successRate'] ?? 0.0).toDouble(),
+          'totalEP': _safeToDouble(data['totalEP']),
+          'totalYds': _safeToDouble(data['totalYds']),
+          'totalTD': _safeToInt(data['totalTD']),
+          'successRate': _safeToDouble(data['successRate']),
         };
       }).toList();
 
@@ -42,13 +66,14 @@ class OffenseTierService {
       // Calculate composite ranking using formula from R script
       // myRank = yds_rank+TD_rank+success_rank (EP_rank not used in final calculation)
       for (var offense in offenseData) {
-        offense['myRank'] = offense['yds_rank'] + 
-                           offense['TD_rank'] + 
-                           offense['success_rank'];
+        final ydsRank = _safeToDouble(offense['yds_rank']);
+        final tdRank = _safeToDouble(offense['TD_rank']);
+        final successRank = _safeToDouble(offense['success_rank']);
+        offense['myRank'] = ydsRank + tdRank + successRank;
       }
 
-      // Sort by composite rank (descending - higher is better)
-      offenseData.sort((a, b) => b['myRank'].compareTo(a['myRank']));
+      // Sort by composite rank (ascending - lower is better, since rank 1 is best)
+      offenseData.sort((a, b) => (_safeToDouble(a['myRank'])).compareTo(_safeToDouble(b['myRank'])));
 
       // Assign rank numbers and tiers
       for (int i = 0; i < offenseData.length; i++) {
@@ -80,10 +105,10 @@ class OffenseTierService {
           'id': doc.id,
           'posteam': data['posteam'] ?? '',
           'season': data['season'] ?? season,
-          'totalEP': (data['totalEP'] ?? 0.0).toDouble(),
-          'totalYds': (data['totalYds'] ?? 0.0).toDouble(),
-          'totalTD': (data['totalTD'] ?? 0).toInt(),
-          'successRate': (data['successRate'] ?? 0.0).toDouble(),
+          'totalEP': _safeToDouble(data['totalEP']),
+          'totalYds': _safeToDouble(data['totalYds']),
+          'totalTD': _safeToInt(data['totalTD']),
+          'successRate': _safeToDouble(data['successRate']),
         };
       }).toList();
 
@@ -98,13 +123,14 @@ class OffenseTierService {
       // Calculate composite ranking using formula from R script
       // myRank = yds_rank+TD_rank+success_rank (EP_rank not used in final calculation)
       for (var offense in offenseData) {
-        offense['myRank'] = offense['yds_rank'] + 
-                           offense['TD_rank'] + 
-                           offense['success_rank'];
+        final ydsRank = _safeToDouble(offense['yds_rank']);
+        final tdRank = _safeToDouble(offense['TD_rank']);
+        final successRank = _safeToDouble(offense['success_rank']);
+        offense['myRank'] = ydsRank + tdRank + successRank;
       }
 
-      // Sort by composite rank (descending - higher is better)
-      offenseData.sort((a, b) => b['myRank'].compareTo(a['myRank']));
+      // Sort by composite rank (ascending - lower is better, since rank 1 is best)
+      offenseData.sort((a, b) => (_safeToDouble(a['myRank'])).compareTo(_safeToDouble(b['myRank'])));
 
       // Assign rank numbers and tiers
       for (int i = 0; i < offenseData.length; i++) {
@@ -123,21 +149,44 @@ class OffenseTierService {
     if (data.isEmpty) return;
 
     for (String metric in metrics) {
-      _calculatePercentileRank(data, metric, '${metric.replaceAll('total', '').toLowerCase()}_rank');
+      String rankField;
+      switch (metric) {
+        case 'totalEP':
+          rankField = 'EP_rank';
+          break;
+        case 'totalYds':
+          rankField = 'yds_rank';
+          break;
+        case 'totalTD':
+          rankField = 'TD_rank';
+          break;
+        case 'successRate':
+          rankField = 'success_rank';
+          break;
+        default:
+          rankField = '${metric.replaceAll('total', '').toLowerCase()}_rank';
+      }
+      _calculatePercentileRank(data, metric, rankField);
     }
   }
 
-  /// Calculate percentile rank for a specific metric
+  /// Calculate actual rank numbers for a specific metric (1 = best, higher values = better rank)
   void _calculatePercentileRank(List<Map<String, dynamic>> data, String valueKey, String rankKey) {
-    // Sort by value (ascending)
-    final sortedValues = data.map((item) => item[valueKey] as double).toList()..sort();
+    if (data.isEmpty) return;
     
-    // Calculate percentile rank for each item
-    for (var item in data) {
-      final value = item[valueKey] as double;
-      final rank = sortedValues.indexOf(value);
-      final percentileRank = rank / (sortedValues.length - 1);
-      item[rankKey] = percentileRank;
+    // Create a list of items with their values for sorting
+    final itemsWithValues = data.map((item) => {
+      'item': item,
+      'value': _safeToDouble(item[valueKey]),
+    }).toList();
+    
+    // Sort by value (descending - higher values get better ranks)
+    itemsWithValues.sort((a, b) => (b['value'] as double).compareTo(a['value'] as double));
+    
+    // Assign rank numbers (1-based, where 1 = highest value)
+    for (int i = 0; i < itemsWithValues.length; i++) {
+      final item = itemsWithValues[i]['item'] as Map<String, dynamic>;
+      item[rankKey] = i + 1;
     }
   }
 

@@ -43,6 +43,8 @@ import 'screens/projections/player_projections_screen.dart';
 import 'screens/rankings/wr_rankings_screen.dart';
 import 'screens/rankings/rb_rankings_screen.dart';
 import 'screens/rankings/te_rankings_screen.dart';
+import 'screens/rankings/pass_offense_rankings_screen.dart';
+import 'screens/rankings/run_offense_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
@@ -237,6 +239,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
               case '/rankings/te':
                 return MaterialPageRoute(builder: (_) => const TERankingsScreen());
+              case '/rankings/pass-offense':
+                return MaterialPageRoute(builder: (_) => const PassOffenseRankingsScreen());
+              case '/rankings/run-offense':
+                return MaterialPageRoute(builder: (_) => const RunOffenseRankingsScreen());
               case '/my-rankings':
                 return MaterialPageRoute(builder: (_) => const MyRankingsScreen());
               case '/vorp/my-rankings':

@@ -119,7 +119,7 @@ class RankingCellShadingService {
     double height = 40,
   }) {
     final displayValue = showRanks ? rankValue : value;
-    final isRankField = showRanks && column.endsWith('_rank_num');
+    final isRankField = showRanks && column.endsWith('_rank');
     
     // Handle string fields - don't try to convert to number
     double numValue = 0.0;

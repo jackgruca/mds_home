@@ -87,6 +87,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    
+    
     _fetchRankings();
     
     // Update SEO for Big Board
@@ -1552,8 +1554,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
               showCheckboxColumn: false,
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _sortAscending,
-              columnSpacing: 24,
-              horizontalMargin: 20,
+              columnSpacing: 32,
+              horizontalMargin: 16,
               dividerThickness: 0,
               columns: _getModernColumns(),
               rows: [], // Empty rows for header only
@@ -1570,8 +1572,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 56,
                 showCheckboxColumn: false,
-                columnSpacing: 24,
-                horizontalMargin: 20,
+                columnSpacing: 32,
+                horizontalMargin: 16,
                 dividerThickness: 0,
                 columns: _getModernColumns(),
                 rows: _getModernRows(),
@@ -1627,8 +1629,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
               showCheckboxColumn: false,
               sortColumnIndex: _sortColumnIndex,
               sortAscending: _sortAscending,
-              columnSpacing: 24,
-              horizontalMargin: 20,
+              columnSpacing: 32,
+              horizontalMargin: 16,
               dividerThickness: 0,
               columns: _getModernColumns(),
               rows: _getModernRows(),
@@ -1642,7 +1644,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     return [
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Rank'),
         ),
         onSort: (i, asc) {
@@ -1652,7 +1656,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 140,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.centerLeft,
           child: const Text('Player'),
         ),
         onSort: (i, asc) {
@@ -1662,7 +1668,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Pos'),
         ),
         onSort: (i, asc) {
@@ -1672,7 +1680,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 80,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Team'),
         ),
         onSort: (i, asc) {
@@ -1682,7 +1692,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Bye'),
         ),
         onSort: (i, asc) {
@@ -1692,7 +1704,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('PFF'),
         ),
         onSort: (i, asc) {
@@ -1702,7 +1716,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('CBS'),
         ),
         onSort: (i, asc) {
@@ -1712,7 +1728,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('ESPN'),
         ),
         onSort: (i, asc) {
@@ -1722,7 +1740,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('FFT'),
         ),
         onSort: (i, asc) {
@@ -1732,7 +1752,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('FG'),
         ),
         onSort: (i, asc) {
@@ -1742,7 +1764,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 60,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('Yahoo'),
         ),
         onSort: (i, asc) {
@@ -1752,7 +1776,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       ),
       DataColumn(
         label: Container(
+          width: 50,
           padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
           child: const Text('NFL'),
         ),
         onSort: (i, asc) {
@@ -1864,22 +1890,26 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           // Rank cell with badge
           DataCell(
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    ThemeConfig.gold,
-                    ThemeConfig.gold.withOpacity(0.8),
-                  ],
+              width: 60,
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      ThemeConfig.gold,
+                      ThemeConfig.gold.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${player.rank}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                child: Text(
+                  '${player.rank}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
@@ -1887,13 +1917,18 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           
           // Player name cell
           DataCell(
-            Text(
-              player.name,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).brightness == Brightness.dark 
-                  ? Colors.white 
-                  : ThemeConfig.darkNavy,
+            Container(
+              width: 140,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                player.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white 
+                    : ThemeConfig.darkNavy,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -1901,21 +1936,25 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           // Position cell with colored badge
           DataCell(
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: _getPositionColor(player.position).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: _getPositionColor(player.position),
-                  width: 1,
+              width: 50,
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _getPositionColor(player.position).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getPositionColor(player.position),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                player.position,
-                style: TextStyle(
-                  color: _getPositionColor(player.position),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
+                child: Text(
+                  player.position,
+                  style: TextStyle(
+                    color: _getPositionColor(player.position),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ),
@@ -1923,33 +1962,41 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           
           // Team cell with logo
           DataCell(
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (player.team.isNotEmpty) ...[
-                  TeamLogoUtils.buildNFLTeamLogo(player.team, size: 16),
-                  const SizedBox(width: 4),
-                ],
-                Text(
-                  player.team,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+            Container(
+              width: 80,
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (player.team.isNotEmpty) ...[
+                    TeamLogoUtils.buildNFLTeamLogo(player.team, size: 16),
+                    const SizedBox(width: 4),
+                  ],
+                  Flexible(
+                    child: Text(
+                      player.team,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           
           // Ranking cells
-          DataCell(_buildRankingCell(player.additionalRanks['Bye'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['PFF'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['CBS'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['ESPN'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['FFToday'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['FootballGuys'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['Yahoo'], index)),
-          DataCell(_buildRankingCell(player.additionalRanks['NFL'], index)),
+          DataCell(_buildRankingCell(player.additionalRanks['Bye'], index, width: 50)),
+          DataCell(_buildRankingCell(player.additionalRanks['PFF'], index, width: 50)),
+          DataCell(_buildRankingCell(player.additionalRanks['CBS'], index, width: 50)),
+          DataCell(_buildRankingCell(player.additionalRanks['ESPN'], index, width: 60)),
+          DataCell(_buildRankingCell(player.additionalRanks['FFToday'], index, width: 50)),
+          DataCell(_buildRankingCell(player.additionalRanks['FootballGuys'], index, width: 50)),
+          DataCell(_buildRankingCell(player.additionalRanks['Yahoo'], index, width: 60)),
+          DataCell(_buildRankingCell(player.additionalRanks['NFL'], index, width: 50)),
           
           // Custom Rankings column (only show when custom rankings are active)
           if (_includeCustomRankings)
@@ -1994,23 +2041,28 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     }).toList();
   }
 
-  Widget _buildRankingCell(dynamic value, int index) {
+  Widget _buildRankingCell(dynamic value, int index, {double width = 50}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: value != null 
-          ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
-          : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        value?.toString() ?? '-',
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
+      width: width,
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
           color: value != null 
-            ? Theme.of(context).colorScheme.onSurface
-            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-          fontSize: 12,
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          value?.toString() ?? '-',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: value != null 
+              ? Theme.of(context).colorScheme.onSurface
+              : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            fontSize: 12,
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );

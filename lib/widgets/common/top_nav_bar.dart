@@ -68,6 +68,8 @@ final List<NavItem> topNavItems = [
       NavItem(title: 'WR', route: '/rankings/wr', isPlaceholder: false),
       NavItem(title: 'TE', route: '/rankings/te', isPlaceholder: false),
       NavItem(title: 'RB', route: '/rankings/rb', isPlaceholder: false),
+      NavItem(title: 'Pass Offense', route: '/rankings/pass-offense', isPlaceholder: false),
+      NavItem(title: 'Run Offense', route: '/rankings/run-offense', isPlaceholder: false),
     ],
   ),
   
