@@ -73,6 +73,15 @@ service cloud.firestore {
       allow read: if true;
     }
     
+    // Allow read access to offense rankings
+    match /pass_offense_rankings/{document} {
+      allow read: if true;
+    }
+    
+    match /run_offense_rankings/{document} {
+      allow read: if true;
+    }
+    
     // Allow read access to depth charts
     match /depthCharts/{document} {
       allow read: if true;
