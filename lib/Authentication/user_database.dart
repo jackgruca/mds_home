@@ -45,4 +45,15 @@ class UserDatabase {
   Future<void> updateUserPremium(String uid, bool isPremium) async {
     await userCollection.doc(uid).update({'isPremium': isPremium});
   }
+
+  // Update user's display name...
+  Future<void> updateUserDisplayName(String uid, String displayName) async {
+    await userCollection.doc(uid).update({'name': displayName});
+  }
+
+  // Check a user's premium status...
+  Future<bool> isUserPremium(String uid) async {
+    final user = await userCollection.doc(uid).get();
+    return (user.data() as Map<String, dynamic>)['isPremium'] ?? false;
+  }
 }

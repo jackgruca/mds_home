@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:mds_home/Authentication/user.dart';
+import 'package:mds_home/Authentication/user_database.dart';
 import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme_manager.dart';
@@ -27,6 +28,11 @@ class _HomeScreenState extends State<HomeScreen>
   // Animation controller for scroll-triggered animations
   late AnimationController _scrollAnimationController;
   final ScrollController _scrollController = ScrollController();
+
+  bool _isPremium = false; // store user's premium status
+
+  // Flag to ensure we only query once per user
+  String? _queriedUserId;
 
   // Global key for scrolling to tools section
   final GlobalKey _toolsSectionKey = GlobalKey();
@@ -173,6 +179,25 @@ class _HomeScreenState extends State<HomeScreen>
     // Update SEO for homepage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SEOHelper.updateForHomepage();
+
+      // Fetch user's premium status once after first frame
+      final mdsUser? user = Provider.of<mdsUser?>(context, listen: false);
+      _fetchPremiumStatus(user);
+    });
+  }
+
+  void _fetchPremiumStatus(mdsUser? user) {
+    if (user == null) return;
+
+    // Grab user's premium status
+    UserDatabase().isUserPremium(user.uid).then((value) {
+      if (mounted) {
+        setState(() {
+          _isPremium = value;
+        });
+      }
+    }).catchError((e) {
+      debugPrint('Error fetching premium status: $e');
     });
   }
 
@@ -201,8 +226,9 @@ class _HomeScreenState extends State<HomeScreen>
     final textTheme = theme.textTheme;
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     final user = Provider.of<mdsUser?>(context);
-
-    debugPrint(" Current User: ${user?.email}");
+    debugPrint(" Current User : ${user?.uid}"); // User uid
+    debugPrint(" User Email   : ${user?.email}"); // User email
+    debugPrint(" Is Premium   : $_isPremium"); // User's premium status
 
     return Scaffold(
       appBar: CustomAppBar(
