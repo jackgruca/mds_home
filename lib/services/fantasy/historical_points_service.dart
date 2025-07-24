@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../../models/fantasy/scoring_settings.dart';
 
 class HistoricalPointsService {
   // Historical PPR points by position and rank (based on 2019-2023 averages)
@@ -188,6 +189,147 @@ class HistoricalPointsService {
     final finalPoints = max(extrapolatedPoints, minimumPoints);
     
     return _adjustForScoringSystem(finalPoints, scoringSystem);
+  }
+
+  /// Convert historical PPR projections to custom scoring
+  /// 
+  /// This method takes the historical PPR-based projections and adjusts them
+  /// based on custom scoring settings. It uses typical stat distributions
+  /// for each position to recalculate points.
+  static double calculateCustomScoringPoints(
+    String position,
+    int rank,
+    ScoringSettings scoringSettings,
+  ) {
+    // Get base PPR points for this rank
+    final basePPRPoints = rankToPoints(position, rank, scoringSystem: 'ppr');
+    
+    // If using standard presets, use existing adjustment
+    if (scoringSettings.scoringType == ScoringType.standard) {
+      return rankToPoints(position, rank, scoringSystem: 'standard');
+    } else if (scoringSettings.scoringType == ScoringType.halfPPR) {
+      return rankToPoints(position, rank, scoringSystem: 'half_ppr');
+    } else if (scoringSettings.scoringType == ScoringType.ppr && 
+               scoringSettings.passingTDPoints == 4 &&
+               scoringSettings.tePremiumBonus == 0) {
+      return basePPRPoints;
+    }
+    
+    // For custom scoring, estimate stat breakdown based on position and rank
+    switch (position.toLowerCase()) {
+      case 'qb':
+        return _calculateQBPoints(rank, basePPRPoints, scoringSettings);
+      case 'rb':
+        return _calculateRBPoints(rank, basePPRPoints, scoringSettings);
+      case 'wr':
+        return _calculateWRPoints(rank, basePPRPoints, scoringSettings);
+      case 'te':
+        return _calculateTEPoints(rank, basePPRPoints, scoringSettings);
+      default:
+        return basePPRPoints;
+    }
+  }
+  
+  static double _calculateQBPoints(int rank, double basePPRPoints, ScoringSettings settings) {
+    // Typical QB stat distribution (based on rank)
+    // QB1: ~4500 yards, 35 TDs, 10 INTs
+    // QB12: ~3800 yards, 25 TDs, 12 INTs
+    // QB24: ~3000 yards, 18 TDs, 15 INTs
+    
+    double yardsMultiplier = 1.0 - (rank - 1) * 0.015;
+    double tdMultiplier = 1.0 - (rank - 1) * 0.025;
+    double intMultiplier = 1.0 + (rank - 1) * 0.015;
+    
+    double passingYards = 4500 * yardsMultiplier;
+    double passingTDs = 35 * tdMultiplier;
+    double interceptions = 10 * intMultiplier;
+    double rushingYards = max(200 - (rank * 5), 0);
+    double rushingTDs = max(3 - (rank * 0.1), 0);
+    
+    return settings.calculatePoints(
+      position: 'QB',
+      passingYards: passingYards,
+      passingTDs: passingTDs,
+      interceptions: interceptions,
+      rushingYards: rushingYards,
+      rushingTDs: rushingTDs,
+    );
+  }
+  
+  static double _calculateRBPoints(int rank, double basePPRPoints, ScoringSettings settings) {
+    // Typical RB stat distribution
+    // RB1: ~1200 rush yards, 10 rush TDs, 60 rec, 500 rec yards, 4 rec TDs
+    // RB12: ~900 rush yards, 7 rush TDs, 45 rec, 350 rec yards, 2 rec TDs
+    // RB24: ~600 rush yards, 4 rush TDs, 30 rec, 250 rec yards, 1 rec TD
+    
+    double multiplier = 1.0 - (rank - 1) * 0.025;
+    
+    double rushingYards = 1200 * multiplier;
+    double rushingTDs = 10 * multiplier;
+    double receptions = 60 * multiplier;
+    double receivingYards = 500 * multiplier;
+    double receivingTDs = 4 * multiplier;
+    
+    return settings.calculatePoints(
+      position: 'RB',
+      rushingYards: rushingYards,
+      rushingTDs: rushingTDs,
+      receptions: receptions,
+      receivingYards: receivingYards,
+      receivingTDs: receivingTDs,
+    );
+  }
+  
+  static double _calculateWRPoints(int rank, double basePPRPoints, ScoringSettings settings) {
+    // Typical WR stat distribution
+    // WR1: ~100 rec, 1400 yards, 10 TDs
+    // WR12: ~80 rec, 1100 yards, 7 TDs
+    // WR24: ~65 rec, 850 yards, 5 TDs
+    
+    double multiplier = 1.0 - (rank - 1) * 0.015;
+    
+    double receptions = 100 * multiplier;
+    double receivingYards = 1400 * multiplier;
+    double receivingTDs = 10 * multiplier;
+    double rushingYards = max(50 - (rank * 2), 0);
+    
+    return settings.calculatePoints(
+      position: 'WR',
+      receptions: receptions,
+      receivingYards: receivingYards,
+      receivingTDs: receivingTDs,
+      rushingYards: rushingYards,
+    );
+  }
+  
+  static double _calculateTEPoints(int rank, double basePPRPoints, ScoringSettings settings) {
+    // Typical TE stat distribution
+    // TE1: ~85 rec, 1100 yards, 8 TDs
+    // TE6: ~65 rec, 750 yards, 5 TDs
+    // TE12: ~50 rec, 550 yards, 3 TDs
+    
+    double multiplier = 1.0 - (rank - 1) * 0.025;
+    
+    double receptions = 85 * multiplier;
+    double receivingYards = 1100 * multiplier;
+    double receivingTDs = 8 * multiplier;
+    
+    return settings.calculatePoints(
+      position: 'TE',
+      receptions: receptions,
+      receivingYards: receivingYards,
+      receivingTDs: receivingTDs,
+    );
+  }
+  
+  /// Get replacement level points with custom scoring
+  static double getReplacementLevelPointsWithCustomScoring(
+    String position,
+    Map<String, int> leagueSettings,
+    ScoringSettings scoringSettings,
+  ) {
+    final replacementRank = getReplacementRank(position, leagueSettings);
+    return calculateCustomScoringPoints(position, replacementRank, scoringSettings);
   }
 
   /// Get default league settings for VORP calculations

@@ -1,4 +1,5 @@
 import 'historical_points_service.dart';
+import '../../models/fantasy/scoring_settings.dart';
 
 class VORPPlayer {
   final String playerId;
@@ -195,6 +196,93 @@ class VORPService {
       weightedPlayers,
       leagueSettings: leagueSettings,
       scoringSystem: scoringSystem,
+    );
+  }
+  
+  /// Calculate VORP with custom scoring settings
+  static VORPBoard calculateVORPWithCustomScoring(
+    List<Map<String, dynamic>> players,
+    ScoringSettings scoringSettings,
+    {Map<String, int>? leagueSettings,
+    Map<String, double>? customWeights}
+  ) {
+    final settings = leagueSettings ?? HistoricalPointsService.getDefaultLeagueSettings();
+    final vorpPlayers = <VORPPlayer>[];
+    
+    // Apply custom weights if provided
+    final playersToProcess = customWeights != null 
+        ? _applyCustomWeights(players, customWeights)
+        : players;
+    
+    // Calculate replacement levels with custom scoring
+    final replacementLevels = <String, double>{};
+    for (final position in ['qb', 'rb', 'wr', 'te']) {
+      final replacementRank = HistoricalPointsService.getReplacementRank(position, settings);
+      final replacementPoints = HistoricalPointsService.calculateCustomScoringPoints(
+        position,
+        replacementRank,
+        scoringSettings,
+      );
+      replacementLevels[position] = replacementPoints;
+      
+      print('🔥 REPLACEMENT DEBUG - $position: rank $replacementRank = ${replacementPoints.toStringAsFixed(1)} points');
+    }
+    
+    // Calculate VORP for each player with custom scoring
+    for (final playerData in playersToProcess) {
+      final position = (playerData['position'] ?? '').toString().toLowerCase();
+      if (!replacementLevels.containsKey(position)) continue;
+      
+      final positionRank = playerData['myRankNum'] ?? playerData['rank'] ?? 99;
+      final projectedPoints = HistoricalPointsService.calculateCustomScoringPoints(
+        position,
+        positionRank,
+        scoringSettings,
+      );
+      
+      final replacementPoints = replacementLevels[position]!;
+      
+      
+      final vorpPlayer = VORPPlayer.fromPlayerData(
+        playerData,
+        projectedPoints,
+        replacementPoints,
+      );
+      
+      vorpPlayers.add(vorpPlayer);
+    }
+    
+    // Sort players by VORP for tier assignment
+    vorpPlayers.sort((a, b) => b.vorp.compareTo(a.vorp));
+    
+    // Assign VORP tiers
+    for (int i = 0; i < vorpPlayers.length; i++) {
+      final player = vorpPlayers[i];
+      String tier;
+      if (player.vorp >= 80) {
+        tier = 'Elite';
+      } else if (player.vorp >= 50) {
+        tier = 'High';
+      } else if (player.vorp >= 20) {
+        tier = 'Solid';
+      } else if (player.vorp >= 5) {
+        tier = 'Decent';
+      } else if (player.vorp >= 0) {
+        tier = 'Replacement';
+      } else {
+        tier = 'Below Replacement';
+      }
+      
+      // Update player data with tier info
+      player.additionalData['vorpTier'] = tier;
+      player.additionalData['overallRank'] = i + 1;
+    }
+    
+    return VORPBoard(
+      players: vorpPlayers,
+      leagueSettings: settings,
+      scoringSystem: scoringSettings.displayName,
+      generatedAt: DateTime.now(),
     );
   }
 

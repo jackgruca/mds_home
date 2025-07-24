@@ -18,6 +18,9 @@ import '../../widgets/rankings/consensus_weight_adjustment_panel.dart';
 import '../../services/fantasy/vorp_service.dart';
 import '../../models/fantasy/vorp_big_board.dart';
 import '../../services/vorp/custom_vorp_ranking_service.dart';
+import '../../models/fantasy/scoring_settings.dart';
+import '../../widgets/fantasy/scoring_settings_panel.dart';
+import '../../widgets/fantasy/scoring_impact_preview.dart';
 
 class BigBoardScreen extends StatefulWidget {
   const BigBoardScreen({super.key});
@@ -38,11 +41,16 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   List<PlayerRanking> _filteredRankings = [];
   List<PlayerRanking> _cachedVisibleRankings = [];
   int? _sortColumnIndex;
-  final bool _sortAscending = true;
+  bool _sortAscending = true;
   final CSVRankingsService _csvService = CSVRankingsService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _lastSearchQuery = '';
+  
+  // Scroll controllers for frozen columns
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _frozenColumnScrollController = ScrollController();
   String _lastPositionFilter = '';
   int _lastCurrentPage = -1;
   Timer? _searchDebounce;
@@ -76,6 +84,11 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     'flex': 1,
   };
   String _scoringSystem = 'ppr';
+  
+  // Custom scoring variables
+  ScoringSettings _scoringSettings = ScoringSettings.ppr;
+  bool _showScoringPanel = false;
+  ScoringSettings? _previousScoringSettings;
 
   @override
   void initState() {
@@ -88,7 +101,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     
-    
+    _setupScrollSynchronization();
     _fetchRankings();
     
     // Update SEO for Big Board
@@ -107,7 +120,27 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     _searchController.dispose();
     _animationController.dispose();
     _searchDebounce?.cancel();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
+    _frozenColumnScrollController.dispose();
     super.dispose();
+  }
+  
+  void _setupScrollSynchronization() {
+    // Bidirectional vertical scroll synchronization
+    _verticalScrollController.addListener(() {
+      if (_frozenColumnScrollController.hasClients && 
+          _frozenColumnScrollController.offset != _verticalScrollController.offset) {
+        _frozenColumnScrollController.jumpTo(_verticalScrollController.offset);
+      }
+    });
+    
+    _frozenColumnScrollController.addListener(() {
+      if (_verticalScrollController.hasClients && 
+          _verticalScrollController.offset != _frozenColumnScrollController.offset) {
+        _verticalScrollController.jumpTo(_frozenColumnScrollController.offset);
+      }
+    });
   }
 
   Future<void> _fetchRankings() async {
@@ -160,8 +193,9 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       return; // Use cached results
     }
     
-    // Filter all rankings first
-    final allFilteredRankings = _rankings.where((player) {
+    // Filter all rankings first - use _filteredRankings if in VORP mode
+    final sourceRankings = _showVORPMode ? _filteredRankings : _rankings;
+    final allFilteredRankings = sourceRankings.where((player) {
       final matchesSearch = _searchQuery.isEmpty ||
         player.name.toLowerCase().contains(_searchQuery) ||
         player.position.toLowerCase().contains(_searchQuery) ||
@@ -366,6 +400,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   void _toggleVORPMode() {
+    print('🎯 VORP Mode Toggle - Current state: $_showVORPMode → ${!_showVORPMode}');
+    print('🎯 Current rankings count: ${_rankings.length}');
+    print('🎯 Current filtered rankings count: ${_filteredRankings.length}');
+    
     setState(() {
       _showVORPMode = !_showVORPMode;
       // Clear cache to force recalculation
@@ -374,9 +412,14 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       _lastPositionFilter = '';
       _lastCurrentPage = -1;
       
+      // Force column index reset to ensure proper re-render
+      _sortColumnIndex = null;
+      
       if (_showVORPMode) {
+        print('🎯 VORP Mode ON - Calculating VORP board...');
         _calculateVORPBoard();
       } else {
+        print('🎯 VORP Mode OFF - Clearing VORP data...');
         _vorpBoard = null;
         // Restore original rankings order when exiting VORP mode
         _filteredRankings = List.from(_rankings);
@@ -387,11 +430,25 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   Future<void> _calculateVORPBoard() async {
-    if (_rankings.isEmpty) return;
+    print('🎯 _calculateVORPBoard called - Rankings count: ${_rankings.length}');
+    if (_rankings.isEmpty) {
+      print('🎯 ERROR: No rankings available for VORP calculation!');
+      return;
+    }
 
     try {
+      // Calculate position ranks for each position
+      final positionRanks = <String, int>{};
+      for (final position in ['QB', 'RB', 'WR', 'TE']) {
+        positionRanks[position] = 1;
+      }
+      
       // Convert PlayerRanking objects to Map format for VORP service
       final playersData = _rankings.map((player) {
+        final position = player.position.toUpperCase();
+        final positionRank = positionRanks[position] ?? 1;
+        positionRanks[position] = positionRank + 1; // Increment for next player of this position
+        
         return {
           'player_id': player.id,
           'fantasy_player_name': player.name,
@@ -399,31 +456,25 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           'position': player.position.toLowerCase(),
           'posteam': player.team,
           'team': player.team,
-          'myRankNum': player.rank,
-          'rank': player.rank,
-          'tier': _getPositionTier(player.position, player.rank),
+          'myRankNum': positionRank, // Use position rank, not overall rank
+          'rank': positionRank, // Use position rank, not overall rank
+          'tier': _getPositionTier(player.position, positionRank),
           // Include all ranking data
           ...player.additionalRanks.map((key, value) => MapEntry(key.toLowerCase(), value)),
         };
       }).toList();
 
       VORPBoard vorpBoard;
-      if (_usingCustomWeights) {
-        // Use custom weights for VORP calculation
-        vorpBoard = VORPService.calculateVORPWithCustomWeights(
-          playersData,
-          _consensusWeights.allWeights,
-          leagueSettings: _leagueSettings,
-          scoringSystem: _scoringSystem,
-        );
-      } else {
-        // Use standard consensus rankings
-        vorpBoard = VORPService.calculateVORP(
-          playersData,
-          leagueSettings: _leagueSettings,
-          scoringSystem: _scoringSystem,
-        );
-      }
+      
+      // Always use custom scoring calculation for consistency
+      print('🔥 Calculating VORP with ${playersData.length} players');
+      vorpBoard = VORPService.calculateVORPWithCustomScoring(
+        playersData,
+        _scoringSettings,
+        leagueSettings: _leagueSettings,
+        customWeights: _usingCustomWeights ? _consensusWeights.allWeights : null,
+      );
+      print('🔥 VORP Board created with ${vorpBoard.players.length} players');
 
       setState(() {
         _vorpBoard = VORPBigBoard.fromVORPBoard(
@@ -451,6 +502,8 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
 
   void _updateRankingsFromVORP() {
     if (_vorpBoard == null) return;
+    
+    print('🔥 Updating rankings from VORP with ${_vorpBoard!.players.length} players');
 
     // Create a map for quick lookup
     final vorpPlayerMap = <String, VORPBigBoardPlayer>{};
@@ -458,26 +511,40 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
       vorpPlayerMap[vorpPlayer.playerId] = vorpPlayer;
     }
 
-    // Update rankings with VORP data
+    // Update rankings with VORP data while preserving original order
     final updatedRankings = <PlayerRanking>[];
-    for (final vorpPlayer in _vorpBoard!.players) {
-      final originalPlayer = _rankings.firstWhere(
-        (p) => p.id == vorpPlayer.playerId,
-        orElse: () => _rankings.first, // fallback
-      );
+    
+    // Iterate through original rankings order to preserve it
+    for (final originalPlayer in _rankings) {
+      final vorpPlayer = vorpPlayerMap[originalPlayer.id];
       
-      // Create new additional ranks with VORP data
-      final updatedAdditionalRanks = Map<String, dynamic>.from(originalPlayer.additionalRanks);
-      updatedAdditionalRanks['VORP'] = vorpPlayer.vorp;
-      updatedAdditionalRanks['Projected Points'] = vorpPlayer.projectedPoints;
-      updatedAdditionalRanks['VORP Tier'] = vorpPlayer.vorpTier;
-      
-      final updatedPlayer = originalPlayer.copyWith(
-        rank: vorpPlayer.overallRank,
-        additionalRanks: updatedAdditionalRanks,
-      );
-      
-      updatedRankings.add(updatedPlayer);
+      if (vorpPlayer != null) {
+        // Create new additional ranks with VORP data
+        final updatedAdditionalRanks = Map<String, dynamic>.from(originalPlayer.additionalRanks);
+        updatedAdditionalRanks['VORP'] = vorpPlayer.vorp; // Store as double for _buildVORPCell
+        updatedAdditionalRanks['Projected Points'] = vorpPlayer.projectedPoints; // Keep as double for sorting
+        updatedAdditionalRanks['VORP Tier'] = vorpPlayer.vorpTier;
+        
+        if (originalPlayer.position.toLowerCase() == 'qb') {
+          print('🔥 QB DEBUG - ${vorpPlayer.playerName}:');
+          print('   - Position Rank: ${originalPlayer.rank}');
+          print('   - Projected Points: ${vorpPlayer.projectedPoints}');
+          print('   - Replacement Points: ${vorpPlayer.replacementPoints}');
+          print('   - VORP: ${vorpPlayer.vorp}');
+          print('   - Tier: ${vorpPlayer.vorpTier}');
+        } else {
+          print('🔥 Player: ${vorpPlayer.playerName}, VORP: ${vorpPlayer.vorp}, Tier: ${vorpPlayer.vorpTier}');
+        }
+        
+        final updatedPlayer = originalPlayer.copyWith(
+          additionalRanks: updatedAdditionalRanks,
+        );
+        
+        updatedRankings.add(updatedPlayer);
+      } else {
+        // Player not found in VORP data, keep original
+        updatedRankings.add(originalPlayer);
+      }
     }
 
     setState(() {
@@ -1257,13 +1324,47 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                                   ),
                                 ),
                               ),
+                              // League Settings Button
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                child: Material(
+                                  elevation: 1,
+                                  borderRadius: BorderRadius.circular(16),
+                                  shadowColor: _scoringSettings.isCustom ? Colors.blue.withValues(alpha: 0.3) : ThemeConfig.gold.withValues(alpha: 0.2),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      HapticFeedback.lightImpact();
+                                      setState(() {
+                                        _showScoringPanel = !_showScoringPanel;
+                                      });
+                                    },
+                                    icon: const Icon(
+                                      Icons.settings,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      _scoringSettings.isCustom ? 'Custom Scoring' : 'League Settings',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _scoringSettings.isCustom ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      minimumSize: const Size(0, 32),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                               // VORP Mode Toggle
                               Container(
                                 margin: const EdgeInsets.only(right: 8),
                                 child: Material(
                                   elevation: 1,
                                   borderRadius: BorderRadius.circular(16),
-                                  shadowColor: _showVORPMode ? Colors.green.withOpacity(0.3) : ThemeConfig.gold.withOpacity(0.2),
+                                  shadowColor: _showVORPMode ? Colors.green.withValues(alpha: 0.3) : ThemeConfig.gold.withValues(alpha: 0.2),
                                   child: ElevatedButton.icon(
                                     onPressed: () {
                                       HapticFeedback.lightImpact();
@@ -1518,6 +1619,55 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
                 isVisible: _showWeightPanel,
               ),
             ),
+          
+          // Scoring Settings Panel
+          if (_showScoringPanel)
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: ScoringSettingsPanel(
+                currentSettings: _scoringSettings,
+                onSettingsChanged: (newSettings) {
+                  setState(() {
+                    _previousScoringSettings = _scoringSettings;
+                    _scoringSettings = newSettings;
+                    
+                    // Recalculate VORP if in VORP mode
+                    if (_showVORPMode) {
+                      _calculateVORPBoard();
+                    }
+                  });
+                },
+                onClose: () {
+                  setState(() {
+                    _showScoringPanel = false;
+                  });
+                },
+              ),
+            ),
+          
+          // Scoring Impact Preview - show when in VORP mode and panel is open
+          if (_showScoringPanel && _showVORPMode && _vorpBoard != null)
+            Positioned(
+              bottom: 20,
+              left: 20,
+              child: ScoringImpactPreview(
+                currentSettings: _scoringSettings,
+                previousSettings: _previousScoringSettings ?? ScoringSettings.ppr,
+                players: _vorpBoard!.players.map((p) => VORPPlayer(
+                  playerId: p.playerId,
+                  playerName: p.playerName,
+                  position: p.position,
+                  team: p.team,
+                  rank: p.positionRank,
+                  projectedPoints: p.projectedPoints,
+                  replacementPoints: p.replacementPoints,
+                  vorp: p.vorp,
+                  tier: p.tier,
+                )).toList(),
+              ),
+            ),
         ],
       ),
     );
@@ -1526,57 +1676,86 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   Widget _buildTableWithStickyHeader() {
     final theme = Theme.of(context);
     
+    // Force column refresh when VORP mode changes
+    final columns = _getModernColumns();
+    final rows = _getModernRows();
+    
     return Column(
       children: [
-        // Sticky header
+        // Sticky header with synchronized scrolling
         Container(
           decoration: BoxDecoration(
             color: ThemeAwareColors.getTableHeaderColor(context),
             border: Border(
               bottom: BorderSide(
-                color: theme.dividerColor.withOpacity(0.2),
+                color: theme.dividerColor.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
           ),
           child: SingleChildScrollView(
+            controller: _horizontalScrollController,
             scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(Colors.transparent),
-              headingTextStyle: TextStyle(
-                color: ThemeAwareColors.getTableHeaderTextColor(context),
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                letterSpacing: 0.5,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: MediaQuery.of(context).size.width,
               ),
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 56,
-              showCheckboxColumn: false,
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _sortAscending,
-              columnSpacing: 32,
-              horizontalMargin: 16,
-              dividerThickness: 0,
-              columns: _getModernColumns(),
-              rows: [], // Empty rows for header only
+              child: Theme(
+                data: theme.copyWith(
+                  dataTableTheme: theme.dataTableTheme.copyWith(
+                    headingRowColor: WidgetStateProperty.all(Colors.transparent),
+                    headingTextStyle: TextStyle(
+                      color: ThemeAwareColors.getTableHeaderTextColor(context),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      letterSpacing: 0.5,
+                    ),
+                    dataRowMinHeight: 56,
+                    dataRowMaxHeight: 56,
+                    columnSpacing: 32,
+                    horizontalMargin: 16,
+                    dividerThickness: 0,
+                  ),
+                ),
+                child: DataTable(
+                  showCheckboxColumn: false,
+                  sortColumnIndex: _sortColumnIndex,
+                  sortAscending: _sortAscending,
+                  columns: columns,
+                  rows: const [], // Empty rows for header only
+                ),
+              ),
             ),
           ),
         ),
-        // Scrollable content
+        // Scrollable content with exact same table structure
         Expanded(
           child: SingleChildScrollView(
+            controller: _verticalScrollController,
             child: SingleChildScrollView(
+              controller: _horizontalScrollController, // Same controller for sync
               scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 0, // Hide header in scrollable content
-                dataRowMinHeight: 56,
-                dataRowMaxHeight: 56,
-                showCheckboxColumn: false,
-                columnSpacing: 32,
-                horizontalMargin: 16,
-                dividerThickness: 0,
-                columns: _getModernColumns(),
-                rows: _getModernRows(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: MediaQuery.of(context).size.width,
+                ),
+                child: Theme(
+                  data: theme.copyWith(
+                    dataTableTheme: theme.dataTableTheme.copyWith(
+                      headingRowHeight: 0, // Hide header in content
+                      dataRowMinHeight: 56,
+                      dataRowMaxHeight: 56,
+                      columnSpacing: 32,
+                      horizontalMargin: 16,
+                      dividerThickness: 0,
+                    ),
+                  ),
+                  child: DataTable(
+                    showCheckboxColumn: false,
+                    columns: columns,
+                    rows: rows,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1585,60 +1764,6 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildModernTable() {
-    final theme = Theme.of(context);
-    
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.surface,
-            theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: ThemeConfig.gold.withOpacity(0.2),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: ThemeConfig.darkNavy.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-              headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
-              headingTextStyle: TextStyle(
-                color: ThemeAwareColors.getTableHeaderTextColor(context),
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                letterSpacing: 0.5,
-              ),
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 56,
-              showCheckboxColumn: false,
-              sortColumnIndex: _sortColumnIndex,
-              sortAscending: _sortAscending,
-              columnSpacing: 32,
-              horizontalMargin: 16,
-              dividerThickness: 0,
-              columns: _getModernColumns(),
-              rows: _getModernRows(),
-            ),
-        ),
-      ),
-    );
-  }
 
   List<DataColumn> _getModernColumns() {
     return [
@@ -1875,6 +2000,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
   }
 
   List<DataRow> _getModernRows() {
+    
     return _visibleRankings.asMap().entries.map((entry) {
       final index = entry.key;
       final player = entry.value;
@@ -2005,7 +2131,7 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
           // VORP columns (only show when VORP mode is enabled)
           if (_showVORPMode) ...[
             DataCell(_buildVORPCell(player.additionalRanks['VORP'], index)),
-            DataCell(_buildRankingCell(player.additionalRanks['Projected Points'], index)),
+            DataCell(_buildProjectedPointsCell(player.additionalRanks['Projected Points'], index)),
             DataCell(_buildVORPTierCell(player.additionalRanks['VORP Tier'], index)),
           ],
           
@@ -2136,6 +2262,28 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildProjectedPointsCell(dynamic value, int index) {
+    if (value == null) return _buildRankingCell(value, index);
+    
+    final points = value is double ? value : double.tryParse(value.toString()) ?? 0.0;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        points.toStringAsFixed(1),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
   Widget _buildVORPTierCell(dynamic value, int index) {
     if (value == null) return _buildRankingCell(value, index);
     
@@ -2145,10 +2293,10 @@ class _BigBoardScreenState extends State<BigBoardScreen> with TickerProviderStat
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: Color(tierColor).withOpacity(0.1),
+        color: Color(tierColor).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: Color(tierColor).withOpacity(0.3),
+          color: Color(tierColor).withValues(alpha: 0.3),
           width: 1,
         ),
       ),
