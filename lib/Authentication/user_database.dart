@@ -41,12 +41,12 @@ class UserDatabase {
 
   // Example method I thought you might find useful...
 
-  // Update the user's premium status
+  // Update the user's premium status.. have this connected to when they subscribe?
   Future<void> updateUserPremium(String uid, bool isPremium) async {
     await userCollection.doc(uid).update({'isPremium': isPremium});
   }
 
-  // Update user's display name...
+  // Update user's display name...maybe have this in an edit profile screen?
   Future<void> updateUserDisplayName(String uid, String displayName) async {
     await userCollection.doc(uid).update({'name': displayName});
   }
