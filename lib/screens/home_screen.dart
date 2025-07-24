@@ -228,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen>
     // How you will access the user's UID...
     //You can do this on any screen and then once u have the UID you can use it gather other info from the database
     final user = Provider.of<mdsUser?>(context);
+
     debugPrint(" Current User : ${user?.uid}"); // User uid
     debugPrint(" User Email   : ${user?.email}"); // User email
     debugPrint(" Is Premium   : $_isPremium"); // User's premium status
