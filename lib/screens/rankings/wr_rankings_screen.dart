@@ -6,6 +6,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
+import '../../utils/seo_helper.dart';
 import '../../services/rankings/ranking_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
 import '../../services/rankings/ranking_calculation_service.dart';
@@ -50,6 +51,12 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Update SEO meta tags for WR Rankings page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForWRRankings();
+    });
+    
     _seasonOptions = RankingService.getSeasonOptions();
     _tierOptions = RankingService.getTierOptions();
     _defaultWeights = RankingCalculationService.getDefaultWeights('wr');

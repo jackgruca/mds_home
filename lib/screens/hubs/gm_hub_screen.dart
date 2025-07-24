@@ -9,6 +9,7 @@ import '../../widgets/home/home_slideshow.dart';
 import '../../widgets/home/stacked_tool_links.dart';
 import 'package:collection/collection.dart'; // For firstWhereOrNull
 import '../../utils/theme_config.dart';
+import '../../utils/seo_helper.dart';
 
 
 // Helper function to find a specific sub-item (tool) within a NavItem hub
@@ -93,6 +94,11 @@ class GmHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Update SEO meta tags for GM Hub page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForGMHub();
+    });
+    
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     final currentRouteName = ModalRoute.of(context)?.settings.name;

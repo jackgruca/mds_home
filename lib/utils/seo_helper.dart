@@ -6,7 +6,7 @@ class SEOHelper {
   static const String baseUrl = 'https://sticktothemodel.com';
   
   // SEO Configuration - Update these with actual values
-  static const String googleAnalyticsId = 'GA_MEASUREMENT_ID'; // Replace with actual GA4 ID
+  static const String googleAnalyticsId = 'G-8QGNSTTZGH'; // Your actual GA4 ID
   static const String googleSearchConsoleVerification = 'YOUR_VERIFICATION_CODE_HERE'; // Replace with actual verification code
   
   static void updateMetaTags({

@@ -9,6 +9,7 @@ import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
+import '../../utils/seo_helper.dart';
 
 class PlayerComparisonScreen extends StatefulWidget {
   const PlayerComparisonScreen({Key? key}) : super(key: key);
@@ -32,6 +33,12 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Update SEO meta tags for Player Comparison page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForPlayerComparison();
+    });
+    
     _loadDefaultPlayers();
   }
 

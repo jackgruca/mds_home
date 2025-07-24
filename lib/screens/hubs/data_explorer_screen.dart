@@ -4,6 +4,7 @@ import 'package:mds_home/widgets/common/custom_app_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
+import '../../utils/seo_helper.dart';
 
 class DataExplorerScreen extends StatefulWidget {
   const DataExplorerScreen({super.key});
@@ -22,6 +23,12 @@ class _DataExplorerScreenState extends State<DataExplorerScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Update SEO meta tags for Data Explorer page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForDataExplorer();
+    });
+    
     _loadTopPerformers();
   }
 

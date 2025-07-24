@@ -1,11 +1,11 @@
 {
-    "name": "mds_home",
-    "short_name": "mds_home",
+    "name": "StickToTheModel - NFL Analytics Platform",
+    "short_name": "StickToTheModel",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Advanced NFL mock draft simulator, fantasy football rankings, VORP calculator, and analytics platform. Dominate your league with data-driven insights.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

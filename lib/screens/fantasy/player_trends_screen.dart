@@ -10,6 +10,7 @@ import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/theme_config.dart';
+import '../../utils/seo_helper.dart';
 import '../../widgets/design_system/mds_table.dart';
 import '../../services/rankings/filter_service.dart';
 import '../../widgets/rankings/filter_panel.dart';
@@ -125,6 +126,12 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Update SEO meta tags for Player Trends page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SEOHelper.updateForPlayerTrends();
+    });
+    
     _currentFilter = const FilterQuery();
     _setupScrollSynchronization();
     _fetchAndProcessPlayerTrends();
