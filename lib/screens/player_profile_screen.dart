@@ -1,11 +1,11 @@
 // lib/screens/player_profile_screen.dart
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../models/nfl_player.dart';
 import '../services/nfl_player_service.dart';
+import '../services/instant_player_cache.dart';
+import '../services/static_player_stats_2024.dart';
 import '../widgets/common/custom_app_bar.dart';
 import '../widgets/common/top_nav_bar.dart';
-import '../utils/team_logo_utils.dart';
 
 class PlayerProfileScreen extends StatefulWidget {
   final String playerId;
@@ -20,45 +20,70 @@ class PlayerProfileScreen extends StatefulWidget {
 }
 
 class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
-  NFLPlayer? _player;
-  bool _isLoading = true;
+  NFLPlayer? _basicPlayer; // For immediate display
+  bool _isLoadingBasic = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadPlayerData();
+    _loadPlayerDataProgressive();
   }
 
-  Future<void> _loadPlayerData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      // Try to get player by ID first, fallback to name
-      NFLPlayer? player = await NFLPlayerService.getPlayerById(widget.playerId);
+  Future<void> _loadPlayerDataProgressive() async {
+    final decodedPlayerId = Uri.decodeComponent(widget.playerId);
+    
+    // Step 1: Try static 2024 stats first (INSTANT - 0ms)
+    final staticStats = StaticPlayerStats2024.getPlayerStats(decodedPlayerId);
+    if (staticStats != null && mounted) {
+      // Create minimal player object from static data
+      final staticPlayer = NFLPlayer(
+        playerName: decodedPlayerId,
+        position: staticStats['position'],
+        team: staticStats['team'],
+        currentSeasonStats: staticStats,
+      );
       
-      // If no result and playerId looks like a name, try by name
-      if (player == null && widget.playerId.contains(' ')) {
-        player = await NFLPlayerService.getPlayerByName(widget.playerId);
-      }
-
-      if (mounted) {
+      setState(() {
+        _basicPlayer = staticPlayer;
+        _isLoadingBasic = false;
+      });
+      return; // DONE - no API call needed
+    }
+    
+    // Step 2: Try instant cache
+    final instantPlayer = InstantPlayerCache.getInstantPlayer(decodedPlayerId);
+    if (instantPlayer != null && mounted) {
+      setState(() {
+        _basicPlayer = instantPlayer;
+        _isLoadingBasic = false;
+      });
+      return; // DONE
+    }
+    
+    // Step 3: ONLY if not in static cache - API call
+    try {
+      final player = await NFLPlayerService.getPlayerByName(
+        decodedPlayerId, 
+        includeHistoricalStats: false
+      );
+      
+      if (player != null && mounted) {
         setState(() {
-          _player = player;
-          _isLoading = false;
-          if (player == null) {
-            _error = 'Player not found';
-          }
+          _basicPlayer = player;
+          _isLoadingBasic = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _error = 'Player not found';
+          _isLoadingBasic = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = 'Failed to load player data: $e';
-          _isLoading = false;
+          _isLoadingBasic = false;
         });
       }
     }
@@ -82,13 +107,14 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
+    // Show loading only if we have no basic player data
+    if (_isLoadingBasic && _basicPlayer == null) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (_error != null) {
+    if (_error != null && _basicPlayer == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -108,7 +134,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadPlayerData,
+              onPressed: _loadPlayerDataProgressive,
               child: const Text('Retry'),
             ),
           ],
@@ -116,7 +142,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       );
     }
 
-    if (_player == null) {
+    if (_basicPlayer == null) {
       return const Center(
         child: Text('Player not found'),
       );
@@ -126,7 +152,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
   }
 
   Widget _buildPlayerProfile() {
-    final player = _player!;
+    final player = _basicPlayer!;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -134,28 +160,68 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Player header card
-          _buildPlayerHeader(player, isDarkMode),
+          // Simple player header
+          _buildSimpleHeader(player, isDarkMode),
           
           const SizedBox(height: 24),
           
-          // Player info sections
+          // Just 2024 stats - NOTHING ELSE
+          _buildSimple2024Stats(player, isDarkMode),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleHeader(NFLPlayer player, bool isDarkMode) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade300, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            player.displayName,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left column - Bio info
-              Expanded(
-                flex: 1,
-                child: _buildBioSection(player, isDarkMode),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              // Right column - Stats and other info
-              Expanded(
-                flex: 2,
-                child: _buildStatsSection(player, isDarkMode),
-              ),
+              if (player.position != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade600,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    player.position!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (player.team != null)
+                Text(
+                  player.team!,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
+                  ),
+                ),
             ],
           ),
         ],
@@ -163,259 +229,41 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
     );
   }
 
-  Widget _buildPlayerHeader(NFLPlayer player, bool isDarkMode) {
-    final headerColor = _getPositionColor(player.position ?? '');
+  Widget _buildSimple2024Stats(NFLPlayer player, bool isDarkMode) {
+    final stats = player.currentSeasonStats ?? {};
+    final position = player.position ?? '';
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            headerColor.withValues(alpha: isDarkMode ? 0.8 : 0.3),
-            headerColor.withValues(alpha: isDarkMode ? 0.4 : 0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Player headshot
-          _buildPlayerImage(player, isDarkMode),
-          
-          const SizedBox(width: 24),
-          
-          // Player info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  player.displayName,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (player.position != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: headerColor,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          player.position!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    if (player.team != null) ...[
-                      Text(
-                        player.team!,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (player.experienceText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    player.experienceText,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlayerImage(NFLPlayer player, bool isDarkMode) {
-    if (player.headshotUrl != null && player.headshotUrl!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: CachedNetworkImage(
-          imageUrl: player.headshotUrl!,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: 100,
-            height: 100,
-            color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
-          errorWidget: (context, url, error) => _buildFallbackImage(player, isDarkMode),
-        ),
-      );
-    }
-    
-    return _buildFallbackImage(player, isDarkMode);
-  }
-
-  Widget _buildFallbackImage(NFLPlayer player, bool isDarkMode) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.black12 : Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.person,
-            size: 48,
-            color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400,
-          ),
-          if (player.team != null && player.team!.isNotEmpty)
-            TeamLogoUtils.buildNFLTeamLogo(
-              player.team!,
-              size: 24,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBioSection(NFLPlayer player, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDarkMode ? Colors.grey.shade800 : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.green.shade300, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Player Info',
+            '2024 Stats',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: isDarkMode ? Colors.white : Colors.black87,
             ),
           ),
           const SizedBox(height: 16),
           
-          _buildInfoRow('Height', player.formattedHeight, isDarkMode),
-          _buildInfoRow('Weight', player.formattedWeight, isDarkMode),
-          if (player.age != null)
-            _buildInfoRow('Age', '${player.age}', isDarkMode),
-          if (player.college != null)
-            _buildInfoRow('College', player.college!, isDarkMode),
-          if (player.draftInfo != 'Draft info unavailable')
-            _buildInfoRow('Draft', player.draftInfo, isDarkMode),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsSection(NFLPlayer player, bool isDarkMode) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Career Statistics',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          if (player.historicalStats != null && player.historicalStats!.isNotEmpty)
-            _buildHistoricalStatsSection(player.historicalStats!, isDarkMode)
-          else if (player.currentSeasonStats != null && player.currentSeasonStats!.isNotEmpty)
-            _buildStatsGrid(player.currentSeasonStats!, isDarkMode)
+          if (position == 'QB') 
+            _buildQBStats(stats, isDarkMode)
+          else if (position == 'RB') 
+            _buildRBStats(stats, isDarkMode)
+          else if (position == 'WR' || position == 'TE') 
+            _buildWRTEStats(stats, isDarkMode)
           else
             Text(
-              'No statistics available',
+              'No stats available for this position',
               style: TextStyle(
-                fontSize: 14,
                 color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
             ),
@@ -423,261 +271,68 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       ),
     );
   }
-
-  Widget _buildHistoricalStatsSection(Map<int, Map<String, dynamic>> historicalStats, bool isDarkMode) {
-    final sortedSeasons = historicalStats.keys.toList()..sort((a, b) => b.compareTo(a)); // Most recent first
-    
-    return Column(
+  
+  Widget _buildQBStats(Map<String, dynamic> stats, bool isDarkMode) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
       children: [
-        // Season tabs or list
-        SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: sortedSeasons.length,
-            itemBuilder: (context, index) {
-              final season = sortedSeasons[index];
-              final isSelected = index == 0; // Default to most recent season
-              
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected 
-                        ? Colors.blue.shade600 
-                        : (isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '$season',
-                    style: TextStyle(
-                      color: isSelected 
-                          ? Colors.white 
-                          : (isDarkMode ? Colors.white : Colors.black87),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Stats for most recent season
-        _buildStatsGrid(historicalStats[sortedSeasons.first]!, isDarkMode),
-        
-        const SizedBox(height: 24),
-        
-        // Career progression table
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDarkMode ? Colors.black12 : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Career Progression',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildCareerProgressionTable(historicalStats, isDarkMode),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCareerProgressionTable(Map<int, Map<String, dynamic>> historicalStats, bool isDarkMode) {
-    final sortedSeasons = historicalStats.keys.toList()..sort((a, b) => b.compareTo(a));
-    
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          DataColumn(
-            label: Text(
-              'Season',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          DataColumn(
-            label: Text(
-              'Games',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          // Add key stat columns based on first season data
-          ...historicalStats[sortedSeasons.first]!.entries
-              .where((entry) => entry.key != 'season' && entry.key != 'games_played')
-              .take(4) // Show only top 4 stats to keep table manageable
-              .map((entry) => DataColumn(
-                    label: Text(
-                      entry.key.replaceAll('_', '\n').toUpperCase(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                        color: isDarkMode ? Colors.white : Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  )),
-        ],
-        rows: sortedSeasons.map((season) {
-          final stats = historicalStats[season]!;
-          return DataRow(
-            cells: [
-              DataCell(Text(
-                '$season',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
-                ),
-              )),
-              DataCell(Text(
-                '${stats['games_played'] ?? 'N/A'}',
-                style: TextStyle(
-                  color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
-                ),
-              )),
-              ...stats.entries
-                  .where((entry) => entry.key != 'season' && entry.key != 'games_played')
-                  .take(4)
-                  .map((entry) => DataCell(Text(
-                        '${entry.value}',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.grey.shade300 : Colors.black87,
-                        ),
-                      ))),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid(Map<String, dynamic> stats, bool isDarkMode) {
-    // Define key stats to display first, organized by position
-    final position = _player?.position ?? '';
-    final keyStats = _getKeyStatsForPosition(position, stats);
-    final otherStats = stats.entries
-        .where((entry) => !keyStats.any((key) => key.key == entry.key))
-        .where((entry) => entry.value != null)
-        .toList();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (keyStats.isNotEmpty) ...[
-          Text(
-            'Key Statistics',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: keyStats.map((entry) => _buildStatCard(entry, isDarkMode, isKey: true)).toList(),
-          ),
-          const SizedBox(height: 24),
-        ],
-        
-        if (otherStats.isNotEmpty) ...[
-          Text(
-            'Additional Statistics',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: otherStats.map((entry) => _buildStatCard(entry, isDarkMode)).toList(),
-          ),
-        ],
+        _buildStatItem('Pass Yards', stats['passing_yards']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Completions', stats['completions']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Attempts', stats['attempts']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Pass TDs', stats['passing_tds']?.toString() ?? 'N/A', isDarkMode),
       ],
     );
   }
   
-  List<MapEntry<String, dynamic>> _getKeyStatsForPosition(String position, Map<String, dynamic> stats) {
-    List<String> keyStatNames = [];
-    
-    switch (position) {
-      case 'QB':
-        keyStatNames = ['passing_yards', 'passing_tds', 'interceptions', 'completion_percentage', 'passer_rating'];
-        break;
-      case 'RB':
-        keyStatNames = ['rushing_yards', 'rushing_tds', 'yards_per_carry', 'receptions', 'receiving_yards'];
-        break;
-      case 'WR':
-      case 'TE':
-        keyStatNames = ['receiving_yards', 'receiving_tds', 'receptions', 'yards_per_reception', 'targets'];
-        break;
-      default:
-        keyStatNames = ['fantasy_points_ppr', 'fantasy_points', 'games'];
-    }
-    
-    return keyStatNames
-        .map((name) => stats.entries.firstWhere(
-            (entry) => entry.key == name,
-            orElse: () => const MapEntry('', null)))
-        .where((entry) => entry.key.isNotEmpty && entry.value != null)
-        .toList();
+  Widget _buildRBStats(Map<String, dynamic> stats, bool isDarkMode) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        _buildStatItem('Rush Att', stats['rush_att']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Rush Yards', stats['rushing_yards']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Rush TDs', stats['rushing_tds']?.toString() ?? 'N/A', isDarkMode),
+      ],
+    );
   }
   
-  Widget _buildStatCard(MapEntry<String, dynamic> entry, bool isDarkMode, {bool isKey = false}) {
+  Widget _buildWRTEStats(Map<String, dynamic> stats, bool isDarkMode) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        _buildStatItem('Targets', stats['targets']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Receptions', stats['receptions']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Rec Yards', stats['receiving_yards']?.toString() ?? 'N/A', isDarkMode),
+        _buildStatItem('Rec TDs', stats['receiving_tds']?.toString() ?? 'N/A', isDarkMode),
+      ],
+    );
+  }
+  
+  Widget _buildStatItem(String label, String value, bool isDarkMode) {
     return Container(
-      width: isKey ? 120 : 100,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isKey 
-            ? (isDarkMode ? Colors.blue.shade900.withValues(alpha: 0.3) : Colors.blue.shade50)
-            : (isDarkMode ? Colors.black12 : Colors.grey.shade50),
+        color: isDarkMode ? Colors.black12 : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(8),
-        border: isKey ? Border.all(color: Colors.blue.shade300, width: 1) : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            _formatStatName(entry.key),
+            label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
-            _formatStatValue(entry.key, entry.value),
+            value,
             style: TextStyle(
-              fontSize: isKey ? 18 : 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: isDarkMode ? Colors.white : Colors.black87,
             ),
@@ -686,65 +341,5 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       ),
     );
   }
-  
-  String _formatStatName(String key) {
-    // Custom formatting for stat names
-    switch (key) {
-      case 'passing_yards': return 'Pass Yds';
-      case 'passing_tds': return 'Pass TDs';
-      case 'interceptions': return 'INTs';
-      case 'completion_percentage': return 'Comp %';
-      case 'passer_rating': return 'Rating';
-      case 'rushing_yards': return 'Rush Yds';
-      case 'rushing_tds': return 'Rush TDs';
-      case 'yards_per_carry': return 'Y/C';
-      case 'receiving_yards': return 'Rec Yds';
-      case 'receiving_tds': return 'Rec TDs';
-      case 'yards_per_reception': return 'Y/R';
-      case 'fantasy_points_ppr': return 'PPR Pts';
-      case 'fantasy_points': return 'Std Pts';
-      default: return key.replaceAll('_', ' ').toUpperCase();
-    }
-  }
-  
-  String _formatStatValue(String key, dynamic value) {
-    if (value == null) return 'N/A';
-    
-    // Format percentages
-    if (key.contains('percentage') || key.contains('completion')) {
-      return '${(value as num).toStringAsFixed(1)}%';
-    }
-    
-    // Format decimals for certain stats
-    if (['yards_per_carry', 'yards_per_reception', 'passer_rating'].contains(key)) {
-      return (value as num).toStringAsFixed(1);
-    }
-    
-    // Format integers
-    if (value is num) {
-      return value.round().toString();
-    }
-    
-    return value.toString();
-  }
 
-  Color _getPositionColor(String position) {
-    // Different colors for different position groups
-    if (['QB'].contains(position)) {
-      return Colors.blue.shade700;
-    } else if (['RB', 'FB'].contains(position)) {
-      return Colors.green.shade700;
-    } else if (['WR', 'TE'].contains(position)) {
-      return Colors.purple.shade700;
-    } else if (['OT', 'IOL', 'OL', 'G', 'C'].contains(position)) {
-      return Colors.orange.shade700;
-    } else if (['EDGE', 'DL', 'IDL', 'DT', 'DE'].contains(position)) {
-      return Colors.red.shade700;
-    } else if (['LB', 'ILB', 'OLB'].contains(position)) {
-      return Colors.teal.shade700;
-    } else if (['CB', 'S', 'FS', 'SS'].contains(position)) {
-      return Colors.indigo.shade700;
-    }
-    return Colors.grey.shade700;
-  }
 }

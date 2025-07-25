@@ -1,0 +1,26 @@
+{
+  "Josh Allen": {
+    "position": "QB",
+    "team": "BUF", 
+    "passing_yards": 4306,
+    "completions": 359,
+    "attempts": 543,
+    "passing_tds": 28
+  },
+  "Patrick Mahomes": {
+    "position": "QB",
+    "team": "KC",
+    "passing_yards": 4183, 
+    "completions": 355,
+    "attempts": 570,
+    "passing_tds": 26
+  },
+  "Lamar Jackson": {
+    "position": "QB",
+    "team": "BAL",
+    "passing_yards": 3678,
+    "completions": 290, 
+    "attempts": 456,
+    "passing_tds": 24
+  }
+}
