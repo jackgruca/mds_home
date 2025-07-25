@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-07-25T01:04:03.425Z",
+  "collections": [
+    {
+      "name": "playerSeasonStats",
+      "filename": "player_stats_2024.csv",
+      "exportedAt": "2025-07-25T01:04:03.425Z"
+    },
+    {
+      "name": "teamSeasonStats",
+      "filename": "team_stats_2024.csv",
+      "exportedAt": "2025-07-25T01:04:03.425Z"
+    },
+    {
+      "name": "draftAnalytics",
+      "filename": "draft_analytics.csv",
+      "exportedAt": "2025-07-25T01:04:03.425Z"
+    }
+  ],
+  "dataSource": "Firebase Firestore",
+  "exportScript": "export_firebase_to_csv.js"
+}

@@ -48,12 +48,21 @@ import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
 import 'screens/player_profile_screen.dart';
-import 'screens/enhanced_data_hub_screen.dart';
+import 'screens/modern_data_hub_screen.dart';
+import 'screens/position_analytics_screen.dart';
+import 'screens/comprehensive_qb_analytics_screen.dart';
+import 'screens/comprehensive_rb_analytics_screen.dart';
+import 'screens/comprehensive_wr_analytics_screen.dart';
+import 'screens/comprehensive_te_analytics_screen.dart';
+import 'screens/historical_trends_screen.dart';
 import 'screens/player_link_test_screen.dart';
 import 'services/instant_player_cache.dart';
 import 'services/super_fast_player_service.dart';
+import 'services/hybrid_data_service.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
+import 'screens/data_source_test_screen.dart';
+import 'screens/csv_test_simple_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -121,6 +130,10 @@ Future<void> _preloadCommonAnalytics() async {
     await SuperFastPlayerService.initialize();
     SuperFastPlayerService.preloadCommonPlayers();
     debugPrint('Preloaded instant player cache');
+    
+    // Preload CSV data for lightning-fast performance
+    HybridDataService.preloadCriticalData();
+    debugPrint('Preloaded CSV data');
   });
 }
 
@@ -191,28 +204,37 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const EnhancedDataHubScreen());
+                return MaterialPageRoute(builder: (_) => const ModernDataHubScreen());
               case '/test/player-links':
                 return MaterialPageRoute(builder: (_) => const PlayerLinkTestScreen());
+              case '/test/data-source':
+                return MaterialPageRoute(builder: (_) => const DataSourceTestScreen());
+              case '/test/csv-simple':
+                return MaterialPageRoute(builder: (_) => const CsvTestSimpleScreen());
               case '/data/passing':
                 return MaterialPageRoute(
-                  builder: (_) => const PlayerSeasonStatsScreen(),
-                  settings: const RouteSettings(arguments: {'position': 'QB'}),
+                  builder: (_) => const ComprehensiveQBAnalyticsScreen(),
                 );
               case '/data/rushing':
                 return MaterialPageRoute(
-                  builder: (_) => const PlayerSeasonStatsScreen(),
-                  settings: const RouteSettings(arguments: {'position': 'RB'}),
+                  builder: (_) => const ComprehensiveRBAnalyticsScreen(),
                 );
               case '/data/receiving':
                 return MaterialPageRoute(
-                  builder: (_) => const PlayerSeasonStatsScreen(),
-                  settings: const RouteSettings(arguments: {'position': 'WR'}),
+                  builder: (_) => const ComprehensiveWRAnalyticsScreen(),
+                );
+              case '/data/advanced':
+                return MaterialPageRoute(
+                  builder: (_) => const ComprehensiveTEAnalyticsScreen(),
                 );
               case '/data/fantasy':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
                   settings: const RouteSettings(arguments: {'position': 'FANTASY'}),
+                );
+              case '/data/trends':
+                return MaterialPageRoute(
+                  builder: (_) => const HistoricalTrendsScreen(),
                 );
               case '/projections':
                 return MaterialPageRoute(builder: (_) => const PlayerProjectionsScreen());
