@@ -3,6 +3,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../widgets/common/custom_app_bar.dart';
 import '../widgets/common/top_nav_bar.dart';
 import '../services/hybrid_data_service.dart';
+import '../services/game_level_data_service.dart';
 import '../widgets/rankings/filter_panel.dart';
 import '../services/rankings/filter_service.dart';
 
@@ -16,6 +17,7 @@ class ComprehensiveQBAnalyticsScreen extends StatefulWidget {
 class _ComprehensiveQBAnalyticsScreenState extends State<ComprehensiveQBAnalyticsScreen>
     with TickerProviderStateMixin {
   final HybridDataService _dataService = HybridDataService();
+  final GameLevelDataService _gameDataService = GameLevelDataService();
   
   bool _isLoading = true;
   List<Map<String, dynamic>> _qbData = [];
@@ -134,6 +136,25 @@ class _ComprehensiveQBAnalyticsScreenState extends State<ComprehensiveQBAnalytic
         {'key': 'rushing_yards', 'label': 'Rush Yds', 'type': 'int', 'width': 80.0},
       ]
     },
+    {
+      'id': 'gamelogs',
+      'title': '📋 Game Logs',
+      'subtitle': 'Game-by-game performance tracking',
+      'color': Colors.teal,
+      'icon': Icons.timeline,
+      'fields': [
+        {'key': 'player_display_name', 'label': 'Player', 'type': 'string', 'width': 180.0},
+        {'key': 'recent_team', 'label': 'Team', 'type': 'string', 'width': 60.0},
+        {'key': 'games', 'label': 'Games', 'type': 'int', 'width': 60.0},
+        {'key': 'last_5_avg_fantasy', 'label': 'L5 Avg', 'type': 'decimal', 'width': 80.0},
+        {'key': 'best_game_fantasy', 'label': 'Best Game', 'type': 'decimal', 'width': 90.0},
+        {'key': 'consistency_score', 'label': 'Consistency', 'type': 'decimal', 'width': 90.0},
+        {'key': 'games_15_plus', 'label': '15+ Games', 'type': 'int', 'width': 80.0},
+        {'key': 'games_20_plus', 'label': '20+ Games', 'type': 'int', 'width': 80.0},
+        {'key': 'home_avg', 'label': 'Home Avg', 'type': 'decimal', 'width': 80.0},
+        {'key': 'away_avg', 'label': 'Away Avg', 'type': 'decimal', 'width': 80.0},
+      ]
+    },
   ];
 
   @override
@@ -166,6 +187,11 @@ class _ComprehensiveQBAnalyticsScreenState extends State<ComprehensiveQBAnalytic
       
       _originalData = List<Map<String, dynamic>>.from(filteredData);
       
+      // Enhance with game log data for 2024 season only (to avoid performance issues)
+      if (_selectedSeasons.contains(2024)) {
+        await _enhanceWithGameLogData(filteredData);
+      }
+      
       // Apply filters if enabled
       _qbData = _usingFilters 
           ? FilterService.applyFilters(filteredData, _currentFilter)
@@ -174,6 +200,84 @@ class _ComprehensiveQBAnalyticsScreenState extends State<ComprehensiveQBAnalytic
       setState(() => _isLoading = false);
     } catch (e) {
       setState(() => _isLoading = false);
+      debugPrint('Error loading QB data: $e');
+    }
+  }
+
+  /// Enhance QB data with game log metrics
+  Future<void> _enhanceWithGameLogData(List<Map<String, dynamic>> qbData) async {
+    try {
+      for (final qb in qbData) {
+        final playerId = qb['player_id']?.toString();
+        if (playerId == null) continue;
+        
+        // Clean player ID by removing suffix (e.g., "00-0033553_2024" -> "00-0033553")
+        String cleanPlayerId = playerId;
+        if (cleanPlayerId.contains('_')) {
+          cleanPlayerId = cleanPlayerId.split('_').first;
+        }
+        
+        // Get game logs for this player
+        final gameLogs = await _gameDataService.getPlayerGameLogs(cleanPlayerId);
+        
+        if (gameLogs.isNotEmpty) {
+          // Calculate game log metrics
+          final fantasyPoints = gameLogs
+              .map((game) => (game['fantasy_points_ppr'] as num?) ?? 0.0)
+              .where((points) => points > 0)
+              .toList();
+          
+          final homeGames = gameLogs.where((game) => game['home_away'] == 'Home').toList();
+          final awayGames = gameLogs.where((game) => game['home_away'] == 'Away').toList();
+          
+          // Last 5 games average
+          final last5Games = gameLogs.length > 5 ? fantasyPoints.take(5).toList() : fantasyPoints;
+          final last5Avg = last5Games.isNotEmpty 
+              ? last5Games.reduce((a, b) => a + b) / last5Games.length 
+              : 0.0;
+          
+          // Best game
+          final bestGame = fantasyPoints.isNotEmpty ? fantasyPoints.reduce((a, b) => a > b ? a : b) : 0.0;
+          
+          // Consistency (standard deviation)
+          final mean = fantasyPoints.isNotEmpty ? fantasyPoints.reduce((a, b) => a + b) / fantasyPoints.length : 0.0;
+          final variance = fantasyPoints.isNotEmpty 
+              ? fantasyPoints.map((x) => (x - mean) * (x - mean)).reduce((a, b) => a + b) / fantasyPoints.length
+              : 0.0;
+          final consistency = mean > 0 ? (mean / (variance > 0 ? variance : 1)) * 10 : 0.0; // Scaled consistency score
+          
+          // High-scoring games
+          final games15Plus = fantasyPoints.where((points) => points >= 15.0).length;
+          final games20Plus = fantasyPoints.where((points) => points >= 20.0).length;
+          
+          // Home/Away averages
+          final homePoints = homeGames.map((game) => (game['fantasy_points_ppr'] as num?) ?? 0.0).where((p) => p > 0);
+          final awayPoints = awayGames.map((game) => (game['fantasy_points_ppr'] as num?) ?? 0.0).where((p) => p > 0);
+          
+          final homeAvg = homePoints.isNotEmpty ? homePoints.reduce((a, b) => a + b) / homePoints.length : 0.0;
+          final awayAvg = awayPoints.isNotEmpty ? awayPoints.reduce((a, b) => a + b) / awayPoints.length : 0.0;
+          
+          // Add game log metrics to QB data
+          qb['last_5_avg_fantasy'] = double.parse(last5Avg.toStringAsFixed(1));
+          qb['best_game_fantasy'] = double.parse(bestGame.toStringAsFixed(1));
+          qb['consistency_score'] = double.parse(consistency.toStringAsFixed(1));
+          qb['games_15_plus'] = games15Plus;
+          qb['games_20_plus'] = games20Plus;
+          qb['home_avg'] = double.parse(homeAvg.toStringAsFixed(1));
+          qb['away_avg'] = double.parse(awayAvg.toStringAsFixed(1));
+        } else {
+          // Set default values if no game logs found
+          qb['last_5_avg_fantasy'] = 0.0;
+          qb['best_game_fantasy'] = 0.0;
+          qb['consistency_score'] = 0.0;
+          qb['games_15_plus'] = 0;
+          qb['games_20_plus'] = 0;
+          qb['home_avg'] = 0.0;
+          qb['away_avg'] = 0.0;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error enhancing with game log data: $e');
     }
   }
 
@@ -500,11 +604,40 @@ class _ComprehensiveQBAnalyticsScreenState extends State<ComprehensiveQBAnalytic
                             return DataCell(
                               Container(
                                 width: field['width'],
-                                child: Text(
-                                  _formatFieldValue(value, field['type']),
-                                  style: const TextStyle(fontSize: 11),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                child: field['key'] == 'player_display_name' && qb['player_id'] != null
+                                  ? InkWell(
+                                      onTap: () {
+                                        // Clean player ID by removing suffix
+                                        String cleanPlayerId = qb['player_id'].toString();
+                                        if (cleanPlayerId.contains('_')) {
+                                          cleanPlayerId = cleanPlayerId.split('_').first;
+                                        }
+                                        
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/player-profile',
+                                          arguments: {
+                                            'playerId': cleanPlayerId,
+                                            'playerName': value?.toString() ?? '',
+                                          },
+                                        );
+                                      },
+                                      child: Text(
+                                        _formatFieldValue(value, field['type']),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.blue.shade600,
+                                          decoration: TextDecoration.underline,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    )
+                                  : Text(
+                                      _formatFieldValue(value, field['type']),
+                                      style: const TextStyle(fontSize: 11),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                               ),
                             );
                           }).toList(),

@@ -4,10 +4,22 @@ import 'package:flutter/services.dart';
 /// More robust CSV parser that handles various edge cases
 class RobustCsvParser {
   static Future<List<Map<String, dynamic>>> parsePlayerStats() async {
+    return _parseCSV('assets/data/player_stats_2024.csv', 'player stats');
+  }
+  
+  static Future<List<Map<String, dynamic>>> parsePlayerGameStats() async {
+    return _parseCSV('assets/data/player_game_stats_2024.csv', 'player game stats');
+  }
+  
+  static Future<List<Map<String, dynamic>>> parseFromAsset(String path) async {
+    return _parseCSV(path, 'CSV data');
+  }
+  
+  static Future<List<Map<String, dynamic>>> _parseCSV(String path, String dataType) async {
     try {
       // Load the raw file
-      final csvString = await rootBundle.loadString('assets/data/player_stats_2024.csv');
-      print('🔍 Raw file size: ${csvString.length} bytes');
+      final csvString = await rootBundle.loadString(path);
+      print('🔍 Loading $dataType - Raw file size: ${csvString.length} bytes');
       
       // Normalize line endings to \n
       final normalizedCsv = csvString.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
@@ -47,11 +59,11 @@ class RobustCsvParser {
         }
       }
       
-      print('✅ Parsed ${data.length} records successfully');
+      print('✅ Parsed ${data.length} $dataType records successfully');
       return data;
       
     } catch (e) {
-      print('❌ CSV parsing failed: $e');
+      print('❌ $dataType CSV parsing failed: $e');
       rethrow;
     }
   }

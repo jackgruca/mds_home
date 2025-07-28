@@ -49,6 +49,9 @@ import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
 import 'screens/player_profile_screen.dart';
 import 'screens/modern_data_hub_screen.dart';
+import 'screens/enhanced_data_hub_screen.dart';
+import 'screens/simple_data_hub_screen.dart';
+import 'screens/player_game_stats_screen.dart';
 import 'screens/position_analytics_screen.dart';
 import 'screens/comprehensive_qb_analytics_screen.dart';
 import 'screens/comprehensive_rb_analytics_screen.dart';
@@ -63,6 +66,7 @@ import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
 import 'screens/data_source_test_screen.dart';
 import 'screens/csv_test_simple_screen.dart';
+import 'screens/csv_debug_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -204,13 +208,15 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const ModernDataHubScreen());
+                return MaterialPageRoute(builder: (_) => const SimpleDataHubScreen());
               case '/test/player-links':
                 return MaterialPageRoute(builder: (_) => const PlayerLinkTestScreen());
               case '/test/data-source':
                 return MaterialPageRoute(builder: (_) => const DataSourceTestScreen());
               case '/test/csv-simple':
                 return MaterialPageRoute(builder: (_) => const CsvTestSimpleScreen());
+              case '/test/csv-debug':
+                return MaterialPageRoute(builder: (_) => const CsvDebugScreen());
               case '/data/passing':
                 return MaterialPageRoute(
                   builder: (_) => const ComprehensiveQBAnalyticsScreen(),
@@ -309,6 +315,22 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRModelScreen());
               case '/player-season-stats':
                 return MaterialPageRoute(builder: (_) => const PlayerSeasonStatsScreen());
+              case '/player-game-stats':
+                return MaterialPageRoute(builder: (_) => const PlayerGameStatsScreen());
+              case '/player-profile':
+                // Handle named route with arguments
+                final args = settings.arguments as Map<String, dynamic>?;
+                if (args != null && args['playerId'] != null) {
+                  return MaterialPageRoute(
+                    builder: (_) => PlayerProfileScreen(
+                      playerId: args['playerId'],
+                      playerName: args['playerName'],
+                    ),
+                  );
+                }
+                return MaterialPageRoute(builder: (_) => const HomeScreen());
+              case '/enhanced-data-hub':
+                return MaterialPageRoute(builder: (_) => const EnhancedDataHubScreen());
               case '/nfl-rosters':
                 return MaterialPageRoute(builder: (_) => const NflRostersScreen());
               case '/historical-game-data':

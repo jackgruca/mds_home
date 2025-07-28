@@ -582,6 +582,38 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                 displayValue = value.toString();
               }
               
+              // Make player names clickable
+              if (column == 'player_display_name' && row['player_id'] != null) {
+                return DataCell(
+                  InkWell(
+                    onTap: () {
+                      // Clean player ID by removing suffix (e.g., "00-0033553_2024" -> "00-0033553")
+                      String cleanPlayerId = row['player_id'].toString();
+                      if (cleanPlayerId.contains('_')) {
+                        cleanPlayerId = cleanPlayerId.split('_').first;
+                      }
+                      
+                      Navigator.pushNamed(
+                        context,
+                        '/player-profile',
+                        arguments: {
+                          'playerId': cleanPlayerId,
+                          'playerName': displayValue,
+                        },
+                      );
+                    },
+                    child: Text(
+                      displayValue,
+                      style: TextStyle(
+                        color: Colors.blue.shade600,
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              
               return DataCell(Text(displayValue));
             }).toList(),
           );
