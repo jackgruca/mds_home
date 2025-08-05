@@ -50,6 +50,7 @@ import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
+import 'screens/players/player_list_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -273,6 +274,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
               case '/historical-drafts':
                 return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
+              case '/players':
+                return MaterialPageRoute(builder: (_) => const PlayerListScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }

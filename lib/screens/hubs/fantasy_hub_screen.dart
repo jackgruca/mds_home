@@ -454,6 +454,12 @@ class _ToolGrid extends StatelessWidget {
 
   static final List<Map<String, dynamic>> _inSeasonTools = [
     {
+      'icon': Icons.person_search,
+      'title': 'Player Data',
+      'subtitle': 'Detailed player stats & info',
+      'route': '/players',
+    },
+    {
       'icon': Icons.compare,
       'title': 'Player Comparison',
       'subtitle': 'Head-to-head analysis',
