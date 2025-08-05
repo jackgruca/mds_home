@@ -55,4 +55,6 @@ flutter:
     - assets/images/data/    
     - assets/2025/2025_FF_preds_FF_WR_2025_v2.csv
     - data_processing/assets/data/
+    - data_processing/assets/data/player_career_stats.csv
+    - data_processing/assets/data/player_game_logs.csv
 

@@ -1,6 +1,8 @@
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 import '../models/player_info.dart';
+import '../models/player_career_stats.dart';
+import '../models/player_game_log.dart';
 
 class PlayerDataService {
   static final PlayerDataService _instance = PlayerDataService._internal();
@@ -10,6 +12,12 @@ class PlayerDataService {
   List<PlayerInfo>? _cachedPlayers;
   Map<String, List<PlayerInfo>>? _playersByTeam;
   Map<String, PlayerInfo>? _playersById;
+  
+  List<PlayerCareerStats>? _cachedCareerStats;
+  Map<String, List<PlayerCareerStats>>? _careerStatsByPlayer;
+  
+  List<PlayerGameLog>? _cachedGameLogs;
+  Map<String, List<PlayerGameLog>>? _gameLogsByPlayer;
 
   Future<void> loadPlayerData() async {
     if (_cachedPlayers != null) {
@@ -192,5 +200,97 @@ class PlayerDataService {
     players.sort((a, b) => b.fantasyPointsPpr.compareTo(a.fantasyPointsPpr));
     
     return players.take(limit).toList();
+  }
+
+  // Career Stats Methods
+  Future<void> loadCareerStats() async {
+    if (_cachedCareerStats != null) return;
+
+    try {
+      print('🏈 Loading career stats data...');
+      final csvString = await rootBundle.loadString('data_processing/assets/data/player_career_stats.csv');
+      
+      final List<List<dynamic>> csvTable = const CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        eol: '\n',
+      ).convert(csvString);
+
+      _cachedCareerStats = [];
+      _careerStatsByPlayer = {};
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        try {
+          final stats = PlayerCareerStats.fromCsvRow(csvTable[i]);
+          _cachedCareerStats!.add(stats);
+          
+          _careerStatsByPlayer!.putIfAbsent(stats.playerId, () => []).add(stats);
+        } catch (e) {
+          print('Error parsing career stats row $i: $e');
+        }
+      }
+
+      // Sort career stats by season
+      _careerStatsByPlayer!.forEach((playerId, stats) {
+        stats.sort((a, b) => b.season.compareTo(a.season));
+      });
+
+      print('✅ Loaded ${_cachedCareerStats!.length} career stat records');
+      
+    } catch (e) {
+      print('❌ Error loading career stats: $e');
+      _cachedCareerStats = [];
+      _careerStatsByPlayer = {};
+    }
+  }
+
+  List<PlayerCareerStats> getPlayerCareerStats(String playerId) {
+    return _careerStatsByPlayer?[playerId] ?? [];
+  }
+
+  // Game Logs Methods
+  Future<void> loadGameLogs() async {
+    if (_cachedGameLogs != null) return;
+
+    try {
+      print('🏈 Loading game logs data...');
+      final csvString = await rootBundle.loadString('data_processing/assets/data/player_game_logs.csv');
+      
+      final List<List<dynamic>> csvTable = const CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        eol: '\n',
+      ).convert(csvString);
+
+      _cachedGameLogs = [];
+      _gameLogsByPlayer = {};
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        try {
+          final gameLog = PlayerGameLog.fromCsvRow(csvTable[i]);
+          _cachedGameLogs!.add(gameLog);
+          
+          _gameLogsByPlayer!.putIfAbsent(gameLog.playerId, () => []).add(gameLog);
+        } catch (e) {
+          print('Error parsing game log row $i: $e');
+        }
+      }
+
+      // Sort game logs by week
+      _gameLogsByPlayer!.forEach((playerId, logs) {
+        logs.sort((a, b) => a.week.compareTo(b.week));
+      });
+
+      print('✅ Loaded ${_cachedGameLogs!.length} game log records');
+      
+    } catch (e) {
+      print('❌ Error loading game logs: $e');
+      _cachedGameLogs = [];
+      _gameLogsByPlayer = {};
+    }
+  }
+
+  List<PlayerGameLog> getPlayerGameLogs(String playerId) {
+    return _gameLogsByPlayer?[playerId] ?? [];
   }
 }
