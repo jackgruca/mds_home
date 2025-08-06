@@ -24,8 +24,10 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   // Data
   List<ADPComparison> _allData = [];
   List<ADPComparison> _filteredData = [];
+  List<ADPComparison> _lastYearData = []; // Last year's ADP data for comparison
   List<int> _availableYears = [];
   List<String> _availablePositions = [];
+  int _maxYear = 0; // Track the max year available
   
   // Loading state
   bool _isLoading = true;
@@ -62,6 +64,9 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
       debugPrint('Available years: $years');
       debugPrint('Available positions: $positions');
       
+      // Determine max year
+      final maxYear = years.isNotEmpty ? years.first : 0; // Years are sorted descending
+      
       // Load comparison data with filters
       var data = await ADPService.loadADPComparisons(
         scoringFormat: _scoringFormat,
@@ -83,6 +88,19 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         );
       }
       
+      // If on max year, load last year's data for comparison
+      List<ADPComparison> lastYearData = [];
+      if (finalSelectedYear == maxYear && years.length > 1) {
+        final lastYear = years[1]; // Second year in the sorted list
+        debugPrint('Loading last year data for year: $lastYear');
+        lastYearData = await ADPService.loadADPComparisons(
+          scoringFormat: _scoringFormat,
+          year: lastYear,
+          position: _selectedPosition == 'All' ? null : _selectedPosition,
+        );
+        debugPrint('Loaded ${lastYearData.length} last year records');
+      }
+      
       // If still no data, try without year filter as fallback
       if (data.isEmpty) {
         debugPrint('No data for selected year, trying without year filter...');
@@ -97,7 +115,9 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         _availableYears = years;
         _availablePositions = positions;
         _selectedYear = finalSelectedYear;
+        _maxYear = maxYear;
         _allData = data;
+        _lastYearData = lastYearData;
         debugPrint('Final data loaded: ${data.length} records');
         _applyFilters();
         _isLoading = false;
@@ -124,6 +144,26 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         return true;
       }).toList();
       
+      // If on max year, enhance data with last year's ADP
+      if (_selectedYear == _maxYear && _lastYearData.isNotEmpty) {
+        // Create a map of last year's data by player name
+        final lastYearMap = Map.fromEntries(
+          _lastYearData.map((e) => MapEntry(e.player, e))
+        );
+        
+        // Enhance current year data with last year's ADP info
+        _filteredData = _filteredData.map((item) {
+          final lastYearItem = lastYearMap[item.player];
+          if (lastYearItem != null) {
+            // Store last year's data in the platform ranks map temporarily
+            // We'll use special keys to identify them
+            item.platformRanks['_ly_adp'] = lastYearItem.avgRankNum;
+            item.platformRanks['_ly_pos_rank'] = lastYearItem.positionRankNum.toDouble();
+          }
+          return item;
+        }).toList();
+      }
+      
       debugPrint('After filtering: ${_filteredData.length} records');
       
       // Apply sorting
@@ -134,6 +174,7 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   void _sortData() {
     _filteredData.sort((a, b) {
       int result = 0;
+      final isMaxYear = _selectedYear == _maxYear;
       
       switch (_sortColumnIndex) {
         case 0: // Player
@@ -142,10 +183,17 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         case 1: // Position
           result = a.position.compareTo(b.position);
           break;
-        case 2: // Position Rank (Actual)
-          final aPosRank = a.getActualPositionRank(_usePpg) ?? 999;
-          final bPosRank = b.getActualPositionRank(_usePpg) ?? 999;
-          result = aPosRank.compareTo(bPosRank);
+        case 2: // Position Rank (Actual or LY ADP Pos)
+          if (isMaxYear) {
+            // Sort by last year's ADP position rank
+            final aLyPosRank = a.platformRanks['_ly_pos_rank']?.toInt() ?? 999;
+            final bLyPosRank = b.platformRanks['_ly_pos_rank']?.toInt() ?? 999;
+            result = aLyPosRank.compareTo(bLyPosRank);
+          } else {
+            final aPosRank = a.getActualPositionRank(_usePpg) ?? 999;
+            final bPosRank = b.getActualPositionRank(_usePpg) ?? 999;
+            result = aPosRank.compareTo(bPosRank);
+          }
           break;
         case 3: // ADP Position Rank
           result = a.positionRankNum.compareTo(b.positionRankNum);
@@ -153,20 +201,45 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         case 4: // ADP
           result = a.avgRankNum.compareTo(b.avgRankNum);
           break;
-        case 5: // Final Rank
-          final aRank = a.getActualRank(_usePpg) ?? 999;
-          final bRank = b.getActualRank(_usePpg) ?? 999;
-          result = aRank.compareTo(bRank);
+        case 5: // Final Rank or LY ADP
+          if (isMaxYear) {
+            // Sort by last year's ADP
+            final aLyAdp = a.platformRanks['_ly_adp'] ?? 999;
+            final bLyAdp = b.platformRanks['_ly_adp'] ?? 999;
+            result = aLyAdp.compareTo(bLyAdp);
+          } else {
+            final aRank = a.getActualRank(_usePpg) ?? 999;
+            final bRank = b.getActualRank(_usePpg) ?? 999;
+            result = aRank.compareTo(bRank);
+          }
           break;
         case 6: // Position Difference
-          final aPosDiff = a.getPositionDifference(_usePpg) ?? -999;
-          final bPosDiff = b.getPositionDifference(_usePpg) ?? -999;
-          result = bPosDiff.compareTo(aPosDiff); // Higher is better
+          if (isMaxYear) {
+            // Calculate diff based on last year's position rank
+            final aLyPosRank = a.platformRanks['_ly_pos_rank']?.toInt();
+            final bLyPosRank = b.platformRanks['_ly_pos_rank']?.toInt();
+            final aPosDiff = aLyPosRank != null ? a.positionRankNum - aLyPosRank : -999;
+            final bPosDiff = bLyPosRank != null ? b.positionRankNum - bLyPosRank : -999;
+            result = bPosDiff.compareTo(aPosDiff); // Higher is better
+          } else {
+            final aPosDiff = a.getPositionDifference(_usePpg) ?? -999;
+            final bPosDiff = b.getPositionDifference(_usePpg) ?? -999;
+            result = bPosDiff.compareTo(aPosDiff); // Higher is better
+          }
           break;
         case 7: // Total Difference
-          final aDiff = a.getDifference(_usePpg) ?? -999;
-          final bDiff = b.getDifference(_usePpg) ?? -999;
-          result = bDiff.compareTo(aDiff); // Higher is better
+          if (isMaxYear) {
+            // Calculate diff based on last year's ADP
+            final aLyAdp = a.platformRanks['_ly_adp'];
+            final bLyAdp = b.platformRanks['_ly_adp'];
+            final aDiff = aLyAdp != null ? a.avgRankNum - aLyAdp : -999;
+            final bDiff = bLyAdp != null ? b.avgRankNum - bLyAdp : -999;
+            result = bDiff.compareTo(aDiff); // Higher is better
+          } else {
+            final aDiff = a.getDifference(_usePpg) ?? -999;
+            final bDiff = b.getDifference(_usePpg) ?? -999;
+            result = bDiff.compareTo(aDiff); // Higher is better
+          }
           break;
         case 8: // Points/PPG
           final aPoints = a.getPoints(_usePpg) ?? 0;
@@ -542,18 +615,18 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                             onSort: _onSort,
                           ),
                           DataColumn2(
-                            label: const Text('Pos Rank'),
+                            label: Text(_selectedYear == _maxYear ? 'LY ADP Pos' : 'Pos Rank'),
                             size: ColumnSize.S,
                             numeric: true,
                             onSort: _onSort,
-                            tooltip: 'Actual position rank',
+                            tooltip: _selectedYear == _maxYear ? 'Last year ADP position rank' : 'Actual position rank',
                           ),
                           DataColumn2(
                             label: const Text('ADP Pos'),
                             size: ColumnSize.S,
                             numeric: true,
                             onSort: _onSort,
-                            tooltip: 'ADP position rank',
+                            tooltip: 'Current ADP position rank',
                           ),
                           DataColumn2(
                             label: Row(
@@ -577,25 +650,29 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                             tooltip: 'Average Draft Position',
                           ),
                           DataColumn2(
-                            label: Text(_usePpg ? 'Final (PPG)' : 'Final'),
+                            label: Text(_selectedYear == _maxYear ? 'LY ADP' : (_usePpg ? 'Final (PPG)' : 'Final')),
                             size: ColumnSize.S,
                             numeric: true,
                             onSort: _onSort,
-                            tooltip: 'Final overall rank by ${_usePpg ? 'points per game' : 'total points'}',
+                            tooltip: _selectedYear == _maxYear ? 'Last year ADP overall rank' : 'Final overall rank by ${_usePpg ? 'points per game' : 'total points'}',
                           ),
                           DataColumn2(
                             label: const Text('Pos Diff'),
                             size: ColumnSize.S,
                             numeric: true,
                             onSort: _onSort,
-                            tooltip: 'Position rank difference (positive = outperformed ADP)',
+                            tooltip: _selectedYear == _maxYear 
+                                ? 'Current vs last year position rank (negative = higher ADP)'
+                                : 'Position rank difference (positive = outperformed ADP)',
                           ),
                           DataColumn2(
                             label: const Text('Total Diff'),
                             size: ColumnSize.S,
                             numeric: true,
                             onSort: _onSort,
-                            tooltip: 'Overall rank difference (positive = outperformed ADP)',
+                            tooltip: _selectedYear == _maxYear
+                                ? 'Current vs last year ADP (negative = higher ADP)'
+                                : 'Overall rank difference (positive = outperformed ADP)',
                           ),
                           DataColumn2(
                             label: Text(_usePpg ? 'PPG' : 'Points'),
@@ -611,12 +688,32 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                           ),
                         ],
                         rows: _filteredData.map((item) {
-                          final diff = item.getDifference(_usePpg);
-                          final posDiff = item.getPositionDifference(_usePpg);
-                          final actualRank = item.getActualRank(_usePpg);
-                          final actualPosRank = item.getActualPositionRank(_usePpg);
+                          // For max year, use last year's ADP for comparison
+                          final isMaxYear = _selectedYear == _maxYear;
+                          final lyAdp = item.platformRanks['_ly_adp'];
+                          final lyPosRank = item.platformRanks['_ly_pos_rank']?.toInt();
+                          
+                          // Calculate differences based on whether we're on max year or not
+                          final diff = isMaxYear && lyAdp != null 
+                              ? item.avgRankNum - lyAdp
+                              : item.getDifference(_usePpg);
+                          final posDiff = isMaxYear && lyPosRank != null
+                              ? item.positionRankNum - lyPosRank
+                              : item.getPositionDifference(_usePpg);
+                          
+                          // For display, use last year's data when on max year
+                          final displayRank = isMaxYear ? lyAdp?.toInt() : item.getActualRank(_usePpg);
+                          final displayPosRank = isMaxYear ? lyPosRank : item.getActualPositionRank(_usePpg);
+                          
                           final points = item.getPoints(_usePpg);
-                          final color = item.getPerformanceColor(_usePpg);
+                          
+                          // Color based on difference magnitude
+                          final color = isMaxYear && diff != null
+                              ? (diff < -20 ? Colors.green.shade900 : 
+                                 diff < -10 ? Colors.green.shade600 :
+                                 diff < 5 && diff > -5 ? Colors.grey.shade600 :
+                                 diff < 15 ? Colors.red.shade400 : Colors.red.shade700)
+                              : item.getPerformanceColor(_usePpg);
                           
                           return DataRow2(
                             cells: [
@@ -625,17 +722,17 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                                   item.player,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w500,
-                                    color: actualRank == null ? Colors.grey : null,
+                                    color: (isMaxYear ? displayRank == null : item.getActualRank(_usePpg) == null) ? Colors.grey : null,
                                   ),
                                 ),
                               ),
                               DataCell(Text(item.position)),
-                              DataCell(Text(actualPosRank?.toString() ?? '-')),
+                              DataCell(Text(displayPosRank?.toString() ?? '-')),
                               DataCell(Text(item.positionRankNum.toString())),
                               DataCell(Text(item.avgRankNum.toStringAsFixed(1))),
                               DataCell(
                                 Text(
-                                  actualRank?.toString() ?? '-',
+                                  displayRank?.toString() ?? '-',
                                   style: TextStyle(color: color),
                                 ),
                               ),
