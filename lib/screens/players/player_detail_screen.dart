@@ -840,9 +840,333 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
   }
 
   Widget _buildAdvancedTab() {
-    return const Center(
-      child: Text('Advanced stats coming soon - EPA, Next Gen Stats, etc.'),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('Expected Points Added (EPA)'),
+          const SizedBox(height: 16),
+          _buildEpaOverview(),
+          
+          const SizedBox(height: 32),
+          
+          _buildSectionTitle('EPA Breakdown by Play Type'),
+          const SizedBox(height: 16),
+          _buildEpaBreakdown(),
+          
+          const SizedBox(height: 32),
+          
+          _buildSectionTitle('Efficiency Metrics'),
+          const SizedBox(height: 16),
+          _buildEfficiencyMetrics(),
+        ],
+      ),
     );
+  }
+
+  Widget _buildEpaOverview() {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildEpaCard(
+                    'Total EPA',
+                    widget.player.totalEpa.toStringAsFixed(1),
+                    _getEpaColor(widget.player.totalEpa),
+                    'Combined EPA across all play types',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'EPA measures the value a player adds above expectation on each play. Positive EPA indicates above-average performance.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEpaBreakdown() {
+    final breakdownItems = <Widget>[];
+    
+    // Passing EPA (for QBs)
+    if (widget.player.isQuarterback && widget.player.passingPlays > 0) {
+      breakdownItems.add(_buildEpaBreakdownCard(
+        'Passing EPA',
+        widget.player.passingEpaTotal,
+        widget.player.passingEpaPerPlay,
+        widget.player.passingPlays,
+        Icons.sports_football,
+        Colors.blue,
+      ));
+    }
+    
+    // Rushing EPA
+    if (widget.player.rushingPlays > 0) {
+      breakdownItems.add(_buildEpaBreakdownCard(
+        'Rushing EPA',
+        widget.player.rushingEpaTotal,
+        widget.player.rushingEpaPerPlay,
+        widget.player.rushingPlays,
+        Icons.directions_run,
+        Colors.green,
+      ));
+    }
+    
+    // Receiving EPA
+    if (widget.player.receivingPlays > 0) {
+      breakdownItems.add(_buildEpaBreakdownCard(
+        'Receiving EPA',
+        widget.player.receivingEpaTotal,
+        widget.player.receivingEpaPerPlay,
+        widget.player.receivingPlays,
+        Icons.catching_pokemon,
+        Colors.orange,
+      ));
+    }
+    
+    if (breakdownItems.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(
+            child: Text(
+              'No EPA data available for this player',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Column(children: breakdownItems);
+  }
+
+  Widget _buildEpaBreakdownCard(
+    String title,
+    double totalEpa,
+    double epaPerPlay,
+    int plays,
+    IconData icon,
+    Color color,
+  ) {
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$plays plays',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  totalEpa.toStringAsFixed(1),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _getEpaColor(totalEpa),
+                  ),
+                ),
+                Text(
+                  '${epaPerPlay.toStringAsFixed(3)} per play',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEfficiencyMetrics() {
+    final metrics = <Widget>[];
+    
+    // Add efficiency calculations based on position
+    if (widget.player.isQuarterback && widget.player.attempts > 0) {
+      final completionRate = (widget.player.completions / widget.player.attempts) * 100;
+      final epaPerAttempt = widget.player.passingPlays > 0 
+        ? widget.player.passingEpaTotal / widget.player.attempts 
+        : 0.0;
+      
+      metrics.addAll([
+        _buildEfficiencyCard('Completion Rate', '${completionRate.toStringAsFixed(1)}%'),
+        _buildEfficiencyCard('EPA per Attempt', epaPerAttempt.toStringAsFixed(3)),
+      ]);
+    }
+    
+    if (widget.player.carries > 0) {
+      final ypc = widget.player.rushingYards / widget.player.carries;
+      final epaPerCarry = widget.player.rushingPlays > 0 
+        ? widget.player.rushingEpaTotal / widget.player.carries 
+        : 0.0;
+      
+      metrics.addAll([
+        _buildEfficiencyCard('Yards per Carry', ypc.toStringAsFixed(1)),
+        _buildEfficiencyCard('EPA per Carry', epaPerCarry.toStringAsFixed(3)),
+      ]);
+    }
+    
+    if (widget.player.targets > 0) {
+      final catchRate = (widget.player.receptions / widget.player.targets) * 100;
+      final epaPerTarget = widget.player.receivingPlays > 0 
+        ? widget.player.receivingEpaTotal / widget.player.targets 
+        : 0.0;
+      
+      metrics.addAll([
+        _buildEfficiencyCard('Catch Rate', '${catchRate.toStringAsFixed(1)}%'),
+        _buildEfficiencyCard('EPA per Target', epaPerTarget.toStringAsFixed(3)),
+      ]);
+    }
+    
+    if (metrics.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Center(
+            child: Text(
+              'No efficiency metrics available',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          childAspectRatio: 2.5,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          children: metrics,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEpaCard(String title, String value, Color color, String description) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          description,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEfficiencyCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getEpaColor(double epa) {
+    if (epa > 10) return Colors.green.shade700;
+    if (epa > 0) return Colors.green;
+    if (epa > -10) return Colors.orange;
+    return Colors.red;
   }
 
   Color _getRankColor(int rank) {

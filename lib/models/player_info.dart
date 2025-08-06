@@ -32,6 +32,18 @@ class PlayerInfo {
   final double rushYpg;
   final double recYpg;
   final int totalTds;
+  
+  // EPA (Expected Points Added) metrics
+  final double passingEpaTotal;
+  final double passingEpaPerPlay;
+  final int passingPlays;
+  final double rushingEpaTotal;
+  final double rushingEpaPerPlay;
+  final int rushingPlays;
+  final double receivingEpaTotal;
+  final double receivingEpaPerPlay;
+  final int receivingPlays;
+  final double totalEpa;
 
   PlayerInfo({
     required this.playerId,
@@ -65,6 +77,16 @@ class PlayerInfo {
     required this.rushYpg,
     required this.recYpg,
     required this.totalTds,
+    required this.passingEpaTotal,
+    required this.passingEpaPerPlay,
+    required this.passingPlays,
+    required this.rushingEpaTotal,
+    required this.rushingEpaPerPlay,
+    required this.rushingPlays,
+    required this.receivingEpaTotal,
+    required this.receivingEpaPerPlay,
+    required this.receivingPlays,
+    required this.totalEpa,
   });
 
   factory PlayerInfo.fromCsvRow(List<dynamic> row) {
@@ -95,11 +117,21 @@ class PlayerInfo {
       receivingYards: _parseInt(row[23]) ?? 0,
       receivingTds: _parseInt(row[24]) ?? 0,
       fantasyPointsPpr: _parseDouble(row[25]) ?? 0.0,
-      fantasyPpg: _parseDouble(row[26]) ?? 0.0,
-      passYpg: _parseDouble(row[27]) ?? 0.0,
-      rushYpg: _parseDouble(row[28]) ?? 0.0,
-      recYpg: _parseDouble(row[29]) ?? 0.0,
-      totalTds: _parseInt(row[30]) ?? 0,
+      fantasyPpg: _parseDouble(row[38]) ?? 0.0,
+      passYpg: _parseDouble(row[39]) ?? 0.0,
+      rushYpg: _parseDouble(row[40]) ?? 0.0,
+      recYpg: _parseDouble(row[41]) ?? 0.0,
+      totalTds: _parseInt(row[42]) ?? 0,
+      passingEpaTotal: _parseDouble(row[27]) ?? 0.0,
+      passingEpaPerPlay: _parseDouble(row[28]) ?? 0.0,
+      passingPlays: _parseInt(row[29]) ?? 0,
+      rushingEpaTotal: _parseDouble(row[31]) ?? 0.0,
+      rushingEpaPerPlay: _parseDouble(row[32]) ?? 0.0,
+      rushingPlays: _parseInt(row[33]) ?? 0,
+      receivingEpaTotal: _parseDouble(row[35]) ?? 0.0,
+      receivingEpaPerPlay: _parseDouble(row[36]) ?? 0.0,
+      receivingPlays: _parseInt(row[37]) ?? 0,
+      totalEpa: _parseDouble(row[43]) ?? 0.0,
     );
   }
 

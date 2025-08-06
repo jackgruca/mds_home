@@ -45,7 +45,44 @@ roster_data <- load_rosters(seasons = current_season) %>%
     any_of(c("jersey_number", "height", "weight", "age", "years_exp", "status", "college"))
   )
 
-# 2. Load current season stats
+# 2. Load play-by-play data for EPA calculations
+cat("Loading play-by-play data for EPA calculations...\n")
+pbp_data <- load_pbp(seasons = current_season) %>%
+  filter(season_type == "REG", !is.na(epa))
+
+# Calculate EPA stats by player
+cat("Calculating EPA metrics...\n")
+epa_passing <- pbp_data %>%
+  filter(!is.na(passer_player_id), pass == 1, !is.na(epa)) %>%
+  group_by(passer_player_id, passer_player_name) %>%
+  summarise(
+    passing_epa_total = round(sum(epa, na.rm = TRUE), 2),
+    passing_epa_per_play = round(mean(epa, na.rm = TRUE), 3),
+    passing_plays = n(),
+    .groups = 'drop'
+  )
+
+epa_rushing <- pbp_data %>%
+  filter(!is.na(rusher_player_id), rush == 1, !is.na(epa)) %>%
+  group_by(rusher_player_id, rusher_player_name) %>%
+  summarise(
+    rushing_epa_total = round(sum(epa, na.rm = TRUE), 2),
+    rushing_epa_per_play = round(mean(epa, na.rm = TRUE), 3),
+    rushing_plays = n(),
+    .groups = 'drop'
+  )
+
+epa_receiving <- pbp_data %>%
+  filter(!is.na(receiver_player_id), pass == 1, complete_pass == 1, !is.na(epa)) %>%
+  group_by(receiver_player_id, receiver_player_name) %>%
+  summarise(
+    receiving_epa_total = round(sum(epa, na.rm = TRUE), 2),
+    receiving_epa_per_play = round(mean(epa, na.rm = TRUE), 3),
+    receiving_plays = n(),
+    .groups = 'drop'
+  )
+
+# 3. Load current season stats
 cat("Loading season stats...\n")
 season_stats <- load_player_stats(seasons = current_season, stat_type = "offense") %>%
   filter(position %in% c('QB', 'RB', 'WR', 'TE')) %>%
@@ -71,6 +108,10 @@ season_stats <- load_player_stats(seasons = current_season, stat_type = "offense
     fantasy_points_ppr = sum(fantasy_points_ppr, na.rm = TRUE),
     .groups = 'drop'
   ) %>%
+  # Join EPA data
+  left_join(epa_passing, by = c("player_id" = "passer_player_id")) %>%
+  left_join(epa_rushing, by = c("player_id" = "rusher_player_id")) %>%
+  left_join(epa_receiving, by = c("player_id" = "receiver_player_id")) %>%
   mutate(
     # Calculate per-game averages
     fantasy_ppg = round(fantasy_points_ppr / games, 1),
@@ -78,10 +119,22 @@ season_stats <- load_player_stats(seasons = current_season, stat_type = "offense
     rush_ypg = round(rushing_yards / games, 1),
     rec_ypg = round(receiving_yards / games, 1),
     # Total TDs
-    total_tds = passing_tds + rushing_tds + receiving_tds
+    total_tds = passing_tds + rushing_tds + receiving_tds,
+    # Fill missing EPA values with 0
+    passing_epa_total = coalesce(passing_epa_total, 0),
+    passing_epa_per_play = coalesce(passing_epa_per_play, 0),
+    passing_plays = coalesce(passing_plays, 0),
+    rushing_epa_total = coalesce(rushing_epa_total, 0),
+    rushing_epa_per_play = coalesce(rushing_epa_per_play, 0),
+    rushing_plays = coalesce(rushing_plays, 0),
+    receiving_epa_total = coalesce(receiving_epa_total, 0),
+    receiving_epa_per_play = coalesce(receiving_epa_per_play, 0),
+    receiving_plays = coalesce(receiving_plays, 0),
+    # Calculate total EPA across all play types
+    total_epa = passing_epa_total + rushing_epa_total + receiving_epa_total
   )
 
-# 3. Get most recent week's game logs
+# 4. Get most recent week's game logs
 cat("Loading recent game logs...\n")
 recent_games <- load_player_stats(seasons = current_season, stat_type = "offense") %>%
   filter(
@@ -104,7 +157,7 @@ recent_games <- load_player_stats(seasons = current_season, stat_type = "offense
     fantasy_points_ppr
   )
 
-# 4. Combine into a single current player dataset
+# 5. Combine into a single current player dataset
 cat("Creating combined player dataset...\n")
 current_players <- roster_data %>%
   left_join(
@@ -116,13 +169,13 @@ current_players <- roster_data %>%
   mutate(across(where(is.numeric), ~replace_na(., 0))) %>%
   arrange(team, position_group, desc(fantasy_points_ppr))
 
-# 5. Export files
+# 6. Export files
 cat("\nExporting CSV files...\n")
 
 write.csv(current_players, "current_players_combined.csv", row.names = FALSE)
 write.csv(recent_games, "recent_game_logs.csv", row.names = FALSE)
 
-# 6. Create a simple team summary
+# 7. Create a simple team summary
 team_summary <- current_players %>%
   group_by(team, position_group) %>%
   summarise(
