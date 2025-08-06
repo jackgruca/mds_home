@@ -413,6 +413,8 @@ class PlayerDataService {
 
     try {
       print('📊 Loading weekly NGS data...');
+      
+      // Load existing rushing/receiving NGS data
       final csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_ngs.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
@@ -435,6 +437,32 @@ class PlayerDataService {
         }
       }
 
+      // Load new passing NGS data
+      try {
+        print('📊 Loading weekly passing NGS data...');
+        final passingCsvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_passing_ngs.csv');
+        
+        final List<List<dynamic>> passingCsvTable = const CsvToListConverter(
+          fieldDelimiter: ',',
+          textDelimiter: '"',
+          eol: '\n',
+        ).convert(passingCsvString);
+
+        for (int i = 1; i < passingCsvTable.length; i++) {
+          try {
+            final passingNgs = PlayerWeeklyNgs.fromPassingCsvRow(passingCsvTable[i]);
+            _cachedWeeklyNgs!.add(passingNgs);
+            
+            _weeklyNgsByPlayer!.putIfAbsent(passingNgs.playerId, () => []).add(passingNgs);
+          } catch (e) {
+            print('Error parsing weekly passing NGS row $i: $e');
+          }
+        }
+        print('✅ Loaded ${passingCsvTable.length - 1} passing NGS records');
+      } catch (e) {
+        print('⚠️ Could not load passing NGS data: $e');
+      }
+
       // Sort weekly NGS by season/week
       _weeklyNgsByPlayer!.forEach((playerId, stats) {
         stats.sort((a, b) {
@@ -443,7 +471,7 @@ class PlayerDataService {
         });
       });
 
-      print('✅ Loaded ${_cachedWeeklyNgs!.length} weekly NGS records');
+      print('✅ Loaded ${_cachedWeeklyNgs!.length} total weekly NGS records');
       
     } catch (e) {
       print('❌ Error loading weekly NGS: $e');

@@ -6,6 +6,19 @@ class PlayerWeeklyNgs {
   final String team;
   final String statType; // "passing", "rushing", or "receiving"
   
+  // Passing NGS
+  final double? avgTimeToThrow;
+  final double? avgCompletedAirYards;
+  final double? avgIntendedAirYardsPass;
+  final double? completionPercentageAboveExpectation;
+  final double? aggressiveness;
+  final double? maxCompletedAirDistance;
+  final int? passingAttempts;
+  final int? passingCompletions;
+  final int? passingYards;
+  final int? passingTouchdowns;
+  final int? passingInterceptions;
+  
   // Rushing NGS
   final double? efficiency;
   final double? percentAttemptsGteEightDefenders;
@@ -38,6 +51,19 @@ class PlayerWeeklyNgs {
     required this.playerName,
     required this.team,
     required this.statType,
+    // Passing NGS
+    this.avgTimeToThrow,
+    this.avgCompletedAirYards,
+    this.avgIntendedAirYardsPass,
+    this.completionPercentageAboveExpectation,
+    this.aggressiveness,
+    this.maxCompletedAirDistance,
+    this.passingAttempts,
+    this.passingCompletions,
+    this.passingYards,
+    this.passingTouchdowns,
+    this.passingInterceptions,
+    // Rushing NGS
     this.efficiency,
     this.percentAttemptsGteEightDefenders,
     this.avgTimeToLos,
@@ -94,16 +120,43 @@ class PlayerWeeklyNgs {
       receivingTouchdowns: int.tryParse(row[26]?.toString() ?? ''),
     );
   }
+
+  // Factory for passing NGS data (different CSV structure)
+  factory PlayerWeeklyNgs.fromPassingCsvRow(List<dynamic> row) {
+    return PlayerWeeklyNgs(
+      season: int.tryParse(row[0].toString()) ?? 0,
+      week: int.tryParse(row[1].toString()) ?? 0,
+      playerId: row[2].toString(),
+      playerName: row[3].toString(),
+      team: row[4].toString(),
+      statType: row[16].toString(), // "passing"
+      // Passing NGS data
+      avgTimeToThrow: double.tryParse(row[5]?.toString() ?? ''),
+      avgCompletedAirYards: double.tryParse(row[6]?.toString() ?? ''),
+      avgIntendedAirYardsPass: double.tryParse(row[7]?.toString() ?? ''),
+      completionPercentageAboveExpectation: double.tryParse(row[8]?.toString() ?? ''),
+      aggressiveness: double.tryParse(row[9]?.toString() ?? ''),
+      maxCompletedAirDistance: double.tryParse(row[10]?.toString() ?? ''),
+      passingAttempts: int.tryParse(row[11]?.toString() ?? ''),
+      passingCompletions: int.tryParse(row[12]?.toString() ?? ''),
+      passingYards: int.tryParse(row[13]?.toString() ?? ''),
+      passingTouchdowns: int.tryParse(row[14]?.toString() ?? ''),
+      passingInterceptions: int.tryParse(row[15]?.toString() ?? ''),
+    );
+  }
   
   // Convenience getters
   String get weekDisplay => 'Week $week';
   
+  bool get hasPassingStats => statType == "passing";
   bool get hasRushingStats => statType == "rushing";
   bool get hasReceivingStats => statType == "receiving";
   
   // Get key NGS metric based on stat type
   String get keyNgsMetric {
     switch (statType) {
+      case 'passing':
+        return completionPercentageAboveExpectation != null ? '${completionPercentageAboveExpectation! > 0 ? '+' : ''}${completionPercentageAboveExpectation!.toStringAsFixed(1)}% CPOE' : 'N/A';
       case 'rushing':
         return rushYardsOverExpected != null ? '${rushYardsOverExpected!.toStringAsFixed(1)} RYOE' : 'N/A';
       case 'receiving':

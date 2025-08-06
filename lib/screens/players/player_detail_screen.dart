@@ -1364,55 +1364,70 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
     final allNgsForPlayer = _playerService.getPlayerWeeklyNgsForSeason(weekData.playerId, weekData.season);
     final ngsData = allNgsForPlayer.where((ngs) => ngs.week == weekData.week && ngs.week > 0); // Exclude Week 0 (season totals)
     
-    // Filter NGS by position: QB->passing, RB->rushing, WR/TE->receiving
-    late String targetStatType;
+    // Filter NGS by position: QB->check for rushing, RB->rushing, WR/TE->receiving
+    List<String> ngsParts = [];
+    
     switch (playerPos) {
       case 'QB':
-        targetStatType = 'passing';
+        // For QBs, prioritize passing NGS data, fall back to rushing NGS for mobile QBs
+        final passingNgs = ngsData.where((ngs) => ngs.statType == 'passing').toList();
+        if (passingNgs.isNotEmpty) {
+          final ngs = passingNgs.first;
+          if (ngs.completionPercentageAboveExpectation != null) {
+            ngsParts.add('${ngs.completionPercentageAboveExpectation! > 0 ? '+' : ''}${ngs.completionPercentageAboveExpectation!.toStringAsFixed(1)}% CPOE');
+          }
+          if (ngs.avgTimeToThrow != null) {
+            ngsParts.add('${ngs.avgTimeToThrow!.toStringAsFixed(2)}s TTT');
+          }
+        } else {
+          // Fall back to rushing NGS for mobile QBs
+          final rushingNgs = ngsData.where((ngs) => ngs.statType == 'rushing').toList();
+          if (rushingNgs.isNotEmpty) {
+            final ngs = rushingNgs.first;
+            if (ngs.rushYardsOverExpected != null) {
+              ngsParts.add('${ngs.rushYardsOverExpected! > 0 ? '+' : ''}${ngs.rushYardsOverExpected!.toStringAsFixed(1)} RYOE');
+            }
+            if (ngs.efficiency != null) {
+              ngsParts.add('${(ngs.efficiency! * 100).toStringAsFixed(1)}% Eff');
+            }
+          }
+        }
         break;
       case 'RB':
-        targetStatType = 'rushing';
+        final rushingNgs = ngsData.where((ngs) => ngs.statType == 'rushing').toList();
+        if (rushingNgs.isNotEmpty) {
+          final ngs = rushingNgs.first;
+          if (ngs.rushYardsOverExpected != null) {
+            ngsParts.add('${ngs.rushYardsOverExpected! > 0 ? '+' : ''}${ngs.rushYardsOverExpected!.toStringAsFixed(1)} RYOE');
+          }
+          if (ngs.efficiency != null) {
+            ngsParts.add('${(ngs.efficiency! * 100).toStringAsFixed(1)}% Eff');
+          }
+        }
         break;
       case 'WR':
       case 'TE':
-        targetStatType = 'receiving';
+        final receivingNgs = ngsData.where((ngs) => ngs.statType == 'receiving').toList();
+        if (receivingNgs.isNotEmpty) {
+          final ngs = receivingNgs.first;
+          if (ngs.avgYacAboveExpectation != null) {
+            ngsParts.add('${ngs.avgYacAboveExpectation! > 0 ? '+' : ''}${ngs.avgYacAboveExpectation!.toStringAsFixed(1)} YAC+/-');
+          }
+          if (ngs.avgSeparation != null) {
+            ngsParts.add('${ngs.avgSeparation!.toStringAsFixed(1)} Sep');
+          }
+        }
         break;
       default:
         return 'No NGS';
     }
-
-    final relevantNgs = ngsData.where((ngs) => ngs.statType == targetStatType).toList();
     
-    if (relevantNgs.isEmpty) {
-      return 'No NGS';
+    if (ngsParts.isNotEmpty) {
+      return ngsParts.join(' | ');
+    } else {
+      // No NGS data available for this player/week/position combination
+      return playerPos == 'QB' ? 'No QB NGS' : 'No NGS';
     }
-
-    final ngs = relevantNgs.first;
-    List<String> ngsParts = [];
-    
-    // Add position-specific NGS metrics
-    switch (targetStatType) {
-      case 'rushing':
-        if (ngs.rushYardsOverExpected != null) {
-          ngsParts.add('${ngs.rushYardsOverExpected! > 0 ? '+' : ''}${ngs.rushYardsOverExpected!.toStringAsFixed(1)} RYOE');
-        }
-        if (ngs.efficiency != null) {
-          ngsParts.add('${(ngs.efficiency! * 100).toStringAsFixed(1)}% Eff');
-        }
-        break;
-      case 'receiving':
-        if (ngs.avgYacAboveExpectation != null) {
-          ngsParts.add('${ngs.avgYacAboveExpectation! > 0 ? '+' : ''}${ngs.avgYacAboveExpectation!.toStringAsFixed(1)} YAC+/-');
-        }
-        if (ngs.avgSeparation != null) {
-          ngsParts.add('${ngs.avgSeparation!.toStringAsFixed(1)} Sep');
-        }
-        break;
-      case 'passing':
-        return 'NGS N/A'; // No passing NGS data available currently
-    }
-    
-    return ngsParts.isNotEmpty ? ngsParts.join(' | ') : 'No NGS';
   }
 }
 

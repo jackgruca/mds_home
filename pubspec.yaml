@@ -57,4 +57,5 @@ flutter:
     - data_processing/assets/data/
     - data_processing/assets/data/player_career_stats.csv
     - data_processing/assets/data/player_game_logs.csv
+    - data_processing/assets/data/player_weekly_passing_ngs.csv
 
