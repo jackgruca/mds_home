@@ -8,6 +8,7 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/seo_helper.dart';
 import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/csv_rankings_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
 import '../../services/rankings/ranking_calculation_service.dart';
 import '../../services/rankings/filter_service.dart';
@@ -57,8 +58,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       SEOHelper.updateForQBRankings();
     });
     
-    _seasonOptions = RankingService.getSeasonOptions();
-    _tierOptions = RankingService.getTierOptions();
+    _seasonOptions = ['2024', '2023', '2022', '2021', 'All']; // Will be loaded from CSV
+    _tierOptions = ['All', '1', '2', '3', '4', '5']; // Will be loaded from CSV
     _defaultWeights = RankingCalculationService.getDefaultWeights('qb');
     _currentWeights = _defaultWeights;
     _currentFilter = const FilterQuery();
@@ -77,11 +78,29 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     });
 
     try {
-      final rankings = await RankingService.loadRankings(
-        position: 'qb',
-        season: _selectedSeason,
-        tier: _selectedTier,
-      );
+      print('🏈 QBRankings: Starting to load QB rankings...');
+      final csvService = CSVRankingsService();
+      final allRankings = await csvService.fetchQBRankings();
+      
+      print('🏈 QBRankings: Received ${allRankings.length} total rankings from CSV service');
+      print('🏈 QBRankings: Current filters - Season: "$_selectedSeason", Tier: "$_selectedTier"');
+      
+      // Filter by season and tier
+      final rankings = allRankings.where((ranking) {
+        bool matchesSeason = _selectedSeason == 'All' || 
+                            ranking['season']?.toString() == _selectedSeason;
+        bool matchesTier = _selectedTier == 'All' || 
+                          (ranking['tier']?.toString() == _selectedTier);
+        return matchesSeason && matchesTier;
+      }).toList();
+      
+      print('🏈 QBRankings: After filtering: ${rankings.length} rankings remain');
+      
+      if (rankings.isEmpty && allRankings.isNotEmpty) {
+        print('⚠️ QBRankings: All rankings were filtered out!');
+        print('⚠️ QBRankings: Sample raw data - season: ${allRankings.first['season']}, tier: ${allRankings.first['tier']}');
+        print('⚠️ QBRankings: Filter criteria - season: "$_selectedSeason", tier: "$_selectedTier"');
+      }
       
       // Store original rankings
       _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();
@@ -122,6 +141,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ QBRankings: FAILED to load rankings: $e');
       setState(() {
         _error = 'Failed to load QB rankings: ${e.toString()}';
         _isLoading = false;
