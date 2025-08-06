@@ -433,6 +433,12 @@ class _ToolGrid extends StatelessWidget {
       'route': '/fantasy/draft-big-board',
     },
     {
+      'icon': Icons.show_chart,
+      'title': 'ADP Analysis',
+      'subtitle': 'Historical ADP vs performance',
+      'route': '/fantasy/adp',
+    },
+    {
       'icon': Icons.tune,
       'title': 'Custom Rankings',
       'subtitle': 'Build your own player rankings',

@@ -48,6 +48,8 @@ import 'screens/rankings/run_offense_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
+import 'screens/adp/adp_analysis_screen.dart';
+import 'screens/adp_test_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
 import 'screens/players/player_list_screen.dart';
@@ -205,6 +207,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/big-board':
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+              case '/fantasy/adp':
+                return MaterialPageRoute(builder: (_) => const ADPAnalysisScreen());
+              case '/test-adp':
+                return MaterialPageRoute(builder: (_) => const ADPTestScreen());
               case '/fantasy/player-comparison':
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
               case '/player-comparison':
