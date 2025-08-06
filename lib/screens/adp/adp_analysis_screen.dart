@@ -21,6 +21,14 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   bool _usePpg = false;
   String _searchQuery = '';
   
+  // Advanced filter states
+  double? _adpMin;
+  double? _adpMax;
+  double? _pointsMin;
+  double? _pointsMax;
+  int? _gamesMin;
+  bool _showFiltersExpanded = false;
+  
   // Data
   List<ADPComparison> _allData = [];
   List<ADPComparison> _filteredData = [];
@@ -141,6 +149,29 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
             return false;
           }
         }
+        
+        // Apply ADP range filter
+        if (_adpMin != null && item.avgRankNum < _adpMin!) {
+          return false;
+        }
+        if (_adpMax != null && item.avgRankNum > _adpMax!) {
+          return false;
+        }
+        
+        // Apply points range filter
+        if (_pointsMin != null || _pointsMax != null) {
+          final points = item.getPoints(_usePpg);
+          if (points == null) return false;
+          if (_pointsMin != null && points < _pointsMin!) return false;
+          if (_pointsMax != null && points > _pointsMax!) return false;
+        }
+        
+        // Apply games filter
+        if (_gamesMin != null) {
+          final games = item.gamesPlayed;
+          if (games == null || games < _gamesMin!) return false;
+        }
+        
         return true;
       }).toList();
       
@@ -273,9 +304,9 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
       ),
       body: Column(
         children: [
-          // Filters
+          // Condensed Filter Section
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               boxShadow: [
@@ -288,153 +319,44 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
             ),
             child: Column(
               children: [
-                // First row of filters
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isMobile = constraints.maxWidth < 600;
+                // Main controls row
+                Row(
+                  children: [
+                    // Format toggle (compact)
+                    SegmentedButton<String>(
+                      style: SegmentedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      segments: const [
+                        ButtonSegment(value: 'ppr', label: Text('PPR')),
+                        ButtonSegment(value: 'standard', label: Text('STD')),
+                      ],
+                      selected: {_scoringFormat},
+                      onSelectionChanged: (Set<String> selected) {
+                        setState(() {
+                          _scoringFormat = selected.first;
+                          _loadData();
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 12),
                     
-                    if (isMobile) {
-                      return Column(
-                        children: [
-                          // Mobile: Stack filters vertically
-                          Row(
-                            children: [
-                              // Compact scoring format toggle
-                              Expanded(
-                                child: SegmentedButton<String>(
-                                  style: SegmentedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    textStyle: const TextStyle(fontSize: 12),
-                                  ),
-                                  segments: const [
-                                    ButtonSegment(value: 'ppr', label: Text('PPR')),
-                                    ButtonSegment(value: 'standard', label: Text('STD')),
-                                  ],
-                                  selected: {_scoringFormat},
-                                  onSelectionChanged: (Set<String> selected) {
-                                    setState(() {
-                                      _scoringFormat = selected.first;
-                                      _loadData();
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Compact points toggle
-                              Expanded(
-                                child: SegmentedButton<bool>(
-                                  style: SegmentedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    textStyle: const TextStyle(fontSize: 12),
-                                  ),
-                                  segments: const [
-                                    ButtonSegment(value: false, label: Text('Total')),
-                                    ButtonSegment(value: true, label: Text('PPG')),
-                                  ],
-                                  selected: {_usePpg},
-                                  onSelectionChanged: (Set<bool> selected) {
-                                    setState(() {
-                                      _usePpg = selected.first;
-                                      _applyFilters();
-                                    });
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              // Year and position on mobile
-                              Expanded(
-                                child: DropdownButtonFormField<int>(
-                                  value: _availableYears.contains(_selectedYear) ? _selectedYear : null,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Year',
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    labelStyle: TextStyle(fontSize: 12),
-                                  ),
-                                  style: const TextStyle(fontSize: 12),
-                                  items: _availableYears.map((year) => DropdownMenuItem(
-                                    value: year, child: Text(year.toString()),
-                                  )).toList(),
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _selectedYear = value;
-                                        _loadData();
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: _selectedPosition,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Pos',
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    labelStyle: TextStyle(fontSize: 12),
-                                  ),
-                                  style: const TextStyle(fontSize: 12),
-                                  items: _availablePositions.map((position) => DropdownMenuItem(
-                                    value: position, child: Text(position),
-                                  )).toList(),
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _selectedPosition = value;
-                                        _loadData();
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    }
-                    
-                    // Desktop: Original horizontal layout
-                    return Row(
-                      children: [
-                        // Scoring format toggle
-                        Expanded(
-                          child: SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(value: 'ppr', label: Text('PPR')),
-                              ButtonSegment(value: 'standard', label: Text('Standard')),
-                            ],
-                            selected: {_scoringFormat},
-                            onSelectionChanged: (Set<String> selected) {
-                              setState(() {
-                                _scoringFormat = selected.first;
-                                _loadData();
-                              });
-                            },
-                          ),
-                        ),
-                    const SizedBox(width: 16),
-                    
-                    // Year dropdown
-                    Expanded(
+                    // Year dropdown (compact)
+                    SizedBox(
+                      width: 80,
                       child: DropdownButtonFormField<int>(
                         value: _availableYears.contains(_selectedYear) ? _selectedYear : null,
                         decoration: const InputDecoration(
                           labelText: 'Year',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          labelStyle: TextStyle(fontSize: 12),
                         ),
-                        items: _availableYears.map((year) {
-                          return DropdownMenuItem(
-                            value: year,
-                            child: Text(year.toString()),
-                          );
-                        }).toList(),
+                        style: const TextStyle(fontSize: 13),
+                        items: _availableYears.map((year) => DropdownMenuItem(
+                          value: year, child: Text(year.toString()),
+                        )).toList(),
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {
@@ -445,23 +367,23 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     
-                    // Position filter
-                    Expanded(
+                    // Position dropdown (compact)
+                    SizedBox(
+                      width: 70,
                       child: DropdownButtonFormField<String>(
                         value: _selectedPosition,
                         decoration: const InputDecoration(
-                          labelText: 'Position',
+                          labelText: 'Pos',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          labelStyle: TextStyle(fontSize: 12),
                         ),
-                        items: _availablePositions.map((position) {
-                          return DropdownMenuItem(
-                            value: position,
-                            child: Text(position),
-                          );
-                        }).toList(),
+                        style: const TextStyle(fontSize: 13),
+                        items: _availablePositions.map((position) => DropdownMenuItem(
+                          value: position, child: Text(position),
+                        )).toList(),
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {
@@ -472,120 +394,248 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                         },
                       ),
                     ),
-                      ],
-                    );
-                  },
-                ),
-                
-                // Desktop: search field (desktop always shows search on second row)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isMobile = constraints.maxWidth < 600;
+                    const SizedBox(width: 12),
                     
-                    if (isMobile) {
-                      // Mobile: Search field
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Search Player',
-                            labelStyle: const TextStyle(fontSize: 12),
-                            prefixIcon: const Icon(Icons.search, size: 20),
-                            border: const OutlineInputBorder(),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 16),
-                                    onPressed: () {
-                                      setState(() {
-                                        _searchQuery = '';
-                                        _applyFilters();
-                                      });
-                                    },
-                                  )
-                                : null,
-                          ),
-                          style: const TextStyle(fontSize: 12),
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                              _applyFilters();
-                            });
-                          },
-                        ),
-                      );
-                    }
-                    
-                    // Desktop: Points toggle and search field
-                    return Row(
-                      children: [
-                        // Points toggle
-                        Expanded(
-                          child: SegmentedButton<bool>(
-                            segments: const [
-                              ButtonSegment(value: false, label: Text('Total Points')),
-                              ButtonSegment(value: true, label: Text('PPG')),
-                            ],
-                            selected: {_usePpg},
-                            onSelectionChanged: (Set<bool> selected) {
-                              setState(() {
-                                _usePpg = selected.first;
-                                _applyFilters();
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        
-                        // Search field
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            decoration: InputDecoration(
-                              labelText: 'Search Player',
-                              prefixIcon: const Icon(Icons.search),
-                              border: const OutlineInputBorder(),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        setState(() {
-                                          _searchQuery = '';
-                                          _applyFilters();
-                                        });
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                                _applyFilters();
-                              });
-                            },
-                          ),
-                        ),
+                    // Points toggle (compact)
+                    SegmentedButton<bool>(
+                      style: SegmentedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('Total')),
+                        ButtonSegment(value: true, label: Text('PPG')),
                       ],
-                    );
-                  },
-                ),
-                
-                // Legend
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildLegendItem('Elite Value', Colors.green.shade900),
-                    const SizedBox(width: 16),
-                    _buildLegendItem('Good Value', Colors.green.shade600),
-                    const SizedBox(width: 16),
-                    _buildLegendItem('Expected', Colors.grey.shade600),
-                    const SizedBox(width: 16),
-                    _buildLegendItem('Mild Bust', Colors.red.shade400),
-                    const SizedBox(width: 16),
-                    _buildLegendItem('Major Bust', Colors.red.shade700),
+                      selected: {_usePpg},
+                      onSelectionChanged: (Set<bool> selected) {
+                        setState(() {
+                          _usePpg = selected.first;
+                          _applyFilters();
+                        });
+                      },
+                    ),
+                    
+                    const Spacer(),
+                    
+                    // Advanced filters toggle
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showFiltersExpanded = !_showFiltersExpanded;
+                        });
+                      },
+                      icon: Icon(
+                        _showFiltersExpanded ? Icons.keyboard_arrow_up : Icons.tune,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _showFiltersExpanded ? 'Hide Filters' : 'Advanced Filters',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
                   ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Search field (always visible)
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Search Player',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    labelStyle: const TextStyle(fontSize: 13),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _searchQuery = '';
+                                _applyFilters();
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                      _applyFilters();
+                    });
+                  },
+                ),
+                
+                // Advanced filters (expandable)
+                if (_showFiltersExpanded) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Advanced Filters',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // ADP Range filters
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'ADP Min (e.g., 1)',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelStyle: TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _adpMin = value.isEmpty ? null : double.tryParse(value);
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'ADP Max (e.g., 100)',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelStyle: TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _adpMax = value.isEmpty ? null : double.tryParse(value);
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 8),
+                        
+                        // Points and Games filters
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  labelText: 'Min ${_usePpg ? 'PPG' : 'Points'}',
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelStyle: const TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _pointsMin = value.isEmpty ? null : double.tryParse(value);
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Min Games',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelStyle: TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 13),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _gamesMin = value.isEmpty ? null : int.tryParse(value);
+                                    _applyFilters();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        // Quick filter buttons
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            _buildQuickFilterChip('Top 100 ADP', () {
+                              setState(() {
+                                _adpMin = null;
+                                _adpMax = 100;
+                                _applyFilters();
+                              });
+                            }),
+                            _buildQuickFilterChip('Early Rounds (1-50)', () {
+                              setState(() {
+                                _adpMin = null;
+                                _adpMax = 50;
+                                _applyFilters();
+                              });
+                            }),
+                            _buildQuickFilterChip('Mid Rounds (51-120)', () {
+                              setState(() {
+                                _adpMin = 51;
+                                _adpMax = 120;
+                                _applyFilters();
+                              });
+                            }),
+                            _buildQuickFilterChip('Clear Filters', () {
+                              setState(() {
+                                _adpMin = null;
+                                _adpMax = null;
+                                _pointsMin = null;
+                                _pointsMax = null;
+                                _gamesMin = null;
+                                _applyFilters();
+                              });
+                            }),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                
+                // Legend (condensed)
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildLegendItem('Elite Value', Colors.green.shade900),
+                      const SizedBox(width: 12),
+                      _buildLegendItem('Good Value', Colors.green.shade600),
+                      const SizedBox(width: 12),
+                      _buildLegendItem('Expected', Colors.grey.shade600),
+                      const SizedBox(width: 12),
+                      _buildLegendItem('Mild Bust', Colors.red.shade400),
+                      const SizedBox(width: 12),
+                      _buildLegendItem('Major Bust', Colors.red.shade700),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -792,10 +842,11 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
 
   Widget _buildLegendItem(String label, Color color) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),
@@ -804,9 +855,22 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
       ],
+    );
+  }
+  
+  Widget _buildQuickFilterChip(String label, VoidCallback onTap) {
+    return ActionChip(
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12),
+      ),
+      onPressed: onTap,
+      backgroundColor: Colors.blue.withValues(alpha: 0.1),
+      side: BorderSide(color: Colors.blue.withValues(alpha: 0.3)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
   }
 
