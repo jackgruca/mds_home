@@ -422,15 +422,9 @@ class _ToolGrid extends StatelessWidget {
   static final List<Map<String, dynamic>> _preseasonTools = [
     {
       'icon': Icons.leaderboard,
-      'title': 'Big Board',
+      'title': 'Fantasy Big Board',
       'subtitle': 'Fantasy player rankings & tiers',
       'route': '/fantasy/big-board',
-    },
-    {
-      'icon': Icons.star_border,
-      'title': 'Draft Big Board',
-      'subtitle': '2026 NFL Draft prospect rankings',
-      'route': '/fantasy/draft-big-board',
     },
     {
       'icon': Icons.show_chart,
@@ -452,19 +446,13 @@ class _ToolGrid extends StatelessWidget {
     },
     {
       'icon': Icons.sports_football,
-      'title': 'Mock Draft',
+      'title': 'Fantasy Mock Draft Sim',
       'subtitle': 'Fantasy draft simulator',
       'route': '/mock-draft-sim',
     },
   ];
 
   static final List<Map<String, dynamic>> _inSeasonTools = [
-    {
-      'icon': Icons.person_search,
-      'title': 'Player Data',
-      'subtitle': 'Detailed player stats & info',
-      'route': '/players',
-    },
     {
       'icon': Icons.compare,
       'title': 'Player Comparison',
@@ -476,6 +464,12 @@ class _ToolGrid extends StatelessWidget {
       'title': 'Player Trends',
       'subtitle': 'Performance analytics',
       'route': '/fantasy/trends',
+    },
+    {
+      'icon': Icons.person_add,
+      'title': 'My Custom Rankings',
+      'subtitle': 'Your saved custom rankings',
+      'route': '/vorp/my-custom-rankings',
     },
   ];
 

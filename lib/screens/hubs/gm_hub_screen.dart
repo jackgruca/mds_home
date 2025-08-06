@@ -30,38 +30,43 @@ Map<String, dynamic>? _findAndFormatTool(NavItem? hub, String route, {String? de
 // Find the GM Hub NavItem from the main list
 final NavItem? _gmHubNavItem = topNavItems.firstWhereOrNull((item) => item.route == '/gm-hub');
 
-// Only show these four tools as previews on the GM Hub landing page
+// Only show these tools as previews on the GM Hub landing page
 final List<String> _gmHubPreviewRoutes = [
-  '/draft',
   '/draft/big-board',
-  '/gm-hub/bust-evaluation',
-  '/team-builder/cap',
-  '/team-builder/fa-tracker',
+  '/draft',
+  '/draft/historical-drafts', 
+  '/fantasy/bust-evaluation',
+  '/depth-charts',
+  '/nfl-rosters',
 ];
 
 final List<Map<String, dynamic>> _previewTools = _gmHubPreviewRoutes.map((route) {
   IconData icon = Icons.build_circle_outlined;
   String desc = 'Access this tool.';
   switch (route) {
-    case '/draft':
-      icon = Icons.format_list_numbered;
-      desc = 'Simulate the NFL draft with real-time analytics.';
-      break;
     case '/draft/big-board':
       icon = Icons.leaderboard;
-      desc = 'View and customize player rankings.';
+      desc = 'Draft prospect rankings and big board.';
       break;
-    case '/gm-hub/bust-evaluation':
+    case '/draft':
+      icon = Icons.format_list_numbered;
+      desc = 'Draft mock draft simulator.';
+      break;
+    case '/draft/historical-drafts':
+      icon = Icons.history;
+      desc = 'Analyze past NFL drafts and trends.';
+      break;
+    case '/fantasy/bust-evaluation':
       icon = Icons.psychology;
-      desc = 'Evaluate draft picks against expectations.';
+      desc = 'Evaluate draft picks - bust or brilliant.';
       break;
-    case '/team-builder/cap':
-      icon = Icons.account_balance_wallet;
-      desc = 'Explore team cap space scenarios.';
+    case '/depth-charts':
+      icon = Icons.list_alt;
+      desc = 'NFL team depth charts and position groups.';
       break;
-    case '/team-builder/fa-tracker':
-      icon = Icons.person_search;
-      desc = 'Track free agent signings and availability.';
+    case '/nfl-rosters':
+      icon = Icons.group;
+      desc = 'Complete NFL team rosters.';
       break;
   }
   return _findAndFormatTool(_gmHubNavItem, route, icon: icon, desc: desc);

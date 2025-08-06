@@ -10,6 +10,7 @@ import 'screens/historical_data_screen.dart';
 import 'screens/hubs/gm_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
+import 'screens/hubs/data_center_screen.dart';
 import 'screens/wr_model_screen.dart';
 import 'screens/player_season_stats_screen.dart';
 import 'screens/nfl_rosters_screen.dart';
@@ -174,7 +175,7 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+                return MaterialPageRoute(builder: (_) => const DataCenterScreen());
               case '/data/passing':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
