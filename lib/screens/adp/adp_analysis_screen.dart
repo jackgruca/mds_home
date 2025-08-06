@@ -246,11 +246,11 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
           break;
         case 6: // Position Difference
           if (isMaxYear) {
-            // Calculate diff based on last year's position rank
+            // Calculate diff based on last year's position rank (LY - Current = positive for risers)
             final aLyPosRank = a.platformRanks['_ly_pos_rank']?.toInt();
             final bLyPosRank = b.platformRanks['_ly_pos_rank']?.toInt();
-            final aPosDiff = aLyPosRank != null ? a.positionRankNum - aLyPosRank : -999;
-            final bPosDiff = bLyPosRank != null ? b.positionRankNum - bLyPosRank : -999;
+            final aPosDiff = aLyPosRank != null ? aLyPosRank - a.positionRankNum : -999;
+            final bPosDiff = bLyPosRank != null ? bLyPosRank - b.positionRankNum : -999;
             result = bPosDiff.compareTo(aPosDiff); // Higher is better
           } else {
             final aPosDiff = a.getPositionDifference(_usePpg) ?? -999;
@@ -260,11 +260,11 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
           break;
         case 7: // Total Difference
           if (isMaxYear) {
-            // Calculate diff based on last year's ADP
+            // Calculate diff based on last year's ADP (LY - Current = positive for risers)
             final aLyAdp = a.platformRanks['_ly_adp'];
             final bLyAdp = b.platformRanks['_ly_adp'];
-            final aDiff = aLyAdp != null ? a.avgRankNum - aLyAdp : -999;
-            final bDiff = bLyAdp != null ? b.avgRankNum - bLyAdp : -999;
+            final aDiff = aLyAdp != null ? aLyAdp - a.avgRankNum : -999;
+            final bDiff = bLyAdp != null ? bLyAdp - b.avgRankNum : -999;
             result = bDiff.compareTo(aDiff); // Higher is better
           } else {
             final aDiff = a.getDifference(_usePpg) ?? -999;
@@ -712,7 +712,7 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                             numeric: true,
                             onSort: _onSort,
                             tooltip: _selectedYear == _maxYear 
-                                ? 'Current vs last year position rank (negative = higher ADP)'
+                                ? 'Last year vs current position rank (positive = riser)'
                                 : 'Position rank difference (positive = outperformed ADP)',
                           ),
                           DataColumn2(
@@ -721,7 +721,7 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                             numeric: true,
                             onSort: _onSort,
                             tooltip: _selectedYear == _maxYear
-                                ? 'Current vs last year ADP (negative = higher ADP)'
+                                ? 'Last year vs current ADP (positive = riser)'
                                 : 'Overall rank difference (positive = outperformed ADP)',
                           ),
                           DataColumn2(
@@ -744,11 +744,12 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                           final lyPosRank = item.platformRanks['_ly_pos_rank']?.toInt();
                           
                           // Calculate differences based on whether we're on max year or not
+                          // For max year: LY - Current = positive for risers (improved players)
                           final diff = isMaxYear && lyAdp != null 
-                              ? item.avgRankNum - lyAdp
+                              ? lyAdp - item.avgRankNum
                               : item.getDifference(_usePpg);
                           final posDiff = isMaxYear && lyPosRank != null
-                              ? item.positionRankNum - lyPosRank
+                              ? lyPosRank - item.positionRankNum
                               : item.getPositionDifference(_usePpg);
                           
                           // For display, use last year's data when on max year
@@ -757,12 +758,12 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                           
                           final points = item.getPoints(_usePpg);
                           
-                          // Color based on difference magnitude
+                          // Color based on difference magnitude (positive = riser/green, negative = faller/red)
                           final color = isMaxYear && diff != null
-                              ? (diff < -20 ? Colors.green.shade900 : 
-                                 diff < -10 ? Colors.green.shade600 :
+                              ? (diff > 20 ? Colors.green.shade900 : 
+                                 diff > 10 ? Colors.green.shade600 :
                                  diff < 5 && diff > -5 ? Colors.grey.shade600 :
-                                 diff < 15 ? Colors.red.shade400 : Colors.red.shade700)
+                                 diff > -15 ? Colors.red.shade400 : Colors.red.shade700)
                               : item.getPerformanceColor(_usePpg);
                           
                           return DataRow2(
