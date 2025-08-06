@@ -44,6 +44,33 @@ class PlayerInfo {
   final double receivingEpaPerPlay;
   final int receivingPlays;
   final double totalEpa;
+  
+  // Next Gen Stats metrics
+  // Passing NGS
+  final double ngsAvgTimeToThrow;
+  final double ngsAvgCompletedAirYards;
+  final double ngsAvgIntendedAirYards;
+  final double ngsCompletionPctAboveExpectation;
+  final double ngsAggressiveness;
+  final double ngsMaxCompletedAirDistance;
+  
+  // Rushing NGS
+  final double ngsEfficiency;
+  final double ngsPctAttemptsGteEightDefenders;
+  final double ngsAvgTimeToLos;
+  final double ngsExpectedRushYards;
+  final double ngsRushYardsOverExpected;
+  final double ngsRushPctAboveExpectation;
+  
+  // Receiving NGS
+  final double ngsAvgCushion;
+  final double ngsAvgSeparation;
+  final double ngsRecAvgIntendedAirYards;
+  final double ngsPctShareIntendedAirYards;
+  final double ngsCatchPercentage;
+  final double ngsAvgYac;
+  final double ngsAvgExpectedYac;
+  final double ngsAvgYacAboveExpectation;
 
   PlayerInfo({
     required this.playerId,
@@ -87,6 +114,26 @@ class PlayerInfo {
     required this.receivingEpaPerPlay,
     required this.receivingPlays,
     required this.totalEpa,
+    required this.ngsAvgTimeToThrow,
+    required this.ngsAvgCompletedAirYards,
+    required this.ngsAvgIntendedAirYards,
+    required this.ngsCompletionPctAboveExpectation,
+    required this.ngsAggressiveness,
+    required this.ngsMaxCompletedAirDistance,
+    required this.ngsEfficiency,
+    required this.ngsPctAttemptsGteEightDefenders,
+    required this.ngsAvgTimeToLos,
+    required this.ngsExpectedRushYards,
+    required this.ngsRushYardsOverExpected,
+    required this.ngsRushPctAboveExpectation,
+    required this.ngsAvgCushion,
+    required this.ngsAvgSeparation,
+    required this.ngsRecAvgIntendedAirYards,
+    required this.ngsPctShareIntendedAirYards,
+    required this.ngsCatchPercentage,
+    required this.ngsAvgYac,
+    required this.ngsAvgExpectedYac,
+    required this.ngsAvgYacAboveExpectation,
   });
 
   factory PlayerInfo.fromCsvRow(List<dynamic> row) {
@@ -117,11 +164,11 @@ class PlayerInfo {
       receivingYards: _parseInt(row[23]) ?? 0,
       receivingTds: _parseInt(row[24]) ?? 0,
       fantasyPointsPpr: _parseDouble(row[25]) ?? 0.0,
-      fantasyPpg: _parseDouble(row[38]) ?? 0.0,
-      passYpg: _parseDouble(row[39]) ?? 0.0,
-      rushYpg: _parseDouble(row[40]) ?? 0.0,
-      recYpg: _parseDouble(row[41]) ?? 0.0,
-      totalTds: _parseInt(row[42]) ?? 0,
+      fantasyPpg: _parseDouble(row[61]) ?? 0.0,
+      passYpg: _parseDouble(row[62]) ?? 0.0,
+      rushYpg: _parseDouble(row[63]) ?? 0.0,
+      recYpg: _parseDouble(row[64]) ?? 0.0,
+      totalTds: _parseInt(row[65]) ?? 0,
       passingEpaTotal: _parseDouble(row[27]) ?? 0.0,
       passingEpaPerPlay: _parseDouble(row[28]) ?? 0.0,
       passingPlays: _parseInt(row[29]) ?? 0,
@@ -131,7 +178,27 @@ class PlayerInfo {
       receivingEpaTotal: _parseDouble(row[35]) ?? 0.0,
       receivingEpaPerPlay: _parseDouble(row[36]) ?? 0.0,
       receivingPlays: _parseInt(row[37]) ?? 0,
-      totalEpa: _parseDouble(row[43]) ?? 0.0,
+      totalEpa: _parseDouble(row[66]) ?? 0.0,
+      ngsAvgTimeToThrow: _parseDouble(row[67]) ?? 0.0,
+      ngsAvgCompletedAirYards: _parseDouble(row[68]) ?? 0.0,
+      ngsAvgIntendedAirYards: _parseDouble(row[69]) ?? 0.0,
+      ngsCompletionPctAboveExpectation: _parseDouble(row[70]) ?? 0.0,
+      ngsAggressiveness: _parseDouble(row[71]) ?? 0.0,
+      ngsMaxCompletedAirDistance: _parseDouble(row[72]) ?? 0.0,
+      ngsEfficiency: _parseDouble(row[73]) ?? 0.0,
+      ngsPctAttemptsGteEightDefenders: _parseDouble(row[74]) ?? 0.0,
+      ngsAvgTimeToLos: _parseDouble(row[75]) ?? 0.0,
+      ngsExpectedRushYards: _parseDouble(row[76]) ?? 0.0,
+      ngsRushYardsOverExpected: _parseDouble(row[77]) ?? 0.0,
+      ngsRushPctAboveExpectation: _parseDouble(row[78]) ?? 0.0,
+      ngsAvgCushion: _parseDouble(row[79]) ?? 0.0,
+      ngsAvgSeparation: _parseDouble(row[80]) ?? 0.0,
+      ngsRecAvgIntendedAirYards: _parseDouble(row[81]) ?? 0.0,
+      ngsPctShareIntendedAirYards: _parseDouble(row[82]) ?? 0.0,
+      ngsCatchPercentage: _parseDouble(row[83]) ?? 0.0,
+      ngsAvgYac: _parseDouble(row[84]) ?? 0.0,
+      ngsAvgExpectedYac: _parseDouble(row[85]) ?? 0.0,
+      ngsAvgYacAboveExpectation: _parseDouble(row[86]) ?? 0.0,
     );
   }
 

@@ -82,6 +82,67 @@ epa_receiving <- pbp_data %>%
     .groups = 'drop'
   )
 
+# Load Next Gen Stats
+cat("Loading Next Gen Stats...\n")
+tryCatch({
+  ngs_passing <- load_nextgen_stats(seasons = current_season, stat_type = "passing") %>%
+    filter(season_type == "REG") %>%
+    group_by(player_gsis_id, player_display_name) %>%
+    summarise(
+      avg_time_to_throw = mean(avg_time_to_throw, na.rm = TRUE),
+      avg_completed_air_yards = mean(avg_completed_air_yards, na.rm = TRUE),
+      avg_intended_air_yards = mean(avg_intended_air_yards, na.rm = TRUE),
+      completion_percentage_above_expectation = mean(completion_percentage_above_expectation, na.rm = TRUE),
+      aggressiveness = mean(aggressiveness, na.rm = TRUE),
+      max_completed_air_distance = max(max_completed_air_distance, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  cat("NGS Passing: ", nrow(ngs_passing), " players\n")
+}, error = function(e) {
+  cat("Error loading passing NGS:", e$message, "\n")
+  ngs_passing <- data.frame(player_gsis_id = character(0))
+})
+
+tryCatch({
+  ngs_rushing <- load_nextgen_stats(seasons = current_season, stat_type = "rushing") %>%
+    filter(season_type == "REG") %>%
+    group_by(player_gsis_id, player_display_name) %>%
+    summarise(
+      efficiency = mean(efficiency, na.rm = TRUE),
+      percent_attempts_gte_eight_defenders = mean(percent_attempts_gte_eight_defenders, na.rm = TRUE),
+      avg_time_to_los = mean(avg_time_to_los, na.rm = TRUE),
+      expected_rush_yards = sum(expected_rush_yards, na.rm = TRUE),
+      rush_yards_over_expected = sum(rush_yards_over_expected, na.rm = TRUE),
+      rush_pct_over_expected = mean(rush_pct_over_expected, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  cat("NGS Rushing: ", nrow(ngs_rushing), " players\n")
+}, error = function(e) {
+  cat("Error loading rushing NGS:", e$message, "\n")
+  ngs_rushing <- data.frame(player_gsis_id = character(0))
+})
+
+tryCatch({
+  ngs_receiving <- load_nextgen_stats(seasons = current_season, stat_type = "receiving") %>%
+    filter(season_type == "REG") %>%
+    group_by(player_gsis_id, player_display_name) %>%
+    summarise(
+      avg_cushion = mean(avg_cushion, na.rm = TRUE),
+      avg_separation = mean(avg_separation, na.rm = TRUE),
+      avg_intended_air_yards = mean(avg_intended_air_yards, na.rm = TRUE),
+      percent_share_of_intended_air_yards = mean(percent_share_of_intended_air_yards, na.rm = TRUE),
+      catch_percentage = mean(catch_percentage, na.rm = TRUE),
+      avg_yac = mean(avg_yac, na.rm = TRUE),
+      avg_expected_yac = mean(avg_expected_yac, na.rm = TRUE),
+      avg_yac_above_expectation = mean(avg_yac_above_expectation, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  cat("NGS Receiving: ", nrow(ngs_receiving), " players\n")
+}, error = function(e) {
+  cat("Error loading receiving NGS:", e$message, "\n")
+  ngs_receiving <- data.frame(player_gsis_id = character(0))
+})
+
 # 3. Load current season stats
 cat("Loading season stats...\n")
 season_stats <- load_player_stats(seasons = current_season, stat_type = "offense") %>%
@@ -112,6 +173,10 @@ season_stats <- load_player_stats(seasons = current_season, stat_type = "offense
   left_join(epa_passing, by = c("player_id" = "passer_player_id")) %>%
   left_join(epa_rushing, by = c("player_id" = "rusher_player_id")) %>%
   left_join(epa_receiving, by = c("player_id" = "receiver_player_id")) %>%
+  # Join NGS data
+  left_join(ngs_passing, by = c("player_id" = "player_gsis_id")) %>%
+  left_join(ngs_rushing, by = c("player_id" = "player_gsis_id")) %>%
+  left_join(ngs_receiving, by = c("player_id" = "player_gsis_id")) %>%
   mutate(
     # Calculate per-game averages
     fantasy_ppg = round(fantasy_points_ppr / games, 1),
@@ -131,7 +196,31 @@ season_stats <- load_player_stats(seasons = current_season, stat_type = "offense
     receiving_epa_per_play = coalesce(receiving_epa_per_play, 0),
     receiving_plays = coalesce(receiving_plays, 0),
     # Calculate total EPA across all play types
-    total_epa = passing_epa_total + rushing_epa_total + receiving_epa_total
+    total_epa = passing_epa_total + rushing_epa_total + receiving_epa_total,
+    # Fill missing NGS values with 0/NA
+    # Passing NGS
+    ngs_avg_time_to_throw = coalesce(avg_time_to_throw, 0),
+    ngs_avg_completed_air_yards = coalesce(avg_completed_air_yards, 0),
+    ngs_avg_intended_air_yards = coalesce(avg_intended_air_yards.x, 0),
+    ngs_completion_pct_above_expectation = coalesce(completion_percentage_above_expectation, 0),
+    ngs_aggressiveness = coalesce(aggressiveness, 0),
+    ngs_max_completed_air_distance = coalesce(max_completed_air_distance, 0),
+    # Rushing NGS
+    ngs_efficiency = coalesce(efficiency, 0),
+    ngs_pct_attempts_gte_eight_defenders = coalesce(percent_attempts_gte_eight_defenders, 0),
+    ngs_avg_time_to_los = coalesce(avg_time_to_los, 0),
+    ngs_expected_rush_yards = coalesce(expected_rush_yards, 0),
+    ngs_rush_yards_over_expected = coalesce(rush_yards_over_expected, 0),
+    ngs_rush_pct_above_expectation = coalesce(rush_pct_over_expected, 0),
+    # Receiving NGS
+    ngs_avg_cushion = coalesce(avg_cushion, 0),
+    ngs_avg_separation = coalesce(avg_separation, 0),
+    ngs_rec_avg_intended_air_yards = coalesce(avg_intended_air_yards.y, 0),
+    ngs_pct_share_intended_air_yards = coalesce(percent_share_of_intended_air_yards, 0),
+    ngs_catch_percentage = coalesce(catch_percentage, 0),
+    ngs_avg_yac = coalesce(avg_yac, 0),
+    ngs_avg_expected_yac = coalesce(avg_expected_yac, 0),
+    ngs_avg_yac_above_expectation = coalesce(avg_yac_above_expectation, 0)
   )
 
 # 4. Get most recent week's game logs

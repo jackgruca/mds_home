@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import '../models/player_info.dart';
 import '../models/player_career_stats.dart';
 import '../models/player_game_log.dart';
+import '../models/player_weekly_epa.dart';
+import '../models/player_season_epa_summary.dart';
+import '../models/player_weekly_ngs.dart';
 
 class PlayerDataService {
   static final PlayerDataService _instance = PlayerDataService._internal();
@@ -18,6 +21,15 @@ class PlayerDataService {
   
   List<PlayerGameLog>? _cachedGameLogs;
   Map<String, List<PlayerGameLog>>? _gameLogsByPlayer;
+  
+  List<PlayerWeeklyEpa>? _cachedWeeklyEpa;
+  Map<String, List<PlayerWeeklyEpa>>? _weeklyEpaByPlayer;
+  
+  List<PlayerSeasonEpaSummary>? _cachedSeasonEpaSummary;
+  Map<String, List<PlayerSeasonEpaSummary>>? _seasonEpaSummaryByPlayer;
+  
+  List<PlayerWeeklyNgs>? _cachedWeeklyNgs;
+  Map<String, List<PlayerWeeklyNgs>>? _weeklyNgsByPlayer;
 
   Future<void> loadPlayerData() async {
     if (_cachedPlayers != null) {
@@ -292,5 +304,162 @@ class PlayerDataService {
 
   List<PlayerGameLog> getPlayerGameLogs(String playerId) {
     return _gameLogsByPlayer?[playerId] ?? [];
+  }
+
+  // Weekly EPA Methods
+  Future<void> loadWeeklyEpaStats() async {
+    if (_cachedWeeklyEpa != null) return;
+
+    try {
+      print('📊 Loading weekly EPA data...');
+      final csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_epa.csv');
+      
+      final List<List<dynamic>> csvTable = const CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        eol: '\n',
+      ).convert(csvString);
+
+      _cachedWeeklyEpa = [];
+      _weeklyEpaByPlayer = {};
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        try {
+          final weeklyEpa = PlayerWeeklyEpa.fromCsvRow(csvTable[i]);
+          _cachedWeeklyEpa!.add(weeklyEpa);
+          
+          _weeklyEpaByPlayer!.putIfAbsent(weeklyEpa.playerId, () => []).add(weeklyEpa);
+        } catch (e) {
+          print('Error parsing weekly EPA row $i: $e');
+        }
+      }
+
+      // Sort weekly EPA by season/week
+      _weeklyEpaByPlayer!.forEach((playerId, stats) {
+        stats.sort((a, b) {
+          if (a.season != b.season) return b.season.compareTo(a.season);
+          return a.week.compareTo(b.week);
+        });
+      });
+
+      print('✅ Loaded ${_cachedWeeklyEpa!.length} weekly EPA records');
+      
+    } catch (e) {
+      print('❌ Error loading weekly EPA: $e');
+      _cachedWeeklyEpa = [];
+      _weeklyEpaByPlayer = {};
+    }
+  }
+
+  Future<void> loadSeasonEpaSummary() async {
+    if (_cachedSeasonEpaSummary != null) return;
+
+    try {
+      print('📊 Loading season EPA summary...');
+      final csvString = await rootBundle.loadString('data_processing/assets/data/player_season_epa_summary.csv');
+      
+      final List<List<dynamic>> csvTable = const CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        eol: '\n',
+      ).convert(csvString);
+
+      _cachedSeasonEpaSummary = [];
+      _seasonEpaSummaryByPlayer = {};
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        try {
+          final seasonSummary = PlayerSeasonEpaSummary.fromCsvRow(csvTable[i]);
+          _cachedSeasonEpaSummary!.add(seasonSummary);
+          
+          _seasonEpaSummaryByPlayer!.putIfAbsent(seasonSummary.playerId, () => []).add(seasonSummary);
+        } catch (e) {
+          print('Error parsing season EPA summary row $i: $e');
+        }
+      }
+
+      // Sort by season (most recent first)
+      _seasonEpaSummaryByPlayer!.forEach((playerId, summaries) {
+        summaries.sort((a, b) => b.season.compareTo(a.season));
+      });
+
+      print('✅ Loaded ${_cachedSeasonEpaSummary!.length} season EPA summaries');
+      
+    } catch (e) {
+      print('❌ Error loading season EPA summary: $e');
+      _cachedSeasonEpaSummary = [];
+      _seasonEpaSummaryByPlayer = {};
+    }
+  }
+
+  List<PlayerWeeklyEpa> getPlayerWeeklyEpa(String playerId) {
+    return _weeklyEpaByPlayer?[playerId] ?? [];
+  }
+
+  List<PlayerSeasonEpaSummary> getPlayerSeasonEpaSummary(String playerId) {
+    return _seasonEpaSummaryByPlayer?[playerId] ?? [];
+  }
+
+  // Get weekly EPA for a specific season
+  List<PlayerWeeklyEpa> getPlayerWeeklyEpaForSeason(String playerId, int season) {
+    final allWeekly = getPlayerWeeklyEpa(playerId);
+    return allWeekly.where((epa) => epa.season == season).toList()
+      ..sort((a, b) => a.week.compareTo(b.week));
+  }
+
+  // Weekly NGS Methods
+  Future<void> loadWeeklyNgsStats() async {
+    if (_cachedWeeklyNgs != null) return;
+
+    try {
+      print('📊 Loading weekly NGS data...');
+      final csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_ngs.csv');
+      
+      final List<List<dynamic>> csvTable = const CsvToListConverter(
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        eol: '\n',
+      ).convert(csvString);
+
+      _cachedWeeklyNgs = [];
+      _weeklyNgsByPlayer = {};
+      
+      for (int i = 1; i < csvTable.length; i++) {
+        try {
+          final weeklyNgs = PlayerWeeklyNgs.fromCsvRow(csvTable[i]);
+          _cachedWeeklyNgs!.add(weeklyNgs);
+          
+          _weeklyNgsByPlayer!.putIfAbsent(weeklyNgs.playerId, () => []).add(weeklyNgs);
+        } catch (e) {
+          print('Error parsing weekly NGS row $i: $e');
+        }
+      }
+
+      // Sort weekly NGS by season/week
+      _weeklyNgsByPlayer!.forEach((playerId, stats) {
+        stats.sort((a, b) {
+          if (a.season != b.season) return b.season.compareTo(a.season);
+          return a.week.compareTo(b.week);
+        });
+      });
+
+      print('✅ Loaded ${_cachedWeeklyNgs!.length} weekly NGS records');
+      
+    } catch (e) {
+      print('❌ Error loading weekly NGS: $e');
+      _cachedWeeklyNgs = [];
+      _weeklyNgsByPlayer = {};
+    }
+  }
+
+  List<PlayerWeeklyNgs> getPlayerWeeklyNgs(String playerId) {
+    return _weeklyNgsByPlayer?[playerId] ?? [];
+  }
+
+  // Get weekly NGS for a specific season
+  List<PlayerWeeklyNgs> getPlayerWeeklyNgsForSeason(String playerId, int season) {
+    final allWeekly = getPlayerWeeklyNgs(playerId);
+    return allWeekly.where((ngs) => ngs.season == season).toList()
+      ..sort((a, b) => a.week.compareTo(b.week));
   }
 }

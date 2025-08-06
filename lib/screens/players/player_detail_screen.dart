@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../models/player_info.dart';
 import '../../models/player_game_log.dart';
 import '../../models/player_career_stats.dart';
+import '../../models/player_weekly_epa.dart';
+import '../../models/player_season_epa_summary.dart';
 import '../../services/player_data_service.dart';
 
 class PlayerDetailScreen extends StatefulWidget {
@@ -30,6 +32,9 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
   Future<void> _loadData() async {
     await _playerService.loadCareerStats();
     await _playerService.loadGameLogs();
+    await _playerService.loadWeeklyEpaStats();
+    await _playerService.loadSeasonEpaSummary();
+    await _playerService.loadWeeklyNgsStats();
     if (mounted) setState(() {});
   }
   
@@ -840,28 +845,89 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
   }
 
   Widget _buildAdvancedTab() {
-    return SingleChildScrollView(
+    final seasonEpaSummaries = _playerService.getPlayerSeasonEpaSummary(widget.player.playerId);
+    
+    if (seasonEpaSummaries.isEmpty) {
+      // Fallback to original Advanced tab
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Expected Points Added (EPA)'),
+            const SizedBox(height: 16),
+            _buildEpaOverview(),
+            
+            const SizedBox(height: 32),
+            
+            _buildSectionTitle('EPA Breakdown by Play Type'),
+            const SizedBox(height: 16),
+            _buildEpaBreakdown(),
+            
+            const SizedBox(height: 32),
+            
+            _buildSectionTitle('Efficiency Metrics'),
+            const SizedBox(height: 16),
+            _buildEfficiencyMetrics(),
+          ],
+        ),
+      );
+    }
+
+    // Show expandable advanced stats
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Expected Points Added (EPA)'),
-          const SizedBox(height: 16),
-          _buildEpaOverview(),
-          
-          const SizedBox(height: 32),
-          
-          _buildSectionTitle('EPA Breakdown by Play Type'),
-          const SizedBox(height: 16),
-          _buildEpaBreakdown(),
-          
-          const SizedBox(height: 32),
-          
-          _buildSectionTitle('Efficiency Metrics'),
-          const SizedBox(height: 16),
-          _buildEfficiencyMetrics(),
-        ],
-      ),
+      itemCount: seasonEpaSummaries.length,
+      itemBuilder: (context, index) {
+        final seasonSummary = seasonEpaSummaries[index];
+        final weeklyEpaData = _playerService.getPlayerWeeklyEpaForSeason(widget.player.playerId, seasonSummary.season);
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.all(16),
+              childrenPadding: EdgeInsets.zero,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${seasonSummary.season} Advanced Stats',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    '${seasonSummary.games} games',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _buildAdvancedSeasonSummary(seasonSummary),
+              ),
+              children: [
+                if (weeklyEpaData.isNotEmpty) ...[
+                  const Divider(),
+                  _buildWeeklyEpaTable(weeklyEpaData),
+                ] else ...[
+                  const Divider(),
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('No weekly advanced stats available', style: TextStyle(color: Colors.grey)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1196,6 +1262,157 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildAdvancedSeasonSummary(PlayerSeasonEpaSummary seasonSummary) {
+    List<String> summaryStats = [];
+    
+    if (seasonSummary.hasPassingStats) {
+      summaryStats.add('${seasonSummary.passingEpaTotal.toStringAsFixed(1)} Pass EPA');
+    }
+    if (seasonSummary.hasRushingStats) {
+      summaryStats.add('${seasonSummary.rushingEpaTotal.toStringAsFixed(1)} Rush EPA');  
+    }
+    if (seasonSummary.hasReceivingStats) {
+      summaryStats.add('${seasonSummary.receivingEpaTotal.toStringAsFixed(1)} Rec EPA');
+    }
+    summaryStats.add('${seasonSummary.totalEpa.toStringAsFixed(1)} Total EPA');
+    
+    return Text(
+      summaryStats.join(' • '),
+      style: const TextStyle(
+        fontSize: 13,
+        color: Colors.grey,
+      ),
+    );
+  }
+
+  Widget _buildWeeklyEpaTable(List<PlayerWeeklyEpa> weeklyData) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 16,
+        dataRowMinHeight: 40,
+        dataRowMaxHeight: 40,
+        headingRowHeight: 36,
+        columns: const [
+          DataColumn(label: Text('Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('Matchup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('Plays', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('Total EPA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('EPA/Play', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('Traditional Stats', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+          DataColumn(label: Text('NGS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+        ],
+        rows: weeklyData.map((weekData) => _buildWeeklyEpaRowWithNgs(weekData)).toList(),
+      ),
+    );
+  }
+
+  DataRow _buildWeeklyEpaRowWithNgs(PlayerWeeklyEpa weekData) {
+    // Build traditional stats string based on player position and available data
+    String statsString = '';
+    List<String> statParts = [];
+    
+    // Add passing stats if available
+    if (weekData.hasPassingStats) {
+      statParts.add('${weekData.completions}/${weekData.attempts}, ${weekData.passingYards} yds, ${weekData.passingTds} TD');
+    }
+    
+    // Add rushing stats if available  
+    if (weekData.hasRushingStats) {
+      statParts.add('${weekData.carries} att, ${weekData.rushingYards} yds, ${weekData.rushingTds} TD');
+    }
+    
+    // Add receiving stats if available
+    if (weekData.hasReceivingStats) {
+      statParts.add('${weekData.receptions}/${weekData.targets}, ${weekData.receivingYards} yds, ${weekData.receivingTds} TD');
+    }
+    
+    statsString = statParts.join(' | ');
+
+    // Get position-appropriate NGS data
+    String ngsString = _buildNgsString(weekData);
+
+    return DataRow(cells: [
+      DataCell(Text(weekData.week.toString(), style: const TextStyle(fontSize: 12))),
+      DataCell(Text(weekData.matchupDisplay, style: const TextStyle(fontSize: 12))),
+      DataCell(Text(weekData.totalPlays.toString(), style: const TextStyle(fontSize: 12))),
+      DataCell(Text(
+        weekData.totalEpa.toStringAsFixed(1), 
+        style: TextStyle(
+          fontSize: 12, 
+          color: _getEpaColor(weekData.totalEpa),
+          fontWeight: FontWeight.bold,
+        ),
+      )),
+      DataCell(Text(
+        weekData.epaPerPlay.toStringAsFixed(2), 
+        style: TextStyle(
+          fontSize: 12, 
+          color: _getEpaColor(weekData.epaPerPlay),
+        ),
+      )),
+      DataCell(Text(statsString, style: const TextStyle(fontSize: 11))),
+      DataCell(Text(ngsString, style: const TextStyle(fontSize: 11))),
+    ]);
+  }
+
+  String _buildNgsString(PlayerWeeklyEpa weekData) {
+    // Get NGS data for this week - filtering by position as requested
+    final playerPos = widget.player.positionGroup;
+    final allNgsForPlayer = _playerService.getPlayerWeeklyNgsForSeason(weekData.playerId, weekData.season);
+    final ngsData = allNgsForPlayer.where((ngs) => ngs.week == weekData.week && ngs.week > 0); // Exclude Week 0 (season totals)
+    
+    // Filter NGS by position: QB->passing, RB->rushing, WR/TE->receiving
+    late String targetStatType;
+    switch (playerPos) {
+      case 'QB':
+        targetStatType = 'passing';
+        break;
+      case 'RB':
+        targetStatType = 'rushing';
+        break;
+      case 'WR':
+      case 'TE':
+        targetStatType = 'receiving';
+        break;
+      default:
+        return 'No NGS';
+    }
+
+    final relevantNgs = ngsData.where((ngs) => ngs.statType == targetStatType).toList();
+    
+    if (relevantNgs.isEmpty) {
+      return 'No NGS';
+    }
+
+    final ngs = relevantNgs.first;
+    List<String> ngsParts = [];
+    
+    // Add position-specific NGS metrics
+    switch (targetStatType) {
+      case 'rushing':
+        if (ngs.rushYardsOverExpected != null) {
+          ngsParts.add('${ngs.rushYardsOverExpected! > 0 ? '+' : ''}${ngs.rushYardsOverExpected!.toStringAsFixed(1)} RYOE');
+        }
+        if (ngs.efficiency != null) {
+          ngsParts.add('${(ngs.efficiency! * 100).toStringAsFixed(1)}% Eff');
+        }
+        break;
+      case 'receiving':
+        if (ngs.avgYacAboveExpectation != null) {
+          ngsParts.add('${ngs.avgYacAboveExpectation! > 0 ? '+' : ''}${ngs.avgYacAboveExpectation!.toStringAsFixed(1)} YAC+/-');
+        }
+        if (ngs.avgSeparation != null) {
+          ngsParts.add('${ngs.avgSeparation!.toStringAsFixed(1)} Sep');
+        }
+        break;
+      case 'passing':
+        return 'NGS N/A'; // No passing NGS data available currently
+    }
+    
+    return ngsParts.isNotEmpty ? ngsParts.join(' | ') : 'No NGS';
   }
 }
 
