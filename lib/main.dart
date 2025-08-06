@@ -11,6 +11,7 @@ import 'screens/hubs/gm_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
 import 'screens/hubs/data_center_screen.dart';
+import 'screens/hubs/rankings_hub_screen.dart';
 import 'screens/wr_model_screen.dart';
 import 'screens/player_season_stats_screen.dart';
 import 'screens/nfl_rosters_screen.dart';
@@ -238,7 +239,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen()); // VORP is part of Big Board
               // Rankings section
               case '/rankings':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
+                return MaterialPageRoute(builder: (_) => const RankingsHubScreen());
               case '/rankings/qb':
                 return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
               case '/rankings/rb':
