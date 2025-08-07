@@ -81,21 +81,22 @@ class RankingCellShadingService {
     final p50 = percentiles['p50']!;
     final p75 = percentiles['p75']!;
     
-    // For rank fields, lower numbers are better (rank 1 is best)
-    // For regular stats, higher numbers are usually better
-    if (isRankField) {
-      // Inverted logic for ranks: lower rank = better = green
+    // Check if this is a "lower is better" stat
+    final isLowerBetter = isRankField || _isLowerBetterStat(column);
+    
+    if (isLowerBetter) {
+      // Inverted logic: lower value = better = green
       if (value <= p25) {
-        return Colors.green.withOpacity(0.7);  // Top 25% (best ranks)
+        return Colors.green.withOpacity(0.7);  // Top 25% (best values)
       } else if (value <= p50) {
         return Colors.green.withOpacity(0.4);  // Top 50%
       } else if (value <= p75) {
         return Colors.orange.withOpacity(0.3); // Top 75%
       } else {
-        return Colors.red.withOpacity(0.3);    // Bottom 25% (worst ranks)
+        return Colors.red.withOpacity(0.3);    // Bottom 25% (worst values)
       }
     } else {
-      // Regular logic for stats: higher value = better = green
+      // Regular logic: higher value = better = green
       if (value >= p75) {
         return Colors.green.withOpacity(0.7);
       } else if (value >= p50) {
@@ -106,6 +107,16 @@ class RankingCellShadingService {
         return Colors.red.withOpacity(0.3);
       }
     }
+  }
+
+  // Helper method to identify stats where lower values are better
+  static bool _isLowerBetterStat(String column) {
+    const lowerBetterStats = {
+      'intPerGame',     // Interceptions per game - lower is better
+      'int_rank',       // Interception rank - lower rank number is better
+      'int_rank_num',   // Interception rank number - lower rank number is better
+    };
+    return lowerBetterStats.contains(column);
   }
 
   static Widget buildDensityCell({
@@ -119,7 +130,7 @@ class RankingCellShadingService {
     double height = 40,
   }) {
     final displayValue = showRanks ? rankValue : value;
-    final isRankField = showRanks && column.endsWith('_rank');
+    final isRankField = showRanks && (column.endsWith('_rank') || column.endsWith('_rank_num'));
     
     // Handle string fields - don't try to convert to number
     double numValue = 0.0;
