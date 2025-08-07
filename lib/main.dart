@@ -10,6 +10,8 @@ import 'screens/historical_data_screen.dart';
 import 'screens/hubs/gm_hub_screen.dart';
 import 'screens/hubs/fantasy_hub_screen.dart';
 import 'screens/hubs/data_explorer_screen.dart';
+import 'screens/hubs/data_center_screen.dart';
+import 'screens/hubs/rankings_hub_screen.dart';
 import 'screens/wr_model_screen.dart';
 import 'screens/player_season_stats_screen.dart';
 import 'screens/nfl_rosters_screen.dart';
@@ -48,8 +50,11 @@ import 'screens/rankings/run_offense_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
+import 'screens/adp/adp_analysis_screen.dart';
+import 'screens/adp_test_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
+import 'screens/players/player_list_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -171,7 +176,7 @@ class _MyAppState extends State<MyApp> {
               case '/mock-draft-sim/setup':
                 return MaterialPageRoute(builder: (_) => const FFDraftSetupScreen());
               case '/data':
-                return MaterialPageRoute(builder: (_) => const DataExplorerScreen());
+                return MaterialPageRoute(builder: (_) => const DataCenterScreen());
               case '/data/passing':
                 return MaterialPageRoute(
                   builder: (_) => const PlayerSeasonStatsScreen(),
@@ -204,6 +209,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
               case '/big-board':
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen());
+              case '/fantasy/adp':
+                return MaterialPageRoute(builder: (_) => const ADPAnalysisScreen());
+              case '/test-adp':
+                return MaterialPageRoute(builder: (_) => const ADPTestScreen());
               case '/fantasy/player-comparison':
                 return MaterialPageRoute(builder: (_) => const PlayerComparisonScreen());
               case '/player-comparison':
@@ -230,7 +239,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const BigBoardScreen()); // VORP is part of Big Board
               // Rankings section
               case '/rankings':
-                return MaterialPageRoute(builder: (_) => const RankingsPlaceholderScreen(title: 'Rankings Hub'));
+                return MaterialPageRoute(builder: (_) => const RankingsHubScreen());
               case '/rankings/qb':
                 return MaterialPageRoute(builder: (_) => const QBRankingsScreen());
               case '/rankings/rb':
@@ -273,6 +282,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
               case '/historical-drafts':
                 return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
+              case '/players':
+                return MaterialPageRoute(builder: (_) => const PlayerListScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }

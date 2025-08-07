@@ -29,55 +29,55 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final GlobalKey _toolsSectionKey = GlobalKey();
 
   final Map<String, Map<String, dynamic>> _toolCategories = {
-    'Fantasy Football': {
+    'Fantasy Hub': {
       'description': 'Dominate your fantasy leagues with data-driven insights and strategic tools',
       'tools': [
         {
           'icon': Icons.sports_football,
           'title': 'Fantasy Hub',
-          'desc': 'Central hub for all your fantasy football needs, insights, and tools.',
-          'route': '/fantasy/hub',
+          'desc': 'Fantasy big board, ADP analysis, custom rankings, stat predictor, mock draft sim, player comparison, player trends, my custom rankings.',
+          'route': '/fantasy',
           'image': null,
         },
         {
-          'icon': Icons.analytics,
-          'title': 'Customize Player Rankings',
-          'desc': 'Create personalized player rankings based on your league settings and preferences.',
-          'route': '/custom-rankings',
+          'icon': Icons.leaderboard,
+          'title': 'Fantasy Big Board',
+          'desc': 'Fantasy player rankings and tiers.',
+          'route': '/fantasy/big-board',
           'image': null,
         },
         {
-          'icon': Icons.sports,
-          'title': 'Fantasy Draft Simulator',
-          'desc': 'Simulate fantasy drafts with real-time ADP and expert insights.',
-          'route': '/draft/fantasy',
+          'icon': Icons.show_chart,
+          'title': 'ADP Analysis',
+          'desc': 'Historical ADP vs performance analysis.',
+          'route': '/fantasy/adp',
           'image': 'assets/images/FF/shiva.png',
         },
       ],
     },
-    'Be A GM: Team Construction': {
+    'Be a GM': {
       'description': 'Understand the business side of a championship team with premium scouting and player profile tools',
       'tools': [
         {
-          'icon': Icons.home,
-          'title': 'GM Hub',
-          'desc': 'Your command center for all GM tools and team-building resources.',
-          'route': '/gm/hub',
+          'icon': Icons.assignment_ind,
+          'title': 'Be a GM Hub',
+          'desc': 'Draft big board, draft mock draft simulator, historical drafts, bust or brilliant, depth chart, rosters.',
+          'route': '/gm-hub',
           'image': null,
+        },
+        {
+          'icon': Icons.leaderboard,
+          'title': 'Draft Big Board',
+          'desc': '2026 NFL Draft prospect rankings.',
+          'route': '/draft/big-board',
+          'image': 'assets/images/GM/big board.png',
         },
         {
           'icon': Icons.format_list_numbered,
-          'title': 'Mock Draft Simulator',
+          'title': 'Draft Mock Draft Simulator',
           'desc': 'Interactive 7-round draft simulator with team needs and trade scenarios.',
           'route': '/draft',
           'image': 'assets/images/GM/PIT Draft.png',
-        },
-        {
-          'icon': Icons.flash_on,
-          'title': 'Boom or Bust',
-          'desc': 'Analyze prospects with boom-or-bust potential using advanced analytics.',
-          'route': '/boom-or-bust',
-          'image': null,
         },
       ],
     },
@@ -107,28 +107,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         },
       ],
     },
-    'Data Hub': {
+    'Data Center': {
       'description': 'Access comprehensive NFL analytics and performance insights',
       'tools': [
         {
-          'icon': Icons.hub,
-          'title': 'Data Hub',
-          'desc': 'Explore all NFL data, analytics, and research tools in one place.',
-          'route': '/data/hub',
-          'image': null,
-        },
-        {
-          'icon': Icons.bar_chart,
-          'title': 'Player Season Stats',
-          'desc': 'View and analyze player season statistics across years.',
-          'route': '/data/player-stats',
+          'icon': Icons.analytics,
+          'title': 'Data Center',
+          'desc': 'Historical game data, player season stats, player data.',
+          'route': '/data',
           'image': null,
         },
         {
           'icon': Icons.history,
-          'title': 'Historical Game Stats',
-          'desc': 'Access a database of historical NFL game statistics.',
-          'route': '/data/historical-games',
+          'title': 'Historical Game Data',
+          'desc': 'Browse historical NFL game data and trends.',
+          'route': '/historical-game-data',
+          'image': null,
+        },
+        {
+          'icon': Icons.person,
+          'title': 'Player Season Stats',
+          'desc': 'Detailed player statistics by season.',
+          'route': '/player-season-stats',
+          'image': null,
+        },
+      ],
+    },
+    'Rankings': {
+      'description': 'Expert player rankings and position analysis',
+      'tools': [
+        {
+          'icon': Icons.leaderboard,
+          'title': 'Rankings Hub',
+          'desc': 'QB, WR, TE, RB, pass offense, run offense rankings.',
+          'route': '/rankings',
+          'image': null,
+        },
+        {
+          'icon': Icons.sports,
+          'title': 'QB Rankings',
+          'desc': 'Comprehensive quarterback rankings and analysis.',
+          'route': '/rankings/qb',
+          'image': null,
+        },
+        {
+          'icon': Icons.sports_handball,
+          'title': 'WR Rankings',
+          'desc': 'Wide receiver rankings and projections.',
+          'route': '/rankings/wr',
           'image': null,
         },
       ],

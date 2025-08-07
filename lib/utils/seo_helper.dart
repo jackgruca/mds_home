@@ -136,6 +136,14 @@ class SEOHelper {
   }
 
   // RANKINGS SYSTEM
+  static void updateForRankings() {
+    updateMetaTags(
+      title: "NFL Player Rankings Hub | Fantasy Football Rankings by Position | StickToTheModel",
+      description: "Comprehensive data-driven NFL player rankings by position with customizable statistical weighting and advanced analytics. QB, RB, WR, TE rankings with tier analysis.",
+      url: '$baseUrl/rankings',
+    );
+  }
+
   static void updateForQBRankings() {
     updateMetaTags(
       title: "NFL Quarterback Rankings | Fantasy Football QB Rankings & Analysis",

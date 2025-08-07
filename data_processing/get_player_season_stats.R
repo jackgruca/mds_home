@@ -262,16 +262,22 @@ season_stats_with_nextgen <- season_stats %>%
 cat("Processed data. Found", nrow(season_stats_with_nextgen), "aggregated player-season records with NextGen stats.\n")
 
 
-# 3. EXPORT TO JSON
+# 3. EXPORT TO JSON AND CSV
 # ------------------------------------------------
-# Define the output file path. This will be created in the same directory where the script is run.
-output_file <- "player_stats.json"
+# Define the output file paths
+output_file_json <- "player_stats.json"
+output_file_csv <- "player_season_stats.csv"
+
+# Export to CSV
+write.csv(season_stats_with_nextgen, output_file_csv, row.names = FALSE)
+cat("✅ CSV export complete! File saved as:", output_file_csv, "\n")
+cat("📊 Total rows exported to CSV:", nrow(season_stats_with_nextgen), "\n")
 
 # Convert the data frame to a JSON array format and write to file
 # auto_unbox = TRUE makes single values not be in an array in JSON
 # digits = 4 ensures proper decimal precision
 json_data <- toJSON(season_stats_with_nextgen, pretty = TRUE, auto_unbox = TRUE, digits = 4)
-write(json_data, file = output_file)
+write(json_data, file = output_file_json)
 
-cat("Successfully exported data to", output_file, "\n")
+cat("✅ JSON export complete! File saved as:", output_file_json, "\n")
 cat("You can now use the 'upload_player_stats.js' script to upload this file to Firestore.\n") 

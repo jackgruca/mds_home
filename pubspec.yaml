@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  csv: ^6.0.0  # Add CSV support
+  csv: ^6.0.0
   cupertino_icons: ^1.0.2
   http: ^1.2.0
   provider: ^6.1.1
@@ -36,6 +36,7 @@ dependencies:
   intl: ^0.20.2
   fl_chart: ^0.71.0
   file_picker: ^10.2.0
+  data_table_2: ^2.5.15
 
 dev_dependencies:
   flutter_test:
@@ -45,25 +46,21 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/2024/available_players.csv
-    - assets/2024/draft_order.csv
-    - assets/2024/team_needs.csv
-    - assets/2025/FF_WR_2025_v2.csv
-    - assets/2025/available_players.csv
-    - assets/2025/draft_order.csv
-    - assets/2025/team_needs.csv
-    - assets/2025/player_descriptions.csv
-    - assets/2025/live_picks.csv
-    - assets/2025/FF_ranks.csv
-    - assets/2026/available_players.csv
-    - assets/2026/draft_order.csv
-    - assets/2026/team_needs.csv
-    - assets/draft_value_chart.csv
+    - assets/
+    - assets/current_players_combined.csv
     - assets/blog_posts.json
     - assets/images/
     - assets/images/blog/
     - assets/images/GM/
     - assets/images/FF/
     - assets/images/data/    
-    - assets/2025/2025_FF_preds_FF_WR_2025_v2.csv
+    - assets/2024/
+    - assets/2025/
+    - assets/2026/
+    - assets/rankings/
+    - data_processing/assets/data/
+    - data_processing/assets/data/player_career_stats.csv
+    - data_processing/assets/data/player_game_logs.csv
+    - data_processing/assets/data/player_weekly_passing_ngs.csv
+    - data_processing/assets/data/adp/
 

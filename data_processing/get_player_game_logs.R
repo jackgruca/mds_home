@@ -71,16 +71,24 @@ processed_data <- weekly_data %>%
 
 
 # --- DATA EXPORT ---
-message(paste("Writing processed data to", OUTPUT_FILE))
+OUTPUT_FILE_JSON <- file.path(OUTPUT_DIR, "player_game_logs.json")
+OUTPUT_FILE_CSV <- file.path(OUTPUT_DIR, "player_game_logs.csv")
+
+message(paste("Writing processed data to", OUTPUT_FILE_JSON, "and", OUTPUT_FILE_CSV))
 
 if (!dir.exists(OUTPUT_DIR)) {
     dir.create(OUTPUT_DIR, recursive = TRUE)
 }
 
-json_data <- toJSON(processed_data, pretty = TRUE, auto_unbox = TRUE)
-write(json_data, OUTPUT_FILE)
+# Export to CSV
+write.csv(processed_data, OUTPUT_FILE_CSV, row.names = FALSE)
+message("✅ CSV export complete! File saved as:", OUTPUT_FILE_CSV)
 
-message("✅ Successfully created player_game_logs.json")
+# Export to JSON
+json_data <- toJSON(processed_data, pretty = TRUE, auto_unbox = TRUE)
+write(json_data, OUTPUT_FILE_JSON)
+
+message("✅ JSON export complete! File saved as:", OUTPUT_FILE_JSON)
 message(paste("Total players processed:", length(unique(processed_data$player_id))))
 message(paste("Total game logs:", nrow(processed_data)))
 message(paste("Seasons included:", paste(sort(unique(processed_data$season)), collapse = ", ")))

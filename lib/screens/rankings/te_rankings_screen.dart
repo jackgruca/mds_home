@@ -8,6 +8,7 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/seo_helper.dart';
 import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/csv_rankings_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
 import '../../services/rankings/ranking_calculation_service.dart';
 import '../../services/rankings/filter_service.dart';
@@ -57,8 +58,8 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       SEOHelper.updateForTERankings();
     });
     
-    _seasonOptions = RankingService.getSeasonOptions();
-    _tierOptions = RankingService.getTierOptions();
+    _seasonOptions = ['2024', '2023', '2022', '2021', 'All'];
+    _tierOptions = ['All', '1', '2', '3', '4', '5'];
     _defaultWeights = RankingCalculationService.getDefaultWeights('te');
     _currentWeights = _defaultWeights;
     _currentFilter = const FilterQuery();
@@ -77,11 +78,17 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     });
 
     try {
-      final rankings = await RankingService.loadRankings(
-        position: 'te',
-        season: _selectedSeason,
-        tier: _selectedTier,
-      );
+      final csvService = CSVRankingsService();
+      final allRankings = await csvService.fetchTERankings();
+      
+      // Filter by season and tier
+      final rankings = allRankings.where((ranking) {
+        bool matchesSeason = _selectedSeason == 'All' || 
+                            ranking['season']?.toString() == _selectedSeason;
+        bool matchesTier = _selectedTier == 'All' || 
+                          (ranking['tier']?.toString() == _selectedTier);
+        return matchesSeason && matchesTier;
+      }).toList();
       
       // Store original rankings
       _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();

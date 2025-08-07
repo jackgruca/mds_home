@@ -23,34 +23,35 @@ class NavItem {
 final List<NavItem> topNavItems = [
   NavItem(title: 'Home', route: '/', icon: Icons.home),
   
-  // 1. Fantasy Football
+  // 1. Fantasy Hub
   NavItem(
-    title: 'Fantasy Football',
+    title: 'Fantasy Hub',
     route: '/fantasy',
     icon: Icons.sports_football,
     isPlaceholder: false,
     subItems: [
-      NavItem(title: 'Fantasy Big Board', route: '/big-board', isPlaceholder: false),
-      NavItem(title: 'Custom Rankings Builder', route: '/fantasy/custom-rankings', isPlaceholder: false),
-      NavItem(title: 'Fantasy Draft Simulator', route: '/mock-draft-simulator', isPlaceholder: false),
-      NavItem(title: 'My Custom Rankings', route: '/my-rankings', isPlaceholder: false),
-      NavItem(title: 'Player Comparison', route: '/player-comparison', isPlaceholder: false),
+      NavItem(title: 'Fantasy Big Board', route: '/fantasy/big-board', isPlaceholder: false),
+      NavItem(title: 'ADP Analysis', route: '/fantasy/adp', isPlaceholder: false),
+      NavItem(title: 'Custom Rankings', route: '/fantasy/custom-rankings', isPlaceholder: false),
+      NavItem(title: 'Stat Predictor', route: '/projections/stat-predictor', isPlaceholder: false),
+      NavItem(title: 'Fantasy Mock Draft Sim', route: '/mock-draft-sim', isPlaceholder: false),
+      NavItem(title: 'Player Comparison', route: '/fantasy/player-comparison', isPlaceholder: false),
       NavItem(title: 'Player Trends', route: '/fantasy/trends', isPlaceholder: false),
-      NavItem(title: 'Stat Predictor', route: '/stat-predictor', isPlaceholder: false),
+      NavItem(title: 'My Custom Rankings', route: '/vorp/my-custom-rankings', isPlaceholder: false),
     ],
   ),
   
-  // 2. Be A GM
+  // 2. Be a GM
   NavItem(
-    title: 'Be A GM',
+    title: 'Be a GM',
     route: '/gm-hub',
     icon: Icons.assignment_ind,
     isPlaceholder: false,
     subItems: [
-      NavItem(title: 'Draft Big Board', route: '/draft-big-board', isPlaceholder: false),
-      NavItem(title: 'Mock Draft Simulator', route: '/draft', isPlaceholder: false),
-      NavItem(title: 'Historical Drafts', route: '/historical-drafts', isPlaceholder: false),
-      NavItem(title: 'Bust or Brilliant', route: '/gm-hub/bust-evaluation', isPlaceholder: false),
+      NavItem(title: 'Draft Big Board', route: '/draft/big-board', isPlaceholder: false),
+      NavItem(title: 'Draft Mock Draft Simulator', route: '/draft', isPlaceholder: false),
+      NavItem(title: 'Historical Drafts', route: '/draft/historical-drafts', isPlaceholder: false),
+      NavItem(title: 'Bust or Brilliant', route: '/fantasy/bust-evaluation', isPlaceholder: false),
       NavItem(title: 'Depth Chart', route: '/depth-charts', isPlaceholder: false),
       NavItem(title: 'Rosters', route: '/nfl-rosters', isPlaceholder: false),
     ],
@@ -82,6 +83,7 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Historical Game Data', route: '/historical-game-data', isPlaceholder: false),
       NavItem(title: 'Player Season Stats', route: '/player-season-stats', isPlaceholder: false),
+      NavItem(title: 'Player Data', route: '/players', isPlaceholder: false),
     ],
   ),
   

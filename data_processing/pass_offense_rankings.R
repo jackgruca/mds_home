@@ -95,8 +95,11 @@ passOffenseRank_final <- passOffenseRank %>%
   ) %>%
   arrange(myRankNum)
 
-# Save to JSON
+# Save to JSON (keep for backward compatibility)
 pass_offense_rankings_json <- toJSON(passOffenseRank_final, pretty = TRUE, auto_unbox = TRUE)
 write(pass_offense_rankings_json, file = "/Users/jackgruca/Documents/GitHub/mds_home/data_processing/pass_offense_rankings.json")
 
-print(paste("Processed", nrow(passOffenseRank_final), "pass offense rankings and saved to pass_offense_rankings.json"))
+# Save to CSV for new Flutter CSV service
+write_csv(passOffenseRank_final, file = "/Users/jackgruca/Documents/GitHub/mds_home/assets/rankings/pass_offense_rankings.csv")
+
+print(paste("Processed", nrow(passOffenseRank_final), "pass offense rankings and saved to pass_offense_rankings.json and pass_offense_rankings.csv"))

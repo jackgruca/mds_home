@@ -243,8 +243,11 @@ TE_ranks_final <- TE_ranks %>%
   ) %>%
   arrange(myRankNum)
 
-# Save to JSON
+# Save to JSON (keep for backward compatibility)
 te_rankings_json <- toJSON(TE_ranks_final, pretty = TRUE, auto_unbox = TRUE)
 write(te_rankings_json, file = "/Users/jackgruca/Documents/GitHub/mds_home/data_processing/te_rankings.json")
 
-print(paste("Processed", nrow(TE_ranks_final), "TE rankings and saved to te_rankings.json"))
+# Save to CSV for new Flutter CSV service
+write_csv(TE_ranks_final, file = "/Users/jackgruca/Documents/GitHub/mds_home/assets/rankings/te_rankings.csv")
+
+print(paste("Processed", nrow(TE_ranks_final), "TE rankings and saved to te_rankings.json and te_rankings.csv"))

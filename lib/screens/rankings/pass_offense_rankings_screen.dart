@@ -8,6 +8,7 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../services/rankings/offense_tier_service.dart';
 import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/csv_rankings_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
 import '../../services/rankings/filter_service.dart';
 import '../../widgets/rankings/filter_panel.dart';
@@ -81,7 +82,14 @@ class _PassOffenseRankingsScreenState extends State<PassOffenseRankingsScreen> {
     });
 
     try {
-      final rankings = await _offenseService.calculatePassOffenseTiers(_selectedSeason);
+      final csvService = CSVRankingsService();
+      final allRankings = await csvService.fetchPassOffenseRankings();
+      
+      // Filter by season
+      final rankings = allRankings.where((ranking) {
+        return _selectedSeason == 'All' || 
+               ranking['season']?.toString() == _selectedSeason;
+      }).toList();
       
       // Store original rankings
       _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();
@@ -90,7 +98,8 @@ class _PassOffenseRankingsScreenState extends State<PassOffenseRankingsScreen> {
       List<Map<String, dynamic>> filteredRankings = rankings;
       if (_selectedTier != 'All') {
         final tierNum = int.parse(_selectedTier);
-        filteredRankings = rankings.where((r) => r['passOffenseTier'] == tierNum).toList();
+        filteredRankings = rankings.where((r) => 
+          (r['tier'] == tierNum || r['passOffenseTier'] == tierNum)).toList();
       }
       
       // Apply filters if enabled

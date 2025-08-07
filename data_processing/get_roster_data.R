@@ -200,28 +200,36 @@ missing_summary <- roster_data_cleaned %>%
 cat("\nMissing data check:\n")
 print(missing_summary)
 
-# 4. EXPORT TO JSON
+# 4. EXPORT TO JSON AND CSV
 # ------------------------------------------------
-output_file <- "roster_data.json"
+output_file_json <- "roster_data.json"
+output_file_csv <- "player_roster_info.csv"
 
-cat("\nExporting data to", output_file, "...\n")
+cat("\nExporting data to", output_file_json, "and", output_file_csv, "...\n")
 
-# Convert to list format for JSON export
-roster_list <- roster_data_cleaned %>%
+# Prepare data for export
+export_data <- roster_data_cleaned %>%
   # Remove any remaining NA values by converting to empty strings for character columns
   mutate(across(where(is.character), ~ifelse(is.na(.), "", .))) %>%
   # Convert NA numeric values to 0
-  mutate(across(where(is.numeric), ~ifelse(is.na(.), 0, .))) %>%
+  mutate(across(where(is.numeric), ~ifelse(is.na(.), 0, .)))
+
+# Export to CSV
+write.csv(export_data, output_file_csv, row.names = FALSE)
+cat("✅ CSV export complete! File saved as:", output_file_csv, "\n")
+
+# Convert to list format for JSON export
+roster_list <- export_data %>%
   # Convert to list
   pmap(list) %>%
   # Name each record with a unique identifier
   set_names(paste0("roster_", seq_along(.)))
 
 # Export to JSON
-write_json(roster_list, output_file, pretty = TRUE, auto_unbox = TRUE)
+write_json(roster_list, output_file_json, pretty = TRUE, auto_unbox = TRUE)
 
-cat("✅ Export complete! File saved as:", output_file, "\n")
-cat("📊 Total records exported:", length(roster_list), "\n")
+cat("✅ JSON export complete! File saved as:", output_file_json, "\n")
+cat("📊 Total records exported:", nrow(export_data), "rows to CSV,", length(roster_list), "records to JSON\n")
 
 # 5. QUICK DATA PREVIEW
 # ------------------------------------------------
