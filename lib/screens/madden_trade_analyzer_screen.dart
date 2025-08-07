@@ -5,7 +5,8 @@ import '../models/nfl_trade/nfl_player.dart';
 import '../models/nfl_trade/nfl_team_info.dart';
 import '../models/nfl_trade/trade_asset.dart';
 import '../widgets/trade/player_selection_modal.dart';
-import '../services/nfl_roster_service.dart';
+import '../services/trade_likelihood_service.dart';
+import '../services/historical_trade_precedents.dart';
 
 class MaddenTradeAnalyzerScreen extends StatefulWidget {
   const MaddenTradeAnalyzerScreen({super.key});
@@ -14,12 +15,38 @@ class MaddenTradeAnalyzerScreen extends StatefulWidget {
   State<MaddenTradeAnalyzerScreen> createState() => _MaddenTradeAnalyzerScreenState();
 }
 
+// Player grading system
+class PlayerGrade {
+  final double overall; // 0-100
+  final double positionValue; // 0-25 points
+  final double playerSkill; // 0-35 points  
+  final double teamNeed; // 0-25 points
+  final double ageValue; // 0-15 points
+  final String positionValueExplanation;
+  final String playerSkillExplanation;
+  final String teamNeedExplanation;
+  final String ageValueExplanation;
+
+  PlayerGrade({
+    required this.overall,
+    required this.positionValue,
+    required this.playerSkill,
+    required this.teamNeed,
+    required this.ageValue,
+    required this.positionValueExplanation,
+    required this.playerSkillExplanation,
+    required this.teamNeedExplanation,
+    required this.ageValueExplanation,
+  });
+}
+
 class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   NFLTeamInfo? team1;
   NFLTeamInfo? team2;
   TeamTradePackage? team1Package;
   TeamTradePackage? team2Package;
   double tradeLikelihood = 0.0;
+  TradeLikelihoodResult? tradeAnalysis;
 
   // Sample teams with more detailed info
   final List<NFLTeamInfo> allTeams = [
@@ -90,16 +117,16 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         position: 'EDGE',
         team: 'DAL',
         age: 25,
-        experience: 3,
+        experience: 4,
         marketValue: 45.0,
-        contractStatus: 'extension',
-        contractYearsRemaining: 2,
-        annualSalary: 22.0,
-        overallRating: 95.0,
-        positionRank: 98.0,
+        contractStatus: 'extension_needed',
+        contractYearsRemaining: 1,
+        annualSalary: 2.8, // Still on rookie deal
+        overallRating: 97.0,
+        positionRank: 98.0, // Elite EDGE rusher
         ageAdjustedValue: 49.5,
         positionImportance: 0.9,
-        durabilityScore: 88.0,
+        durabilityScore: 90.0,
       ),
       NFLPlayer(
         playerId: 'ceedee_lamb_dal',
@@ -348,13 +375,45 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        team.teamName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              team.teamName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Top needs display inline
+                          if (team.topPositionNeeds.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 0.5),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.priority_high, size: 10, color: Colors.blue[700]),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    team.topPositionNeeds.take(3).join(', '),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                       Text(
                         team.abbreviation,
@@ -438,6 +497,10 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     );
   }
 
+  // Removed - no longer needed as team needs are shown in header
+
+  // Removed - no longer needed
+
   Widget _buildTradeSlots(TeamTradePackage package, NFLTeamInfo team) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -486,36 +549,148 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   Widget _buildFilledSlot(TradeAsset asset, int slotIndex, NFLTeamInfo team) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).primaryColor,
-        child: Icon(
-          asset.type == TradeAssetType.player ? Icons.person : Icons.confirmation_number,
-          color: Colors.white,
-          size: 20,
+    // Determine receiving team (the opposite team)
+    NFLTeamInfo? receivingTeam = team == team1 ? team2 : team1;
+    
+    if (asset is PlayerAsset && receivingTeam != null) {
+      return FutureBuilder<PlayerGrade>(
+        future: _calculatePlayerGrade(asset.player, receivingTeam),
+        builder: (context, snapshot) {
+          int gradeValue = snapshot.hasData ? snapshot.data!.overall.round() : 0;
+          Color gradeColor = snapshot.hasData ? _getGradeColor(snapshot.data!.overall) : Colors.grey;
+          
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                // Player name and position
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        asset.player.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${asset.player.position} • ${asset.player.team}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Grade display
+                InkWell(
+                  onTap: snapshot.hasData 
+                      ? () => _showGradeBreakdown(asset.player, receivingTeam, snapshot.data!)
+                      : null,
+                  child: Container(
+                    width: 50,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: gradeColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: gradeColor.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: snapshot.hasData
+                          ? Text(
+                              '$gradeValue',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: gradeColor,
+                              ),
+                            )
+                          : SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(Colors.grey[400]),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Remove button
+                IconButton(
+                  icon: Icon(Icons.close, size: 18, color: Colors.grey[600]),
+                  onPressed: () => _removeAssetFromSlot(slotIndex, team),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } else {
+      // Draft pick display
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              Icons.confirmation_number,
+              color: Colors.orange[700],
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    asset.displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    asset.description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, size: 18, color: Colors.grey[600]),
+              onPressed: () => _removeAssetFromSlot(slotIndex, team),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            ),
+          ],
         ),
-      ),
-      title: Text(
-        asset.displayName,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        asset.description,
-        style: const TextStyle(fontSize: 11),
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.close, size: 16),
-        onPressed: () => _removeAssetFromSlot(slotIndex, team),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-      ),
-    );
+      );
+    }
   }
+
+  // Removed - no longer needed as value display is integrated into _buildFilledSlot
+
+  // Removed - no longer needed as it's integrated into _buildFilledSlot
+
+  // Removed - no longer needed
 
   Widget _buildEmptySlot(int slotIndex, NFLTeamInfo team) {
     return InkWell(
@@ -811,6 +986,9 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   void _showPlayerSelectionModal(NFLTeamInfo team) {
+    // Determine receiving team (the opposite team)
+    NFLTeamInfo? receivingTeam = team == team1 ? team2 : team1;
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -820,6 +998,11 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
           onPlayerSelected: (player) {
             _addPlayerAsset(player, team);
           },
+          receivingTeam: receivingTeam,
+          calculateGrade: receivingTeam != null ? (player, receivingTeam) async {
+            PlayerGrade grade = await _calculatePlayerGrade(player, receivingTeam);
+            return grade.overall;
+          } : null,
         );
       },
     );
@@ -960,24 +1143,49 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     if (team1 == null || team2 == null || !_hasAnyAssets()) {
       setState(() {
         tradeLikelihood = 0.0;
+        tradeAnalysis = null;
       });
       return;
     }
 
+    // Use enhanced trade analysis
+    _performTradeAnalysis();
+  }
+
+  void _performTradeAnalysis() async {
+    try {
+      TradeLikelihoodResult result = await TradeLikelihoodService.analyzeTrade(
+        team1: team1!,
+        team2: team2!,
+        team1Package: team1Package!,
+        team2Package: team2Package!,
+      );
+
+      setState(() {
+        tradeLikelihood = result.likelihood;
+        tradeAnalysis = result;
+      });
+    } catch (e) {
+      // Fallback to simple calculation if enhanced analysis fails
+      _fallbackTradeLikelihood();
+    }
+  }
+
+  void _fallbackTradeLikelihood() {
     double team1Value = team1Package?.totalValue ?? 0.0;
     double team2Value = team2Package?.totalValue ?? 0.0;
     double valueRatio = team1Value > 0 ? team2Value / team1Value : (team2Value > 0 ? 0.0 : 0.5);
     
-    // Base likelihood on value fairness
+    // Simple value-based likelihood
     double likelihood = 0.5;
     if (valueRatio >= 0.9 && valueRatio <= 1.1) {
-      likelihood = 0.9; // Very fair trade
+      likelihood = 0.9;
     } else if (valueRatio >= 0.8 && valueRatio <= 1.2) {
-      likelihood = 0.7; // Good trade
+      likelihood = 0.7;
     } else if (valueRatio >= 0.7 && valueRatio <= 1.3) {
-      likelihood = 0.5; // Okay trade
+      likelihood = 0.5;
     } else {
-      likelihood = 0.2; // Poor trade
+      likelihood = 0.2;
     }
 
     setState(() {
@@ -1001,23 +1209,78 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   void _analyzeTrade() {
-    // Show detailed analysis modal
+    // Show enhanced analysis modal
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Trade Analysis'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          title: Row(
             children: [
-              Text('Trade Likelihood: ${(tradeLikelihood * 100).round()}%'),
-              const SizedBox(height: 8),
-              Text('${team1!.teamName} receives: \$${(team2Package?.totalValue ?? 0.0).toStringAsFixed(1)}M value'),
-              Text('${team2!.teamName} receives: \$${(team1Package?.totalValue ?? 0.0).toStringAsFixed(1)}M value'),
-              const SizedBox(height: 16),
-              Text(_getLikelihoodText()),
+              Icon(Icons.analytics, color: Theme.of(context).primaryColor),
+              const SizedBox(width: 8),
+              const Text('Trade Analysis'),
             ],
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Likelihood Header
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _getLikelihoodColor().withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _getLikelihoodColor()),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_getLikelihoodIcon(), color: _getLikelihoodColor()),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${(tradeLikelihood * 100).round()}% ${tradeAnalysis?.category ?? 'Likelihood'}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: _getLikelihoodColor(),
+                                ),
+                              ),
+                              Text(
+                                tradeAnalysis?.description ?? _getLikelihoodText(),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Trade Values
+                  _buildTradeValueSection(),
+                  const SizedBox(height: 16),
+
+                  // Analysis Factors
+                  if (tradeAnalysis?.factors.isNotEmpty ?? false) ...[
+                    _buildAnalysisSection('Key Factors', tradeAnalysis!.factors),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Suggestions
+                  if (tradeAnalysis?.suggestions.isNotEmpty ?? false) ...[
+                    _buildAnalysisSection('Suggestions', tradeAnalysis!.suggestions),
+                  ],
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -1030,11 +1293,504 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     );
   }
 
+  Widget _buildTradeValueSection() {
+    double team1Value = team1Package?.totalValue ?? 0.0;
+    double team2Value = team2Package?.totalValue ?? 0.0;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Trade Value Exchange',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team1!.teamName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Receives: \$${team2Value.toStringAsFixed(1)}M',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.swap_horiz,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      team2!.teamName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Receives: \$${team1Value.toStringAsFixed(1)}M',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalysisSection(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        )),
+      ],
+    );
+  }
+
+  IconData _getLikelihoodIcon() {
+    if (tradeLikelihood >= 0.8) return Icons.check_circle;
+    if (tradeLikelihood >= 0.6) return Icons.thumb_up;
+    if (tradeLikelihood >= 0.4) return Icons.help;
+    if (tradeLikelihood >= 0.2) return Icons.warning;
+    return Icons.cancel;
+  }
+
   void _clearTrade() {
     setState(() {
       team1Package?.clearAllAssets();
       team2Package?.clearAllAssets();
       tradeLikelihood = 0.0;
     });
+  }
+
+  // Player grading calculation methods
+  Future<PlayerGrade> _calculatePlayerGrade(NFLPlayer player, NFLTeamInfo receivingTeam) async {
+    // 1. Position Value (0-25 points)
+    double positionValue = _calculatePositionValue(player.position);
+    String positionExplanation = _getPositionValueExplanation(player.position, positionValue);
+    
+    // 2. Player Skill (0-35 points) - based on rankings/rating
+    double playerSkill = await _calculatePlayerSkill(player);
+    String skillExplanation = _getPlayerSkillExplanation(player, playerSkill);
+    
+    // 3. Team Need (0-25 points)
+    double teamNeed = _calculateTeamNeed(player.position, receivingTeam);
+    String needExplanation = _getTeamNeedExplanation(player.position, receivingTeam, teamNeed);
+    
+    // 4. Age Value (0-15 points)
+    double ageValue = _calculateAgeValue(player.age, player.position);
+    String ageExplanation = _getAgeValueExplanation(player.age, player.position, ageValue);
+    
+    double overall = positionValue + playerSkill + teamNeed + ageValue;
+    
+    return PlayerGrade(
+      overall: overall.clamp(0, 100),
+      positionValue: positionValue,
+      playerSkill: playerSkill,
+      teamNeed: teamNeed,
+      ageValue: ageValue,
+      positionValueExplanation: positionExplanation,
+      playerSkillExplanation: skillExplanation,
+      teamNeedExplanation: needExplanation,
+      ageValueExplanation: ageExplanation,
+    );
+  }
+  
+  double _calculatePositionValue(String position) {
+    // Premium positions get higher base value (max 25 points)
+    const Map<String, double> positionValues = {
+      'QB': 25.0,   // Most important position
+      'EDGE': 23.0, // Elite pass rushers
+      'OT': 22.0,   // Protect the QB
+      'CB': 21.0,   // Cover elite WRs
+      'WR': 20.0,   // Offensive weapons
+      'DE': 19.0,   // Pass rush
+      'DT': 18.0,   // Interior pressure
+      'S': 17.0,    // Last line of defense
+      'LB': 16.0,   // Versatile defenders
+      'TE': 15.0,   // Offensive flexibility
+      'OG': 14.0,   // Interior protection
+      'C': 13.0,    // Center the line
+      'RB': 12.0,   // Replaceable position
+      'K': 8.0,     // Specialist
+      'P': 7.0,     // Specialist
+    };
+    return positionValues[position] ?? 15.0;
+  }
+  
+  String _getPositionValueExplanation(String position, double value) {
+    String tier = value >= 22 ? "Premium" : value >= 18 ? "High" : value >= 14 ? "Mid" : "Low";
+    return "$position is a $tier-value position (${value.toStringAsFixed(0)}/25 points)";
+  }
+  
+  Future<double> _calculatePlayerSkill(NFLPlayer player) async {
+    // Use player's percentile ranking if available (max 35 points)
+    double percentile = player.positionRank / 100.0; // Assuming positionRank is 0-100
+    
+    // Alternative: use overall rating
+    if (percentile == 0) {
+      percentile = player.overallRating / 100.0;
+    }
+    
+    return percentile * 35.0;
+  }
+  
+  String _getPlayerSkillExplanation(NFLPlayer player, double value) {
+    double percentile = (value / 35.0) * 100;
+    String tier = percentile >= 90 ? "Elite" : percentile >= 75 ? "Pro Bowl" : percentile >= 50 ? "Starter" : "Backup";
+    return "$tier player at ${percentile.toStringAsFixed(0)}th percentile (${value.toStringAsFixed(0)}/35 points)";
+  }
+  
+  double _calculateTeamNeed(String position, NFLTeamInfo team) {
+    // Team need multiplier (max 25 points)
+    double needLevel = team.positionNeeds[position] ?? 0.5;
+    
+    // Convert need level (0-1.5 scale from CSV) to points (0-25)
+    if (needLevel >= 1.3) return 25.0; // Desperate need
+    if (needLevel >= 1.1) return 20.0; // High need
+    if (needLevel >= 0.9) return 15.0; // Moderate need
+    if (needLevel >= 0.7) return 10.0; // Low need
+    return 5.0; // Position of strength
+  }
+  
+  String _getTeamNeedExplanation(String position, NFLTeamInfo team, double value) {
+    String level = value >= 20 ? "Desperate" : value >= 15 ? "High" : value >= 10 ? "Moderate" : "Low";
+    return "${team.abbreviation} has $level need for $position (${value.toStringAsFixed(0)}/25 points)";
+  }
+  
+  double _calculateAgeValue(int age, String position) {
+    // Age-based value (max 15 points)
+    double ageScore = 15.0;
+    
+    // Position-specific age curves
+    switch (position) {
+      case 'RB':
+        if (age <= 24) ageScore = 15.0;
+        else if (age <= 26) ageScore = 12.0;
+        else if (age <= 28) ageScore = 8.0;
+        else if (age <= 30) ageScore = 4.0;
+        else ageScore = 2.0;
+        break;
+        
+      case 'QB':
+        if (age <= 27) ageScore = 15.0;
+        else if (age <= 32) ageScore = 14.0;
+        else if (age <= 35) ageScore = 10.0;
+        else if (age <= 37) ageScore = 6.0;
+        else ageScore = 3.0;
+        break;
+        
+      case 'WR':
+      case 'TE':
+        if (age <= 26) ageScore = 15.0;
+        else if (age <= 29) ageScore = 13.0;
+        else if (age <= 31) ageScore = 9.0;
+        else if (age <= 33) ageScore = 5.0;
+        else ageScore = 2.0;
+        break;
+        
+      default: // Most positions
+        if (age <= 26) ageScore = 15.0;
+        else if (age <= 29) ageScore = 12.0;
+        else if (age <= 32) ageScore = 8.0;
+        else if (age <= 34) ageScore = 4.0;
+        else ageScore = 2.0;
+    }
+    
+    return ageScore;
+  }
+  
+  String _getAgeValueExplanation(int age, String position, double value) {
+    String stage = value >= 13 ? "Prime" : value >= 8 ? "Good" : value >= 4 ? "Declining" : "Twilight";
+    return "Age $age is $stage for $position (${value.toStringAsFixed(0)}/15 points)";
+  }
+  
+  Color _getGradeColor(double grade) {
+    if (grade >= 90) return Colors.purple; // A+
+    if (grade >= 80) return Colors.green; // A
+    if (grade >= 70) return Colors.blue; // B
+    if (grade >= 60) return Colors.orange; // C
+    if (grade >= 50) return Colors.amber; // D
+    return Colors.red; // F
+  }
+  
+  String _getGradeLetter(double grade) {
+    if (grade >= 97) return 'A+';
+    if (grade >= 93) return 'A';
+    if (grade >= 90) return 'A-';
+    if (grade >= 87) return 'B+';
+    if (grade >= 83) return 'B';
+    if (grade >= 80) return 'B-';
+    if (grade >= 77) return 'C+';
+    if (grade >= 73) return 'C';
+    if (grade >= 70) return 'C-';
+    if (grade >= 67) return 'D+';
+    if (grade >= 63) return 'D';
+    if (grade >= 60) return 'D-';
+    return 'F';
+  }
+  
+  void _showGradeBreakdown(NFLPlayer player, NFLTeamInfo receivingTeam, PlayerGrade grade) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: _getGradeColor(grade.overall),
+                radius: 20,
+                child: Text(
+                  _getGradeLetter(grade.overall),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      player.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Trade Value to ${receivingTeam.teamName}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Overall Grade
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _getGradeColor(grade.overall).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _getGradeColor(grade.overall)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Overall Grade: ',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      ),
+                      Text(
+                        '${grade.overall.round()}/100',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: _getGradeColor(grade.overall),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Breakdown sections
+                _buildGradeSection(
+                  'Position Value',
+                  grade.positionValue,
+                  25,
+                  grade.positionValueExplanation,
+                  Icons.sports_football,
+                ),
+                const SizedBox(height: 8),
+                _buildGradeSection(
+                  'Player Skill',
+                  grade.playerSkill,
+                  35,
+                  grade.playerSkillExplanation,
+                  Icons.star,
+                ),
+                const SizedBox(height: 8),
+                _buildGradeSection(
+                  'Team Need',
+                  grade.teamNeed,
+                  25,
+                  grade.teamNeedExplanation,
+                  Icons.priority_high,
+                ),
+                const SizedBox(height: 8),
+                _buildGradeSection(
+                  'Age & Prime',
+                  grade.ageValue,
+                  15,
+                  grade.ageValueExplanation,
+                  Icons.calendar_today,
+                ),
+                const SizedBox(height: 16),
+                
+                // Historical precedent section
+                _buildHistoricalPrecedentSection(player, grade),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  Widget _buildHistoricalPrecedentSection(NFLPlayer player, PlayerGrade grade) {
+    String recommendation = HistoricalTradePrecedents.getTradeRecommendation(grade.overall, player.position);
+    double expectedPoints = HistoricalTradePrecedents.getExpectedDraftPointsForGrade(grade.overall, player.position);
+    double inflatedPoints = expectedPoints * HistoricalTradePrecedents.getMarketInflationFactor(DateTime.now().year);
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history, size: 16, color: Colors.amber[700]),
+              const SizedBox(width: 4),
+              Text(
+                'Trade Market Value',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.amber[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            recommendation,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Based on ${inflatedPoints.toStringAsFixed(0)} draft value points from similar trades (Khalil Mack, Bradley Chubb, etc.)',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradeSection(String title, double value, double maxValue, String explanation, IconData icon) {
+    double percentage = (value / maxValue) * 100;
+    Color barColor = percentage >= 80 ? Colors.green : percentage >= 60 ? Colors.blue : percentage >= 40 ? Colors.orange : Colors.red;
+    
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: Colors.grey[700]),
+              const SizedBox(width: 4),
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const Spacer(),
+              Text(
+                '${value.toStringAsFixed(0)}/${maxValue.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: barColor,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          LinearProgressIndicator(
+            value: value / maxValue,
+            backgroundColor: Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation(barColor),
+            minHeight: 6,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            explanation,
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
   }
 }

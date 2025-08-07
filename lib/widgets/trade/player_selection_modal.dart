@@ -2,18 +2,23 @@
 
 import 'package:flutter/material.dart';
 import '../../models/nfl_trade/nfl_player.dart';
+import '../../models/nfl_trade/nfl_team_info.dart';
 import '../../services/nfl_roster_service.dart';
 
 class PlayerSelectionModal extends StatefulWidget {
   final String teamName;
   final String teamAbbreviation;
   final Function(NFLPlayer) onPlayerSelected;
+  final NFLTeamInfo? receivingTeam; // Team that would receive the player
+  final Future<double> Function(NFLPlayer, NFLTeamInfo)? calculateGrade; // Grade calculation function
 
   const PlayerSelectionModal({
     super.key,
     required this.teamName,
     required this.teamAbbreviation,
     required this.onPlayerSelected,
+    this.receivingTeam,
+    this.calculateGrade,
   });
 
   @override
@@ -341,20 +346,13 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
       elevation: 1,
       child: ListTile(
         leading: _buildPlayerAvatar(player),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                player.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            _buildRatingBadge(player.overallRating),
-          ],
+        title: Text(
+          player.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,35 +365,83 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                 _buildStatChip('${player.experience} YRS', Colors.green),
                 const SizedBox(width: 4),
                 _buildStatChip('\$${player.annualSalary.toStringAsFixed(1)}M', Colors.orange),
+                const SizedBox(width: 4),
+                _buildStatChip(player.ageTier.toUpperCase(), Colors.purple),
               ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Value: \$${player.marketValue.toStringAsFixed(1)}M • ${player.ageTier.toUpperCase()}',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
             ),
           ],
         ),
-        trailing: ElevatedButton(
-          onPressed: () {
-            widget.onPlayerSelected(player);
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          ),
-          child: const Text(
-            'SELECT',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.receivingTeam != null && widget.calculateGrade != null)
+              FutureBuilder<double>(
+                future: widget.calculateGrade!(player, widget.receivingTeam!),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    double grade = snapshot.data!;
+                    Color gradeColor = _getGradeColor(grade);
+                    return Container(
+                      width: 50,
+                      height: 36,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: gradeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: gradeColor.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${grade.round()}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: gradeColor,
+                          ),
+                        ),
+                      ),
+                    );
+                  } else {
+                    return Container(
+                      width: 50,
+                      height: 36,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.grey[400]),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ElevatedButton(
+              onPressed: () {
+                widget.onPlayerSelected(player);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: const Text(
+                'SELECT',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -415,24 +461,13 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     );
   }
 
-  Widget _buildRatingBadge(double rating) {
-    Color color = _getRatingColor(rating);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1),
-      ),
-      child: Text(
-        '${rating.round()}',
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
+  Color _getGradeColor(double grade) {
+    if (grade >= 90) return Colors.purple; // A+
+    if (grade >= 80) return Colors.green; // A
+    if (grade >= 70) return Colors.blue; // B
+    if (grade >= 60) return Colors.orange; // C
+    if (grade >= 50) return Colors.amber; // D
+    return Colors.red; // F
   }
 
   Widget _buildStatChip(String text, Color color) {
@@ -474,10 +509,4 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     return positionColors[position] ?? Colors.grey;
   }
 
-  Color _getRatingColor(double rating) {
-    if (rating >= 90) return Colors.green;
-    if (rating >= 80) return Colors.lightGreen;
-    if (rating >= 70) return Colors.orange;
-    return Colors.red;
-  }
 }

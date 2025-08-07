@@ -48,6 +48,12 @@ flutter:
   assets:
     - assets/
     - assets/current_players_combined.csv
+    - assets/nfl_roster_data.csv
+    - assets/nfl_contract_data.csv
+    - assets/nfl_depth_charts.csv
+    - assets/nfl_player_stats.csv
+    - assets/rankings/
+    - assets/2026/
     - assets/blog_posts.json
     - assets/images/
     - assets/images/blog/

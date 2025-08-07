@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/common/top_nav_bar.dart';
@@ -10,6 +8,7 @@ import '../../widgets/auth/auth_dialog.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/seo_helper.dart';
+import '../../services/csv_player_stats_service.dart';
 
 class PlayerComparisonScreen extends StatefulWidget {
   const PlayerComparisonScreen({Key? key}) : super(key: key);
@@ -24,11 +23,11 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   bool isLoading = false;
   bool isSearching = false;
   String errorMessage = '';
-  String selectedSeason = '2023';
+  String selectedSeason = '2024';
   int activeSearchIndex = -1;
   final TextEditingController searchController = TextEditingController();
   
-  final List<String> seasons = ['2023', '2022', '2021', '2020', '2019'];
+  List<String> seasons = [];
 
   @override
   void initState() {
@@ -39,6 +38,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       SEOHelper.updateForPlayerComparison();
     });
     
+    _loadAvailableSeasons();
     _loadDefaultPlayers();
   }
 
@@ -48,8 +48,26 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     super.dispose();
   }
 
+  Future<void> _loadAvailableSeasons() async {
+    try {
+      final availableSeasons = await CsvPlayerStatsService.getSeasons();
+      setState(() {
+        seasons = availableSeasons.reversed.toList(); // Most recent first
+        if (seasons.isNotEmpty && !seasons.contains(selectedSeason)) {
+          selectedSeason = seasons.first;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        seasons = ['2024', '2023', '2022', '2021', '2020', '2019'];
+      });
+    }
+  }
+
   Future<void> _loadDefaultPlayers() async {
     if (!mounted) return;
+    
+    print('DEBUG: _loadDefaultPlayers called with season=$selectedSeason');
     
     try {
       setState(() {
@@ -57,31 +75,40 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         errorMessage = '';
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('getTopPlayersByPosition');
-      final result = await callable.call({
-        'position': 'WR',
-        'season': int.parse(selectedSeason),
-        'limit': 2,
-      });
+      // Get top WR players for the selected season
+      final players = await CsvPlayerStatsService.getPlayerStats(
+        season: selectedSeason,
+        position: 'WR',
+        limit: 2,
+        orderBy: 'fantasy_points_ppr',
+        orderDescending: true,
+      );
+
+      print('DEBUG: Received ${players.length} default players');
 
       if (!mounted) return;
 
-      if (result.data['data'] != null && result.data['data'].isNotEmpty) {
+      if (players.isNotEmpty) {
         setState(() {
-          selectedPlayers = List<Map<String, dynamic>>.from(result.data['data']);
+          selectedPlayers = players.take(2).toList();
           isLoading = false;
         });
+        
+        print('DEBUG: Set ${selectedPlayers.length} default players');
       } else {
         setState(() {
           isLoading = false;
-          errorMessage = 'No default players found';
+          errorMessage = 'No default players found for selected season';
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('ERROR: Error in _loadDefaultPlayers: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      
       if (!mounted) return;
       setState(() {
         isLoading = false;
-        errorMessage = _handleFirebaseError(e, 'loading default players');
+        errorMessage = 'Error loading default players: ${e.toString()}';
       });
     }
   }
@@ -100,19 +127,18 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         isSearching = true;
       });
 
-      final callable = FirebaseFunctions.instance.httpsCallable('getPlayerStats');
-      final result = await callable.call({
-        'searchQuery': query,
-        'filters': {
-          'season': int.parse(selectedSeason),
-        },
-        'limit': 20,
-      });
+      final players = await CsvPlayerStatsService.getPlayerStats(
+        season: selectedSeason,
+        playerName: query,
+        limit: 20,
+        orderBy: 'fantasy_points_ppr',
+        orderDescending: true,
+      );
 
       if (!mounted) return;
 
       setState(() {
-        searchResults = List<Map<String, dynamic>>.from(result.data['data'] ?? []);
+        searchResults = players;
         isSearching = false;
       });
     } catch (e) {
@@ -120,7 +146,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       setState(() {
         isSearching = false;
         searchResults = [];
-        errorMessage = _handleFirebaseError(e, 'searching players');
+        errorMessage = 'Error searching players: ${e.toString()}';
       });
     }
   }
@@ -152,51 +178,6 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       activeSearchIndex = index;
       searchResults = [];
     });
-  }
-
-  String _handleFirebaseError(dynamic error, String operation) {
-    final errorString = error.toString();
-    
-    if (errorString.contains('FAILED_PRECONDITION') && errorString.contains('index')) {
-      final urlMatch = RegExp(r'https://console\.firebase\.google\.com[^\s]+').firstMatch(errorString);
-      final indexUrl = urlMatch?.group(0) ?? '';
-      
-      if (indexUrl.isNotEmpty) {
-        _logMissingIndex(indexUrl, operation);
-      }
-      
-      return 'Missing Database Index Required - Check console for setup link';
-    }
-    
-    if (errorString.contains('permission-denied')) {
-      return 'Permission denied. Please sign in to access this feature.';
-    }
-    
-    if (errorString.contains('unavailable')) {
-      return 'Service temporarily unavailable. Please try again in a moment.';
-    }
-    
-    return 'Error $operation: ${errorString.length > 100 ? '${errorString.substring(0, 100)}...' : errorString}';
-  }
-
-  Future<void> _logMissingIndex(String indexUrl, String operation) async {
-    try {
-      final callable = FirebaseFunctions.instance.httpsCallable('logMissingIndex');
-      await callable.call({
-        'url': indexUrl,
-        'timestamp': DateTime.now().toIso8601String(),
-        'screenName': 'PlayerComparisonScreen',
-        'queryDetails': {
-          'operation': operation,
-          'season': selectedSeason,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-        'errorMessage': 'Index required for player comparison functionality',
-      });
-      print('Missing index logged successfully for operation: $operation');
-    } catch (e) {
-      print('Failed to log missing index: $e');
-    }
   }
 
   @override
@@ -367,7 +348,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       ),
                     ],
                   ),
-                                     const SizedBox(height: 8),
+                  const SizedBox(height: 8),
                    TextField(
                      controller: searchController,
                      autofocus: true,
@@ -411,7 +392,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                                 ),
                               ),
                             ),
-                            title: Text(player['player_display_name']?.toString() ?? 'Unknown'),
+                            title: Text(player['player_name']?.toString() ?? 'Unknown'),
                             subtitle: Text(
                               '${player['team']?.toString().trim().isNotEmpty == true ? player['team'] : 'Unknown Team'} • ${player['position'] ?? 'Unknown'} • ${player['fantasy_points_ppr']?.toStringAsFixed(1) ?? '0.0'} PPR',
                             ),
@@ -437,7 +418,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   'Player 1',
                 ),
               ),
-                             const SizedBox(width: 16),
+              const SizedBox(width: 16),
                // VS indicator
                Container(
                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -466,7 +447,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             ],
           ),
           
-                     // Additional Players Row (if any)
+          // Additional Players Row (if any)
            if (selectedPlayers.length > 2 || activeSearchIndex >= 2) ...[
              const SizedBox(height: 16),
              Row(
@@ -526,6 +507,11 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   }
 
   Widget _buildPlayerContent(Map<String, dynamic> player, int index) {
+    // Calculate derived stats
+    final fantasyPoints = (player['fantasy_points_ppr'] as num?)?.toDouble() ?? 0.0;
+    final games = _getValidGames(player);
+    final ppg = games > 0 ? fantasyPoints / games : 0.0;
+    
     return Stack(
       children: [
         Padding(
@@ -554,7 +540,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          player['player_display_name']?.toString() ?? 'Unknown Player',
+                          player['player_name']?.toString() ?? 'Unknown Player',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -582,15 +568,15 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatBubble(
-                    '${player['fantasy_points_ppr']?.toStringAsFixed(1) ?? '0.0'}',
+                    fantasyPoints.toStringAsFixed(1),
                     'PPR Points',
                   ),
                   _buildStatBubble(
-                    player['games']?.toString() ?? '0',
+                    games.toString(),
                     'Games',
                   ),
                   _buildStatBubble(
-                    '${player['ppr_points_per_game']?.toStringAsFixed(1) ?? '0.0'}',
+                    ppg.toStringAsFixed(1),
                     'PPG',
                   ),
                 ],
@@ -616,6 +602,21 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     );
   }
 
+  int _getValidGames(Map<String, dynamic> player) {
+    // Count unique weeks for this player/season/team
+    // For CSV data, we'll estimate based on whether they have meaningful stats
+    final fantasyPoints = (player['fantasy_points_ppr'] as num?)?.toDouble() ?? 0.0;
+    final targets = (player['targets'] as num?)?.toInt() ?? 0;
+    final carries = (player['carries'] as num?)?.toInt() ?? 0;
+    final attempts = (player['attempts'] as num?)?.toInt() ?? 0;
+    
+    // Estimate games played based on activity level
+    if (fantasyPoints > 100) return 17; // Full season
+    if (fantasyPoints > 50) return (fantasyPoints / 8).round().clamp(1, 17);
+    if (targets > 10 || carries > 10 || attempts > 10) return (fantasyPoints / 5).round().clamp(1, 17);
+    return fantasyPoints > 0 ? 1 : 0;
+  }
+
   Widget _buildEmptyPlayerSlot(int index, String placeholder) {
     return Material(
       color: Colors.transparent,
@@ -625,7 +626,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-                     decoration: BoxDecoration(
+          decoration: BoxDecoration(
              border: Border.all(color: Colors.grey[300]!, width: 2),
              borderRadius: BorderRadius.circular(16),
            ),
@@ -834,9 +835,9 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      (player['player_display_name']?.toString() ?? 'Unknown').length > 15 
-                          ? '${(player['player_display_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
-                          : player['player_display_name']?.toString() ?? 'Unknown',
+                      (player['player_name']?.toString() ?? 'Unknown').length > 15 
+                          ? '${(player['player_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
+                          : player['player_name']?.toString() ?? 'Unknown',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
                       textAlign: TextAlign.center,
                       maxLines: 2,
@@ -861,46 +862,49 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     final stats = [
       // Basic Stats
       {'category': 'Basic Stats'},
-      {'label': 'Games Played', 'field': 'games'},
       {'label': 'Fantasy Points (PPR)', 'field': 'fantasy_points_ppr', 'format': 'decimal'},
-      {'label': 'PPR Points/Game', 'field': 'ppr_points_per_game', 'format': 'decimal'},
-      {'label': 'Fantasy Points (Standard)', 'field': 'fantasy_points_std', 'format': 'decimal'},
+      {'label': 'Fantasy Points (Standard)', 'field': 'fantasy_points', 'format': 'decimal'},
+      {'label': 'Total Yards', 'field': 'total_yards', 'format': 'decimal'},
+      {'label': 'Total TDs', 'field': 'total_tds'},
       
       // Passing Stats (if applicable)
       if (selectedPlayers.any((p) => p['position'] == 'QB')) ...[
         {'category': 'Passing'},
-        {'label': 'Passing Yards', 'field': 'passing_yards'},
+        {'label': 'Passing Yards', 'field': 'passing_yards', 'format': 'decimal'},
         {'label': 'Passing TDs', 'field': 'passing_tds'},
         {'label': 'Interceptions', 'field': 'interceptions'},
+        {'label': 'Attempts', 'field': 'attempts'},
+        {'label': 'Completions', 'field': 'completions'},
         {'label': 'Completion %', 'field': 'completion_percentage', 'format': 'percentage'},
-        {'label': 'Passer Rating', 'field': 'passer_rating', 'format': 'decimal'},
+        {'label': 'Yards/Attempt', 'field': 'yards_per_attempt', 'format': 'decimal'},
       ],
       
       // Rushing Stats
       if (selectedPlayers.any((p) => ['RB', 'QB'].contains(p['position']))) ...[
         {'category': 'Rushing'},
-        {'label': 'Rushing Yards', 'field': 'rushing_yards'},
+        {'label': 'Rushing Yards', 'field': 'rushing_yards', 'format': 'decimal'},
         {'label': 'Rushing TDs', 'field': 'rushing_tds'},
-        {'label': 'Rushing Attempts', 'field': 'carries'},
-        {'label': 'Yards per Carry', 'field': 'rushing_yards_per_attempt', 'format': 'decimal'},
+        {'label': 'Carries', 'field': 'carries'},
+        {'label': 'Yards per Carry', 'field': 'yards_per_carry', 'format': 'decimal'},
       ],
       
       // Receiving Stats
       if (selectedPlayers.any((p) => ['WR', 'TE', 'RB'].contains(p['position']))) ...[
         {'category': 'Receiving'},
-        {'label': 'Receiving Yards', 'field': 'receiving_yards'},
+        {'label': 'Receiving Yards', 'field': 'receiving_yards', 'format': 'decimal'},
         {'label': 'Receiving TDs', 'field': 'receiving_tds'},
         {'label': 'Receptions', 'field': 'receptions'},
         {'label': 'Targets', 'field': 'targets'},
         {'label': 'Catch %', 'field': 'catch_percentage', 'format': 'percentage'},
-        {'label': 'Target Share', 'field': 'target_share', 'format': 'percentage'},
+        {'label': 'Yards/Reception', 'field': 'yards_per_reception', 'format': 'decimal'},
+        {'label': 'Yards/Target', 'field': 'yards_per_target', 'format': 'decimal'},
       ],
       
       // Advanced Stats
       {'category': 'Advanced'},
-      {'label': 'Air Yards Share', 'field': 'air_yards_share', 'format': 'percentage'},
-      {'label': 'WOPR', 'field': 'wopr', 'format': 'decimal'},
-      {'label': 'Yards per Touch', 'field': 'yards_per_touch', 'format': 'decimal'},
+      {'label': 'Passing EPA', 'field': 'passing_epa', 'format': 'decimal'},
+      {'label': 'Rushing EPA', 'field': 'rushing_epa', 'format': 'decimal'},
+      {'label': 'Receiving EPA', 'field': 'receiving_epa', 'format': 'decimal'},
     ];
 
     List<DataRow> rows = [];
@@ -945,7 +949,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                 if (stat['format'] == 'decimal') {
                   displayValue = (value as num).toStringAsFixed(1);
                 } else if (stat['format'] == 'percentage') {
-                  displayValue = '${((value as num) * 100).toStringAsFixed(1)}%';
+                  displayValue = '${(value as num).toStringAsFixed(1)}%';
                 } else {
                   displayValue = value.toString();
                 }
@@ -966,4 +970,4 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
     return rows;
   }
-} 
+}

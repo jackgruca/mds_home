@@ -114,6 +114,7 @@ enum TeamPhilosophy {
   balanced, // mix of both approaches
   analytics, // strictly value-based decisions
   aggressive, // willing to overpay for talent
+  rebuild, // rebuilding teams prefer picks and young players
 }
 
 enum TeamStatus {
