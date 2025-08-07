@@ -5,6 +5,9 @@ import 'package:data_table_2/data_table_2.dart';
 import '../../models/adp/adp_comparison.dart';
 import '../../services/adp/adp_service.dart';
 import '../../widgets/common/custom_app_bar.dart';
+import '../../utils/theme_config.dart';
+import '../../utils/theme_aware_colors.dart';
+import '../../utils/team_logo_utils.dart';
 
 class ADPAnalysisScreen extends StatefulWidget {
   const ADPAnalysisScreen({super.key});
@@ -311,6 +314,82 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   
   int _getTotalPages() {
     return (_filteredData.length / _rowsPerPage).ceil().clamp(1, double.infinity).toInt();
+  }
+
+  Color _getPositionColor(String position) {
+    switch (position.toUpperCase()) {
+      case 'QB':
+        return Colors.red.shade600;
+      case 'RB':
+        return Colors.green.shade600;
+      case 'WR':
+        return Colors.blue.shade600;
+      case 'TE':
+        return Colors.orange.shade600;
+      case 'K':
+      case 'K1':
+      case 'K2':
+      case 'K3':
+      case 'K4':
+      case 'K5':
+      case 'K6':
+      case 'K7':
+      case 'K8':
+      case 'K9':
+        return Colors.purple.shade600;
+      case 'DST':
+      case 'D/ST':
+      case 'DE':
+      case 'DT':
+      case 'LB':
+      case 'S1':
+      case 'CB':
+        return Colors.brown.shade600;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
+  Widget _buildRankingCell(dynamic value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: value != null 
+          ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
+          : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        value?.toString() ?? '-',
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: value != null 
+            ? Theme.of(context).colorScheme.onSurface
+            : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+          fontSize: 12,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildColoredRankingCell(String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: color,
+          fontSize: 12,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
   }
 
   @override
@@ -667,13 +746,30 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                     : Column(
                         children: [
                           Expanded(
-                            child: DataTable2(
-                              columnSpacing: 10,
-                              horizontalMargin: 10,
-                              minWidth: 800,
-                              sortColumnIndex: _sortColumnIndex,
-                              sortAscending: _sortAscending,
-                              columns: [
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                dataTableTheme: Theme.of(context).dataTableTheme.copyWith(
+                                  headingRowColor: WidgetStateProperty.all(ThemeAwareColors.getTableHeaderColor(context)),
+                                  headingTextStyle: TextStyle(
+                                    color: ThemeAwareColors.getTableHeaderTextColor(context),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    letterSpacing: 0.5,
+                                  ),
+                                  dataRowMinHeight: 56,
+                                  dataRowMaxHeight: 56,
+                                  columnSpacing: 10,
+                                  horizontalMargin: 10,
+                                  dividerThickness: 0,
+                                ),
+                              ),
+                              child: DataTable2(
+                                columnSpacing: 10,
+                                horizontalMargin: 10,
+                                minWidth: 800,
+                                sortColumnIndex: _sortColumnIndex,
+                                sortAscending: _sortAscending,
+                                columns: [
                                 DataColumn2(
                                   label: const Text('Player', style: TextStyle(fontSize: 13)),
                                   fixedWidth: 180,
@@ -795,27 +891,53 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                               : item.getPerformanceColor(_usePpg);
                           
                           return DataRow2(
+                            color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+                              if (states.contains(WidgetState.hovered)) {
+                                return ThemeConfig.gold.withOpacity(0.1);
+                              }
+                              final index = _getPagedRows().indexOf(item);
+                              return ThemeAwareColors.getTableRowColor(context, index);
+                            }),
                             cells: [
                               DataCell(
                                 Text(
                                   item.player,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: (isMaxYear ? displayRank == null : item.getActualRank(_usePpg) == null) ? Colors.grey : null,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : ThemeConfig.darkNavy,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              DataCell(Text(item.position, style: const TextStyle(fontSize: 12))),
-                              DataCell(Text(displayPosRank?.toString() ?? '-', style: const TextStyle(fontSize: 12))),
-                              DataCell(Text(item.positionRankNum.toString(), style: const TextStyle(fontSize: 12))),
-                              DataCell(Text(item.avgRankNum.toStringAsFixed(1), style: const TextStyle(fontSize: 12))),
                               DataCell(
-                                Text(
-                                  displayRank?.toString() ?? '-',
-                                  style: TextStyle(color: color, fontSize: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _getPositionColor(item.position).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _getPositionColor(item.position),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    item.position,
+                                    style: TextStyle(
+                                      color: _getPositionColor(item.position),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                 ),
+                              ),
+                              DataCell(_buildRankingCell(displayPosRank)),
+                              DataCell(_buildRankingCell(item.positionRankNum)),
+                              DataCell(_buildRankingCell(item.avgRankNum.toStringAsFixed(1))),
+                              DataCell(
+                                _buildColoredRankingCell(displayRank?.toString() ?? '-', color),
                               ),
                               DataCell(
                                 Container(
@@ -855,69 +977,69 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                                   ),
                                 ),
                               ),
-                              DataCell(
-                                Text(points != null ? points.toStringAsFixed(1) : '-', style: const TextStyle(fontSize: 12)),
-                              ),
-                              DataCell(
-                                Text(item.gamesPlayed?.toString() ?? '-', style: const TextStyle(fontSize: 12)),
-                              ),
+                              DataCell(_buildRankingCell(points?.toStringAsFixed(1))),
+                              DataCell(_buildRankingCell(item.gamesPlayed)),
                             ],
                           );
                         }).toList(),
-                      ),
+                                ),
+                              ),
                     ),
                     // Pagination controls
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
+                        color: Theme.of(context).colorScheme.surface,
                         border: Border(
-                          top: BorderSide(color: Colors.grey.shade300),
+                          top: BorderSide(
+                            color: Theme.of(context).dividerColor.withOpacity(0.2),
+                            width: 1,
+                          ),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // Page info
                           Text(
-                            'Showing ${_currentPage * _rowsPerPage + 1}-${((_currentPage + 1) * _rowsPerPage).clamp(0, _filteredData.length)} of ${_filteredData.length}',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            'Page ${_currentPage + 1} of ${_getTotalPages()}. Total: ${_filteredData.length} players.',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              fontSize: 13,
+                            ),
                           ),
+                          
+                          // Navigation buttons
                           Row(
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.first_page, size: 20),
-                                onPressed: _currentPage > 0
-                                    ? () => setState(() => _currentPage = 0)
-                                    : null,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.chevron_left, size: 20),
-                                onPressed: _currentPage > 0
-                                    ? () => setState(() => _currentPage--)
-                                    : null,
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(4),
+                              ElevatedButton(
+                                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ThemeConfig.darkNavy,
+                                  foregroundColor: ThemeConfig.gold,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  disabledForegroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                                 ),
-                                child: Text(
-                                  'Page ${_currentPage + 1} of ${_getTotalPages()}',
-                                  style: const TextStyle(fontSize: 12),
+                                child: const Text('Previous'),
+                              ),
+                              const SizedBox(width: 16),
+                              ElevatedButton(
+                                onPressed: _currentPage < _getTotalPages() - 1 ? () => setState(() => _currentPage++) : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: ThemeConfig.darkNavy,
+                                  foregroundColor: ThemeConfig.gold,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  disabledForegroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.chevron_right, size: 20),
-                                onPressed: _currentPage < _getTotalPages() - 1
-                                    ? () => setState(() => _currentPage++)
-                                    : null,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.last_page, size: 20),
-                                onPressed: _currentPage < _getTotalPages() - 1
-                                    ? () => setState(() => _currentPage = _getTotalPages() - 1)
-                                    : null,
+                                child: const Text('Next'),
                               ),
                             ],
                           ),
