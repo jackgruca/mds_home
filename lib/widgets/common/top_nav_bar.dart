@@ -50,6 +50,7 @@ final List<NavItem> topNavItems = [
     subItems: [
       NavItem(title: 'Draft Big Board', route: '/draft/big-board', isPlaceholder: false),
       NavItem(title: 'Draft Mock Draft Simulator', route: '/draft', isPlaceholder: false),
+      NavItem(title: 'NFL Trade Analyzer', route: '/nfl-trade-analyzer', isPlaceholder: false),
       NavItem(title: 'Historical Drafts', route: '/draft/historical-drafts', isPlaceholder: false),
       NavItem(title: 'Bust or Brilliant', route: '/fantasy/bust-evaluation', isPlaceholder: false),
       NavItem(title: 'Depth Chart', route: '/depth-charts', isPlaceholder: false),

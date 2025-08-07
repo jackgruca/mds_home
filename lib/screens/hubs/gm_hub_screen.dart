@@ -34,6 +34,7 @@ final NavItem? _gmHubNavItem = topNavItems.firstWhereOrNull((item) => item.route
 final List<String> _gmHubPreviewRoutes = [
   '/draft/big-board',
   '/draft',
+  '/nfl-trade-analyzer',
   '/draft/historical-drafts', 
   '/fantasy/bust-evaluation',
   '/depth-charts',
@@ -51,6 +52,10 @@ final List<Map<String, dynamic>> _previewTools = _gmHubPreviewRoutes.map((route)
     case '/draft':
       icon = Icons.format_list_numbered;
       desc = 'Draft mock draft simulator.';
+      break;
+    case '/nfl-trade-analyzer':
+      icon = Icons.swap_horiz;
+      desc = 'Analyze realistic NFL player trade scenarios.';
       break;
     case '/draft/historical-drafts':
       icon = Icons.history;

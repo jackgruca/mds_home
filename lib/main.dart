@@ -55,6 +55,8 @@ import 'screens/adp_test_screen.dart';
 import 'screens/vorp/my_custom_rankings_screen.dart';
 import 'screens/vorp/custom_big_board_screen.dart';
 import 'screens/players/player_list_screen.dart';
+import 'screens/nfl_trade_analyzer_screen.dart';
+import 'screens/madden_trade_analyzer_screen.dart';
 
 
 // Secret tap counter for admin access
@@ -284,6 +286,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
               case '/players':
                 return MaterialPageRoute(builder: (_) => const PlayerListScreen());
+              case '/nfl-trade-analyzer':
+                return MaterialPageRoute(builder: (_) => const MaddenTradeAnalyzerScreen());
+              case '/trade-analyzer':
+                return MaterialPageRoute(builder: (_) => const MaddenTradeAnalyzerScreen());
               default:
                 return MaterialPageRoute(builder: (_) => const HomeScreen());
             }
