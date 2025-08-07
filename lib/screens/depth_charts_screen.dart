@@ -31,13 +31,13 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
   ];
   List<String> _positionGroupOptions = ['All'];
 
-  // Standard NFL positions for display
-  final List<String> _standardOffensePositions = [
-    'QB', 'RB', 'FB', 'WR1', 'WR2', 'WR3', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'
+  // Standard NFL positions for display in order
+  final List<String> _offensePositions = [
+    'QB', 'RB', 'FB', 'WR', 'WR', 'TE', 'OT', 'OG', 'C', 'OG', 'OT'
   ];
   
-  final List<String> _standardDefensePositions = [
-    'DE1', 'DT1', 'DT2', 'DE2', 'OLB1', 'ILB', 'OLB2', 'CB1', 'CB2', 'FS', 'SS'
+  final List<String> _defensePositions = [
+    'EDGE', 'DT', 'DT', 'EDGE', 'LB', 'LB', 'LB', 'CB', 'S', 'S', 'CB'
   ];
   
   final List<String> _specialTeamsPositions = ['K', 'P', 'LS'];
@@ -246,15 +246,33 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
     }
 
     return Expanded(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildDepthChartSection('Offense', _standardOffensePositions),
-            const SizedBox(height: 24),
-            _buildDepthChartSection('Defense', _standardDefensePositions),
-            const SizedBox(height: 24),
-            _buildDepthChartSection('Special Teams', _specialTeamsPositions),
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(Colors.blue[900]),
+                columnSpacing: 24,
+                dataRowMinHeight: 48,
+                columns: _buildColumns(),
+                rows: _buildRows(),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -302,18 +320,48 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
     // Exact match
     if (playerPosition == targetPosition) return true;
     
-    // Handle WR positions (WR1, WR2, WR3 can match WR2, WR3, etc.)
-    if (targetPosition.startsWith('WR') && playerPosition.startsWith('WR')) {
-      return true;
+    // Handle position mappings
+    switch (targetPosition) {
+      case 'WR':
+        return playerPosition.startsWith('WR') || playerPosition == 'SWR';
+      case 'EDGE':
+        return playerPosition == 'DE' || playerPosition.startsWith('DE') || 
+               playerPosition == 'OLB' || playerPosition == 'EDGE';
+      case 'DT':
+        return playerPosition == 'DT' || playerPosition.startsWith('DT') || playerPosition == 'NT';
+      case 'LB':
+        return playerPosition == 'LB' || playerPosition == 'ILB' || playerPosition == 'MLB' ||
+               playerPosition == 'OLB' || playerPosition.startsWith('LB');
+      case 'CB':
+        return playerPosition == 'CB' || playerPosition.startsWith('CB');
+      case 'S':
+        return playerPosition == 'S' || playerPosition == 'SS' || playerPosition == 'FS' || 
+               playerPosition == 'SAF';
+      case 'OT':
+        return playerPosition == 'T' || playerPosition == 'LT' || playerPosition == 'RT' || 
+               playerPosition == 'OT';
+      case 'OG':
+        return playerPosition == 'G' || playerPosition == 'LG' || playerPosition == 'RG' || 
+               playerPosition == 'OG';
+      case 'C':
+        return playerPosition == 'C';
+      case 'QB':
+        return playerPosition == 'QB';
+      case 'RB':
+        return playerPosition == 'RB' || playerPosition == 'HB';
+      case 'FB':
+        return playerPosition == 'FB';
+      case 'TE':
+        return playerPosition == 'TE';
+      case 'K':
+        return playerPosition == 'K';
+      case 'P':
+        return playerPosition == 'P';
+      case 'LS':
+        return playerPosition == 'LS';
+      default:
+        return false;
     }
-    
-    // Handle other similar positions
-    if (targetPosition == 'DE1' && (playerPosition == 'DE' || playerPosition == 'DE1')) return true;
-    if (targetPosition == 'DE2' && (playerPosition == 'DE' || playerPosition == 'DE2')) return true;
-    if (targetPosition == 'DT1' && (playerPosition == 'DT' || playerPosition == 'DT1' || playerPosition == 'NT')) return true;
-    if (targetPosition == 'DT2' && (playerPosition == 'DT' || playerPosition == 'DT2')) return true;
-    
-    return false;
   }
 
   Widget _buildPositionRow(String position, List<Map<String, dynamic>> players) {
@@ -352,6 +400,94 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
         ],
       ),
     );
+  }
+
+  List<DataColumn> _buildColumns() {
+    // Determine max depth across all positions for this team
+    int maxDepth = _getMaxDepthForTeam();
+    
+    List<DataColumn> columns = [
+      const DataColumn(
+        label: Text(
+          'Position',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+    ];
+
+    // Add depth columns dynamically
+    for (int i = 1; i <= maxDepth; i++) {
+      columns.add(DataColumn(
+        label: Text(
+          '${i}${_getOrdinalSuffix(i)}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ));
+    }
+
+    return columns;
+  }
+
+  List<DataRow> _buildRows() {
+    List<DataRow> rows = [];
+    List<String> allPositions = [..._offensePositions, ..._defensePositions, ..._specialTeamsPositions];
+    int maxDepth = _getMaxDepthForTeam();
+
+    // Track position instances for splitting players
+    Map<String, int> positionCounts = {};
+    for (String pos in allPositions) {
+      positionCounts[pos] = (positionCounts[pos] ?? 0) + 1;
+    }
+
+    // Track which players have been assigned to avoid duplicates
+    Map<String, int> positionInstances = {};
+    
+    for (String position in allPositions) {
+      int currentInstance = positionInstances[position] ?? 0;
+      positionInstances[position] = currentInstance + 1;
+      
+      // Get players for this position, grouped by depth
+      Map<int, List<Map<String, dynamic>>> playersByDepth = _getPlayersByDepth(position);
+      
+      if (playersByDepth.isNotEmpty) {
+        List<DataCell> cells = [
+          DataCell(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                position,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+          ),
+        ];
+
+        // Add player cells for each depth level
+        for (int depth = 1; depth <= maxDepth; depth++) {
+          List<Map<String, dynamic>> playersAtDepth = playersByDepth[depth] ?? [];
+          
+          // Split players across position instances
+          Map<String, dynamic>? playerForThisInstance = _getPlayerForInstance(
+            playersAtDepth, 
+            currentInstance, 
+            positionCounts[position] ?? 1
+          );
+          
+          cells.add(DataCell(_buildSinglePlayerCell(playerForThisInstance)));
+        }
+
+        rows.add(DataRow(cells: cells));
+      }
+    }
+
+    return rows;
   }
 
   Widget _buildPlayerChip(Map<String, dynamic> player) {
@@ -393,6 +529,121 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  int _getMaxDepthForTeam() {
+    if (_depthCharts.isEmpty) return 3; // Default to 3 levels
+    
+    int maxDepth = 0;
+    for (var player in _depthCharts) {
+      int depth = int.tryParse(player['depth_chart_order']?.toString() ?? '1') ?? 1;
+      if (depth > maxDepth) maxDepth = depth;
+    }
+    
+    return maxDepth.clamp(1, 5); // Cap at 5 levels for UI purposes
+  }
+
+  String _getOrdinalSuffix(int number) {
+    if (number >= 11 && number <= 13) return 'th';
+    switch (number % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';  
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
+
+  Map<int, List<Map<String, dynamic>>> _getPlayersByDepth(String position) {
+    Map<int, List<Map<String, dynamic>>> playersByDepth = {};
+    
+    for (var player in _depthCharts) {
+      String playerPosition = player['depth_chart_position']?.toString() ?? '';
+      
+      if (_matchesPosition(playerPosition, position)) {
+        int depth = int.tryParse(player['depth_chart_order']?.toString() ?? '1') ?? 1;
+        
+        playersByDepth.putIfAbsent(depth, () => []);
+        playersByDepth[depth]!.add(player);
+      }
+    }
+    
+    return playersByDepth;
+  }
+
+  Map<String, dynamic>? _getPlayerForInstance(List<Map<String, dynamic>> players, int instance, int totalInstances) {
+    if (players.isEmpty) return null;
+    
+    // For multiple instances of the same position, distribute players evenly
+    if (totalInstances > 1 && players.length > 1) {
+      // Calculate which player this instance should get (0-based index)
+      int playerIndex = (instance - 1) % players.length;
+      return playerIndex < players.length ? players[playerIndex] : null;
+    }
+    
+    // For single instance or single player, return first player
+    return players.isNotEmpty ? players.first : null;
+  }
+
+  Widget _buildSinglePlayerCell(Map<String, dynamic>? player) {
+    if (player == null) {
+      return const Text('-', style: TextStyle(color: Colors.grey));
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          player['full_name']?.toString() ?? 'Unknown',
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+        ),
+        if (player['jersey_number'] != null)
+          Text(
+            '#${player['jersey_number']}',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerCell(List<Map<String, dynamic>> players) {
+    if (players.isEmpty) {
+      return const Text('-', style: TextStyle(color: Colors.grey));
+    }
+    
+    if (players.length == 1) {
+      var player = players.first;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            player['full_name']?.toString() ?? 'Unknown',
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+          ),
+          if (player['jersey_number'] != null)
+            Text(
+              '#${player['jersey_number']}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+        ],
+      );
+    }
+    
+    // Multiple players at same depth
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: players.take(3).map((player) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            '${player['full_name']?.toString() ?? 'Unknown'} ${player['jersey_number'] != null ? '#${player['jersey_number']}' : ''}',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        );
+      }).toList(),
     );
   }
 }

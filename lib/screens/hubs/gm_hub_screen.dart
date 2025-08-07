@@ -32,7 +32,7 @@ final NavItem? _gmHubNavItem = topNavItems.firstWhereOrNull((item) => item.route
 
 // Only show these tools as previews on the GM Hub landing page
 final List<String> _gmHubPreviewRoutes = [
-  '/draft/big-board',
+  '/draft-big-board',
   '/draft',
   '/nfl-trade-analyzer',
   '/draft/historical-drafts', 
@@ -45,7 +45,7 @@ final List<Map<String, dynamic>> _previewTools = _gmHubPreviewRoutes.map((route)
   IconData icon = Icons.build_circle_outlined;
   String desc = 'Access this tool.';
   switch (route) {
-    case '/draft/big-board':
+    case '/draft-big-board':
       icon = Icons.leaderboard;
       desc = 'Draft prospect rankings and big board.';
       break;

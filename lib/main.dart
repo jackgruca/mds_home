@@ -223,6 +223,8 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const PlayerTrendsScreen());
               case '/gm-hub/bust-evaluation':
                 return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
+              case '/fantasy/bust-evaluation':
+                return MaterialPageRoute(builder: (_) => const BustEvaluationScreen());
               case '/fantasy/custom-rankings':
                 return MaterialPageRoute(builder: (_) => const CustomRankingsHomeScreen());
               case '/fantasy/player-projections':
@@ -283,6 +285,8 @@ class _MyAppState extends State<MyApp> {
               case '/depth-charts':
                 return MaterialPageRoute(builder: (_) => const DepthChartsScreen());
               case '/historical-drafts':
+                return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
+              case '/draft/historical-drafts':
                 return MaterialPageRoute(builder: (_) => const HistoricalDraftsScreen());
               case '/players':
                 return MaterialPageRoute(builder: (_) => const PlayerListScreen());

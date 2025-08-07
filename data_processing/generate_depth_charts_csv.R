@@ -5,41 +5,38 @@ library(nflreadr)
 library(dplyr)
 library(readr)
 
-# Load roster data to build depth charts
-cat("Loading NFL roster data for depth charts...\n")
-roster_data <- nflreadr::load_rosters(seasons = 2020:2024)
+# Load actual depth chart data
+cat("Loading NFL depth chart data...\n")
+depth_data <- nflreadr::load_depth_charts(seasons = 2020:2024)
 
-# Clean and process depth chart data
-depth_charts_cleaned <- roster_data %>%
+# Clean and process depth chart data using actual depth charts
+depth_charts_cleaned <- depth_data %>%
   filter(
     !is.na(full_name),
-    !is.na(team),
+    !is.na(club_code),
     !is.na(position),
-    status == "ACT" | status == "RES"  # Active or Reserve status
+    !is.na(depth_team),
+    game_type == "REG"  # Regular season only
   ) %>%
+  # Use most recent week for each player/team/season
+  group_by(season, club_code, position, full_name) %>%
+  arrange(desc(week)) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
   select(
     season,
-    team,
+    team = club_code,
     full_name,
     position,
     jersey_number,
-    depth_chart_position,
-    years_exp,
-    height,
-    weight,
-    status,
-    rookie_year,
-    college
+    depth_chart_position = depth_position,
+    depth_chart_order = depth_team,
+    week,
+    formation
   ) %>%
-  # Add depth chart order where missing and calculate age
+  # Convert depth_chart_order to numeric
   mutate(
-    age_at_season = season - rookie_year + ifelse(!is.na(rookie_year), 22, 25),  # Estimate age
-    depth_chart_order = 1  # Set default depth chart order
-  ) %>%
-  group_by(season, team, position) %>%
-  arrange(desc(years_exp), desc(age_at_season)) %>%
-  mutate(
-    depth_chart_order = row_number(),
+    depth_chart_order = as.numeric(depth_chart_order),
     # Standardize position groups
     position_group = case_when(
       position %in% c("QB") ~ "Quarterback",
@@ -55,6 +52,11 @@ depth_charts_cleaned <- roster_data %>%
       position %in% c("LS") ~ "Long Snapper",
       TRUE ~ "Other"
     ),
+    # Add extra fields for compatibility
+    years_exp = NA,
+    height = NA,
+    weight = NA,
+    college = NA,
     # Create standardized depth chart position (keep existing if available)
     depth_chart_position_clean = case_when(
       position == "QB" ~ "QB",

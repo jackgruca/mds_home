@@ -361,45 +361,84 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
     }
 
     return Expanded(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SingleChildScrollView(
-          child: DataTable(
-            sortColumnIndex: _getSortColumnIndex(),
-            sortAscending: _sortAscending,
-            columns: [
-              DataColumn(
-                label: const Text('Name'),
-                onSort: (columnIndex, ascending) => _sort('name', ascending),
-              ),
-              DataColumn(
-                label: const Text('Team'),
-                onSort: (columnIndex, ascending) => _sort('team', ascending),
-              ),
-              DataColumn(
-                label: const Text('Position'),
-                onSort: (columnIndex, ascending) => _sort('position', ascending),
-              ),
-              DataColumn(
-                label: const Text('Age'),
-                numeric: true,
-                onSort: (columnIndex, ascending) => _sort('age', ascending),
-              ),
-              DataColumn(
-                label: const Text('Experience'),
-                numeric: true,
-                onSort: (columnIndex, ascending) => _sort('experience', ascending),
-              ),
-              DataColumn(
-                label: const Text('Rating'),
-                numeric: true,
-                onSort: (columnIndex, ascending) => _sort('overallRating', ascending),
-              ),
-              DataColumn(
-                label: const Text('Salary'),
-                numeric: true,
-                onSort: (columnIndex, ascending) => _sort('salary', ascending),
-              ),
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                sortColumnIndex: _getSortColumnIndex(),
+                sortAscending: _sortAscending,
+                columnSpacing: 24,
+                dataRowMinHeight: 48,
+                columns: [
+                  DataColumn(
+                    label: const Text(
+                      'Player Name',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    onSort: (columnIndex, ascending) => _sort('name', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Team',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    onSort: (columnIndex, ascending) => _sort('team', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Position',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    onSort: (columnIndex, ascending) => _sort('position', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Age',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    numeric: true,
+                    onSort: (columnIndex, ascending) => _sort('age', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Experience',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    numeric: true,
+                    onSort: (columnIndex, ascending) => _sort('experience', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Overall Rating',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    numeric: true,
+                    onSort: (columnIndex, ascending) => _sort('overallRating', ascending),
+                  ),
+                  DataColumn(
+                    label: const Text(
+                      'Salary',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    numeric: true,
+                    onSort: (columnIndex, ascending) => _sort('salary', ascending),
+                  ),
             ],
             rows: _currentPagePlayers.map((player) {
               return DataRow(
@@ -421,6 +460,8 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
                 ],
               );
             }).toList(),
+              ),
+            ),
           ),
         ),
       ),
