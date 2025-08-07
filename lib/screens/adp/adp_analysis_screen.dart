@@ -43,6 +43,10 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   // Sorting
   int _sortColumnIndex = 4; // Default sort by ADP (updated index)
   bool _sortAscending = true;
+  
+  // Pagination
+  int _currentPage = 0;
+  static const int _rowsPerPage = 50;
 
   @override
   void initState() {
@@ -197,6 +201,9 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
       
       debugPrint('After filtering: ${_filteredData.length} records');
       
+      // Reset to first page when filters change
+      _currentPage = 0;
+      
       // Apply sorting
       _sortData();
     });
@@ -294,6 +301,16 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
       _sortAscending = ascending;
       _sortData();
     });
+  }
+  
+  List<ADPComparison> _getPagedRows() {
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage).clamp(0, _filteredData.length);
+    return _filteredData.sublist(startIndex, endIndex);
+  }
+  
+  int _getTotalPages() {
+    return (_filteredData.length / _rowsPerPage).ceil().clamp(1, double.infinity).toInt();
   }
 
   @override
@@ -647,97 +664,108 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredData.isEmpty
                     ? const Center(child: Text('No data available'))
-                    : DataTable2(
-                        columnSpacing: 12,
-                        horizontalMargin: 12,
-                        minWidth: 1000,
-                        sortColumnIndex: _sortColumnIndex,
-                        sortAscending: _sortAscending,
-                        columns: [
-                          DataColumn2(
-                            label: const Text('Player'),
-                            size: ColumnSize.L,
-                            onSort: _onSort,
-                          ),
-                          DataColumn2(
-                            label: const Text('Pos'),
-                            size: ColumnSize.S,
-                            onSort: _onSort,
-                          ),
-                          DataColumn2(
-                            label: Text(_selectedYear == _maxYear ? 'LY ADP Pos' : 'Pos Rank'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: _selectedYear == _maxYear ? 'Last year ADP position rank' : 'Actual position rank',
-                          ),
-                          DataColumn2(
-                            label: const Text('ADP Pos'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: 'Current ADP position rank',
-                          ),
-                          DataColumn2(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('ADP'),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () => _showPlatformsInfo(context),
-                                  child: Icon(
-                                    Icons.info_outline,
-                                    size: 14,
-                                    color: Colors.grey[600],
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: DataTable2(
+                              columnSpacing: 10,
+                              horizontalMargin: 10,
+                              minWidth: 800,
+                              sortColumnIndex: _sortColumnIndex,
+                              sortAscending: _sortAscending,
+                              columns: [
+                                DataColumn2(
+                                  label: const Text('Player', style: TextStyle(fontSize: 13)),
+                                  fixedWidth: 180,
+                                  onSort: _onSort,
+                                ),
+                                DataColumn2(
+                                  label: const Text('Pos', style: TextStyle(fontSize: 13)),
+                                  fixedWidth: 50,
+                                  onSort: _onSort,
+                                ),
+                                DataColumn2(
+                                  label: Text(
+                                    _selectedYear == _maxYear ? 'LY ADP\nPos' : 'Pos\nRank',
+                                    style: const TextStyle(fontSize: 13),
+                                    textAlign: TextAlign.left,
                                   ),
+                                  fixedWidth: 70,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: _selectedYear == _maxYear ? 'Last year ADP position rank' : 'Actual position rank',
+                                ),
+                                DataColumn2(
+                                  label: const Text('ADP\nPos', style: TextStyle(fontSize: 13), textAlign: TextAlign.left),
+                                  fixedWidth: 60,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: 'Current ADP position rank',
+                                ),
+                                DataColumn2(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('ADP', style: TextStyle(fontSize: 13)),
+                                      const SizedBox(width: 3),
+                                      GestureDetector(
+                                        onTap: () => _showPlatformsInfo(context),
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  fixedWidth: 75,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: 'Average Draft Position',
+                                ),
+                                DataColumn2(
+                                  label: Text(
+                                    _selectedYear == _maxYear ? 'LY\nADP' : (_usePpg ? 'Final\nPPG' : 'Final'),
+                                    style: const TextStyle(fontSize: 13),
+                                    textAlign: TextAlign.left,
+                                  ),
+                                  fixedWidth: 65,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: _selectedYear == _maxYear ? 'Last year ADP overall rank' : 'Final overall rank by ${_usePpg ? 'points per game' : 'total points'}',
+                                ),
+                                DataColumn2(
+                                  label: const Text('Pos\nDiff', style: TextStyle(fontSize: 13), textAlign: TextAlign.left),
+                                  fixedWidth: 65,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: _selectedYear == _maxYear 
+                                      ? 'Last year vs current position rank (positive = riser)'
+                                      : 'Position rank difference (positive = outperformed ADP)',
+                                ),
+                                DataColumn2(
+                                  label: const Text('Total\nDiff', style: TextStyle(fontSize: 13), textAlign: TextAlign.left),
+                                  fixedWidth: 65,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                  tooltip: _selectedYear == _maxYear
+                                      ? 'Last year vs current ADP (positive = riser)'
+                                      : 'Overall rank difference (positive = outperformed ADP)',
+                                ),
+                                DataColumn2(
+                                  label: Text(_usePpg ? 'PPG' : 'Points', style: const TextStyle(fontSize: 13)),
+                                  fixedWidth: 70,
+                                  numeric: true,
+                                  onSort: _onSort,
+                                ),
+                                DataColumn2(
+                                  label: const Text('Games', style: TextStyle(fontSize: 13)),
+                                  fixedWidth: 60,
+                                  numeric: true,
+                                  onSort: _onSort,
                                 ),
                               ],
-                            ),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: 'Average Draft Position',
-                          ),
-                          DataColumn2(
-                            label: Text(_selectedYear == _maxYear ? 'LY ADP' : (_usePpg ? 'Final (PPG)' : 'Final')),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: _selectedYear == _maxYear ? 'Last year ADP overall rank' : 'Final overall rank by ${_usePpg ? 'points per game' : 'total points'}',
-                          ),
-                          DataColumn2(
-                            label: const Text('Pos Diff'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: _selectedYear == _maxYear 
-                                ? 'Last year vs current position rank (positive = riser)'
-                                : 'Position rank difference (positive = outperformed ADP)',
-                          ),
-                          DataColumn2(
-                            label: const Text('Total Diff'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                            tooltip: _selectedYear == _maxYear
-                                ? 'Last year vs current ADP (positive = riser)'
-                                : 'Overall rank difference (positive = outperformed ADP)',
-                          ),
-                          DataColumn2(
-                            label: Text(_usePpg ? 'PPG' : 'Points'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                          ),
-                          DataColumn2(
-                            label: const Text('Games'),
-                            size: ColumnSize.S,
-                            numeric: true,
-                            onSort: _onSort,
-                          ),
-                        ],
-                        rows: _filteredData.map((item) {
+                              rows: _getPagedRows().map((item) {
                           // For max year, use last year's ADP for comparison
                           final isMaxYear = _selectedYear == _maxYear;
                           final lyAdp = item.platformRanks['_ly_adp'];
@@ -772,24 +800,26 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                                 Text(
                                   item.player,
                                   style: TextStyle(
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: (isMaxYear ? displayRank == null : item.getActualRank(_usePpg) == null) ? Colors.grey : null,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              DataCell(Text(item.position)),
-                              DataCell(Text(displayPosRank?.toString() ?? '-')),
-                              DataCell(Text(item.positionRankNum.toString())),
-                              DataCell(Text(item.avgRankNum.toStringAsFixed(1))),
+                              DataCell(Text(item.position, style: const TextStyle(fontSize: 12))),
+                              DataCell(Text(displayPosRank?.toString() ?? '-', style: const TextStyle(fontSize: 12))),
+                              DataCell(Text(item.positionRankNum.toString(), style: const TextStyle(fontSize: 12))),
+                              DataCell(Text(item.avgRankNum.toStringAsFixed(1), style: const TextStyle(fontSize: 12))),
                               DataCell(
                                 Text(
                                   displayRank?.toString() ?? '-',
-                                  style: TextStyle(color: color),
+                                  style: TextStyle(color: color, fontSize: 12),
                                 ),
                               ),
                               DataCell(
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: posDiff != null ? (posDiff > 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1)) : null,
                                     borderRadius: BorderRadius.circular(3),
@@ -808,7 +838,7 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                               ),
                               DataCell(
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: diff != null ? color.withValues(alpha: 0.1) : null,
                                     borderRadius: BorderRadius.circular(3),
@@ -826,15 +856,76 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
                                 ),
                               ),
                               DataCell(
-                                Text(points != null ? points.toStringAsFixed(1) : '-'),
+                                Text(points != null ? points.toStringAsFixed(1) : '-', style: const TextStyle(fontSize: 12)),
                               ),
                               DataCell(
-                                Text(item.gamesPlayed?.toString() ?? '-'),
+                                Text(item.gamesPlayed?.toString() ?? '-', style: const TextStyle(fontSize: 12)),
                               ),
                             ],
                           );
                         }).toList(),
                       ),
+                    ),
+                    // Pagination controls
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: Border(
+                          top: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Showing ${_currentPage * _rowsPerPage + 1}-${((_currentPage + 1) * _rowsPerPage).clamp(0, _filteredData.length)} of ${_filteredData.length}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.first_page, size: 20),
+                                onPressed: _currentPage > 0
+                                    ? () => setState(() => _currentPage = 0)
+                                    : null,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, size: 20),
+                                onPressed: _currentPage > 0
+                                    ? () => setState(() => _currentPage--)
+                                    : null,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Page ${_currentPage + 1} of ${_getTotalPages()}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, size: 20),
+                                onPressed: _currentPage < _getTotalPages() - 1
+                                    ? () => setState(() => _currentPage++)
+                                    : null,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.last_page, size: 20),
+                                onPressed: _currentPage < _getTotalPages() - 1
+                                    ? () => setState(() => _currentPage = _getTotalPages() - 1)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
           ),
         ],
       ),
