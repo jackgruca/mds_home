@@ -210,8 +210,19 @@ idl_rankings_final <- IDL_ranks %>%
     snap_pct = avg_snap_pct,
     composite_rank = myRank,
     ranking = myRankNum,
+    myRankNum = myRankNum,
     tier = idlTier
   ) %>%
+  # Add rank fields for each stat
+  group_by(season) %>%
+  mutate(
+    tackles_rank = rank(-solo_tackles, ties.method = "min"),
+    tfls_rank = rank(-tfls, ties.method = "min"),
+    run_stuffs_rank = rank(-run_stuffs, ties.method = "min"),
+    pressure_rank = rank(-interior_pressure_rate, ties.method = "min"),
+    stuff_rate_rank = rank(-run_stuff_rate, ties.method = "min")
+  ) %>%
+  ungroup() %>%
   # Handle missing values
   mutate(across(where(is.numeric), ~ifelse(is.na(.), 0, .))) %>%
   mutate(across(where(is.character), ~ifelse(is.na(.), "", .))) %>%

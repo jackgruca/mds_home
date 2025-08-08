@@ -131,6 +131,44 @@ class RankingService {
     'third_rank_num': {'name': '3rd Rank', 'format': 'rank', 'description': 'Third down rate rank number'},
   };
 
+  // EDGE raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _edgeRawStatFields = {
+    'games_played': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'sacks': {'name': 'Sacks', 'format': 'decimal1', 'description': 'Total sacks in season'},
+    'qb_hits': {'name': 'QB Hits', 'format': 'integer', 'description': 'Total QB hits in season'},
+    'pressure_rate': {'name': 'Pressure %', 'format': 'percentage1', 'description': 'Pass rush pressure rate'},
+    'tfls': {'name': 'TFLs', 'format': 'integer', 'description': 'Tackles for loss'},
+    'forced_fumbles': {'name': 'FF', 'format': 'integer', 'description': 'Forced fumbles'},
+  };
+
+  // EDGE rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _edgeRankFields = {
+    'games_played': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'sacks_rank': {'name': 'Sacks Rank', 'format': 'rank', 'description': 'Sacks ranking among EDGE players'},
+    'qb_hits_rank': {'name': 'QB Hits Rank', 'format': 'rank', 'description': 'QB hits ranking among EDGE players'},
+    'pressure_rank': {'name': 'Pressure Rank', 'format': 'rank', 'description': 'Pressure rate ranking among EDGE players'},
+    'tfls_rank': {'name': 'TFL Rank', 'format': 'rank', 'description': 'Tackles for loss ranking among EDGE players'},
+  };
+
+  // IDL raw stat fields (for raw stats view)
+  static const Map<String, Map<String, dynamic>> _idlRawStatFields = {
+    'games_played': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'solo_tackles': {'name': 'Tackles', 'format': 'integer', 'description': 'Solo tackles in season'},
+    'tfls': {'name': 'TFLs', 'format': 'integer', 'description': 'Tackles for loss'},
+    'run_stuffs': {'name': 'Run Stuffs', 'format': 'integer', 'description': 'Run stuffs (tackles at or behind LOS)'},
+    'run_stuff_rate': {'name': 'Stuff Rate', 'format': 'percentage1', 'description': 'Run stuff rate percentage'},
+    'interior_pressure_rate': {'name': 'Int Pressure %', 'format': 'percentage1', 'description': 'Interior pass rush pressure rate'},
+  };
+
+  // IDL rank fields (for ranks view)
+  static const Map<String, Map<String, dynamic>> _idlRankFields = {
+    'games_played': {'name': 'Games', 'format': 'integer', 'description': 'Games played'},
+    'tackles_rank': {'name': 'Tackles Rank', 'format': 'rank', 'description': 'Solo tackles ranking among IDL players'},
+    'tfls_rank': {'name': 'TFL Rank', 'format': 'rank', 'description': 'Tackles for loss ranking among IDL players'},
+    'run_stuffs_rank': {'name': 'Stuffs Rank', 'format': 'rank', 'description': 'Run stuffs ranking among IDL players'},
+    'pressure_rank': {'name': 'Pressure Rank', 'format': 'rank', 'description': 'Interior pressure ranking among IDL players'},
+  };
+
   // Get raw stat fields for a specific position (for raw stats view)
   static Map<String, Map<String, dynamic>> getRawStatFields(String position) {
     switch (position.toLowerCase()) {
@@ -142,6 +180,26 @@ class RankingService {
         return {..._baseStatFields, ..._wrRawStatFields};
       case 'te':
         return {..._baseStatFields, ..._teRawStatFields};
+      case 'edge':
+        // Use minimal base fields for EDGE to avoid duplicates
+        return {
+          'ranking': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+          'name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
+          'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+          'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+          'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
+          ..._edgeRawStatFields
+        };
+      case 'idl':
+        // Use minimal base fields for IDL to avoid duplicates
+        return {
+          'ranking': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+          'name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
+          'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+          'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+          'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
+          ..._idlRawStatFields
+        };
       default:
         return _baseStatFields;
     }
@@ -158,6 +216,26 @@ class RankingService {
         return {..._baseStatFields, ..._wrRankFields};
       case 'te':
         return {..._baseStatFields, ..._teRankFields};
+      case 'edge':
+        // Use minimal base fields for EDGE to avoid duplicates
+        return {
+          'ranking': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+          'name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
+          'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+          'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+          'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
+          ..._edgeRankFields
+        };
+      case 'idl':
+        // Use minimal base fields for IDL to avoid duplicates
+        return {
+          'ranking': {'name': 'Rank', 'format': 'integer', 'description': 'Overall ranking'},
+          'name': {'name': 'Player', 'format': 'string', 'description': 'Player name'},
+          'team': {'name': 'Team', 'format': 'string', 'description': 'Team'},
+          'tier': {'name': 'Tier', 'format': 'integer', 'description': 'Player tier'},
+          'season': {'name': 'Season', 'format': 'integer', 'description': 'Season'},
+          ..._idlRankFields
+        };
       default:
         return _baseStatFields;
     }
@@ -356,6 +434,8 @@ class RankingService {
     switch (format) {
       case 'percentage':
         return '${(numValue * 100).toStringAsFixed(1)}%';
+      case 'percentage1':
+        return '${numValue.toStringAsFixed(1)}%';
       case 'decimal1':
         return numValue.toStringAsFixed(1);
       case 'decimal2':

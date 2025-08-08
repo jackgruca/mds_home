@@ -6,9 +6,14 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
-import '../../utils/seo_helper.dart';
 import '../../services/rankings/csv_rankings_service.dart';
 import '../../services/rankings/ranking_cell_shading_service.dart';
+import '../../services/rankings/ranking_service.dart';
+import '../../services/rankings/ranking_calculation_service.dart';
+import '../../services/rankings/filter_service.dart';
+import '../../models/custom_weight_config.dart';
+import '../../widgets/rankings/weight_adjustment_panel.dart';
+import '../../widgets/rankings/filter_panel.dart';
 
 class EdgeRankingsScreen extends StatefulWidget {
   const EdgeRankingsScreen({super.key});
@@ -19,57 +24,44 @@ class EdgeRankingsScreen extends StatefulWidget {
 
 class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
   List<Map<String, dynamic>> _edgeRankings = [];
-  List<Map<String, dynamic>> _originalRankings = []; // Store original rankings
+  List<Map<String, dynamic>> _originalRankings = [];
   bool _isLoading = true;
   String? _error;
   String _selectedSeason = '2024';
   String _selectedTier = 'All';
-  bool _showRanks = false; // Toggle between showing ranks vs raw stats
-  bool _showWeightPanel = false; // Toggle weight adjustment panel
-  bool _showFilterPanel = false; // Toggle filter panel
-  bool _usingCustomWeights = false; // Track if custom weights are applied
-  bool _usingFilters = false; // Track if filters are applied
+  bool _showRanks = false;
+  bool _showWeightPanel = false;
+  bool _showFilterPanel = false;
+  bool _usingCustomWeights = false;
+  bool _usingFilters = false;
   
-  // Sorting state - default to rank ascending (rank 1 first)
+  // Sorting state
   String _sortColumn = 'ranking';
   bool _sortAscending = true;
   
   late final List<String> _seasonOptions;
   late final List<String> _tierOptions;
   late Map<String, Map<String, dynamic>> _edgeStatFields;
-  // Weight and filter variables removed until dependencies are available
+  late CustomWeightConfig _currentWeights;
+  late CustomWeightConfig _defaultWeights;
+  late FilterQuery _currentFilter;
   
   final Map<String, Map<String, double>> _percentileCache = {};
 
   @override
   void initState() {
     super.initState();
-    
-    // Update SEO meta tags for EDGE Rankings page
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // SEOHelper.updateForEdgeRankings(); // Add this method if needed
-    });
-    
-    _seasonOptions = ['2024', '2023', '2022', '2021', 'All']; // Will be loaded from CSV
-    _tierOptions = ['All', '1', '2', '3', '4', '5']; // Will be loaded from CSV
+    _seasonOptions = ['2024', '2023', '2022', '2021', 'All'];
+    _tierOptions = ['All', '1', '2', '3', '4', '5'];
+    _defaultWeights = RankingCalculationService.getDefaultWeights('edge');
+    _currentWeights = _defaultWeights;
+    _currentFilter = const FilterQuery();
     _updateStatFields();
     _loadEdgeRankings();
   }
   
   void _updateStatFields() {
-    // For now, use basic EDGE stat fields - can be enhanced later
-    _edgeStatFields = {
-      'ranking': {'label': 'Rank', 'type': 'rank', 'weight': 0},
-      'name': {'label': 'Name', 'type': 'text', 'weight': 0},
-      'team': {'label': 'Team', 'type': 'text', 'weight': 0},
-      'season': {'label': 'Season', 'type': 'text', 'weight': 0},
-      'tier': {'label': 'Tier', 'type': 'tier', 'weight': 0},
-      'sacks': {'label': 'Sacks', 'type': 'stat', 'weight': 0.3},
-      'qb_hits': {'label': 'QB Hits', 'type': 'stat', 'weight': 0.25},
-      'pressure_rate': {'label': 'Pressure %', 'type': 'stat', 'weight': 0.2},
-      'tfls': {'label': 'TFLs', 'type': 'stat', 'weight': 0.15},
-      'forced_fumbles': {'label': 'FF', 'type': 'stat', 'weight': 0.1},
-    };
+    _edgeStatFields = RankingService.getStatFields('edge', showRanks: _showRanks);
   }
 
   Future<void> _loadEdgeRankings() async {
@@ -79,12 +71,8 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     });
 
     try {
-      print('🏈 EdgeRankings: Starting to load EDGE rankings...');
       final csvService = CSVRankingsService();
       final allRankings = await csvService.fetchEdgeRankings();
-      
-      print('🏈 EdgeRankings: Received ${allRankings.length} total rankings from CSV service');
-      print('🏈 EdgeRankings: Current filters - Season: "$_selectedSeason", Tier: "$_selectedTier"');
       
       // Filter by season and tier
       final rankings = allRankings.where((ranking) {
@@ -95,25 +83,74 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
         return matchesSeason && matchesTier;
       }).toList();
       
-      print('🏈 EdgeRankings: After filtering: ${rankings.length} rankings remain');
-      
-      if (rankings.isEmpty && allRankings.isNotEmpty) {
-        print('⚠️ EdgeRankings: All rankings were filtered out!');
-        print('⚠️ EdgeRankings: Sample raw data - season: ${allRankings.first['season']}, tier: ${allRankings.first['tier']}');
-        print('⚠️ EdgeRankings: Filter criteria - season: "$_selectedSeason", tier: "$_selectedTier"');
+      // Add rank fields if they're missing
+      for (var ranking in rankings) {
+        // Ensure myRankNum exists
+        if (ranking['myRankNum'] == null && ranking['ranking'] != null) {
+          ranking['myRankNum'] = ranking['ranking'];
+        }
       }
-
+      
+      // Compute rank fields for stats
+      if (rankings.isNotEmpty) {
+        // Sort by each stat and assign ranks
+        final statFields = ['sacks', 'qb_hits', 'pressure_rate', 'tfls', 'forced_fumbles'];
+        for (final field in statFields) {
+          // Create a sorted list for this stat
+          final sortedByField = List<Map<String, dynamic>>.from(rankings);
+          sortedByField.sort((a, b) {
+            final aVal = (a[field] ?? 0) is num ? (a[field] as num).toDouble() : 0.0;
+            final bVal = (b[field] ?? 0) is num ? (b[field] as num).toDouble() : 0.0;
+            return bVal.compareTo(aVal); // Higher is better
+          });
+          
+          // Assign ranks
+          for (int i = 0; i < sortedByField.length; i++) {
+            sortedByField[i]['${field}_rank'] = i + 1;
+          }
+        }
+      }
+      
+      // Store original rankings
+      _originalRankings = rankings.map((r) => Map<String, dynamic>.from(r)).toList();
+      
+      // Apply custom weights if enabled
+      List<Map<String, dynamic>> processedRankings;
+      if (_usingCustomWeights) {
+        processedRankings = RankingCalculationService.calculateCustomEdgeRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        processedRankings = rankings;
+      }
+      
+      // Apply filters if enabled
+      List<Map<String, dynamic>> filteredRankings;
+      if (_usingFilters) {
+        filteredRankings = FilterService.applyFilters(processedRankings, _currentFilter);
+      } else {
+        filteredRankings = processedRankings;
+      }
+      
+      // Calculate percentiles for stat ranking
+      final statFields = _edgeStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      // Sort by default column
+      _sortData(filteredRankings);
+      
       setState(() {
-        _originalRankings = allRankings;
-        _edgeRankings = rankings;
+        _edgeRankings = filteredRankings;
         _isLoading = false;
       });
 
-      // Calculate percentiles for shading
-      _calculatePercentiles();
-
     } catch (e) {
-      print('❌ EdgeRankings: Error loading rankings: $e');
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -121,73 +158,52 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     }
   }
 
-  void _calculatePercentiles() {
-    if (_edgeRankings.isEmpty) return;
-    
-    final statFields = _edgeStatFields.keys.where((key) => 
-      !['ranking', 'name', 'team', 'season', 'tier'].contains(key)
-    ).toList();
-    
-    for (final field in statFields) {
-      final values = _edgeRankings
-          .map((r) => _parseDouble(r[field]))
-          .where((v) => v > 0)
-          .toList()
-        ..sort();
+  void _sortData(List<Map<String, dynamic>> rankings) {
+    rankings.sort((a, b) {
+      dynamic aValue = a[_sortColumn];
+      dynamic bValue = b[_sortColumn];
       
-      if (values.isNotEmpty) {
-        final percentiles = <String, double>{};
-        for (final ranking in _edgeRankings) {
-          final value = _parseDouble(ranking[field]);
-          if (value > 0) {
-            final percentile = values.where((v) => v <= value).length / values.length;
-            final playerId = '${ranking['name']}_${ranking['season']}';
-            percentiles[playerId] = percentile;
-          }
-        }
-        _percentileCache[field] = percentiles;
-      }
-    }
-  }
-
-  double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  void _sortTable(String column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      
+      int comparison;
+      if (aValue is String && bValue is String) {
+        comparison = aValue.compareTo(bValue);
+      } else if (aValue is num && bValue is num) {
+        comparison = aValue.compareTo(bValue);
       } else {
-        _sortColumn = column;
-        _sortAscending = column == 'ranking'; // Rank should be ascending by default
+        comparison = aValue.toString().compareTo(bValue.toString());
       }
       
-      _edgeRankings.sort((a, b) {
-        dynamic aValue = a[column];
-        dynamic bValue = b[column];
-        
-        // Handle numeric fields
-        if (column == 'ranking' || column == 'tier' || _edgeStatFields[column]?['type'] == 'stat') {
-          double aNum = _parseDouble(aValue);
-          double bNum = _parseDouble(bValue);
-          int result = aNum.compareTo(bNum);
-          return _sortAscending ? result : -result;
-        }
-        
-        // Handle text fields
-        String aStr = aValue?.toString() ?? '';
-        String bStr = bValue?.toString() ?? '';
-        int result = aStr.compareTo(bStr);
-        return _sortAscending ? result : -result;
-      });
+      return _sortAscending ? comparison : -comparison;
     });
   }
 
+  void _sort(String column, bool ascending) {
+    setState(() {
+      _sortColumn = column;
+      _sortAscending = ascending;
+      _sortData(_edgeRankings);
+    });
+  }
+
+  int _getSortColumnIndex() {
+    final baseColumns = ['ranking', 'name', 'team', 'tier'];
+    if (_selectedSeason == 'All') {
+      baseColumns.add('season');
+    }
+    final statFieldsToShow = _edgeStatFields.keys.where((key) => 
+      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+    ).toList();
+    
+    final fieldsToDisplay = statFieldsToShow;
+    
+    baseColumns.addAll(fieldsToDisplay);
+    return baseColumns.indexOf(_sortColumn);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     
@@ -202,7 +218,40 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
         ),
       ),
       drawer: const AppDrawer(),
-      body: _buildContent(),
+      body: Stack(
+        children: [
+          _buildContent(),
+          if (_showWeightPanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: WeightAdjustmentPanel(
+                position: 'edge',
+                currentWeights: _currentWeights,
+                onWeightsChanged: _onWeightsChanged,
+                onReset: _resetToDefaultWeights,
+                onClose: _toggleWeightPanel,
+                isVisible: _showWeightPanel,
+              ),
+            ),
+          if (_showFilterPanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: FilterPanel(
+                currentQuery: _currentFilter,
+                onFilterChanged: _onFilterChanged,
+                onClose: _toggleFilterPanel,
+                isVisible: _showFilterPanel,
+                availableTeams: FilterService.getAvailableTeams(_originalRankings),
+                availableSeasons: FilterService.getAvailableSeasons(_originalRankings),
+                statFields: FilterService.getFilterableStats(_edgeStatFields),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -326,54 +375,119 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
             'EDGE Rankings',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
             ),
           ),
           const Spacer(),
-          // Toggle ranks/stats button
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _showRanks = !_showRanks;
-                _updateStatFields();
-              });
-            },
-            icon: Icon(_showRanks ? Icons.numbers : Icons.bar_chart),
-            label: Text(_showRanks ? 'Show Stats' : 'Show Ranks'),
-          ),
-          const SizedBox(width: 8),
-          // Weight adjustment button
-          TextButton.icon(
-            onPressed: _toggleWeightPanel,
-            icon: Icon(
-              Icons.tune,
-              color: _usingCustomWeights ? Colors.orange : null,
-            ),
-            label: Text(
-              'Weights',
-              style: TextStyle(
-                color: _usingCustomWeights ? Colors.orange : null,
-                fontWeight: _usingCustomWeights ? FontWeight.bold : null,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
           // Filter button
-          TextButton.icon(
-            onPressed: _toggleFilterPanel,
-            icon: Icon(
-              Icons.filter_list,
-              color: _usingFilters ? Colors.blue : null,
-            ),
-            label: Text(
-              'Filter',
-              style: TextStyle(
-                color: _usingFilters ? Colors.blue : null,
-                fontWeight: _usingFilters ? FontWeight.bold : null,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _toggleFilterPanel,
+              icon: Icon(
+                _showFilterPanel ? Icons.close : Icons.filter_list,
+                size: 16,
+              ),
+              label: Text(_showFilterPanel ? 'Close' : 'Filter'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingFilters ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
+          ),
+          // Customize Rankings button
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton.icon(
+              onPressed: _toggleWeightPanel,
+              icon: Icon(
+                _showWeightPanel ? Icons.close : Icons.tune,
+                size: 16,
+              ),
+              label: Text(_showWeightPanel ? 'Close' : 'Customize'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _usingCustomWeights ? Colors.blue.shade600 : ThemeConfig.darkNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
+          // Toggle button for ranks vs raw stats
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildToggleButton('Raw Stats', !_showRanks, () {
+                  setState(() {
+                    _showRanks = false;
+                    _updateStatFields();
+                  });
+                  _loadEdgeRankings();
+                }),
+                _buildToggleButton('Ranks', _showRanks, () {
+                  setState(() {
+                    _showRanks = true;
+                    _updateStatFields();
+                  });
+                  _loadEdgeRankings();
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_edgeRankings.length} players',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              if (_usingCustomWeights)
+                Text(
+                  'Custom weights applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              if (_usingFilters)
+                Text(
+                  'Filters applied',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildToggleButton(String label, bool isActive, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? ThemeConfig.darkNavy : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.grey.shade700,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
       ),
     );
   }
@@ -381,159 +495,256 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
   Widget _buildDataTable() {
     if (_edgeRankings.isEmpty) {
       return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'No EDGE rankings found for the selected filters.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          ],
+        child: Text(
+          'No EDGE rankings found for the selected criteria.',
+          style: TextStyle(fontSize: 16),
         ),
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: MediaQuery.of(context).size.width,
-        ),
-        child: DataTable(
-          sortColumnIndex: _edgeStatFields.keys.toList().indexOf(_sortColumn) != -1 
-              ? _edgeStatFields.keys.toList().indexOf(_sortColumn) 
-              : null,
-          sortAscending: _sortAscending,
-          headingRowHeight: 56,
-          dataRowHeight: 48,
-          columns: _edgeStatFields.entries.map((entry) {
-            return DataColumn(
-              label: Text(
-                entry.value['label'],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onSort: entry.key == 'name' || entry.key == 'team' 
-                  ? null 
-                  : (_, __) => _sortTable(entry.key),
-            );
-          }).toList(),
-          rows: _edgeRankings.map((ranking) {
-            return DataRow(
-              cells: _edgeStatFields.keys.map((field) {
-                final value = ranking[field];
-                return _buildDataCell(field, value, ranking);
-              }).toList(),
-            );
-          }).toList(),
+    return AnimationLimiter(
+      child: SingleChildScrollView(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            sortColumnIndex: _getSortColumnIndex(),
+            sortAscending: _sortAscending,
+            columns: _buildDataColumns(),
+            rows: _buildDataRows(),
+            columnSpacing: 20,
+            headingRowHeight: 56,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 48,
+          ),
         ),
       ),
     );
   }
 
-  DataCell _buildDataCell(String field, dynamic value, Map<String, dynamic> ranking) {
-    final fieldConfig = _edgeStatFields[field]!;
+  List<DataColumn> _buildDataColumns() {
+    final columns = <DataColumn>[
+      DataColumn(
+        label: const Text('Rank'),
+        onSort: (columnIndex, ascending) => _sort('ranking', ascending),
+      ),
+      DataColumn(
+        label: const Text('Player'),
+        onSort: (columnIndex, ascending) => _sort('name', ascending),
+      ),
+      DataColumn(
+        label: const Text('Team'),
+        onSort: (columnIndex, ascending) => _sort('team', ascending),
+      ),
+      DataColumn(
+        label: const Text('Tier'),
+        onSort: (columnIndex, ascending) => _sort('tier', ascending),
+      ),
+    ];
+
+    // Add season column if showing all seasons
+    if (_selectedSeason == 'All') {
+      columns.add(DataColumn(
+        label: const Text('Season'),
+        onSort: (columnIndex, ascending) => _sort('season', ascending),
+      ));
+    }
+
+    // Add stat columns - skip base fields that are already added
+    final statFieldsToShow = _edgeStatFields.keys.where((key) => 
+      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+    ).toList();
     
-    Widget cellContent;
+    final fieldsToDisplay = statFieldsToShow;
     
-    switch (fieldConfig['type']) {
-      case 'tier':
-        final tier = _parseDouble(value).toInt();
-        cellContent = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: _getTierColor(tier),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            tier.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+    for (final field in fieldsToDisplay) {
+      final statInfo = _edgeStatFields[field]!;
+      columns.add(DataColumn(
+        label: Tooltip(
+          message: statInfo['description'],
+          child: Text(statInfo['name']),
+        ),
+        numeric: true,
+        onSort: (columnIndex, ascending) => _sort(field, ascending),
+      ));
+    }
+
+    return columns;
+  }
+
+  List<DataRow> _buildDataRows() {
+    return _edgeRankings.asMap().entries.map((entry) {
+      final index = entry.key;
+      final edge = entry.value;
+      final tierValue = edge['tier'] ?? 1;
+      final tier = tierValue is int ? tierValue : int.tryParse(tierValue.toString()) ?? 1;
+      final tierColor = _getTierColor(tier);
+
+      final cells = <DataCell>[
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: tierColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '#${edge['ranking'] ?? index + 1}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
-        );
-        break;
-      case 'rank':
-        cellContent = Text(
-          value?.toString() ?? '',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        );
-        break;
-      case 'stat':
-        final numValue = _parseDouble(value);
-        cellContent = Container(
-          decoration: BoxDecoration(
-            color: _getCellColor(field, ranking),
-            borderRadius: BorderRadius.circular(4),
+        ),
+        DataCell(
+          Row(
+            children: [
+              TeamLogoUtils.buildNFLTeamLogo(edge['team'] ?? '', size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  edge['name'] ?? 'Unknown',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
-          padding: const EdgeInsets.all(4),
-          child: Text(
-            numValue.toStringAsFixed(1),
-            style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        DataCell(Text(edge['team'] ?? '')),
+        DataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: tierColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'Tier $tier',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
           ),
-        );
-        break;
-      case 'text':
-      default:
-        cellContent = Text(value?.toString() ?? '');
-        break;
-    }
-    
-    return DataCell(cellContent);
+        ),
+      ];
+
+      // Add season cell if showing all seasons
+      if (_selectedSeason == 'All') {
+        cells.add(DataCell(Text(edge['season']?.toString() ?? '')));
+      }
+
+      // Add stat cells - skip base fields that are already added
+      final statFieldsToShow = _edgeStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+      ).toList();
+      
+      final fieldsToDisplay = statFieldsToShow;
+      
+      for (final field in fieldsToDisplay) {
+        final value = edge[field];
+        final statInfo = _edgeStatFields[field]!;
+        
+        cells.add(DataCell(
+          RankingCellShadingService.buildDensityCell(
+            column: field,
+            value: value,
+            rankValue: value,
+            showRanks: _showRanks,
+            percentileCache: _percentileCache,
+            formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
+            width: double.infinity,
+            height: 48,
+          ),
+        ));
+      }
+
+      return DataRow(
+        cells: cells,
+        color: WidgetStateProperty.resolveWith<Color?>(
+          (Set<WidgetState> states) {
+            if (states.contains(WidgetState.hovered)) {
+              return tierColor.withValues(alpha: 0.1);
+            }
+            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+          },
+        ),
+      );
+    }).toList();
   }
 
   Color _getTierColor(int tier) {
-    switch (tier) {
-      case 1: return Colors.green.shade600;
-      case 2: return Colors.lightGreen.shade600;
-      case 3: return Colors.yellow.shade700;
-      case 4: return Colors.orange.shade600;
-      case 5: return Colors.red.shade400;
-      default: return Colors.grey.shade500;
-    }
+    final colors = RankingService.getTierColors();
+    return Color(colors[tier] ?? 0xFF9E9E9E);
   }
 
-  Color? _getCellColor(String field, Map<String, dynamic> ranking) {
-    final value = _parseDouble(ranking[field]);
-    if (value <= 0) return null;
-    
-    // Create a simple percentile-based color scheme
-    final values = _edgeRankings
-        .map((r) => _parseDouble(r[field]))
-        .where((v) => v > 0)
-        .toList()
-      ..sort();
-    
-    if (values.isEmpty) return null;
-    
-    final percentile = values.where((v) => v <= value).length / values.length;
-    
-    // Higher is better for most stats, so higher percentile = better color
-    if (percentile >= 0.75) {
-      return Colors.green.withOpacity(0.7);
-    } else if (percentile >= 0.5) {
-      return Colors.green.withOpacity(0.4);
-    } else if (percentile >= 0.25) {
-      return Colors.orange.withOpacity(0.3);
+  String _formatStatValue(dynamic value, String format) {
+    return RankingService.formatStatValue(value, format);
+  }
+
+  void _onWeightsChanged(CustomWeightConfig newWeights) {
+    if (_originalRankings.isNotEmpty) {
+      final customRankings = RankingCalculationService.calculateCustomEdgeRankings(
+        _originalRankings,
+        newWeights,
+      );
+      
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(customRankings, _currentFilter)
+          : customRankings;
+      
+      final statFields = _edgeStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      
+      _sortData(processedRankings);
+      
+      setState(() {
+        _currentWeights = newWeights;
+        _usingCustomWeights = true;
+        _percentileCache.clear();
+        _percentileCache.addAll(percentiles);
+        _edgeRankings = processedRankings;
+      });
     } else {
-      return Colors.red.withOpacity(0.3);
+      setState(() {
+        _currentWeights = newWeights;
+        _usingCustomWeights = true;
+      });
     }
   }
 
-  void _onWeightsChanged() {
-    // Weight changes logic placeholder
-    setState(() {
-      _usingCustomWeights = true;
-    });
-  }
-
-  void _resetWeights() {
-    setState(() {
-      _usingCustomWeights = false;
-    });
+  void _resetToDefaultWeights() {
+    if (_originalRankings.isNotEmpty) {
+      final processedRankings = _usingFilters 
+          ? FilterService.applyFilters(_originalRankings, _currentFilter)
+          : _originalRankings;
+      
+      final statFields = _edgeStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
+      
+      _sortData(processedRankings);
+      
+      setState(() {
+        _currentWeights = _defaultWeights;
+        _usingCustomWeights = false;
+        _percentileCache.clear();
+        _percentileCache.addAll(percentiles);
+        _edgeRankings = processedRankings;
+      });
+    } else {
+      setState(() {
+        _currentWeights = _defaultWeights;
+        _usingCustomWeights = false;
+      });
+    }
   }
 
   void _toggleWeightPanel() {
@@ -554,12 +765,38 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     });
   }
 
-  void _onFilterChanged() {
+  void _onFilterChanged(FilterQuery newFilter) {
     setState(() {
-      _usingFilters = !_usingFilters;
+      _currentFilter = newFilter;
+      _usingFilters = newFilter.hasActiveFilters;
     });
     
-    // Apply filter logic here if needed
-    _loadEdgeRankings();
+    if (_originalRankings.isNotEmpty) {
+      List<Map<String, dynamic>> baseRankings;
+      if (_usingCustomWeights) {
+        baseRankings = RankingCalculationService.calculateCustomEdgeRankings(
+          _originalRankings,
+          _currentWeights,
+        );
+      } else {
+        baseRankings = _originalRankings;
+      }
+      
+      final filteredRankings = FilterService.applyFilters(baseRankings, newFilter);
+      
+      final statFields = _edgeStatFields.keys.where((key) => 
+        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
+      ).toList();
+      
+      final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
+      _percentileCache.clear();
+      _percentileCache.addAll(percentiles);
+      
+      _sortData(filteredRankings);
+      
+      setState(() {
+        _edgeRankings = filteredRankings;
+      });
+    }
   }
 }

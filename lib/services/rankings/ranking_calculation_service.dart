@@ -71,6 +71,22 @@ class RankingCalculationService {
     return calculateCustomRankings(players, weightConfig);
   }
 
+  /// Calculate custom rankings for EDGE position
+  static List<Map<String, dynamic>> calculateCustomEdgeRankings(
+    List<Map<String, dynamic>> players,
+    CustomWeightConfig weightConfig,
+  ) {
+    return calculateCustomRankings(players, weightConfig);
+  }
+
+  /// Calculate custom rankings for IDL position
+  static List<Map<String, dynamic>> calculateCustomIdlRankings(
+    List<Map<String, dynamic>> players,
+    CustomWeightConfig weightConfig,
+  ) {
+    return calculateCustomRankings(players, weightConfig);
+  }
+
   /// Extract stat values for all players for each relevant stat
   static Map<String, List<double>> _extractStatValues(List<Map<String, dynamic>> players, String position) {
     final Map<String, List<double>> statValues = {};
@@ -206,6 +222,10 @@ class RankingCalculationService {
         return CustomWeightConfig.createDefaultWRWeights();
       case 'te':
         return CustomWeightConfig.createDefaultTEWeights();
+      case 'edge':
+        return CustomWeightConfig.createDefaultEdgeWeights();
+      case 'idl':
+        return CustomWeightConfig.createDefaultIdlWeights();
       default:
         throw ArgumentError('Position $position not supported yet');
     }
@@ -266,6 +286,22 @@ class RankingCalculationService {
           'Third Down': 'third_down_rate',
           'YAC+': 'yac_above_expected',
         };
+      case 'edge':
+        return {
+          'Sacks': 'sacks',
+          'QB Hits': 'qb_hits',
+          'Pressure': 'pressure_rate',
+          'TFLs': 'tfls',
+          'Forced Fumbles': 'forced_fumbles',
+        };
+      case 'idl':
+        return {
+          'Tackles': 'solo_tackles',
+          'TFLs': 'tfls',
+          'Run Stuffs': 'run_stuffs',
+          'Stuff Rate': 'run_stuff_rate',
+          'Interior Pressure': 'interior_pressure_rate',
+        };
       default:
         return {};
     }
@@ -325,6 +361,22 @@ class RankingCalculationService {
           'Catch%': 'Catch percentage on targets',
           'Third Down': 'Third down conversion rate',
           'YAC+': 'Yards after catch above expected',
+        };
+      case 'edge':
+        return {
+          'Sacks': 'Total sacks - quarterback takedowns',
+          'QB Hits': 'Total quarterback hits',
+          'Pressure': 'Pass rush pressure rate percentage',
+          'TFLs': 'Tackles for loss - disrupting plays behind line',
+          'Forced Fumbles': 'Total forced fumbles created',
+        };
+      case 'idl':
+        return {
+          'Tackles': 'Solo tackles made in season',
+          'TFLs': 'Tackles for loss - stopping plays behind line',
+          'Run Stuffs': 'Run stuffs at or behind line of scrimmage',
+          'Stuff Rate': 'Rate of stuffing runs at line of scrimmage',
+          'Interior Pressure': 'Interior pass rush pressure rate',
         };
       default:
         return {};

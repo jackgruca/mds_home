@@ -104,6 +104,40 @@ class CustomWeightConfig {
     );
   }
 
+  /// Create default weights for EDGE position
+  static CustomWeightConfig createDefaultEdgeWeights() {
+    return CustomWeightConfig(
+      position: 'edge',
+      name: 'Default',
+      weights: {
+        'Sacks': 0.30,
+        'QB Hits': 0.20,
+        'Pressure': 0.25,
+        'TFLs': 0.15,
+        'Forced Fumbles': 0.10,
+      },
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// Create default weights for IDL position
+  static CustomWeightConfig createDefaultIdlWeights() {
+    return CustomWeightConfig(
+      position: 'idl',
+      name: 'Default',
+      weights: {
+        'Tackles': 0.25,
+        'TFLs': 0.20,
+        'Run Stuffs': 0.30,
+        'Stuff Rate': 0.15,
+        'Interior Pressure': 0.10,
+      },
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
   /// Create default weights for consensus rankings
   static CustomWeightConfig createDefaultConsensusWeights() {
     return CustomWeightConfig(

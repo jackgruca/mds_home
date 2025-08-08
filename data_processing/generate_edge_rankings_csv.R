@@ -217,8 +217,19 @@ edge_rankings_final <- EDGE_ranks %>%
     snap_pct = avg_snap_pct,
     composite_rank = myRank,
     ranking = myRankNum,
+    myRankNum = myRankNum,
     tier = edgeTier
   ) %>%
+  # Add rank fields for each stat
+  group_by(season) %>%
+  mutate(
+    sacks_rank = rank(-sacks, ties.method = "min"),
+    qb_hits_rank = rank(-qb_hits, ties.method = "min"),
+    pressure_rank = rank(-pressure_rate, ties.method = "min"),
+    tfls_rank = rank(-tfls, ties.method = "min"),
+    forced_fumbles_rank = rank(-forced_fumbles, ties.method = "min")
+  ) %>%
+  ungroup() %>%
   # Handle missing values
   mutate(across(where(is.numeric), ~ifelse(is.na(.), 0, .))) %>%
   mutate(across(where(is.character), ~ifelse(is.na(.), "", .))) %>%
