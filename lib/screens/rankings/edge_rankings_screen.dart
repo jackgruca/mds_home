@@ -95,18 +95,50 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
       if (rankings.isNotEmpty) {
         // Sort by each stat and assign ranks
         final statFields = ['sacks', 'qb_hits', 'pressure_rate', 'tfls', 'forced_fumbles'];
+        
         for (final field in statFields) {
-          // Create a sorted list for this stat
-          final sortedByField = List<Map<String, dynamic>>.from(rankings);
-          sortedByField.sort((a, b) {
-            final aVal = (a[field] ?? 0) is num ? (a[field] as num).toDouble() : 0.0;
-            final bVal = (b[field] ?? 0) is num ? (b[field] as num).toDouble() : 0.0;
-            return bVal.compareTo(aVal); // Higher is better
+          // Create a list of values with their indices
+          final valuesWithIndex = <Map<String, dynamic>>[];
+          for (int i = 0; i < rankings.length; i++) {
+            final value = rankings[i][field];
+            double numValue = 0.0;
+            if (value != null) {
+              if (value is num) {
+                numValue = value.toDouble();
+              } else if (value is String) {
+                numValue = double.tryParse(value) ?? 0.0;
+              }
+            }
+            valuesWithIndex.add({
+              'index': i,
+              'value': numValue,
+            });
+          }
+          
+          // Sort by value (descending - higher is better)
+          valuesWithIndex.sort((a, b) {
+            final aVal = a['value'] as double;
+            final bVal = b['value'] as double;
+            return bVal.compareTo(aVal);
           });
           
-          // Assign ranks
-          for (int i = 0; i < sortedByField.length; i++) {
-            sortedByField[i]['${field}_rank'] = i + 1;
+          // Assign ranks with tie handling
+          for (int i = 0; i < valuesWithIndex.length; i++) {
+            final currentValue = valuesWithIndex[i]['value'] as double;
+            int rank = i + 1;
+            
+            // Check for ties with previous values
+            if (i > 0) {
+              final prevValue = valuesWithIndex[i - 1]['value'] as double;
+              if ((currentValue - prevValue).abs() < 0.001) {
+                // Same value, use same rank as previous
+                final prevIndex = valuesWithIndex[i - 1]['index'] as int;
+                rank = rankings[prevIndex]['${field}_rank'] as int;
+              }
+            }
+            
+            final originalIndex = valuesWithIndex[i]['index'] as int;
+            rankings[originalIndex]['${field}_rank'] = rank;
           }
         }
       }

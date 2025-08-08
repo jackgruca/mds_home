@@ -95,22 +95,57 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
       if (rankings.isNotEmpty) {
         // Sort by each stat and assign ranks
         final statFields = ['solo_tackles', 'tfls', 'run_stuffs', 'run_stuff_rate', 'interior_pressure_rate'];
+        
         for (final field in statFields) {
-          // Create a sorted list for this stat
-          final sortedByField = List<Map<String, dynamic>>.from(rankings);
-          sortedByField.sort((a, b) {
-            final aVal = (a[field] ?? 0) is num ? (a[field] as num).toDouble() : 0.0;
-            final bVal = (b[field] ?? 0) is num ? (b[field] as num).toDouble() : 0.0;
-            return bVal.compareTo(aVal); // Higher is better
-          });
-          
-          // Assign ranks - map run_stuff_rate and interior_pressure_rate to their expected rank field names
+          // Map field names to their rank field names
           final rankFieldName = field == 'solo_tackles' ? 'tackles_rank' :
                                 field == 'run_stuffs' ? 'run_stuffs_rank' :
                                 field == 'interior_pressure_rate' ? 'pressure_rank' :
+                                field == 'run_stuff_rate' ? 'stuff_rate_rank' :
                                 '${field}_rank';
-          for (int i = 0; i < sortedByField.length; i++) {
-            sortedByField[i][rankFieldName] = i + 1;
+          
+          // Create a list of values with their indices
+          final valuesWithIndex = <Map<String, dynamic>>[];
+          for (int i = 0; i < rankings.length; i++) {
+            final value = rankings[i][field];
+            double numValue = 0.0;
+            if (value != null) {
+              if (value is num) {
+                numValue = value.toDouble();
+              } else if (value is String) {
+                numValue = double.tryParse(value) ?? 0.0;
+              }
+            }
+            valuesWithIndex.add({
+              'index': i,
+              'value': numValue,
+            });
+          }
+          
+          // Sort by value (descending - higher is better)
+          valuesWithIndex.sort((a, b) {
+            final aVal = a['value'] as double;
+            final bVal = b['value'] as double;
+            return bVal.compareTo(aVal);
+          });
+          
+          // Assign ranks with tie handling
+          for (int i = 0; i < valuesWithIndex.length; i++) {
+            final currentValue = valuesWithIndex[i]['value'] as double;
+            int rank = i + 1;
+            
+            // Check for ties with previous values
+            if (i > 0) {
+              final prevValue = valuesWithIndex[i - 1]['value'] as double;
+              if ((currentValue - prevValue).abs() < 0.001) {
+                // Same value, use same rank as previous
+                final prevIndex = valuesWithIndex[i - 1]['index'] as int;
+                rank = rankings[prevIndex][rankFieldName] as int;
+              }
+            }
+            
+            final originalIndex = valuesWithIndex[i]['index'] as int;
+            rankings[originalIndex][rankFieldName] = rank;
           }
         }
       }

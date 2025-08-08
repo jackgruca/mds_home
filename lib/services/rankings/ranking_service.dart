@@ -148,6 +148,7 @@ class RankingService {
     'qb_hits_rank': {'name': 'QB Hits Rank', 'format': 'rank', 'description': 'QB hits ranking among EDGE players'},
     'pressure_rank': {'name': 'Pressure Rank', 'format': 'rank', 'description': 'Pressure rate ranking among EDGE players'},
     'tfls_rank': {'name': 'TFL Rank', 'format': 'rank', 'description': 'Tackles for loss ranking among EDGE players'},
+    'forced_fumbles_rank': {'name': 'FF Rank', 'format': 'rank', 'description': 'Forced fumbles ranking among EDGE players'},
   };
 
   // IDL raw stat fields (for raw stats view)
@@ -166,6 +167,7 @@ class RankingService {
     'tackles_rank': {'name': 'Tackles Rank', 'format': 'rank', 'description': 'Solo tackles ranking among IDL players'},
     'tfls_rank': {'name': 'TFL Rank', 'format': 'rank', 'description': 'Tackles for loss ranking among IDL players'},
     'run_stuffs_rank': {'name': 'Stuffs Rank', 'format': 'rank', 'description': 'Run stuffs ranking among IDL players'},
+    'stuff_rate_rank': {'name': 'Stuff Rate Rank', 'format': 'rank', 'description': 'Run stuff rate ranking among IDL players'},
     'pressure_rank': {'name': 'Pressure Rank', 'format': 'rank', 'description': 'Interior pressure ranking among IDL players'},
   };
 
