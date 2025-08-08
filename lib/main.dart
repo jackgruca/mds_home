@@ -47,6 +47,8 @@ import 'screens/rankings/rb_rankings_screen.dart';
 import 'screens/rankings/te_rankings_screen.dart';
 import 'screens/rankings/pass_offense_rankings_screen.dart';
 import 'screens/rankings/run_offense_rankings_screen.dart';
+import 'screens/rankings/edge_rankings_screen.dart';
+import 'screens/rankings/idl_rankings_screen.dart';
 import 'screens/projections/wr_projections_2025_screen.dart';
 import 'screens/projections/player_stat_predictor_screen.dart';
 import 'screens/fantasy/my_rankings_screen.dart';
@@ -252,6 +254,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRRankingsScreen());
               case '/rankings/te':
                 return MaterialPageRoute(builder: (_) => const TERankingsScreen());
+              case '/rankings/edge':
+                return MaterialPageRoute(builder: (_) => const EdgeRankingsScreen());
+              case '/rankings/idl':
+                return MaterialPageRoute(builder: (_) => const IdlRankingsScreen());
               case '/rankings/pass-offense':
                 return MaterialPageRoute(builder: (_) => const PassOffenseRankingsScreen());
               case '/rankings/run-offense':

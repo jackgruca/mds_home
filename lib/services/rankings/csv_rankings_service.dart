@@ -152,6 +152,14 @@ class CSVRankingsService {
     return fetchRankings('run_offense');
   }
 
+  Future<List<Map<String, dynamic>>> fetchEdgeRankings() async {
+    return fetchRankings('edge');
+  }
+
+  Future<List<Map<String, dynamic>>> fetchIdlRankings() async {
+    return fetchRankings('idl');
+  }
+
   // Get available seasons from rankings data
   Future<List<int>> getAvailableSeasons(String position) async {
     try {

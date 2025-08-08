@@ -63,7 +63,6 @@ flutter:
     - assets/2024/
     - assets/2025/
     - assets/2026/
-    - assets/rankings/
     - data_processing/assets/data/
     - data_processing/assets/data/player_career_stats.csv
     - data_processing/assets/data/player_game_logs.csv

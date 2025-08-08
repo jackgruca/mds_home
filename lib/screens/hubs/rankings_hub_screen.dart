@@ -307,6 +307,21 @@ class _ToolGrid extends StatelessWidget {
     },
   ];
 
+  static final List<Map<String, dynamic>> _defensivePositions = [
+    {
+      'icon': Icons.shield,
+      'title': 'EDGE Rankings',
+      'subtitle': 'Edge rusher rankings and pass rush metrics',
+      'route': '/rankings/edge',
+    },
+    {
+      'icon': Icons.security,
+      'title': 'IDL Rankings',
+      'subtitle': 'Interior defensive line rankings',
+      'route': '/rankings/idl',
+    },
+  ];
+
   static final List<Map<String, dynamic>> _teamUnits = [
     {
       'icon': Icons.airline_seat_recline_extra,
@@ -341,6 +356,8 @@ class _ToolGrid extends StatelessWidget {
       children: [
         _buildSection(context, 'Skill Positions', _skillPositions, crossAxisCount: 2),
         const SizedBox(height: 32),
+        _buildSection(context, 'Defensive Positions', _defensivePositions, crossAxisCount: 2),
+        const SizedBox(height: 32),
         _buildSection(context, 'Team Units', _teamUnits, crossAxisCount: 2),
       ],
     );
@@ -351,6 +368,8 @@ class _ToolGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSection(context, 'Skill Positions', _skillPositions, crossAxisCount: 4),
+        const SizedBox(height: 32),
+        _buildSection(context, 'Defensive Positions', _defensivePositions, crossAxisCount: 4),
         const SizedBox(height: 32),
         _buildSection(context, 'Team Units', _teamUnits, crossAxisCount: 4),
       ],
