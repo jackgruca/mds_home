@@ -97,6 +97,9 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
         final statFields = ['sacks', 'qb_hits', 'pressure_rate', 'tfls', 'forced_fumbles'];
         
         for (final field in statFields) {
+          // Map field names to their rank field names
+          final rankFieldName = field == 'pressure_rate' ? 'pressure_rank' : '${field}_rank';
+          
           // Create a list of values with their indices
           final valuesWithIndex = <Map<String, dynamic>>[];
           for (int i = 0; i < rankings.length; i++) {
@@ -133,12 +136,12 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
               if ((currentValue - prevValue).abs() < 0.001) {
                 // Same value, use same rank as previous
                 final prevIndex = valuesWithIndex[i - 1]['index'] as int;
-                rank = rankings[prevIndex]['${field}_rank'] as int;
+                rank = rankings[prevIndex][rankFieldName] as int;
               }
             }
             
             final originalIndex = valuesWithIndex[i]['index'] as int;
-            rankings[originalIndex]['${field}_rank'] = rank;
+            rankings[originalIndex][rankFieldName] = rank;
           }
         }
       }
