@@ -537,7 +537,8 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
       if (!slot.isFilled) continue;
       final asset = slot.asset!;
       if (asset is PlayerAsset && receivingTeam != null) {
-        total += await Future.value(TradeValuationService.calculatePlayerDisplayValue(asset.player, receivingTeam: receivingTeam));
+        // Use the same blended value used in the row chip so header matches rows
+        total += _calcBlendedTradeValue(asset.player, receivingTeam);
       } else if (asset is DraftPickAsset) {
         total += asset.marketValue;
       } else {
@@ -746,7 +747,10 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         },
       );
     } else {
-      // Draft pick display
+      // Draft pick display (add value chip same as players)
+      final double pickValue = asset.marketValue.clamp(0.0, 100.0);
+      final int pickValueInt = pickValue.round();
+      final Color chipColor = _getGradeColor(pickValue);
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
@@ -781,6 +785,29 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                 ],
               ),
             ),
+            Container(
+              width: 50,
+              height: 32,
+              decoration: BoxDecoration(
+                color: chipColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: chipColor.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  '$pickValueInt',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: chipColor,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             IconButton(
               icon: Icon(Icons.close, size: 18, color: Colors.grey[600]),
               onPressed: () => _removeAssetFromSlot(slotIndex, team),
