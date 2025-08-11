@@ -5,6 +5,7 @@ import '../models/nfl_trade/nfl_player.dart';
 import '../models/nfl_trade/trade_asset.dart';
 import '../models/nfl_trade/nfl_team_info.dart';
 import 'draft_value_service.dart';
+import 'trade_value_calculator.dart';
 
 class ContractInfo {
   final String contractId;
@@ -64,6 +65,91 @@ class TradeValuationService {
   static Map<String, ContractInfo>? _cachedContracts;
   static PositionRankings? _cachedRankings;
   static TeamNeeds? _cachedTeamNeeds;
+
+  // Calibrated scale so an elite (~95th pct) ≈ two mid-1sts before premiums
+  static double? _playerPointsScaleS;
+
+  static double _ensureScaleS() {
+    if (_playerPointsScaleS != null) return _playerPointsScaleS!;
+    try {
+      // Use mid first: pick 16
+      final double pmid = DraftValueService.getValueForPick(16);
+      // If chart not ready, fallback to a safe constant
+      final double anchor = (pmid > 0) ? pmid : 1000.0;
+      // S = (2 × Pmid) / (0.95^2)
+      _playerPointsScaleS = (2.0 * anchor) / (0.95 * 0.95);
+    } catch (_) {
+      _playerPointsScaleS = 2000.0;
+    }
+    return _playerPointsScaleS!;
+  }
+
+  static String _normalizePositionForNeed(String pos) {
+    final p = pos.toUpperCase();
+    if (p == 'DE' || p == 'EDGE' || p == 'OLB') return 'EDGE';
+    if (p == 'DT' || p == 'NT' || p == 'IDL') return 'IDL';
+    if (p == 'OG' || p == 'C') return 'IOL';
+    return p;
+  }
+
+  static double _getTeamNeedLevel(NFLTeamInfo receivingTeam, String rawPos) {
+    final key = _normalizePositionForNeed(rawPos);
+    try {
+      // ignore: invalid_use_of_protected_member
+      return receivingTeam.getNeedLevel(key).clamp(0.0, 1.0);
+    } catch (_) {
+      return (receivingTeam.positionNeeds[key] ?? 0.5).clamp(0.0, 1.0);
+    }
+  }
+
+  static double _positionPremiumIfElite(String position, bool isElite) {
+    if (!isElite) return 1.0;
+    switch (position.toUpperCase()) {
+      case 'QB':
+        return 1.6;
+      case 'EDGE':
+      case 'DE':
+      case 'OLB':
+        return 1.4;
+      case 'OT':
+        return 1.35;
+      case 'CB':
+        return 1.3;
+      case 'WR':
+        return 1.2;
+      case 'DT':
+      case 'IDL':
+        return 1.15;
+      case 'S':
+      case 'LB':
+        return 1.1;
+      case 'TE':
+      case 'RB':
+      case 'IOL':
+      case 'OG':
+      case 'C':
+        return 1.05;
+      default:
+        return 1.05;
+    }
+  }
+
+  static Future<int> _getYearsRemainingForPlayer(NFLPlayer player) async {
+    // Ensure contracts are loaded once
+    await _loadContractData();
+    if (_cachedContracts == null || _cachedContracts!.isEmpty) return 0;
+    final lname = player.name.toLowerCase().trim();
+    final lteam = player.team.toLowerCase().trim();
+    // Simple match by name and optional team hint
+    for (final c in _cachedContracts!.values) {
+      if (c.name.toLowerCase().trim() == lname) {
+        if (lteam.isEmpty || c.team.toLowerCase().trim() == lteam) {
+          return c.yearsRemaining.clamp(0, 10);
+        }
+      }
+    }
+    return 0;
+  }
 
   /// Load contract data from CSV
   static Future<void> _loadContractData() async {
@@ -346,15 +432,62 @@ class TradeValuationService {
   }
 
   /// Calculate internal points for a single asset
-  /// Players: 20x display, franchise premium 1.5 if display>=95 and age<=27
+  /// Players: calibrated points from UI value with elite/position/control multipliers
   /// Picks: chart points from DraftValueService with future-year discount
   static double calculateAssetInternalPoints(TradeAsset asset, NFLTeamInfo receivingTeam) {
     if (asset is PlayerAsset) {
-      double display = calculatePlayerDisplayValue(asset.player, receivingTeam: receivingTeam);
-      double points = 20.0 * display;
-      if (display >= 95.0 && asset.player.age <= 27) {
-        points *= 1.5; // Franchise premium
-      }
+      // 1) Player UI value (0-100) using blended formula to keep consistency with chips
+      final pos = asset.player.position;
+      final needLevel = _getTeamNeedLevel(receivingTeam, pos);
+      final int approxRank = (100 - asset.player.positionRank).round().clamp(1, 100);
+      final double uiValue = TradeValueCalculator.calculateTradeValue(
+        position: pos,
+        positionRanking: approxRank,
+        tier: 1,
+        age: asset.player.age,
+        teamNeed: needLevel,
+        teamStatus: 'neutral',
+        positionPercentile: asset.player.positionRank,
+      );
+
+      // 2) Calibrated base points
+      final double S = _ensureScaleS();
+      final double p = (uiValue / 100.0).clamp(0.0, 1.0);
+      double points = S * p * p;
+
+      // 3) Elite scaling based on percentile >= 0.95
+      final double rawPct = (asset.player.positionRank / 100.0).clamp(0.0, 1.0);
+      double eliteMult = 1.0;
+      if (rawPct >= 0.99) eliteMult = 1.8;
+      else if (rawPct >= 0.97) eliteMult = 1.6;
+      else if (rawPct >= 0.95) eliteMult = 1.5;
+      points *= eliteMult;
+
+      // 4) Position premium for elites only
+      final bool isElite = rawPct >= 0.95;
+      points *= _positionPremiumIfElite(pos, isElite);
+
+      // 5) Club control multiplier from contracts (cap at 1.25)
+      // Note: async fetch reduced to 0 if not yet loaded; callers that want exact
+      // must ensure initialize sequence. Here we best-effort fetch synchronously.
+      // We cannot await in a sync method; use cached if present, else assume 0.
+      int yearsRemaining = 0;
+      try {
+        // Best effort: if contracts are already loaded, we can look up without await
+        if (_cachedContracts != null && _cachedContracts!.isNotEmpty) {
+          final lname = asset.player.name.toLowerCase().trim();
+          final lteam = asset.player.team.toLowerCase().trim();
+          for (final c in _cachedContracts!.values) {
+            if (c.name.toLowerCase().trim() == lname && (lteam.isEmpty || c.team.toLowerCase().trim() == lteam)) {
+              yearsRemaining = c.yearsRemaining.clamp(0, 10);
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+      final double controlMult = (1.0 + 0.05 * yearsRemaining).clamp(1.0, 1.25);
+      points *= controlMult;
+
       return points;
     }
 

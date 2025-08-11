@@ -11,6 +11,7 @@ import '../services/trade_data_service.dart';
 import '../services/trade_valuation_service.dart';
 import '../services/trade_value_calculator.dart';
 import 'dart:math';
+import '../utils/constants.dart';
 
 class MaddenTradeAnalyzerScreen extends StatefulWidget {
   const MaddenTradeAnalyzerScreen({super.key});
@@ -306,44 +307,30 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   Widget _buildTradeLikelihoodBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Value Balance',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              Text(_balanceLabel(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Row(children: [
+                if (team1 != null) Text(team1!.abbreviation, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ]),
+              Text('${(tradeLikelihood * 100).round()}%'),
+              Row(children: [
+                if (team2 != null) Text(team2!.abbreviation, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ]),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           LinearProgressIndicator(
-            value: tradeLikelihood, // now represents team1 share 0..1
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation(_getLikelihoodColor()),
-            minHeight: 8,
+            value: tradeLikelihood.clamp(0.0, 1.0),
+            minHeight: 10,
           ),
-          const SizedBox(height: 4),
-          Text('Left = Team 1 • Right = Team 2 • Ideal = 50/50', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          const SizedBox(height: 6),
+          Text(_balanceLabel(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -403,7 +390,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: team != null ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : Colors.grey[50],
+        color: team != null ? NFLTeamColors.getTeamColors(team.abbreviation).first.withValues(alpha: 0.08) : Colors.grey[50],
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(14),
           topRight: Radius.circular(14),
@@ -418,61 +405,36 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                     children: [
                       Row(
                         children: [
-                          Expanded(
-                            child: Text(
-                              team.teamName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          CircleAvatar(
+                            backgroundColor: NFLTeamColors.getTeamColors(team.abbreviation).first.withValues(alpha: 0.15),
+                            radius: 16,
+                            backgroundImage: team.logoUrl != null && team.logoUrl!.isNotEmpty
+                                ? NetworkImage(team.logoUrl!)
+                                : null,
                           ),
                           const SizedBox(width: 8),
-                          // Top needs display inline (resolve latest from data service to avoid stale instance)
-                          if ((TradeDataService.getTeam(team.abbreviation)?.topPositionNeeds ?? team.topPositionNeeds).isNotEmpty)
-                            Flexible(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 0.5),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.priority_high, size: 10, color: Colors.blue[700]),
-                                    const SizedBox(width: 2),
-                                    Flexible(
-                                      child: Text(
-                                        (TradeDataService.getTeam(team.abbreviation)?.topPositionNeeds ?? team.topPositionNeeds).take(3).join(', '),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue[700],
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                          Text(
+                            team.teamName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
-                      Text(
-                        team.abbreviation,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          Text(
+                            'Needs: ${TradeDataService.getTeam(team.abbreviation)?.topPositionNeeds.take(3).join(', ') ?? ''}',
+                            style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                          ),
+                        ],
                       ),
                     ],
                   )
-                : const SizedBox.shrink(),
+                : const SizedBox(),
           ),
-          // Team selector dropdown remains on the right
+          // Team selector on the right
           _buildTeamSelector(team, isTeam1),
         ],
       ),
@@ -563,6 +525,12 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return (playersTotal * factor) + pickSum;
   }
 
+  // Compute internal package points using the calibrated internal system
+  Future<double> _computePackageInternalPoints(TeamTradePackage package, NFLTeamInfo? receivingTeam) async {
+    if (receivingTeam == null) return 0.0;
+    return TradeValuationService.calculatePackageInternalPoints(package, receivingTeam);
+  }
+
   Widget _buildCapAndPointsInfo(NFLTeamInfo team, TeamTradePackage package, NFLTeamInfo? receivingTeam) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -599,7 +567,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                 ),
               ),
               FutureBuilder<double>(
-                future: _computePackageDisplayPoints(package, receivingTeam),
+                future: _computePackageInternalPoints(package, receivingTeam),
                 builder: (context, snapshot) {
                   final val = snapshot.data ?? 0.0;
                   return Text(
@@ -1164,10 +1132,28 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
             _addPlayerAsset(player, team);
           },
           receivingTeam: receivingTeam,
-          calculateGrade: receivingTeam != null ? (player, receivingTeam) async {
-            PlayerGrade grade = await _calculatePlayerGrade(player, receivingTeam);
-            return grade.overall;
-          } : null,
+          calculateGrade: (player, _) async {
+            // Show the blended value EXCLUDING need on the selection list
+            final double percentile = player.positionRank.clamp(0.0, 100.0);
+            // Approximate rank from percentile for bonus thresholds (1..100)
+            final int approxRank = max(1, (100 - percentile).round());
+            final breakdown = TradeValueCalculator.getValueBreakdown(
+              position: player.position,
+              positionRanking: approxRank,
+              tier: 1,
+              age: player.age,
+              teamNeed: 0.0, // exclude need
+              teamStatus: 'neutral',
+              positionPercentile: percentile,
+            );
+            final double rankPts = (breakdown['rank_points'] as double);
+            final double posPts = (breakdown['position_points'] as double);
+            final double agePts = (breakdown['age_points'] as double);
+            final double bonus = (breakdown['bonus'] as double);
+            // Denominator without need: 66 + 14 + 8 = 88
+            final double valueNoNeed = ((rankPts + posPts + agePts + bonus) / 88.0) * 100.0;
+            return valueNoNeed.clamp(0.0, 100.0);
+          },
         );
       },
     );
@@ -1314,8 +1300,9 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
       });
       return;
     }
-    final t1 = await _computePackageDisplayPoints(team1Package!, team2);
-    final t2 = await _computePackageDisplayPoints(team2Package!, team1);
+    // Use internal points so the bar matches the header "Trade Points"
+    final t1 = await _computePackageInternalPoints(team1Package!, team2);
+    final t2 = await _computePackageInternalPoints(team2Package!, team1);
     setState(() {
       _lastTeam1Points = t1;
       _lastTeam2Points = t2;
@@ -2135,14 +2122,14 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
 
   Widget _buildTeamSelector(NFLTeamInfo? team, bool isTeam1) {
     return SizedBox(
-      width: 260,
+      width: 140,
       child: Material(
         color: Colors.transparent,
         child: SizedBox(
-          width: 280,
+          width: 140,
           child: DropdownButtonFormField<NFLTeamInfo>(
             isExpanded: true,
-            hint: const Text('Select team'),
+            hint: const Text('Team'),
             value: team,
             items: allTeams.map((t) {
               // Hide the already-picked opposite team
@@ -2154,13 +2141,11 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                 value: t,
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 10,
-                      backgroundImage: t.logoUrl != null ? NetworkImage(t.logoUrl!) : null,
-                      child: t.logoUrl == null ? Text(t.abbreviation, style: const TextStyle(fontSize: 10)) : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(t.teamName, overflow: TextOverflow.ellipsis)),
+                    if (t.logoUrl != null) ...[
+                      CircleAvatar(radius: 9, backgroundImage: NetworkImage(t.logoUrl!)),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(t.abbreviation, style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
               );
@@ -2183,6 +2168,22 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         ),
       ),
     );
+  }
+
+  // Deterministic color by team abbr for banner/needs chip
+  Color _teamTintColor(String abbr) {
+    final int hash = abbr.codeUnits.fold(0, (p, c) => p + c);
+    final colors = [
+      Colors.blue,
+      Colors.red,
+      Colors.teal,
+      Colors.indigo,
+      Colors.orange,
+      Colors.purple,
+      Colors.green,
+      Colors.cyan,
+    ];
+    return colors[hash % colors.length];
   }
 }
 
