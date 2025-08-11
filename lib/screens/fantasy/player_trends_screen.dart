@@ -426,6 +426,9 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         ),
       );
     }
+    final theme = Theme.of(context);
+    final columns = _buildColumns();
+    final rows = _buildRows();
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -442,21 +445,64 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _horizontalScrollController,
-          child: SingleChildScrollView(
-            controller: _verticalScrollController,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-              sortColumnIndex: _getColumnIndex(_sortColumn),
-              sortAscending: _sortAscending,
-              columnSpacing: 24,
-              dataRowMinHeight: 48,
-              columns: _buildColumns(),
-              rows: _buildRows(),
+        child: Column(
+          children: [
+            // Sticky header synced with horizontal scroll
+            Container(
+              color: ThemeConfig.darkNavy,
+              child: SingleChildScrollView(
+                controller: _horizontalScrollController,
+                scrollDirection: Axis.horizontal,
+                child: Theme(
+                  data: theme.copyWith(
+                    dataTableTheme: theme.dataTableTheme.copyWith(
+                      headingRowColor: WidgetStateProperty.all(Colors.transparent),
+                      headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      dataRowMinHeight: 48,
+                      dataRowMaxHeight: 48,
+                      columnSpacing: 24,
+                      horizontalMargin: 16,
+                      dividerThickness: 0,
+                    ),
+                  ),
+                  child: DataTable(
+                    sortColumnIndex: _getColumnIndex(_sortColumn),
+                    sortAscending: _sortAscending,
+                    columns: columns,
+                    rows: const [],
+                  ),
+                ),
+              ),
             ),
-          ),
+            // Scrollable content with hidden header, synced horizontally
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _verticalScrollController,
+                child: SingleChildScrollView(
+                  controller: _horizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: Theme(
+                    data: theme.copyWith(
+                      dataTableTheme: theme.dataTableTheme.copyWith(
+                        headingRowHeight: 0,
+                        dataRowMinHeight: 48,
+                        dataRowMaxHeight: 48,
+                        columnSpacing: 24,
+                        horizontalMargin: 16,
+                        dividerThickness: 0.5,
+                      ),
+                    ),
+                    child: DataTable(
+                      sortColumnIndex: _getColumnIndex(_sortColumn),
+                      sortAscending: _sortAscending,
+                      columns: columns,
+                      rows: rows,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
