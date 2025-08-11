@@ -10,6 +10,7 @@ import '../services/historical_trade_precedents.dart';
 import '../services/trade_data_service.dart';
 import '../services/trade_valuation_service.dart';
 import '../services/trade_value_calculator.dart';
+import 'dart:math';
 
 class MaddenTradeAnalyzerScreen extends StatefulWidget {
   const MaddenTradeAnalyzerScreen({super.key});
@@ -428,8 +429,8 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Top needs display inline
-                          if (team.topPositionNeeds.isNotEmpty)
+                          // Top needs display inline (resolve latest from data service to avoid stale instance)
+                          if ((TradeDataService.getTeam(team.abbreviation)?.topPositionNeeds ?? team.topPositionNeeds).isNotEmpty)
                             Flexible(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -445,7 +446,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                                     const SizedBox(width: 2),
                                     Flexible(
                                       child: Text(
-                                        team.topPositionNeeds.take(3).join(', '),
+                                        (TradeDataService.getTeam(team.abbreviation)?.topPositionNeeds ?? team.topPositionNeeds).take(3).join(', '),
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
@@ -469,83 +470,97 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                       ),
                     ],
                   )
-                : const Text(
-                    'Select Team',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                    ),
-                  ),
+                : const SizedBox.shrink(),
           ),
-          SizedBox(
-            width: 260,
-            child: Material(
-              color: Colors.transparent,
-              child: SizedBox(
-                width: 280,
-                child: DropdownButtonFormField<NFLTeamInfo>(
-                  isExpanded: true,
-                  hint: const Text('Select team'),
-                  value: team,
-                  items: allTeams.map((t) {
-                    // Hide the already-picked opposite team
-                    final other = isTeam1 ? team2 : team1;
-                    if (other != null && other.abbreviation == t.abbreviation) {
-                      return null;
-                    }
-                    return DropdownMenuItem<NFLTeamInfo>(
-                      value: t,
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 10,
-                            backgroundImage: t.logoUrl != null ? NetworkImage(t.logoUrl!) : null,
-                            child: t.logoUrl == null ? Text(t.abbreviation, style: const TextStyle(fontSize: 10)) : null,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(t.teamName, overflow: TextOverflow.ellipsis)),
-                        ],
-                      ),
-                    );
-                  }).whereType<DropdownMenuItem<NFLTeamInfo>>().toList(),
-                  onChanged: (val) {
-                    if (val == null) return;
-                    setState(() {
-                      final latest = TradeDataService.getTeam(val.abbreviation) ?? val;
-                      if (isTeam1) {
-                        team1 = latest;
-                        team1Package = TeamTradePackage(teamName: val.teamName);
-                      } else {
-                        team2 = latest;
-                        team2Package = TeamTradePackage(teamName: val.teamName);
-                      }
-                    });
-                    _updateTradeLikelihood();
-                  },
-                ),
-              ),
-            ),
-          ),
+          // Team selector dropdown remains on the right
+          _buildTeamSelector(team, isTeam1),
         ],
       ),
     );
   }
 
   Future<double> _computePackageDisplayPoints(TeamTradePackage package, NFLTeamInfo? receivingTeam) async {
-    double total = 0.0;
+    if (receivingTeam == null) {
+      // No opposite team yet: simple sum
+      double sum = 0.0;
+      for (final a in package.assets) {
+        sum += a.marketValue;
+      }
+      return sum;
+    }
+
+    // Collect players and picks separately
+    final List<PlayerAsset> playerAssets = [];
+    double pickSum = 0.0;
     for (final slot in package.slots) {
       if (!slot.isFilled) continue;
       final asset = slot.asset!;
-      if (asset is PlayerAsset && receivingTeam != null) {
-        // Use the same blended value used in the row chip so header matches rows
-        total += _calcBlendedTradeValue(asset.player, receivingTeam);
-      } else if (asset is DraftPickAsset) {
-        total += asset.marketValue;
+      if (asset is PlayerAsset) {
+        playerAssets.add(asset);
       } else {
-        total += asset.marketValue;
+        pickSum += asset.marketValue; // picks and other assets sum linearly
       }
     }
-    return total;
+
+    if (playerAssets.isEmpty) return pickSum;
+
+    // 1) Sort players by initial blended value (using current need levels) desc
+    final Map<String, double> currentNeed = {};
+    double getNeed(String pos) {
+      final String lp = (pos == 'DE' || pos == 'EDGE') ? 'EDGE' : pos;
+      return currentNeed.putIfAbsent(lp, () => receivingTeam.getNeedLevel(lp));
+    }
+
+    final List<_PlayerEval> prelim = playerAssets.map((pa) {
+      final p = pa.player;
+      final need = getNeed(p.position.toUpperCase());
+      final double base = _calcBlendedTradeValueWithNeed(p, receivingTeam, need);
+      return _PlayerEval(player: p, baseValue: base);
+    }).toList();
+    prelim.sort((a, b) => b.baseValue.compareTo(a.baseValue));
+
+    // 2) Apply multi-player decay and need saturation sequentially
+    const List<double> decay = [1.00, 0.75, 0.60, 0.50, 0.40];
+    final Map<String, int> positionCounts = {};
+    double playersTotal = 0.0;
+    int eliteCount = 0;
+
+    for (int i = 0; i < prelim.length; i++) {
+      final p = prelim[i].player;
+      final String pos = p.position.toUpperCase();
+      final String lp = (pos == 'DE' || pos == 'EDGE') ? 'EDGE' : pos;
+
+      final double needNow = getNeed(pos);
+      // Recalculate with current need level
+      final double rawVal = _calcBlendedTradeValueWithNeed(p, receivingTeam, needNow);
+
+      // Position duplicate penalty (2nd+ at same position)
+      final int seen = (positionCounts[lp] ?? 0);
+      final double dupPenalty = seen == 0 ? 1.0 : pow(0.85, seen).toDouble();
+      positionCounts[lp] = seen + 1;
+
+      // Multi-player decay weight by order
+      final double orderWeight = i < decay.length ? decay[i] : decay.last;
+
+      final double effective = (rawVal * dupPenalty * orderWeight).clamp(0.0, 100.0);
+      playersTotal += effective;
+
+      // Elite tracking: use rawVal threshold
+      final bool isEliteAge = (lp == 'QB') ? p.age <= 31 : p.age <= 27;
+      if (rawVal >= 92.0 && isEliteAge) eliteCount += 1;
+
+      // Need saturation for subsequent assets at same position
+      final double reduction = 0.6 * (rawVal / 100.0);
+      currentNeed[lp] = (needNow - reduction).clamp(0.0, 1.0);
+    }
+
+    // 3) Elite premium on the side that includes elite players
+    double factor = 1.0;
+    if (eliteCount >= 1) {
+      factor = 1.15 * pow(1.08, eliteCount - 1).toDouble();
+    }
+
+    return (playersTotal * factor) + pickSum;
   }
 
   Widget _buildCapAndPointsInfo(NFLTeamInfo team, TeamTradePackage package, NFLTeamInfo? receivingTeam) {
@@ -1662,7 +1677,21 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
       positionPercentile: player.positionRank, // 0-100
     );
   }
-  
+
+  double _calcBlendedTradeValueWithNeed(NFLPlayer player, NFLTeamInfo receivingTeam, double needOverride) {
+    final String pos = player.position.toUpperCase();
+    final int approxRank = (100 - player.positionRank.clamp(0, 100)).round().clamp(0, 99) + 1;
+    return TradeValueCalculator.calculateTradeValue(
+      position: pos,
+      positionRanking: approxRank,
+      tier: 3,
+      age: player.age,
+      teamNeed: needOverride.clamp(0.0, 1.0),
+      teamStatus: 'competitive',
+      positionPercentile: player.positionRank,
+    );
+  }
+
   double _calculateAgeTradeValue(int age, String position) {
     // Age curves by position (0-20 scale)
     Map<String, Map<String, int>> ageCurves = {
@@ -2103,4 +2132,62 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
       ),
     );
   }
+
+  Widget _buildTeamSelector(NFLTeamInfo? team, bool isTeam1) {
+    return SizedBox(
+      width: 260,
+      child: Material(
+        color: Colors.transparent,
+        child: SizedBox(
+          width: 280,
+          child: DropdownButtonFormField<NFLTeamInfo>(
+            isExpanded: true,
+            hint: const Text('Select team'),
+            value: team,
+            items: allTeams.map((t) {
+              // Hide the already-picked opposite team
+              final other = isTeam1 ? team2 : team1;
+              if (other != null && other.abbreviation == t.abbreviation) {
+                return null;
+              }
+              return DropdownMenuItem<NFLTeamInfo>(
+                value: t,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 10,
+                      backgroundImage: t.logoUrl != null ? NetworkImage(t.logoUrl!) : null,
+                      child: t.logoUrl == null ? Text(t.abbreviation, style: const TextStyle(fontSize: 10)) : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(t.teamName, overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+              );
+            }).whereType<DropdownMenuItem<NFLTeamInfo>>().toList(),
+            onChanged: (val) {
+              if (val == null) return;
+              setState(() {
+                final latest = TradeDataService.getTeam(val.abbreviation) ?? val;
+                if (isTeam1) {
+                  team1 = latest;
+                  team1Package = TeamTradePackage(teamName: val.teamName);
+                } else {
+                  team2 = latest;
+                  team2Package = TeamTradePackage(teamName: val.teamName);
+                }
+              });
+              _updateTradeLikelihood();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayerEval {
+  final NFLPlayer player;
+  final double baseValue;
+  _PlayerEval({required this.player, required this.baseValue});
 }

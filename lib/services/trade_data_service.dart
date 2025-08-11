@@ -31,54 +31,39 @@ class TradeDataService {
   static Future<void> _loadCapSpaceData() async {
     try {
       final String csvString = await rootBundle.loadString('assets/cap_space/team_cap_space.csv');
-      final List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
-      
-      // Skip header row
-      for (int i = 1; i < csvData.length; i++) {
-        final row = csvData[i];
-        if (row.length >= 4) {
-          String teamName = row[0].toString();
-          String capDisplay = row[1].toString();
-          double capAmount = _parseDouble(row[2]);
-          
-          // Map team names to abbreviations
-          String abbreviation = _getTeamAbbreviation(teamName);
-          
-          // Parse cap space (handle negative values in parentheses)
-          bool isNegative = capDisplay.contains('(');
-          if (isNegative) {
-            capAmount = -capAmount;
-          }
-          
-          NFLTeamInfo teamInfo = NFLTeamInfo(
-            teamName: teamName,
-            abbreviation: abbreviation,
-            availableCapSpace: capAmount / 1000000, // Convert to millions
-            totalCapSpace: 255.4, // Standard NFL cap
-            projectedCapSpace2025: (capAmount / 1000000) + 20, // Rough projection
-            philosophy: _inferTeamPhilosophy(teamName, capAmount),
-            status: _inferTeamStatus(teamName),
-            positionNeeds: _getDefaultPositionNeeds(teamName), // Will be overridden by CSV loader
-            availableDraftPicks: _getDefaultDraftPicks(i),
-            futureFirstRounders: 1,
-            tradeAggressiveness: _inferTradeAggressiveness(teamName),
-            willingToOverpay: capAmount > 30000000, // Teams with $30M+ may overpay
-            logoUrl: _logoForAbbr(abbreviation),
-          );
-          
-          // DEBUG: Print Bills team info
-          if (abbreviation == 'BUF') {
-            print('🔍 DEBUG: Bills team loaded');
-            print('  - Team Name: $teamName');
-            print('  - Status: ${teamInfo.status}');
-            print('  - EDGE Need: ${teamInfo.getNeedLevel('EDGE')}');
-            print('  - DE Need: ${teamInfo.getNeedLevel('DE')}');
-            print('  - Cap Space: \$${teamInfo.availableCapSpace}M');
-            print('  - Trade Aggressiveness: ${teamInfo.tradeAggressiveness}');
-          }
-          
-          _teamsCache[abbreviation] = teamInfo;
-        }
+      // Manually parse to handle currency commas and parentheses
+      final lines = const LineSplitter().convert(csvString.trim());
+      if (lines.isEmpty) return;
+      for (int i = 1; i < lines.length; i++) {
+        final line = lines[i].trim();
+        if (line.isEmpty) continue;
+        final parts = line.split(',');
+        if (parts.length < 4) continue;
+        // team name is the first token
+        final String teamName = parts.first.trim();
+        // last two tokens are cap_space_amount (no commas) and season
+        final String capAmountStr = parts[parts.length - 2].trim();
+        final double capAmount = _parseDouble(capAmountStr);
+        
+        // Map team names to abbreviations
+        final String abbreviation = _getTeamAbbreviation(teamName);
+        
+        final NFLTeamInfo teamInfo = NFLTeamInfo(
+          teamName: teamName,
+          abbreviation: abbreviation,
+          availableCapSpace: capAmount / 1000000.0, // millions
+          totalCapSpace: 255.4,
+          projectedCapSpace2025: (capAmount / 1000000.0) + 20,
+          philosophy: _inferTeamPhilosophy(teamName, capAmount),
+          status: _inferTeamStatus(teamName),
+          positionNeeds: _getDefaultPositionNeeds(teamName),
+          availableDraftPicks: _getDefaultDraftPicks((i % 32) + 1),
+          futureFirstRounders: 1,
+          tradeAggressiveness: _inferTradeAggressiveness(teamName),
+          willingToOverpay: capAmount > 30000000,
+          logoUrl: _logoForAbbr(abbreviation),
+        );
+        _teamsCache[abbreviation] = teamInfo;
       }
     } catch (e) {
       print('Error loading cap space data: $e');
@@ -545,11 +530,25 @@ class TradeDataService {
   static Future<void> _loadTeamNeeds2026() async {
     try {
       final String csvString = await rootBundle.loadString('assets/2026/team_needs.csv');
-      final List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
+      List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
+      // Web fallback: sometimes the CSV parser returns a single row; manually split
+      if (csvData.length <= 1) {
+        final lines = const LineSplitter().convert(csvString.trim());
+        final parsed = <List<dynamic>>[];
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          final cells = line.split(',').map((s) => s.trim().replaceAll('"', '').toLowerCase()).toList();
+          parsed.add(cells);
+        }
+        if (parsed.isNotEmpty) {
+          csvData = parsed;
+        }
+      }
       if (csvData.isEmpty) return;
       // header indices
       final headers = csvData[0].map((h) => h.toString().toLowerCase()).toList();
       int teamAbbrIdx = _findColumnIndex(headers, ['team']);
+      print('🔍 TEAM NEEDS 2026: header cols=${headers.join(', ')}, teamIdx=$teamAbbrIdx, rows=${csvData.length}');
       // Collect need column indices in order
       final List<int> needIdx = [];
       for (int k = 1; k <= 7; k++) {
@@ -557,24 +556,34 @@ class TradeDataService {
         if (idx >= 0) needIdx.add(idx);
       }
       const List<double> weights = [1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15];
+      int updated = 0;
+      int skipped = 0;
       for (int i = 1; i < csvData.length; i++) {
         final row = csvData[i];
         if (row.length <= teamAbbrIdx) continue;
-        String abbr = row[teamAbbrIdx].toString();
+        String abbr = row[teamAbbrIdx].toString().replaceAll('"', '').trim().toUpperCase();
         final team = _teamsCache[abbr];
-        if (team == null) continue;
+        if (team == null) {
+          skipped++;
+          print('⚠️ TEAM NEEDS 2026: team not found in cache for abbr=$abbr (row $i)');
+          continue;
+        }
         final Map<String, double> needs = {};
         for (int j = 0; j < needIdx.length && j < weights.length; j++) {
           final idx = needIdx[j];
           if (row.length <= idx) continue;
-          String raw = row[idx].toString().trim().toUpperCase();
+          String raw = row[idx].toString().replaceAll('"', '').trim().toUpperCase();
           if (raw.isEmpty) continue;
           // Normalize positions: DE->EDGE, DL->IDL
           String pos = raw;
           if (pos == 'DE') pos = 'EDGE';
           if (pos == 'DL') pos = 'IDL';
           // Apply highest weight if duplicate appears
-          needs[pos] = needs.containsKey(pos) ? needs[pos]!.clamp(0.0, 1.0) : weights[j];
+          if (needs.containsKey(pos)) {
+            needs[pos] = needs[pos]!.compareTo(weights[j]) >= 0 ? needs[pos]! : weights[j];
+          } else {
+            needs[pos] = weights[j];
+          }
         }
         // Recreate the NFLTeamInfo with updated needs while preserving other fields
         _teamsCache[abbr] = NFLTeamInfo(
@@ -593,10 +602,16 @@ class TradeDataService {
           valueSeeker: team.valueSeeker,
           willingToOverpay: team.willingToOverpay,
         );
+        updated++;
+        if (abbr == 'BUF' || abbr == 'DAL' || abbr == 'DEN') {
+          final top = _teamsCache[abbr]!.topPositionNeeds;
+          print('✅ TEAM NEEDS 2026 applied for $abbr: top=${top.take(3).join(', ')} (full=${_teamsCache[abbr]!.positionNeeds})');
+        }
       }
+      print('🔎 TEAM NEEDS 2026 summary: updated=$updated, skipped=$skipped, cacheSize=${_teamsCache.length}');
     } catch (e) {
       // If team needs CSV fails, keep defaults silently
-      // print('Error loading team needs 2026: $e');
+      print('❌ Error loading team needs 2026: $e');
     }
   }
 
