@@ -7,10 +7,24 @@ import '../models/nfl_trade/nfl_player.dart';
 import '../models/nfl_trade/nfl_team_info.dart';
 import 'trade_value_calculator.dart';
 
+class _SeasonEntry {
+  final int season;
+  final double percentile; // 1..100
+  final int games;
+  final int rank;
+  final String team;
+  final int tier;
+  final int age;
+  final String name; // original-cased name from CSV
+  final int seasonPlayerCount; // N for percentile denominator
+  _SeasonEntry(this.season, this.percentile, this.games, this.rank, this.team, this.tier, this.age, this.name, this.seasonPlayerCount);
+}
+
 class TradeDataService {
   static final Map<String, List<NFLPlayer>> _playersCache = {};
   static final Map<String, NFLTeamInfo> _teamsCache = {};
   static bool _isInitialized = false;
+  static final Map<String, List<Map<String, dynamic>>> _playerRankHistory = {};
 
   /// Initialize the trade data service by loading all CSV data
   static Future<void> initialize() async {
@@ -181,6 +195,7 @@ class TradeDataService {
       int seasonIndex = _findColumnIndex(headers, ['season']);
       int tierIndex = _findColumnIndex(headers, ['tier','wrtier']);
       int ageIndex = _findColumnIndex(headers, ['age','age_at_season']);
+      int gamesIndex = _findColumnIndex(headers, ['numgames','games','g','gp']);
       
       // Determine latest season present in the CSV
       int latestSeason = 0;
@@ -192,65 +207,96 @@ class TradeDataService {
         }
       }
       if (latestSeason == 0) latestSeason = DateTime.now().year; // fallback
-      
-      // Collect candidate rows for latest season with valid rank
-      final List<List<dynamic>> rows = [];
+      // Consider last two seasons
+      final seasonsToUse = {latestSeason, latestSeason - 1};
+      // Count valid players per season to compute percentiles correctly
+      final Map<int, int> seasonCounts = {};
       for (int i = 1; i < csvData.length; i++) {
         final row = csvData[i];
         if (row.isEmpty) continue;
-        if (seasonIndex >= 0 && row.length > seasonIndex) {
-          final s = _parseInt(row[seasonIndex]);
-          if (s != latestSeason) continue;
-        }
+        final s = seasonIndex >= 0 && row.length > seasonIndex ? _parseInt(row[seasonIndex]) : 0;
+        if (!seasonsToUse.contains(s)) continue;
         if (rankIndex < 0 || row.length <= rankIndex) continue;
         if (_parseInt(row[rankIndex]) <= 0) continue;
-        rows.add(row);
+        seasonCounts[s] = (seasonCounts[s] ?? 0) + 1;
       }
-      final int numPlayers = rows.length;
-      
-      List<NFLPlayer> players = [];
-      int processedCount = 0;
-      
-      for (final row in rows) {
-        processedCount++;
-        if (row.length <= nameIndex || row.length <= teamIndex || row.length <= rankIndex) continue;
-        String playerName = row[nameIndex].toString();
-        String team = row[teamIndex].toString();
-        int ranking = _parseInt(row[rankIndex]);
-        int tier = tierIndex >= 0 && row.length > tierIndex ? _parseInt(row[tierIndex]) : 3;
+
+      // Aggregate per player across seasons
+      final Map<String, List<_SeasonEntry>> playerSeasonData = {};
+
+      for (int i = 1; i < csvData.length; i++) {
+        final row = csvData[i];
+        if (row.isEmpty) continue;
+        if (row.length <= nameIndex || row.length <= rankIndex) continue;
+        final int s = seasonIndex >= 0 && row.length > seasonIndex ? _parseInt(row[seasonIndex]) : 0;
+        if (!seasonsToUse.contains(s)) continue;
+        final int ranking = _parseInt(row[rankIndex]);
+        if (ranking <= 0) continue;
+        final int nPlayers = seasonCounts[s] ?? 0;
+        if (nPlayers == 0) continue;
+        final String playerName = row[nameIndex].toString();
+        final String playerKey = playerName.trim().toLowerCase();
+        final String team = (teamIndex >= 0 && row.length > teamIndex) ? row[teamIndex].toString() : '';
+        final int tier = tierIndex >= 0 && row.length > tierIndex ? _parseInt(row[tierIndex]) : 3;
         int age = 0;
         if (ageIndex >= 0 && row.length > ageIndex) {
           age = _parseInt(row[ageIndex]);
         }
-        if (age == 0) {
-          age = _estimatePlayerAge(playerName, position); // Fallback
+        if (age == 0) age = _estimatePlayerAge(playerName, position);
+        final int games = (gamesIndex >= 0 && row.length > gamesIndex) ? _parseInt(row[gamesIndex]) : 0;
+        final double percentile = (100.0 * (nPlayers - ranking + 1) / nPlayers).clamp(1.0, 100.0);
+        (playerSeasonData[playerKey] ??= []).add(_SeasonEntry(s, percentile, games, ranking, team, tier, age, playerName, nPlayers));
+      }
+
+      // Build players using composite percentile
+      List<NFLPlayer> players = [];
+      int processedCount = 0;
+      playerSeasonData.forEach((key, entries) {
+        processedCount++;
+        // Prefer latest season values for team/tier/age if present
+        entries.sort((a,b) => b.season.compareTo(a.season));
+        final _SeasonEntry latest = entries.firstWhere((e) => e.season == latestSeason, orElse: () => entries.first);
+        final _SeasonEntry? prev = entries.length > 1 ? entries.firstWhere((e) => e.season == latestSeason - 1, orElse: () => entries.length > 1 ? entries[1] : entries.first) : null;
+
+        // Determine eligible seasons (>5 games)
+        final bool latestEligible = latest.games > 5 && latest.season == latestSeason;
+        final bool prevEligible = prev != null && prev.games > 5 && prev.season == latestSeason - 1;
+
+        double compositePercent;
+        if (latestEligible && prevEligible) {
+          compositePercent = (latest.percentile + prev.percentile) / 2.0;
+        } else if (latestEligible) {
+          compositePercent = latest.percentile;
+        } else if (prevEligible) {
+          compositePercent = prev.percentile;
+        } else {
+          // Fallback to most recent available season even if games <=5
+          compositePercent = latest.percentile;
         }
-        
-        // True percentile-based position score 0..100 (1 is best rank)
-        double positionRankPercent = numPlayers > 0
-            ? (100.0 * (numPlayers - ranking + 1) / numPlayers).clamp(1.0, 100.0)
-            : 50.0;
-        
-        // Use trade value calculator using rank number as input
-        double tradeValue = TradeValueCalculator.calculateTradeValue(
+
+        final String displayName = latest.name; // keep original name casing from CSV
+        final String team = latest.team.isNotEmpty ? latest.team : (prev?.team ?? '');
+        final int tier = latest.tier;
+        final int age = latest.age;
+
+        // Use trade value calculator as before, but keep inputs stable
+        final double tradeValue = TradeValueCalculator.calculateTradeValue(
           position: position.toUpperCase(),
-          positionRanking: ranking,
+          positionRanking: latest.rank, // keep rank number input as before
           tier: tier,
           age: age,
           teamNeed: 0.6,
           teamStatus: 'competitive',
         );
-        
-        double overallRating = _tradeValueToOverallRating(tradeValue);
-        
-        // DEBUG for key names
-        if (playerName.toLowerCase().contains('parsons') || playerName.toLowerCase().contains('jefferson')) {
-          print('  - [$position] $playerName s$latestSeason rank=$ranking of $numPlayers ⇒ positionRank=${positionRankPercent.toStringAsFixed(1)}');
+        final double overallRating = _tradeValueToOverallRating(tradeValue);
+
+        if (displayName.toLowerCase().contains('parsons') || displayName.toLowerCase().contains('jefferson')) {
+          print('  - [$position] $displayName composite=${compositePercent.toStringAsFixed(1)} (s$latestSeason:${latest.percentile.toStringAsFixed(1)} g=${latest.games}${prev != null ? ', s${prev.season}:${prev.percentile.toStringAsFixed(1)} g=${prev.games}' : ''})');
         }
-        
-        NFLPlayer player = NFLPlayer(
-          playerId: '${playerName.toLowerCase().replaceAll(' ', '_')}_$team',
-          name: playerName,
+
+        final player = NFLPlayer(
+          playerId: '${displayName.toLowerCase().replaceAll(' ', '_')}_$team',
+          name: displayName,
           position: position.toUpperCase(),
           team: team,
           age: age,
@@ -260,20 +306,43 @@ class TradeDataService {
           contractYearsRemaining: _estimateContractYears(age, tier),
           annualSalary: _estimateSalary(position.toUpperCase(), age, tier),
           overallRating: overallRating,
-          positionRank: positionRankPercent,
+          positionRank: compositePercent,
           ageAdjustedValue: tradeValue * _getAgeMultiplier(age),
           positionImportance: _getPositionImportance(position.toUpperCase()),
           durabilityScore: 85.0,
         );
-        
         players.add(player);
-      }
-      
-      print('🔍 DEBUG: $position summary - Processed: $processedCount, season: $latestSeason, Final players: ${players.length}');
+
+        // Store rank history for transparency in UI
+        final history = <Map<String, dynamic>>[];
+        history.add({
+          'season': latest.season,
+          'rank': latest.rank,
+          'games': latest.games,
+          'percentile': latest.percentile,
+          'nPlayers': latest.seasonPlayerCount,
+        });
+              if (prev != null) {
+          history.add({
+            'season': prev.season,
+            'rank': prev.rank,
+            'games': prev.games,
+            'percentile': prev.percentile,
+            'nPlayers': prev.seasonPlayerCount,
+          });
+        }
+        _playerRankHistory[player.playerId] = history;
+      });
+
+      print('🔍 DEBUG: $position summary - Processed: $processedCount, seasons: ${latestSeason-1} & $latestSeason, Final players: ${players.length}');
       _playersCache[position] = players;
     } catch (e) {
       print('Error loading $position rankings: $e');
     }
+  }
+
+  static List<Map<String, dynamic>> getPlayerRankHistory(String playerId) {
+    return _playerRankHistory[playerId] ?? const [];
   }
 
   /// Helper function to find column index by possible names

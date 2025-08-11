@@ -1839,6 +1839,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
       teamStatus: 'competitive',
       positionPercentile: player.positionRank,
     );
+    final rankHistory = TradeDataService.getPlayerRankHistory(player.playerId);
 
     showDialog(
       context: context,
@@ -1849,6 +1850,18 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Position: ${player.position} • Age: ${player.age}'),
+            if (rankHistory.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Rank history (for composite):', style: TextStyle(fontWeight: FontWeight.w600)),
+              ...rankHistory.take(2).map((h) {
+                final s = h['season'];
+                final r = h['rank'];
+                final g = h['games'];
+                final n = h['nPlayers'];
+                final pct = (h['percentile'] as double).toStringAsFixed(1);
+                return Text('$s: #$r of $n (g=$g) • $pct percentile');
+              }),
+            ],
             const SizedBox(height: 16),
             _buildValueRow('Rank Contribution', breakdown['rank_points'] as double, 66, 'Percentile^2 × 66'),
             _buildValueRow('Position Contribution', breakdown['position_points'] as double, 14, 'Role importance × 14'),
