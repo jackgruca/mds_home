@@ -5,6 +5,7 @@ import '../models/nfl_trade/nfl_player.dart';
 import '../models/nfl_trade/nfl_team_info.dart';
 import '../models/nfl_trade/trade_scenario.dart';
 import '../services/nfl_trade_analyzer_service.dart';
+import '../services/trade_data_service.dart';
 
 class NFLTradeAnalyzerScreen extends StatefulWidget {
   const NFLTradeAnalyzerScreen({super.key});
@@ -18,6 +19,40 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
   NFLTeamInfo? selectedTargetTeam;
   List<TradeScenario> tradeScenarios = [];
   bool isAnalyzing = false;
+  bool isLoading = true;
+  
+  // Real data from CSVs
+  List<NFLPlayer> allPlayers = [];
+  List<NFLTeamInfo> allTeams = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+  
+  Future<void> _loadData() async {
+    setState(() => isLoading = true);
+    
+    try {
+      // Initialize the trade data service
+      await TradeDataService.initialize();
+      
+      // Get all players and teams
+      allPlayers = TradeDataService.getAllPlayers();
+      allTeams = TradeDataService.getAllTeams();
+      
+      // Sort players by market value for better display
+      allPlayers.sort((a, b) => b.marketValue.compareTo(a.marketValue));
+      
+      // Sort teams alphabetically
+      allTeams.sort((a, b) => a.teamName.compareTo(b.teamName));
+    } catch (e) {
+      print('Error loading trade data: $e');
+    }
+    
+    setState(() => isLoading = false);
+  }
 
   // Sample data - in real app this would come from API/database
   final List<NFLPlayer> samplePlayers = [
@@ -125,7 +160,18 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: isLoading 
+        ? const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading player and team data...'),
+              ],
+            ),
+          )
+        : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +234,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
                 border: OutlineInputBorder(),
                 hintText: 'Choose a player...',
               ),
-              items: samplePlayers.map((player) {
+              items: allPlayers.take(50).map((player) { // Show top 50 players
                 return DropdownMenuItem(
                   value: player,
                   child: Column(
@@ -316,7 +362,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
                   value: null,
                   child: Text('All Teams'),
                 ),
-                ...sampleTeams.map((team) {
+                ...allTeams.map((team) {
                   return DropdownMenuItem(
                     value: team,
                     child: Column(
@@ -570,7 +616,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
 
     List<NFLTeamInfo> targetsToAnalyze = selectedTargetTeam != null 
         ? [selectedTargetTeam!] 
-        : sampleTeams;
+        : allTeams.take(10).toList(); // Analyze top 10 teams by cap space
 
     List<TradeScenario> scenarios = NFLTradeAnalyzerService.generateTradeScenarios(
       selectedPlayer!,

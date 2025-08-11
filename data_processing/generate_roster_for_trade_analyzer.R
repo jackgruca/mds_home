@@ -46,7 +46,9 @@ roster_data_cleaned <- roster_data %>%
     full_name = str_trim(full_name),
     first_name = if("first_name" %in% names(.)) str_trim(first_name) else "",
     last_name = if("last_name" %in% names(.)) str_trim(last_name) else "",
-    position = str_trim(position),
+    # Use depth_chart_position for accurate position (EDGE, OLB, etc.)
+    position = if("depth_chart_position" %in% names(.)) str_trim(depth_chart_position) else str_trim(position),
+    position_group = str_trim(position), # Keep the original position as position_group
     team = str_trim(team),
     college = if("college" %in% names(.)) str_trim(college) else "",
     status = if("status" %in% names(.)) str_trim(status) else "ACT"
@@ -66,26 +68,30 @@ roster_data_cleaned <- roster_data %>%
   
   # Add computed fields for trade analyzer
   mutate(
-    # Standardize positions for trade analyzer (keep original specific positions)
+    # Keep actual depth_chart_position but create standardized groups for value calculations
+    # Note: position now contains depth_chart_position (like EDGE, OLB, etc.)
     position_standardized = case_when(
       position %in% c("QB") ~ "QB",
-      position %in% c("RB", "FB") ~ "RB",
+      position %in% c("RB", "FB", "HB") ~ "RB",
       position %in% c("WR") ~ "WR", 
       position %in% c("TE") ~ "TE",
-      position %in% c("T", "OT") ~ "OT",
-      position %in% c("G", "OG") ~ "OG",
-      position %in% c("C") ~ "C",
-      position %in% c("DE") ~ "DE",
-      position %in% c("DT", "NT") ~ "DT",
-      position %in% c("OLB", "EDGE") ~ "EDGE",
-      position %in% c("ILB", "LB", "MLB") ~ "LB",
-      position %in% c("CB") ~ "CB",
-      position %in% c("S", "FS", "SS") ~ "S",
-      position %in% c("K") ~ "K",
+      position %in% c("T", "OT", "LT", "RT") ~ "OT",
+      position %in% c("G", "OG", "LG", "RG") ~ "OG",
+      position %in% c("C", "OL") ~ "C",
+      position %in% c("DE", "DL") ~ "DE",
+      position %in% c("DT", "NT", "IDL") ~ "DT",
+      position %in% c("OLB", "EDGE", "LOLB", "ROLB") ~ "EDGE",  # EDGE players properly categorized
+      position %in% c("ILB", "LB", "MLB", "LILB", "RILB") ~ "LB",
+      position %in% c("CB", "DB") ~ "CB",
+      position %in% c("S", "FS", "SS", "SAF") ~ "S",
+      position %in% c("K", "PK") ~ "K",
       position %in% c("P") ~ "P",
       position %in% c("LS") ~ "LS",
       TRUE ~ position # Keep original if not matched
     ),
+    
+    # Keep the actual position for display (e.g., EDGE, OLB, DE, etc.)
+    position_display = position,
     
     # Calculate age at season
     age_at_season = if("birth_date" %in% names(.) && !all(is.na(birth_date))) {
@@ -209,7 +215,7 @@ roster_data_cleaned <- roster_data %>%
 
 # Select columns optimized for trade analyzer
 trade_analyzer_columns <- c(
-  "player_trade_id", "full_name", "position_standardized", "team", "season",
+  "player_trade_id", "full_name", "position_display", "position_standardized", "team", "season",
   "age_at_season", "years_exp", "jersey_number", "height", "weight", 
   "college", "status", "contract_status", "estimated_contract_years",
   "estimated_market_value", "estimated_overall_rating", "estimated_annual_salary",
@@ -225,7 +231,8 @@ roster_final <- roster_data_cleaned %>%
   rename(
     playerId = player_trade_id,
     name = full_name,
-    position = position_standardized,
+    position = position_display,  # Use actual position (EDGE, OLB, etc.)
+    position_group = position_standardized,  # Position group for calculations
     age = age_at_season,
     experience = years_exp,
     marketValue = estimated_market_value,

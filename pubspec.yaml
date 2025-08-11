@@ -47,6 +47,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/cap_space/
+    - assets/draft_value_chart.csv
     - assets/current_players_combined.csv
     - assets/nfl_roster_data.csv
     - assets/nfl_contract_data.csv

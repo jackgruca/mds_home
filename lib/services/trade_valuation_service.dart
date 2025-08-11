@@ -3,6 +3,8 @@
 import 'package:flutter/services.dart';
 import '../models/nfl_trade/nfl_player.dart';
 import '../models/nfl_trade/trade_asset.dart';
+import '../models/nfl_trade/nfl_team_info.dart';
+import 'draft_value_service.dart';
 
 class ContractInfo {
   final String contractId;
@@ -271,6 +273,189 @@ class TradeValuationService {
     return TeamNeeds(teamNeeds);
   }
 
+  /// Rank-driven player display value (0-100) with small multipliers
+  /// - Base: position rank percentile (0-100)
+  /// - Multipliers: position coefficient, age multiplier, need multiplier
+  static double calculatePlayerDisplayValue(
+    NFLPlayer player, {
+    NFLTeamInfo? receivingTeam,
+  }) {
+    // Base from percentile-like field already on player (0-100)
+    double base = player.positionRank.clamp(0.0, 100.0);
+
+    // Position coefficients
+    final String pos = player.position.toUpperCase();
+    final Map<String, double> posCoeff = {
+      'QB': 1.15,
+      'EDGE': 1.10,
+      'DE': 1.10,
+      'OT': 1.08,
+      'CB': 1.06,
+      'WR': 1.04,
+      'TE': 1.02,
+      'IDL': 1.00,
+      'DT': 1.00,
+      'S': 1.00,
+      'LB': 0.98,
+      'OG': 0.97,
+      'C': 0.97,
+      'IOL': 0.97,
+      'RB': 0.95,
+    };
+    double positionMultiplier = posCoeff[pos] ?? 1.00;
+
+    // Age multiplier: triangular around peak per position, 0.90-1.10
+    final Map<String, int> peakAge = {
+      'QB': 27,
+      'EDGE': 26,
+      'DE': 26,
+      'OT': 27,
+      'CB': 25,
+      'WR': 26,
+      'TE': 27,
+      'IDL': 27,
+      'DT': 27,
+      'LB': 26,
+      'S': 26,
+      'RB': 24,
+      'OG': 27,
+      'C': 27,
+      'IOL': 27,
+    };
+    int pAge = peakAge[pos] ?? 26;
+    double ageMultiplier = (1.10 - 0.02 * (player.age - pAge).abs()).clamp(0.90, 1.10);
+
+    // Need multiplier: 0.90 - 1.20
+    double needMultiplier = 1.0;
+    if (receivingTeam != null) {
+      String needPos = (pos == 'DE' || pos == 'EDGE') ? 'EDGE' : pos;
+      // NFLTeamInfo has positionNeeds and helper in codebase to get level
+      double needLevel = 0.5;
+      try {
+        // Prefer method if available
+        // ignore: invalid_use_of_protected_member
+        needLevel = receivingTeam.getNeedLevel(needPos);
+      } catch (_) {
+        needLevel = receivingTeam.positionNeeds[needPos] ?? 0.5;
+      }
+      needMultiplier = (0.90 + 0.30 * needLevel).clamp(0.90, 1.20);
+    }
+
+    double value = base * positionMultiplier * ageMultiplier * needMultiplier;
+    return value.clamp(0.0, 100.0);
+  }
+
+  /// Calculate internal points for a single asset
+  /// Players: 20x display, franchise premium 1.5 if display>=95 and age<=27
+  /// Picks: chart points from DraftValueService with future-year discount
+  static double calculateAssetInternalPoints(TradeAsset asset, NFLTeamInfo receivingTeam) {
+    if (asset is PlayerAsset) {
+      double display = calculatePlayerDisplayValue(asset.player, receivingTeam: receivingTeam);
+      double points = 20.0 * display;
+      if (display >= 95.0 && asset.player.age <= 27) {
+        points *= 1.5; // Franchise premium
+      }
+      return points;
+    }
+
+    if (asset is DraftPickAsset) {
+      // Determine base points
+      double points;
+      if (asset.pickNumber != null) {
+        points = DraftValueService.getValueForPick(asset.pickNumber!);
+      } else {
+        // Average round value rough equivalents in chart points
+        switch (asset.round) {
+          case 1:
+            points = 550.0; // avg 1st
+            break;
+          case 2:
+            points = 180.0; // avg 2nd
+            break;
+          case 3:
+            points = 90.0;
+            break;
+          case 4:
+            points = 45.0;
+            break;
+          case 5:
+            points = 28.0;
+            break;
+          case 6:
+            points = 20.0;
+            break;
+          default:
+            points = 15.0;
+        }
+      }
+
+      // Future year discount (same logic as display but applied to points)
+      int yearOffset = asset.year - DateTime.now().year;
+      if (yearOffset > 0) {
+        double discountFactor;
+        if (asset.round == 1) {
+          discountFactor = 0.7;
+        } else if (asset.round == 2) {
+          discountFactor = 0.6;
+        } else {
+          discountFactor = 0.5;
+        }
+        points *= discountFactor;
+      }
+
+      return points;
+    }
+
+    // Default
+    return 0.0;
+  }
+
+  /// Sum package internal points with diminishing returns
+  static double calculatePackageInternalPoints(TeamTradePackage package, NFLTeamInfo receivingTeam) {
+    if (!package.hasAssets) return 0.0;
+
+    // Separate assets
+    final List<PlayerAsset> players = package.assets.whereType<PlayerAsset>().toList();
+    final List<DraftPickAsset> picks = package.assets.whereType<DraftPickAsset>().toList();
+
+    // Compute points
+    final List<double> playerPoints = players
+        .map((p) => calculateAssetInternalPoints(p, receivingTeam))
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    final List<double> firstRoundPoints = picks
+        .where((p) => p.round == 1)
+        .map((p) => calculateAssetInternalPoints(p, receivingTeam))
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    final List<double> otherRoundPoints = picks
+        .where((p) => p.round != 1)
+        .map((p) => calculateAssetInternalPoints(p, receivingTeam))
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    // Diminishing multipliers
+    const List<double> playerMultipliers = [1.0, 0.7, 0.55, 0.45, 0.4];
+    const List<double> firstMultipliers = [1.0, 0.8, 0.65, 0.55];
+    const List<double> otherMultipliers = [1.0, 0.85, 0.75, 0.65, 0.6, 0.55];
+
+    double sumWithMultipliers(List<double> values, List<double> weights) {
+      double total = 0.0;
+      for (int i = 0; i < values.length; i++) {
+        double w = i < weights.length ? weights[i] : weights.last;
+        total += values[i] * w;
+      }
+      return total;
+    }
+
+    double total = 0.0;
+    total += sumWithMultipliers(playerPoints, playerMultipliers);
+    total += sumWithMultipliers(firstRoundPoints, firstMultipliers);
+    total += sumWithMultipliers(otherRoundPoints, otherMultipliers);
+
+    return total;
+  }
+
   /// Calculate market value using "1.1x better player" logic
   static Future<double> calculatePlayerMarketValue(NFLPlayer player, String receivingTeam) async {
     // Load data if not cached
@@ -456,26 +641,15 @@ class TradeValuationService {
     }
   }
 
-  /// Calculate total trade value for a team package
-  static Future<double> calculatePackageValue(TeamTradePackage package, String receivingTeam) async {
-    double totalValue = 0.0;
-
-    for (TradeAsset asset in package.assets) {
-      if (asset is PlayerAsset) {
-        double playerValue = await calculatePlayerMarketValue(asset.player, receivingTeam);
-        totalValue += playerValue;
-      } else if (asset is DraftPickAsset) {
-        totalValue += asset.marketValue;
-      }
-    }
-
-    return totalValue;
-  }
-
-  /// Calculate trade balance (closer to 1.0 = more balanced)
-  static Future<double> calculateTradeBalance(TeamTradePackage team1Package, TeamTradePackage team2Package) async {
-    double team1Value = await calculatePackageValue(team1Package, team2Package.teamName);
-    double team2Value = await calculatePackageValue(team2Package, team1Package.teamName);
+  /// Calculate trade balance (closer to 1.0 = more balanced) using internal points
+  static Future<double> calculateTradeBalance(
+    TeamTradePackage team1Package,
+    TeamTradePackage team2Package,
+    NFLTeamInfo team1,
+    NFLTeamInfo team2,
+  ) async {
+    double team1Value = calculatePackageInternalPoints(team1Package, team2);
+    double team2Value = calculatePackageInternalPoints(team2Package, team1);
 
     if (team1Value == 0.0) return team2Value == 0.0 ? 1.0 : 0.0;
     return team2Value / team1Value;

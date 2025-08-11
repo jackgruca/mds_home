@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../models/nfl_trade/nfl_player.dart';
 import '../../models/nfl_trade/nfl_team_info.dart';
-import '../../services/nfl_roster_service.dart';
+import '../../services/trade_data_service.dart';
 
 class PlayerSelectionModal extends StatefulWidget {
   final String teamName;
@@ -51,20 +51,11 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     setState(() => isLoading = true);
     
     try {
-      // Load players and positions in parallel
-      final futures = await Future.wait([
-        NFLRosterService.getTeamRoster(
-          widget.teamAbbreviation,
-          season: '2024',
-          limit: 100,
-          sortBy: 'overall_rating',
-          ascending: false,
-        ),
-        NFLRosterService.getTeamPositions(widget.teamAbbreviation),
-      ]);
-
-      allPlayers = futures[0] as List<NFLPlayer>;
-      availablePositions = futures[1] as List<String>;
+      await TradeDataService.initialize();
+      allPlayers = TradeDataService.getPlayersByTeam(widget.teamAbbreviation);
+      // Build positions list from loaded players
+      final posSet = allPlayers.map((p) => p.position).where((p) => p.isNotEmpty).toSet().toList()..sort();
+      availablePositions = ['All', ...posSet];
       
       _applyFiltersAndSort();
       

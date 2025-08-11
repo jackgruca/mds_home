@@ -7,6 +7,9 @@ import '../models/nfl_trade/trade_asset.dart';
 import '../widgets/trade/player_selection_modal.dart';
 import '../services/trade_likelihood_service.dart';
 import '../services/historical_trade_precedents.dart';
+import '../services/trade_data_service.dart';
+import '../services/trade_valuation_service.dart';
+import '../services/trade_value_calculator.dart';
 
 class MaddenTradeAnalyzerScreen extends StatefulWidget {
   const MaddenTradeAnalyzerScreen({super.key});
@@ -47,9 +50,39 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   TeamTradePackage? team2Package;
   double tradeLikelihood = 0.0;
   TradeLikelihoodResult? tradeAnalysis;
+  // Track last computed trade points to build a 50/50 balance bar
+  double _lastTeam1Points = 0.0;
+  double _lastTeam2Points = 0.0;
+  String _balanceLabel() {
+    if (team1 == null || team2 == null) return '';
+    final left = (tradeLikelihood * 100).round();
+    final right = 100 - left;
+    if (left == 50) return 'Even 50/50';
+    return left > 50 ? 'Favors ${team1!.teamName} $left/$right' : 'Favors ${team2!.teamName} $right/$left';
+  }
+  bool isLoading = true;
 
-  // Sample teams with more detailed info
-  final List<NFLTeamInfo> allTeams = [
+  // Real data from CSVs
+  List<NFLTeamInfo> allTeams = [];
+  List<NFLPlayer> allPlayers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRealData();
+  }
+
+  Future<void> _loadRealData() async {
+    await TradeDataService.initialize();
+    setState(() {
+      allTeams = TradeDataService.getAllTeams();
+      allPlayers = TradeDataService.getAllPlayers();
+      isLoading = false;
+    });
+  }
+
+  // OLD Sample teams - now replaced with real data
+  final List<NFLTeamInfo> _oldSampleTeams = [
     NFLTeamInfo(
       teamName: 'Dallas Cowboys',
       abbreviation: 'DAL',
@@ -188,6 +221,27 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('NFL Trade Machine'),
+          backgroundColor: Theme.of(context).primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading NFL player data...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('NFL Trade Machine'),
@@ -271,37 +325,24 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Trade Likelihood',
+                'Value Balance',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
-              Text(
-                '${(tradeLikelihood * 100).round()}%',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: _getLikelihoodColor(),
-                ),
-              ),
+              Text(_balanceLabel(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
-            value: tradeLikelihood,
+            value: tradeLikelihood, // now represents team1 share 0..1
             backgroundColor: Colors.grey[300],
             valueColor: AlwaysStoppedAnimation(_getLikelihoodColor()),
             minHeight: 8,
           ),
           const SizedBox(height: 4),
-          Text(
-            _getLikelihoodText(),
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text('Left = Team 1 • Right = Team 2 • Ideal = 50/50', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -337,9 +378,8 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         children: [
           _buildTeamHeader(team, isTeam1),
           if (team != null) ...[
-            _buildCapSpaceInfo(team),
-            _buildTradeSlots(package!, team),
-            _buildAssetBrowser(team),
+            _buildCapAndPointsInfo(team, package!, isTeam1 ? team2 : team1),
+            _buildTradeSlots(package, team),
           ] else ...[
             const Expanded(
               child: Center(
@@ -390,27 +430,32 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                           const SizedBox(width: 8),
                           // Top needs display inline
                           if (team.topPositionNeeds.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 0.5),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.priority_high, size: 10, color: Colors.blue[700]),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    team.topPositionNeeds.take(3).join(', '),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue[700],
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3), width: 0.5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.priority_high, size: 10, color: Colors.blue[700]),
+                                    const SizedBox(width: 2),
+                                    Flexible(
+                                      child: Text(
+                                        team.topPositionNeeds.take(3).join(', '),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue[700],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                         ],
@@ -432,15 +477,53 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                     ),
                   ),
           ),
-          ElevatedButton.icon(
-            onPressed: () => _showTeamSelector(isTeam1),
-            icon: const Icon(Icons.edit, size: 16),
-            label: Text(team != null ? 'Change' : 'Select'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12),
+          SizedBox(
+            width: 260,
+            child: Material(
+              color: Colors.transparent,
+              child: SizedBox(
+                width: 280,
+                child: DropdownButtonFormField<NFLTeamInfo>(
+                  isExpanded: true,
+                  hint: const Text('Select team'),
+                  value: team,
+                  items: allTeams.map((t) {
+                    // Hide the already-picked opposite team
+                    final other = isTeam1 ? team2 : team1;
+                    if (other != null && other.abbreviation == t.abbreviation) {
+                      return null;
+                    }
+                    return DropdownMenuItem<NFLTeamInfo>(
+                      value: t,
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundImage: t.logoUrl != null ? NetworkImage(t.logoUrl!) : null,
+                            child: t.logoUrl == null ? Text(t.abbreviation, style: const TextStyle(fontSize: 10)) : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(t.teamName, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    );
+                  }).whereType<DropdownMenuItem<NFLTeamInfo>>().toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    setState(() {
+                      final latest = TradeDataService.getTeam(val.abbreviation) ?? val;
+                      if (isTeam1) {
+                        team1 = latest;
+                        team1Package = TeamTradePackage(teamName: val.teamName);
+                      } else {
+                        team2 = latest;
+                        team2Package = TeamTradePackage(teamName: val.teamName);
+                      }
+                    });
+                    _updateTradeLikelihood();
+                  },
+                ),
+              ),
             ),
           ),
         ],
@@ -448,7 +531,23 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     );
   }
 
-  Widget _buildCapSpaceInfo(NFLTeamInfo team) {
+  Future<double> _computePackageDisplayPoints(TeamTradePackage package, NFLTeamInfo? receivingTeam) async {
+    double total = 0.0;
+    for (final slot in package.slots) {
+      if (!slot.isFilled) continue;
+      final asset = slot.asset!;
+      if (asset is PlayerAsset && receivingTeam != null) {
+        total += await Future.value(TradeValuationService.calculatePlayerDisplayValue(asset.player, receivingTeam: receivingTeam));
+      } else if (asset is DraftPickAsset) {
+        total += asset.marketValue;
+      } else {
+        total += asset.marketValue;
+      }
+    }
+    return total;
+  }
+
+  Widget _buildCapAndPointsInfo(NFLTeamInfo team, TeamTradePackage package, NFLTeamInfo? receivingTeam) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -477,18 +576,24 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Trade Value',
+                'Trade Points',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],
                 ),
               ),
-              Text(
-                '\$${(team == team1 ? (team1Package?.totalValue ?? 0.0) : (team2Package?.totalValue ?? 0.0)).toStringAsFixed(1)}M',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+              FutureBuilder<double>(
+                future: _computePackageDisplayPoints(package, receivingTeam),
+                builder: (context, snapshot) {
+                  final val = snapshot.data ?? 0.0;
+                  return Text(
+                    val.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -502,30 +607,31 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   // Removed - no longer needed
 
   Widget _buildTradeSlots(TeamTradePackage package, NFLTeamInfo team) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Trade Package',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Trade Package',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 320, // Fixed height for 5 slots (60 + 8 margin each = 68 * 5 = 340, minus last margin)
-            child: ListView.builder(
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                final slot = package.slots[index];
-                return _buildTradeSlot(slot, team);
-              },
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                itemCount: 5,
+                itemBuilder: (context, index) {
+                  final slot = package.slots[index];
+                  return _buildTradeSlot(slot, team);
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -553,11 +659,12 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     NFLTeamInfo? receivingTeam = team == team1 ? team2 : team1;
     
     if (asset is PlayerAsset && receivingTeam != null) {
-      return FutureBuilder<PlayerGrade>(
-        future: _calculatePlayerGrade(asset.player, receivingTeam),
+      return FutureBuilder<double>(
+        future: Future.value(_calcBlendedTradeValue(asset.player, receivingTeam)),
         builder: (context, snapshot) {
-          int gradeValue = snapshot.hasData ? snapshot.data!.overall.round() : 0;
-          Color gradeColor = snapshot.hasData ? _getGradeColor(snapshot.data!.overall) : Colors.grey;
+          double tradeValue = snapshot.hasData ? snapshot.data! : 0.0;
+          int gradeValue = tradeValue.round();
+          Color gradeColor = _getGradeColor(tradeValue);
           
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -591,7 +698,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                 // Grade display
                 InkWell(
                   onTap: snapshot.hasData 
-                      ? () => _showGradeBreakdown(asset.player, receivingTeam, snapshot.data!)
+                      ? () => _showTradeValueBreakdown(asset.player, receivingTeam, tradeValue)
                       : null,
                   child: Container(
                     width: 50,
@@ -819,9 +926,9 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
-            'Value: \$${pick.marketValue.toStringAsFixed(1)}M',
-            style: const TextStyle(fontSize: 10),
-          ),
+              'Value: ${pick.marketValue.toStringAsFixed(0)}/100',
+              style: const TextStyle(fontSize: 10),
+            ),
           trailing: IconButton(
             icon: const Icon(Icons.add, size: 16),
             onPressed: () => _addPickAsset(pick, team),
@@ -908,52 +1015,68 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   void _showTeamSelector(bool isTeam1) {
-    showModalBottomSheet(
+    NFLTeamInfo? selected;
+    final NFLTeamInfo? otherTeam = isTeam1 ? team2 : team1;
+    final List<NFLTeamInfo> choices = allTeams
+        .where((t) => otherTeam == null || t.abbreviation != otherTeam.abbreviation)
+        .toList();
+
+    showDialog(
       context: context,
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Select Team',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Select Team'),
+              content: SizedBox(
+                width: 400,
+                child: DropdownButtonFormField<NFLTeamInfo>(
+                  isExpanded: true,
+                  hint: const Text('Choose a team'),
+                  value: selected,
+                  items: choices.map((t) {
+                    return DropdownMenuItem<NFLTeamInfo>(
+                      value: t,
+                      child: Row(
+                        children: [
+                          CircleAvatar(radius: 10, child: Text(t.abbreviation, style: const TextStyle(fontSize: 10))),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(t.teamName)),
+                          const SizedBox(width: 8),
+                          Text('\$${t.availableCapSpace.toStringAsFixed(1)}M', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setStateDialog(() => selected = val),
                 ),
               ),
-              const SizedBox(height: 16),
-              ...allTeams.map((team) {
-                // Don't show the other selected team
-                NFLTeamInfo? otherTeam = isTeam1 ? team2 : team1;
-                if (otherTeam != null && team.abbreviation == otherTeam.abbreviation) {
-                  return const SizedBox.shrink();
-                }
-                
-                return ListTile(
-                  leading: CircleAvatar(
-                    child: Text(team.abbreviation),
-                  ),
-                  title: Text(team.teamName),
-                  subtitle: Text('Cap Space: \$${team.availableCapSpace.toStringAsFixed(1)}M'),
-                  onTap: () {
-                    setState(() {
-                      if (isTeam1) {
-                        team1 = team;
-                        team1Package = TeamTradePackage(teamName: team.teamName);
-                      } else {
-                        team2 = team;
-                        team2Package = TeamTradePackage(teamName: team.teamName);
-                      }
-                    });
-                    Navigator.pop(context);
-                    _updateTradeLikelihood();
-                  },
-                );
-              }),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selected == null
+                      ? null
+                      : () {
+                          setState(() {
+                            if (isTeam1) {
+                              team1 = selected;
+                              team1Package = TeamTradePackage(teamName: selected!.teamName);
+                            } else {
+                              team2 = selected;
+                              team2Package = TeamTradePackage(teamName: selected!.teamName);
+                            }
+                          });
+                          Navigator.pop(context);
+                          _updateTradeLikelihood();
+                        },
+                  child: const Text('Select'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -1106,7 +1229,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                     child: Text(pick.round.toString()),
                   ),
                   title: Text(pick.displayName),
-                  subtitle: Text('Value: \$${pick.marketValue.toStringAsFixed(1)}M'),
+                  subtitle: Text('Value: ${pick.marketValue.toStringAsFixed(0)}/100'),
                   onTap: () {
                     Navigator.pop(context);
                     _addPickAsset(pick, team);
@@ -1139,17 +1262,23 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return (team1Package?.hasAssets ?? false) || (team2Package?.hasAssets ?? false);
   }
 
-  void _updateTradeLikelihood() {
-    if (team1 == null || team2 == null || !_hasAnyAssets()) {
+  void _updateTradeLikelihood() async {
+    // Now this function recomputes display points and sets balance value
+    if (team1 == null || team2 == null) {
       setState(() {
-        tradeLikelihood = 0.0;
-        tradeAnalysis = null;
+        tradeLikelihood = 0.5;
+        _lastTeam1Points = 0;
+        _lastTeam2Points = 0;
       });
       return;
     }
-
-    // Use enhanced trade analysis
-    _performTradeAnalysis();
+    final t1 = await _computePackageDisplayPoints(team1Package!, team2);
+    final t2 = await _computePackageDisplayPoints(team2Package!, team1);
+    setState(() {
+      _lastTeam1Points = t1;
+      _lastTeam2Points = t2;
+      _fallbackTradeLikelihood(); // set tradeLikelihood from t1/t2
+    });
   }
 
   void _performTradeAnalysis() async {
@@ -1172,25 +1301,15 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
 
   void _fallbackTradeLikelihood() {
-    double team1Value = team1Package?.totalValue ?? 0.0;
-    double team2Value = team2Package?.totalValue ?? 0.0;
-    double valueRatio = team1Value > 0 ? team2Value / team1Value : (team2Value > 0 ? 0.0 : 0.5);
-    
-    // Simple value-based likelihood
-    double likelihood = 0.5;
-    if (valueRatio >= 0.9 && valueRatio <= 1.1) {
-      likelihood = 0.9;
-    } else if (valueRatio >= 0.8 && valueRatio <= 1.2) {
-      likelihood = 0.7;
-    } else if (valueRatio >= 0.7 && valueRatio <= 1.3) {
-      likelihood = 0.5;
-    } else {
-      likelihood = 0.2;
+    // Recompute balance where value is team1 share [0..1]
+    double t1 = _lastTeam1Points;
+    double t2 = _lastTeam2Points;
+    double total = (t1 + t2);
+    if (total <= 0) {
+      tradeLikelihood = 0.5; // neutral
+      return;
     }
-
-    setState(() {
-      tradeLikelihood = likelihood.clamp(0.0, 1.0);
-    });
+    tradeLikelihood = (t1 / total).clamp(0.0, 1.0);
   }
 
   Color _getLikelihoodColor() {
@@ -1323,7 +1442,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      'Receives: \$${team2Value.toStringAsFixed(1)}M',
+                      'Receives: ${team2Value.toStringAsFixed(0)}/100',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -1350,7 +1469,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      'Receives: \$${team1Value.toStringAsFixed(1)}M',
+                      'Receives: ${team1Value.toStringAsFixed(0)}/100',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -1468,15 +1587,25 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   }
   
   Future<double> _calculatePlayerSkill(NFLPlayer player) async {
-    // Use player's percentile ranking if available (max 35 points)
-    double percentile = player.positionRank / 100.0; // Assuming positionRank is 0-100
-    
-    // Alternative: use overall rating
-    if (percentile == 0) {
-      percentile = player.overallRating / 100.0;
+    // DEBUG: Print player skill calculation for Micah Parsons
+    if (player.name.contains('Parsons')) {
+      print('🔍 DEBUG: Player skill calculation for ${player.name}');
+      print('  - Overall Rating: ${player.overallRating}');
+      print('  - Position Rank: ${player.positionRank}');
+      print('  - Market Value: ${player.marketValue}');
     }
     
-    return percentile * 35.0;
+    // Use the overall rating from our trade value system (should be 75-99 scale)
+    // Convert to 35-point scale for UI consistency  
+    double normalizedRating = (player.overallRating - 75.0) / (99.0 - 75.0); // Convert 75-99 to 0-1
+    double skillScore = (normalizedRating * 35.0).clamp(0.0, 35.0);
+    
+    if (player.name.contains('Parsons')) {
+      print('  - Normalized Rating: $normalizedRating');
+      print('  - Final Skill Score: $skillScore/35');
+    }
+    
+    return skillScore;
   }
   
   String _getPlayerSkillExplanation(NFLPlayer player, double value) {
@@ -1485,16 +1614,95 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return "$tier player at ${percentile.toStringAsFixed(0)}th percentile (${value.toStringAsFixed(0)}/35 points)";
   }
   
-  double _calculateTeamNeed(String position, NFLTeamInfo team) {
-    // Team need multiplier (max 25 points)
-    double needLevel = team.positionNeeds[position] ?? 0.5;
+  /// Calculate player trade value on 0-100 scale based on your requirements
+  double calculatePlayerTradeValue(NFLPlayer player, {NFLTeamInfo? receivingTeam}) {
+    if (receivingTeam == null) return player.marketValue; // fallback
+    return _calcBlendedTradeValue(player, receivingTeam);
+  }
+  
+  double _calcBlendedTradeValue(NFLPlayer player, NFLTeamInfo receivingTeam) {
+    final String pos = player.position.toUpperCase();
+    final String lookupPos = (pos == 'DE' || pos == 'EDGE') ? 'EDGE' : pos;
+    final double need = receivingTeam.getNeedLevel(lookupPos);
+    final int approxRank = (100 - player.positionRank.clamp(0, 100)).round().clamp(0, 99) + 1;
+    return TradeValueCalculator.calculateTradeValue(
+      position: pos,
+      positionRanking: approxRank,
+      tier: 3,
+      age: player.age,
+      teamNeed: need,
+      teamStatus: 'competitive',
+      positionPercentile: player.positionRank, // 0-100
+    );
+  }
+  
+  double _calculateAgeTradeValue(int age, String position) {
+    // Age curves by position (0-20 scale)
+    Map<String, Map<String, int>> ageCurves = {
+      'QB': {'peak_start': 26, 'peak_end': 34},
+      'RB': {'peak_start': 22, 'peak_end': 27},
+      'WR': {'peak_start': 24, 'peak_end': 30},
+      'TE': {'peak_start': 25, 'peak_end': 31},
+      'EDGE': {'peak_start': 24, 'peak_end': 30},
+      'DE': {'peak_start': 24, 'peak_end': 30},
+      'DT': {'peak_start': 25, 'peak_end': 31},
+      'LB': {'peak_start': 24, 'peak_end': 30},
+      'CB': {'peak_start': 23, 'peak_end': 29},
+      'S': {'peak_start': 24, 'peak_end': 30},
+      'OT': {'peak_start': 26, 'peak_end': 33},
+    };
     
-    // Convert need level (0-1.5 scale from CSV) to points (0-25)
-    if (needLevel >= 1.3) return 25.0; // Desperate need
-    if (needLevel >= 1.1) return 20.0; // High need
-    if (needLevel >= 0.9) return 15.0; // Moderate need
-    if (needLevel >= 0.7) return 10.0; // Low need
-    return 5.0; // Position of strength
+    var curve = ageCurves[position.toUpperCase()] ?? ageCurves['WR']!;
+    int peakStart = curve['peak_start']!;
+    int peakEnd = curve['peak_end']!;
+    
+    if (age < 22) return 10.0; // Very young, unproven
+    if (age < peakStart) return 15.0; // Rising
+    if (age <= peakEnd) return 20.0; // Peak years
+    if (age <= peakEnd + 3) return 15.0; // Good veteran
+    if (age <= peakEnd + 6) return 10.0; // Declining
+    return 5.0; // Past prime
+  }
+  
+  double _getTeamNeedForPosition(String position, NFLTeamInfo team) {
+    if (position == 'DE' || position == 'EDGE') {
+      double edgeNeed = team.getNeedLevel('EDGE');
+      double deNeed = team.getNeedLevel('DE');
+      return edgeNeed > deNeed ? edgeNeed : deNeed;
+    }
+    return team.getNeedLevel(position);
+  }
+  
+  double _calculateTeamNeed(String position, NFLTeamInfo team) {
+    // Handle EDGE/DE as same position for team needs
+    String lookupPosition = position;
+    if (position == 'DE' || position == 'EDGE') {
+      // Get both EDGE and DE needs, use the higher one
+      double edgeNeed = team.getNeedLevel('EDGE');
+      double deNeed = team.getNeedLevel('DE');
+      double maxNeed = edgeNeed > deNeed ? edgeNeed : deNeed;
+      
+      // DEBUG: Print team need calculation for Bills and EDGE players
+      if (team.abbreviation == 'BUF' && (position == 'DE' || position == 'EDGE')) {
+        print('🔍 DEBUG: Team need calculation for ${team.teamName} - $position');
+        print('  - EDGE Need: $edgeNeed');
+        print('  - DE Need: $deNeed');
+        print('  - Max Need Used: $maxNeed');
+      }
+      
+      // Convert 0-1 need scale to 0-25 points
+      double needPoints = (maxNeed * 25.0).clamp(0.0, 25.0);
+      
+      if (team.abbreviation == 'BUF' && (position == 'DE' || position == 'EDGE')) {
+        print('  - Final Need Points: $needPoints/25');
+      }
+      
+      return needPoints;
+    }
+    
+    // For other positions, use standard lookup
+    double needLevel = team.getNeedLevel(position);
+    return (needLevel * 25.0).clamp(0.0, 25.0);
   }
   
   String _getTeamNeedExplanation(String position, NFLTeamInfo team, double value) {
@@ -1574,6 +1782,81 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return 'F';
   }
   
+  void _showTradeValueBreakdown(NFLPlayer player, NFLTeamInfo receivingTeam, double tradeValue) {
+    final String pos = player.position.toUpperCase();
+    final String lookupPos = (pos == 'DE' || pos == 'EDGE') ? 'EDGE' : pos;
+    final double need = receivingTeam.getNeedLevel(lookupPos);
+    final int approxRank = (100 - player.positionRank.clamp(0, 100)).round().clamp(0, 99) + 1;
+    final breakdown = TradeValueCalculator.getValueBreakdown(
+      position: pos,
+      positionRanking: approxRank,
+      tier: 3,
+      age: player.age,
+      teamNeed: need,
+      teamStatus: 'competitive',
+      positionPercentile: player.positionRank,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${player.name} Trade Value'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Position: ${player.position} • Age: ${player.age}'),
+            const SizedBox(height: 16),
+            _buildValueRow('Rank Contribution', breakdown['rank_points'] as double, 66, 'Percentile^2 × 66'),
+            _buildValueRow('Position Contribution', breakdown['position_points'] as double, 14, 'Role importance × 14'),
+            _buildValueRow('Team Need Contribution', breakdown['need_points'] as double, 12, '${receivingTeam.abbreviation} need level'),
+            _buildValueRow('Age Contribution', breakdown['age_points'] as double, 8, 'Age curve for ${player.position}'),
+            const Divider(),
+            _buildValueRow('Bonus (Top 5)', breakdown['bonus'] as double, 5, 'Elite rank bonus'),
+            const Divider(),
+            _buildValueRow('Final Value', breakdown['final_value'] as double, 100, 'Weighted sum + bonus', isFinal: true),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildValueRow(String label, double value, double maxValue, String description, {bool isMultiplier = false, bool isFinal = false}) {
+    String valueText = isMultiplier ? '${value.toStringAsFixed(2)}x' : '${value.toStringAsFixed(1)}/${maxValue.toStringAsFixed(0)}';
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(
+                  fontWeight: isFinal ? FontWeight.bold : FontWeight.normal,
+                  fontSize: isFinal ? 16 : 14,
+                )),
+                Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+          Text(valueText, style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: isFinal ? 18 : 14,
+            color: isFinal ? Theme.of(context).primaryColor : null,
+          )),
+        ],
+      ),
+    );
+  }
+
   void _showGradeBreakdown(NFLPlayer player, NFLTeamInfo receivingTeam, PlayerGrade grade) {
     showDialog(
       context: context,

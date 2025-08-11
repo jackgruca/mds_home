@@ -39,11 +39,17 @@ convert_to_pbp_format <- function(full_name) {
   }
 }
 
-# EDGE position filter
+# EDGE position filter with age data
 edge_positions <- load_rosters(seasons = 2016:2024) %>%
   filter(depth_chart_position %in% c("DE", "OLB", "EDGE")) %>%
-  mutate(player_pbp_format = sapply(full_name, convert_to_pbp_format)) %>%
-  select(player_pbp_format, season, team, depth_chart_position) %>%
+  mutate(
+    player_pbp_format = sapply(full_name, convert_to_pbp_format),
+    # Calculate age at the time of the season
+    age = ifelse(!is.na(birth_date), 
+                 as.numeric(difftime(as.Date(paste0(season, "-09-01")), birth_date, units = "days")) / 365.25,
+                 NA)
+  ) %>%
+  select(player_pbp_format, season, team, depth_chart_position, age) %>%
   rename(player_name = player_pbp_format)
 
 # Base EDGE defensive stats
@@ -200,7 +206,7 @@ EDGE_ranks <- left_join(EDGE_ranks, qb_hits) %>%
 # Clean and format final dataset
 edge_rankings_final <- EDGE_ranks %>%
   select(
-    player_name, season, team, depth_chart_position,
+    player_name, season, team, depth_chart_position, age,
     total_sacks, total_qb_hits, total_tfls, total_forced_fumbles,
     third_down_pressures, total_def_snaps, games_played, avg_snap_pct,
     sacks_per_game, qb_hits_per_game, pressure_rate, tfls_per_game,

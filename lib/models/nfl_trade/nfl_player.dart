@@ -45,8 +45,8 @@ class NFLPlayer {
     this.imageUrl,
   });
 
-  // Calculate position-adjusted value
-  double get positionAdjustedValue => ageAdjustedValue * positionImportance;
+  // Calculate position-adjusted value (for compatibility - uses trade value score)
+  double get positionAdjustedValue => marketValue; // marketValue is now the trade value score (0-100)
 
   // Calculate contract efficiency (value per dollar)
   double get contractEfficiency => 
@@ -62,17 +62,22 @@ class NFLPlayer {
 
   // Get position group for trade analysis
   String get positionGroup {
+    String group;
     switch (position) {
       case 'QB':
-        return 'QB';
+        group = 'QB';
+        break;
       case 'RB':
       case 'FB':
-        return 'RB';
+        group = 'RB';
+        break;
       case 'WR':
       case 'WR/PR':
-        return 'WR';
+        group = 'WR';
+        break;
       case 'TE':
-        return 'TE';
+        group = 'TE';
+        break;
       case 'LT':
       case 'LG':
       case 'C':
@@ -80,30 +85,47 @@ class NFLPlayer {
       case 'RT':
       case 'OT':
       case 'OG':
-        return 'OL';
+        group = 'OL';
+        break;
       case 'DE':
       case 'EDGE':
       case 'OLB':
-        return 'EDGE';
+        group = 'EDGE';
+        break;
       case 'DT':
       case 'NT':
-        return 'DL';
+        group = 'DL';
+        break;
       case 'MLB':
       case 'ILB':
-        return 'LB';
+        group = 'LB';
+        break;
       case 'CB':
-        return 'CB';
+        group = 'CB';
+        break;
       case 'S':
       case 'SS':
       case 'FS':
-        return 'S';
+        group = 'S';
+        break;
       case 'K':
-        return 'K';
+        group = 'K';
+        break;
       case 'P':
-        return 'P';
+        group = 'P';
+        break;
       default:
-        return 'OTHER';
+        group = 'OTHER';
+        break;
     }
+    
+    // DEBUG: Print position group mapping for Micah Parsons
+    if (name.contains('Parsons')) {
+      print('🔍 DEBUG: Position group mapping for $name');
+      print('  - Position: $position -> Group: $group');
+    }
+    
+    return group;
   }
 
   // Check if player is a premium position

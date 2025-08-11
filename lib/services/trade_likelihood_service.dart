@@ -45,7 +45,7 @@ class TradeLikelihoodService {
   }) async {
     
     // Step 1: Calculate trade balance
-    double tradeBalance = await TradeValuationService.calculateTradeBalance(team1Package, team2Package);
+    double tradeBalance = await TradeValuationService.calculateTradeBalance(team1Package, team2Package, team1, team2);
     
     // Step 2: Analyze cap impact
     TradeImpact team1CapImpact = _analyzeCapImpact(team1, team1Package, team2Package);
