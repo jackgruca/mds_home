@@ -227,13 +227,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
-          // Player Comparison Cards
-          Container(
-            color: ThemeConfig.darkNavy,
-            child: _buildPlayerComparisonCards(),
-          ),
-
-          // Stats Comparison
+          // Stats Comparison only (top band removed)
           Expanded(
             child: _buildStatsComparison(),
           ),
@@ -758,20 +752,27 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
 
   Widget _buildInlineAddChip() {
     if (selectedPlayers.length >= 4) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final bg = theme.colorScheme.surfaceContainerHigh;
+    final fg = theme.colorScheme.onSurface;
     return Material(
-      color: Colors.white.withValues(alpha: 0.08),
+      color: bg,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () => _startPlayerSearch(selectedPlayers.length),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.dividerColor),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.add, size: 16, color: Colors.white),
-              SizedBox(width: 6),
-              Text('Add Player', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            children: [
+              Icon(Icons.person_add_alt_1, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text('Add Player', style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12)),
             ],
           ),
         ),
@@ -850,15 +851,114 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Detailed Statistics',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          // Inline search UI when adding/replacing a player
+          if (activeSearchIndex >= 0) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Search for a player',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            activeSearchIndex = -1;
+                            searchResults = [];
+                            searchController.clear();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: searchController,
+                    autofocus: true,
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Type player name...',
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      suffixIcon: isSearching
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: Padding(
+                                padding: EdgeInsets.all(8),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    onChanged: _searchPlayers,
+                  ),
+                  if (searchResults.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: searchResults.length,
+                        itemBuilder: (context, index) {
+                          final player = searchResults[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                              child: Text(
+                                player['position']?.toString() ?? 'P',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              player['player_name']?.toString() ?? 'Unknown',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                            ),
+                            subtitle: Text(
+                              '${player['team']?.toString().trim().isNotEmpty == true ? player['team'] : 'Unknown Team'} • ${player['position'] ?? 'Unknown'} • ${player['fantasy_points_ppr']?.toStringAsFixed(1) ?? '0.0'} PPR',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                            onTap: () => _selectPlayer(player),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          // Sticky header row aligned to grid width
+          Center(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const base = 1200.0;
+                final maxW = constraints.maxWidth < base ? constraints.maxWidth : base;
+                final isTwo = selectedPlayers.length <= 2;
+                final targetWidth = isTwo ? maxW / 2 : maxW;
+                return SizedBox(width: targetWidth, child: _buildStickyHeaderRow());
+              },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Expanded(
             child: SingleChildScrollView(
               child: Center(
@@ -882,245 +982,110 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     );
   }
 
-  Widget _buildUnifiedStatsGrid() {
-    // Build a single label rail and per-player tall containers (banner + all sections)
-    return FutureBuilder<List<Map<String, dynamic>?>>(
-      future: Future.wait(selectedPlayers.map(_lookupRosterQuick)),
-      builder: (context, snap) {
-        final bios = snap.data ?? List<Map<String, dynamic>?>.filled(selectedPlayers.length, null);
-        String fmtNum(dynamic v) {
-          if (v == null) return '-';
-          if (v is num) return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
-          return v.toString();
-        }
-        String fmt(dynamic v) => (v == null) ? '-' : v.toString();
-        String fmtH(dynamic h) => (h == null || (h is String && h.isEmpty)) ? '-' : h.toString();
-        String fmtW(dynamic w) => (w == null || (w is String && w.isEmpty)) ? '-' : w.toString();
-
-        // Label rows with section headers marked in set
-        final labels = <String>[];
-        final sectionRows = <int>{};
-        // Row 0 is banner spacer
-        labels.add('');
-        // Physical Info section
-        sectionRows.add(labels.length);
-        labels.add('Physical Info');
-        final physFields = ['Team','Position','Jersey #','Age','Experience','Height','Weight','College','Contract Yrs'];
-        labels.addAll(physFields);
-        // Season Stats
-        sectionRows.add(labels.length);
-        labels.add('Season Stats ($selectedSeason)');
-        final baseSeason = ['PPR Points','Total Yards','Total TDs'];
-        labels.addAll(baseSeason);
-        // Position-specific season fields
-        final pos = (selectedPlayers.first['position'] ?? '').toString();
-        final seasonPosLabels = <String>[];
-        if (pos == 'QB') {
-          seasonPosLabels.addAll(['Pass Yds','Pass TD','INT','Comp %','Y/A','Sacks']);
-        } else if (pos == 'RB') {
-          seasonPosLabels.addAll(['Rush Yds','Rush TD','Y/C','Rec','Targets']);
-        } else {
-          seasonPosLabels.addAll(['Targets','Receptions','Catch %','Rec Yds','Rec TD']);
-        }
-        labels.addAll(seasonPosLabels);
-        // Advanced
-        sectionRows.add(labels.length);
-        labels.add('Advanced Metrics');
-        final advLabels = <String>[];
-        if (pos == 'QB') {
-          advLabels.addAll(['Pass EPA/play','TD %','INT %','1D (pass)','Sack Rate']);
-        } else if (pos == 'RB') {
-          advLabels.addAll(['Rush EPA/play','Y/C','1D (rush)','1D (rec)','YAC/Rec']);
-        } else {
-          advLabels.addAll(['Y/Tgt','Y/Rec','EPA/play (rec)','1D (rec)','aDOT','YAC/Rec']);
-        }
-        labels.addAll(advLabels);
-        // Career
-        sectionRows.add(labels.length);
-        labels.add('Career Stats (Totals & Per Game)');
-        final carLabels = ['Games','Total Yards','Yards/Game','Total TDs','TDs/Game','PPR Points','PPR/Game'];
-        labels.addAll(carLabels);
-
-        // Build per-player values columns
-        List<String> teamVals(int i) => [selectedPlayers[i]['team']?.toString() ?? '-'];
-        List<String> posVals(int i) => [selectedPlayers[i]['position']?.toString() ?? '-'];
-        String perGame(num? total, num? games) {
-          final t = (total ?? 0).toDouble();
-          final g = (games ?? 0).toDouble();
-          if (g <= 0) return '-';
-          final v = t / g;
-          return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
-        }
-
-        final perPlayerColumns = <List<String>>[];
-        for (int i=0;i<selectedPlayers.length;i++) {
-          final p = selectedPlayers[i];
-          final bio = i < bios.length ? bios[i] : null;
-          final col = <String>[];
-          // Row 0 placeholder (banner handled by grid)
-          col.add('');
-          // Physical Info values in same order as physFields
-          col.add(''); // section header spacer
-          col.add(p['team']?.toString() ?? '-');
-          col.add(p['position']?.toString() ?? '-');
-          col.add(fmt(bio?['jersey_number']));
-          col.add(fmt(bio?['age']));
-          col.add(fmt(bio?['experience']));
-          col.add(fmtH(bio?['height']));
-          col.add(fmtW(bio?['weight']));
-          col.add(fmt(bio?['college']));
-          col.add(fmt(bio?['contractYearsRemaining']));
-          // Season base
-          col.add('');
-          col.add(fmtNum(p['fantasy_points_ppr']));
-          col.add(fmtNum(p['total_yards']));
-          col.add(fmtNum(p['total_tds']));
-          // Season pos-specific
-          if (pos == 'QB') {
-            col.add(fmtNum(p['passing_yards']));
-            col.add(fmtNum(p['passing_tds']));
-            col.add(fmtNum(p['interceptions']));
-            col.add(fmtNum(p['completion_percentage']));
-            col.add(fmtNum(p['yards_per_attempt']));
-            col.add(fmtNum(p['sacks']));
-          } else if (pos == 'RB') {
-            col.add(fmtNum(p['rushing_yards']));
-            col.add(fmtNum(p['rushing_tds']));
-            col.add(fmtNum(p['yards_per_carry']));
-            col.add(fmtNum(p['receptions']));
-            col.add(fmtNum(p['targets']));
-          } else {
-            col.add(fmtNum(p['targets']));
-            col.add(fmtNum(p['receptions']));
-            col.add(fmtNum(p['catch_percentage']));
-            col.add(fmtNum(p['receiving_yards']));
-            col.add(fmtNum(p['receiving_tds']));
-          }
-          // Advanced
-          col.add('');
-          if (pos == 'QB') {
-            col.add(fmtNum(p['passing_epa']));
-            col.add(fmtNum(p['touchdown_percentage']));
-            col.add(fmtNum(p['interception_percentage']));
-            col.add(fmtNum(p['passing_first_downs']));
-            // Sack rate derived
-            final sr = _rate(p['sacks'], p['attempts']);
-            col.add(sr);
-          } else if (pos == 'RB') {
-            col.add(fmtNum(p['rushing_epa']));
-            col.add(fmtNum(p['yards_per_carry']));
-            col.add(fmtNum(p['rushing_first_downs']));
-            col.add(fmtNum(p['receiving_first_downs']));
-            final yacRec = _safeDiv(p['receiving_yards_after_catch'], p['receptions']);
-            col.add(yacRec);
-          } else {
-            col.add(fmtNum(p['yards_per_target']));
-            col.add(fmtNum(p['yards_per_reception']));
-            col.add(fmtNum(p['receiving_epa']));
-            col.add(fmtNum(p['receiving_first_downs']));
-            final aDot = _safeDiv(p['receiving_air_yards'], p['targets']);
-            final yacRec = _safeDiv(p['receiving_yards_after_catch'], p['receptions']);
-            col.add(aDot);
-            col.add(yacRec);
-          }
-          // Career
-          col.add('');
-          final games = (p['games'] as num?)?.toInt() ?? _getValidGames(p);
-          col.add(fmtNum(games));
-          final totalY = (p['total_yards'] as num?) ?? 0;
-          final totalTD = (p['total_tds'] as num?) ?? 0;
-          final ppr = (p['fantasy_points_ppr'] as num?) ?? 0;
-          col.add(fmtNum(totalY));
-          col.add(perGame(totalY, games));
-          col.add(fmtNum(totalTD));
-          col.add(perGame(totalTD, games));
-          col.add(fmtNum(ppr));
-          col.add(perGame(ppr, games));
-          perPlayerColumns.add(col);
-        }
-
-        // Build section row indices: mark header rows positions
-        final sectionIndices = <int>{};
-        for (final idx in sectionRows) {
-          sectionIndices.add(idx);
-        }
-
-        return _buildColumnGrid(
-          labels: labels,
-          perPlayerColumns: perPlayerColumns,
-          bannerRowIndex: 0,
-          sectionRowIndices: sectionIndices,
-        );
-      },
-    );
-  }
-
-  Widget _buildInlineBanner(int playerIndex) {
-    final player = playerIndex < selectedPlayers.length ? selectedPlayers[playerIndex] : null;
-    if (player == null) {
-      return _buildEmptyPlayerSlot(playerIndex, 'Player ${playerIndex + 1}');
-    }
-    final fantasyPoints = (player['fantasy_points_ppr'] as num?)?.toDouble() ?? 0.0;
-    final games = _getValidGames(player);
-    final ppg = games > 0 ? fantasyPoints / games : 0.0;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-      decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: Colors.grey[100],
-          ),
-          child: TeamLogoUtils.buildNFLTeamLogo(
-            player['team']?.toString().trim() ?? '',
-            size: 24,
-          ),
+  Widget _buildStickyHeaderRow() {
+    final theme = Theme.of(context);
+    final isTwo = selectedPlayers.length <= 2;
+    Widget headerCard(int i) {
+      final player = i < selectedPlayers.length ? selectedPlayers[i] : null;
+      return Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-                child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                player['player_name']?.toString() ?? 'Unknown Player',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
-                      maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                    ),
-              const SizedBox(height: 2),
-                    Text(
-                '${player['position'] ?? 'UNK'} • ${player['team'] ?? ''}',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Row(
+        padding: const EdgeInsets.all(12),
+        child: player == null
+            ? _buildEmptyPlayerSlot(i, 'Player ${i + 1}')
+            : Stack(
                 children: [
-                  _buildStatBubble(fantasyPoints.toStringAsFixed(1), 'PPR Points'),
-                  const SizedBox(width: 12),
-                  _buildStatBubble(games.toString(), 'Games'),
-                  const SizedBox(width: 12),
-                  _buildStatBubble(ppg.toStringAsFixed(1), 'PPG'),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(22),
+                            color: Colors.grey[100],
+                          ),
+                          child: TeamLogoUtils.buildNFLTeamLogo(
+                            player['team']?.toString().trim() ?? '',
+                            size: 30,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          player['player_name']?.toString() ?? 'Unknown Player',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${player['team'] ?? ''} - ${player['position'] ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () => _removePlayer(i),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                        padding: const EdgeInsets.all(2),
+                        minimumSize: const Size(24, 24),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ],
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.close, size: 16),
-          onPressed: () => _removePlayer(playerIndex),
-          style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-            padding: const EdgeInsets.all(2),
-            minimumSize: const Size(24, 24),
-          ),
-        ),
+      );
+    }
+
+    if (isTwo) {
+      return Row(
+        children: [
+          Expanded(child: headerCard(0)),
+          const SizedBox(width: 12),
+          // spacer matching centered attribute rail width
+          SizedBox(width: 180),
+          const SizedBox(width: 12),
+          Expanded(child: headerCard(1)),
+          const SizedBox(width: 12),
+          _buildInlineAddChip(),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        // left attribute rail width spacer
+        SizedBox(width: 220),
+        const SizedBox(width: 12),
+        for (int i = 0; i < selectedPlayers.length; i++) ...[
+          Expanded(child: headerCard(i)),
+          if (i != selectedPlayers.length - 1) const SizedBox(width: 12),
+        ],
+        if (selectedPlayers.length < 4) ...[
+          const SizedBox(width: 12),
+          _buildInlineAddChip(),
+        ],
       ],
     );
   }
@@ -1161,13 +1126,14 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     final theme = Theme.of(context);
     final isTwo = perPlayerColumns.length == 2;
     final sectionRows = sectionRowIndices ?? <int>{};
+    final int bannerRow = bannerRowIndex ?? -1;
     Widget buildLabelColumn() => SizedBox(
           width: isTwo ? 180 : 220,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               for (int i = 0; i < labels.length; i++)
-                i == bannerRowIndex
+                i == bannerRow
                     ? Container(
                         height: 140,
                         alignment: Alignment.center,
@@ -1210,7 +1176,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
           child: Column(
             children: [
               for (int i = 0; i < values.length; i++)
-                if (i == bannerRowIndex)
+                if (i == bannerRow)
                   Container(
                     height: 140,
                     padding: const EdgeInsets.all(12),
@@ -1260,6 +1226,156 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
           if (c != perPlayerColumns.length - 1) const SizedBox(width: 12),
         ],
       ],
+    );
+  }
+
+  // Minimal stub; banner is now handled by the sticky header row
+  Widget _buildInlineBanner(int playerIndex) => const SizedBox.shrink();
+
+  Widget _buildUnifiedStatsGrid() {
+    return FutureBuilder<List<Map<String, dynamic>?>>(
+      future: Future.wait(selectedPlayers.map(_lookupRosterQuick)),
+      builder: (context, snap) {
+        final bios = snap.data ?? List<Map<String, dynamic>?>.filled(selectedPlayers.length, null);
+        String fmtNum(dynamic v) {
+          if (v == null) return '-';
+          if (v is num) return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
+          return v.toString();
+        }
+        String fmt(dynamic v) => (v == null) ? '-' : v.toString();
+        String fmtH(dynamic h) => (h == null || (h is String && h.isEmpty)) ? '-' : h.toString();
+        String fmtW(dynamic w) => (w == null || (w is String && w.isEmpty)) ? '-' : w.toString();
+
+        final labels = <String>[];
+        final sectionRows = <int>{};
+        // Physical Info (Age, Experience, Height, Weight)
+        sectionRows.add(labels.length);
+        labels.add('Physical Info');
+        final physFields = ['Age','Experience','Height','Weight'];
+        labels.addAll(physFields);
+        // Season Stats
+        sectionRows.add(labels.length);
+        labels.add('Season Stats ($selectedSeason)');
+        final baseSeason = ['PPR Points','Total Yards','Total TDs'];
+        labels.addAll(baseSeason);
+        final pos = (selectedPlayers.first['position'] ?? '').toString();
+        final seasonPosLabels = <String>[];
+        if (pos == 'QB') {
+          seasonPosLabels.addAll(['Pass Yds','Pass TD','INT','Comp %','Y/A','Sacks']);
+        } else if (pos == 'RB') {
+          seasonPosLabels.addAll(['Rush Yds','Rush TD','Y/C','Rec','Targets']);
+        } else {
+          seasonPosLabels.addAll(['Targets','Receptions','Catch %','Rec Yds','Rec TD']);
+        }
+        labels.addAll(seasonPosLabels);
+        // Advanced
+        sectionRows.add(labels.length);
+        labels.add('Advanced Metrics');
+        final advLabels = <String>[];
+        if (pos == 'QB') {
+          advLabels.addAll(['Pass EPA/play','TD %','INT %','1D (pass)','Sack Rate']);
+        } else if (pos == 'RB') {
+          advLabels.addAll(['Rush EPA/play','Y/C','1D (rush)','1D (rec)','YAC/Rec']);
+        } else {
+          advLabels.addAll(['Y/Tgt','Y/Rec','EPA/play (rec)','1D (rec)','aDOT','YAC/Rec']);
+        }
+        labels.addAll(advLabels);
+        // Career
+        sectionRows.add(labels.length);
+        labels.add('Career Stats');
+        final carLabels = ['Games','Total Yards','Yards/Game','Total TDs','TDs/Game','PPR Points','PPR/Game'];
+        labels.addAll(carLabels);
+
+        final perPlayerColumns = <List<String>>[];
+        for (int i = 0; i < selectedPlayers.length; i++) {
+          final p = selectedPlayers[i];
+          final bio = i < bios.length ? bios[i] : null;
+          final col = <String>[];
+          // Spacer for section header: Physical Info
+          col.add('');
+          // Physical Info values
+          col.add(fmt(bio?['age']));
+          col.add(fmt(bio?['experience']));
+          col.add(fmtH(bio?['height']));
+          col.add(fmtW(bio?['weight']));
+          // Spacer for section header: Season Stats
+          col.add('');
+          // Season base
+          col.add(fmtNum(p['fantasy_points_ppr']));
+          col.add(fmtNum(p['total_yards']));
+          col.add(fmtNum(p['total_tds']));
+          // Season pos-specific
+          if (pos == 'QB') {
+            col.add(fmtNum(p['passing_yards']));
+            col.add(fmtNum(p['passing_tds']));
+            col.add(fmtNum(p['interceptions']));
+            col.add(fmtNum(p['completion_percentage']));
+            col.add(fmtNum(p['yards_per_attempt']));
+            col.add(fmtNum(p['sacks']));
+          } else if (pos == 'RB') {
+            col.add(fmtNum(p['rushing_yards']));
+            col.add(fmtNum(p['rushing_tds']));
+            col.add(fmtNum(p['yards_per_carry']));
+            col.add(fmtNum(p['receptions']));
+            col.add(fmtNum(p['targets']));
+          } else {
+            col.add(fmtNum(p['targets']));
+            col.add(fmtNum(p['receptions']));
+            col.add(fmtNum(p['catch_percentage']));
+            col.add(fmtNum(p['receiving_yards']));
+            col.add(fmtNum(p['receiving_tds']));
+          }
+          // Spacer for section header: Advanced
+          col.add('');
+          // Advanced
+          if (pos == 'QB') {
+            col.add(fmtNum(p['passing_epa']));
+            col.add(fmtNum(p['touchdown_percentage']));
+            col.add(fmtNum(p['interception_percentage']));
+            col.add(fmtNum(p['passing_first_downs']));
+            final sr = _rate(p['sacks'], p['attempts']);
+            col.add(sr);
+          } else if (pos == 'RB') {
+            col.add(fmtNum(p['rushing_epa']));
+            col.add(fmtNum(p['yards_per_carry']));
+            col.add(fmtNum(p['rushing_first_downs']));
+            col.add(fmtNum(p['receiving_first_downs']));
+            final yacRec = _safeDiv(p['receiving_yards_after_catch'], p['receptions']);
+            col.add(yacRec);
+          } else {
+            col.add(fmtNum(p['yards_per_target']));
+            col.add(fmtNum(p['yards_per_reception']));
+            col.add(fmtNum(p['receiving_epa']));
+            col.add(fmtNum(p['receiving_first_downs']));
+            final aDot = _safeDiv(p['receiving_air_yards'], p['targets']);
+            final yacRec = _safeDiv(p['receiving_yards_after_catch'], p['receptions']);
+            col.add(aDot);
+            col.add(yacRec);
+          }
+          // Spacer for section header: Career
+          col.add('');
+          // Career
+          final games = (p['games'] as num?)?.toInt() ?? _getValidGames(p);
+          col.add(fmtNum(games));
+          final totalY = (p['total_yards'] as num?) ?? 0;
+          final totalTD = (p['total_tds'] as num?) ?? 0;
+          final ppr = (p['fantasy_points_ppr'] as num?) ?? 0;
+          col.add(fmtNum(totalY));
+          col.add(_safeDiv(totalY, games));
+          col.add(fmtNum(totalTD));
+          col.add(_safeDiv(totalTD, games));
+          col.add(fmtNum(ppr));
+          col.add(_safeDiv(ppr, games));
+          perPlayerColumns.add(col);
+        }
+
+        return _buildColumnGrid(
+          labels: labels,
+          perPlayerColumns: perPlayerColumns,
+          bannerRowIndex: null,
+          sectionRowIndices: sectionRows,
+        );
+      },
     );
   }
 
