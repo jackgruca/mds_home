@@ -171,6 +171,14 @@ class NFLRosterService {
     String team = getValue('team', 'UNK');
     int age = getIntValue('age', 25);
     int experience = getIntValue('experience', 0);
+    int? jerseyNumber = getIntValue('jersey_number', 0);
+    if (jerseyNumber == 0) jerseyNumber = null;
+    String? height = getValue('height', '');
+    if (height.isEmpty) height = null;
+    int? weight = getIntValue('weight', 0);
+    if (weight == 0) weight = null;
+    String? college = getValue('college', '');
+    if (college.isEmpty) college = null;
     
     // Get calculated values from CSV
     double marketValue = getDoubleValue('marketValue', 10.0);
@@ -206,6 +214,10 @@ class NFLRosterService {
       positionImportance: positionImportance,
       durabilityScore: durabilityScore,
       hasInjuryConcerns: hasInjuryConcerns,
+      jerseyNumber: jerseyNumber,
+      height: height,
+      weight: weight,
+      college: college,
     );
   }
   

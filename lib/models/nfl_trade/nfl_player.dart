@@ -12,6 +12,11 @@ class NFLPlayer {
   final int contractYearsRemaining;
   final double annualSalary; // in millions
   final String? imageUrl;
+  // Optional roster bio
+  final int? jerseyNumber;
+  final String? height; // Preserve raw string like 6'1"
+  final int? weight; // pounds
+  final String? college;
   
   // Performance metrics (0-100 scale)
   final double overallRating;
@@ -43,6 +48,10 @@ class NFLPlayer {
     required this.durabilityScore,
     this.hasInjuryConcerns = false,
     this.imageUrl,
+    this.jerseyNumber,
+    this.height,
+    this.weight,
+    this.college,
   });
 
   // Calculate position-adjusted value (for compatibility - uses trade value score)

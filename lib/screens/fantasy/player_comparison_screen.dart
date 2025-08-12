@@ -9,6 +9,8 @@ import '../../utils/team_logo_utils.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/seo_helper.dart';
 import '../../services/csv_player_stats_service.dart';
+import '../../services/nfl_roster_service.dart'; // Added for roster lookup
+import '../../models/nfl_trade/nfl_player.dart'; // Roster model type
 
 class PlayerComparisonScreen extends StatefulWidget {
   const PlayerComparisonScreen({super.key});
@@ -222,7 +224,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
           // Player Comparison Cards
@@ -243,8 +245,15 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   Widget _buildPlayerComparisonCards() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        children: [
+      child: Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const base = 1200.0;
+            final targetWidth = (constraints.maxWidth < base ? constraints.maxWidth : base) / 2;
+            return SizedBox(
+              width: targetWidth,
+              child: Column(
+                children: [
           // Season Selector
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -323,7 +332,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -333,11 +342,11 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                     children: [
                       const Text(
                         'Search for a player',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: () {
                           setState(() {
                             activeSearchIndex = -1;
@@ -352,9 +361,11 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                    TextField(
                      controller: searchController,
                      autofocus: true,
+                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                      decoration: InputDecoration(
                        hintText: 'Type player name...',
-                       prefixIcon: const Icon(Icons.search, size: 20),
+                       hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                       prefixIcon: Icon(Icons.search, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                        suffixIcon: isSearching
                            ? const SizedBox(
                                width: 16,
@@ -383,18 +394,22 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                           final player = searchResults[index];
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Colors.blue[100],
+                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                               child: Text(
                                 player['position']?.toString() ?? 'P',
                                 style: TextStyle(
-                                  color: Colors.blue[700],
+                                    color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            title: Text(player['player_name']?.toString() ?? 'Unknown'),
+                              title: Text(
+                                player['player_name']?.toString() ?? 'Unknown',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                              ),
                             subtitle: Text(
                               '${player['team']?.toString().trim().isNotEmpty == true ? player['team'] : 'Unknown Team'} • ${player['position'] ?? 'Unknown'} • ${player['fantasy_points_ppr']?.toStringAsFixed(1) ?? '0.0'} PPR',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                             onTap: () => _selectPlayer(player),
                           );
@@ -480,6 +495,10 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
              _buildAddPlayerButton(),
            ],
         ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -490,11 +509,11 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     return Container(
       height: 140,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -544,6 +563,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
+                            color: Colors.white,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -551,8 +571,8 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                         const SizedBox(height: 2),
                         Text(
                           '${player['position'] ?? 'Unknown'} - ${player['team']?.toString().trim().isNotEmpty == true ? player['team'] : 'Unknown Team'}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -592,7 +612,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             icon: const Icon(Icons.close, size: 16),
             onPressed: () => _removePlayer(index),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.grey[100],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
               padding: const EdgeInsets.all(2),
               minimumSize: const Size(24, 24),
             ),
@@ -627,7 +647,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
           width: double.infinity,
           height: double.infinity,
           decoration: BoxDecoration(
-             border: Border.all(color: Colors.grey[300]!, width: 2),
+             border: Border.all(color: Theme.of(context).dividerColor, width: 2),
              borderRadius: BorderRadius.circular(16),
            ),
           child: Column(
@@ -637,12 +657,12 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(32),
                 ),
                 child: Icon(
                   Icons.add,
-                  color: Colors.blue[600],
+                  color: Theme.of(context).colorScheme.primary,
                   size: 32,
                 ),
               ),
@@ -652,13 +672,14 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Tap to search',
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Colors.grey[400],
                   fontSize: 14,
                 ),
               ),
@@ -708,28 +729,29 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   }
 
   Widget _buildStatBubble(String value, String label) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: Theme.of(context).colorScheme.primary,
+              color: Colors.white,
             ),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey[600],
+          style: const TextStyle(
+            color: Colors.white,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
@@ -782,13 +804,33 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 12),
           Expanded(
             child: SingleChildScrollView(
-              child: _buildComparisonTable(),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Column(
+                    children: [
+                      // Removed redundant mini-header under Detailed Statistics
+                      _buildSectionHeader('Physical Info'),
+                      _buildPhysicalInfoRows(),
+                      const SizedBox(height: 16),
+                      _buildSectionHeader('Season Stats ($selectedSeason)'),
+                      _buildSeasonStatRows(),
+                      const SizedBox(height: 16),
+                      _buildSectionHeader('Advanced Metrics'),
+                      _buildAdvancedRows(),
+                      const SizedBox(height: 16),
+                      _buildSectionHeader('Career Stats (Totals & Per Game)'),
+                      _buildCareerRows(),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -796,178 +838,429 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     );
   }
 
-  Widget _buildComparisonTable() {
+  // ===== Sectioned layout helpers =====
+
+  Widget _buildCompactHeaderRow() {
+    // For two players: center with whitespace; for three later, we can expand
+    final theme = Theme.of(context);
+    return LayoutBuilder(builder: (context, c) {
+      final isNarrow = c.maxWidth < 700;
+      final children = selectedPlayers.take(3).map((p) => Expanded(child: _compactHeaderCard(p))).toList();
+      if (isNarrow) {
+        return Column(children: [for (final w in children) ...[w, const SizedBox(height: 8)]]);
+      }
+      return Row(children: [for (int i = 0; i < children.length; i++) ...[if (i > 0) const SizedBox(width: 12), children[i]]]);
+    });
+  }
+
+  Widget _compactHeaderCard(Map<String, dynamic> player) {
+    final theme = Theme.of(context);
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _lookupRosterQuick(player),
+      builder: (context, snap) {
+        final bio = snap.data;
+        final exp = bio?['experience'];
+        final college = bio?['college'];
     return Container(
+          padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+            color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0,2))],
+          ),
+          child: Row(
+            children: [
+              _blankHeadshot(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(player['player_name']?.toString() ?? '-', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${player['position'] ?? ''} • ${player['team'] ?? ''}${exp != null ? ' • ${exp}y' : ''}${college != null ? ' • $college' : ''}',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
+                      overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
-          columnSpacing: 32,
-          dataRowMinHeight: 36,
-          dataRowMaxHeight: 48,
-          columns: [
-            const DataColumn(
-              label: Text(
-                'STAT',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
               ),
-            ),
-            ...selectedPlayers.map((player) => DataColumn(
-              label: SizedBox(
-                width: 100,
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlayerBanners() {
+    final left = selectedPlayers[0];
+    final right = selectedPlayers[1];
+    return LayoutBuilder(
+      builder: (context, c) {
+        final isNarrow = c.maxWidth < 700;
+        if (isNarrow) {
+          return Column(
+            children: [
+              _playerBanner(left, alignRight: false),
+              const SizedBox(height: 8),
+              _centerLabel('VS'),
+              const SizedBox(height: 8),
+              _playerBanner(right, alignRight: true),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: _playerBanner(left, alignRight: false)),
+            const SizedBox(width: 12),
+            _centerLabel('VS'),
+            const SizedBox(width: 12),
+            Expanded(child: _playerBanner(right, alignRight: true)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _playerBanner(Map<String, dynamic> player, {required bool alignRight}) {
+    final theme = Theme.of(context);
+    // Best-effort roster lookup for age/experience
+    Future<Map<String, dynamic>?> lookupRoster(String team, String name) async {
+      try {
+        final roster = await NFLRosterService.getTeamRoster(team);
+        final hit = roster.firstWhere(
+          (p) => p.name.toLowerCase().contains(name.toString().toLowerCase()),
+          orElse: () => roster.isNotEmpty ? roster.first : NFLPlayer(
+            playerId: 'na', name: name, position: player['position'] ?? 'UNK', team: team,
+            age: 0, experience: 0, marketValue: 0, contractStatus: 'na', contractYearsRemaining: 0,
+            annualSalary: 0, overallRating: 0, positionRank: 0, ageAdjustedValue: 0,
+            positionImportance: 0, durabilityScore: 0,
+          ),
+        );
+        // Pass richer fields
+        return {
+          'age': hit.age,
+          'experience': hit.experience,
+          'contractYearsRemaining': hit.contractYearsRemaining,
+          'marketValue': hit.marketValue,
+          'overallRating': hit.overallRating,
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: lookupRoster(player['team'] ?? '', player['player_name'] ?? ''),
+      builder: (context, snap) {
+        final age = snap.data?['age'];
+        final exp = snap.data?['experience'];
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0,2))],
+          ),
+          child: Row(
+            mainAxisAlignment: alignRight ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!alignRight) _blankHeadshot(),
+              if (!alignRight) const SizedBox(width: 12),
+              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (player['player_name']?.toString() ?? 'Unknown').length > 15 
-                          ? '${(player['player_name']?.toString() ?? 'Unknown').substring(0, 15)}...'
-                          : player['player_name']?.toString() ?? 'Unknown',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
+                      player['player_name']?.toString() ?? 'Unknown',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      '${player['team']} ${player['position']}',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 10),
-                      textAlign: TextAlign.center,
+                      '${player['position'] ?? ''} • ${player['team'] ?? ''}${exp != null ? ' • ${exp}y' : ''}${age != null && age > 0 ? ' • ${age}yo' : ''}',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-            )),
-          ],
-          rows: _buildComparisonRows(),
-        ),
+              if (alignRight) const SizedBox(width: 12),
+              if (alignRight) _blankHeadshot(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _blankHeadshot() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24),
       ),
     );
   }
 
-  List<DataRow> _buildComparisonRows() {
-    final stats = [
-      // Basic Stats
-      {'category': 'Basic Stats'},
-      {'label': 'Fantasy Points (PPR)', 'field': 'fantasy_points_ppr', 'format': 'decimal'},
-      {'label': 'Fantasy Points (Standard)', 'field': 'fantasy_points', 'format': 'decimal'},
-      {'label': 'Total Yards', 'field': 'total_yards', 'format': 'decimal'},
-      {'label': 'Total TDs', 'field': 'total_tds'},
-      
-      // Passing Stats (if applicable)
-      if (selectedPlayers.any((p) => p['position'] == 'QB')) ...[
-        {'category': 'Passing'},
-        {'label': 'Passing Yards', 'field': 'passing_yards', 'format': 'decimal'},
-        {'label': 'Passing TDs', 'field': 'passing_tds'},
-        {'label': 'Interceptions', 'field': 'interceptions'},
-        {'label': 'Attempts', 'field': 'attempts'},
-        {'label': 'Completions', 'field': 'completions'},
-        {'label': 'Completion %', 'field': 'completion_percentage', 'format': 'percentage'},
-        {'label': 'Yards/Attempt', 'field': 'yards_per_attempt', 'format': 'decimal'},
-      ],
-      
-      // Rushing Stats
-      if (selectedPlayers.any((p) => ['RB', 'QB'].contains(p['position']))) ...[
-        {'category': 'Rushing'},
-        {'label': 'Rushing Yards', 'field': 'rushing_yards', 'format': 'decimal'},
-        {'label': 'Rushing TDs', 'field': 'rushing_tds'},
-        {'label': 'Carries', 'field': 'carries'},
-        {'label': 'Yards per Carry', 'field': 'yards_per_carry', 'format': 'decimal'},
-      ],
-      
-      // Receiving Stats
-      if (selectedPlayers.any((p) => ['WR', 'TE', 'RB'].contains(p['position']))) ...[
-        {'category': 'Receiving'},
-        {'label': 'Receiving Yards', 'field': 'receiving_yards', 'format': 'decimal'},
-        {'label': 'Receiving TDs', 'field': 'receiving_tds'},
-        {'label': 'Receptions', 'field': 'receptions'},
-        {'label': 'Targets', 'field': 'targets'},
-        {'label': 'Catch %', 'field': 'catch_percentage', 'format': 'percentage'},
-        {'label': 'Yards/Reception', 'field': 'yards_per_reception', 'format': 'decimal'},
-        {'label': 'Yards/Target', 'field': 'yards_per_target', 'format': 'decimal'},
-      ],
-      
-      // Advanced Stats
-      {'category': 'Advanced'},
-      {'label': 'Passing EPA', 'field': 'passing_epa', 'format': 'decimal'},
-      {'label': 'Rushing EPA', 'field': 'rushing_epa', 'format': 'decimal'},
-      {'label': 'Receiving EPA', 'field': 'receiving_epa', 'format': 'decimal'},
-    ];
+  Widget _buildSectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: ThemeConfig.darkNavy,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
 
-    List<DataRow> rows = [];
+  Widget _centerLabel(String text) {
+    return Container(
+      width: 60,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    );
+  }
 
-    for (var stat in stats) {
-      if (stat.containsKey('category')) {
-        // Category header row
-        rows.add(DataRow(
-          color: WidgetStateProperty.all(Colors.blue[50]),
-          cells: [
-            DataCell(
-              Text(
-                stat['category'] as String,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                  fontSize: 14,
+  // Adaptive row: on wide screens use [Left][Label][Right], on narrow use [Label][Left][Right]
+  Widget _symRow(String label, String leftVal, String rightVal) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, c) {
+        final isNarrow = c.maxWidth < 700;
+        if (isNarrow) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: theme.dividerColor))),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 140,
+                  child: Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w600)),
                 ),
-              ),
+                Expanded(child: Align(alignment: Alignment.centerRight, child: Text(leftVal, style: const TextStyle(color: Colors.white)))),
+                const SizedBox(width: 16),
+                Expanded(child: Align(alignment: Alignment.centerLeft, child: Text(rightVal, style: const TextStyle(color: Colors.white)))),
+              ],
             ),
-            ...selectedPlayers.map((player) => const DataCell(Text(''))),
-          ],
-        ));
-      } else {
-        // Data row
-        rows.add(DataRow(
-          cells: [
-            DataCell(
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Text(
-                  stat['label'] as String,
-                  style: const TextStyle(fontSize: 13),
-                ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: theme.dividerColor))),
+          child: Row(
+            children: [
+              Expanded(child: Align(alignment: Alignment.centerRight, child: Text(leftVal, style: const TextStyle(color: Colors.white)))),
+              SizedBox(
+                width: 180,
+                child: Center(child: Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w600))),
               ),
-            ),
-            ...selectedPlayers.map((player) {
-              final value = player[stat['field']];
-              String displayValue = '-';
-              
-              if (value != null) {
-                if (stat['format'] == 'decimal') {
-                  displayValue = (value as num).toStringAsFixed(1);
-                } else if (stat['format'] == 'percentage') {
-                  displayValue = '${(value as num).toStringAsFixed(1)}%';
-                } else {
-                  displayValue = value.toString();
-                }
-              }
-              
-              return DataCell(
-                Text(
-                  displayValue,
-                  style: const TextStyle(fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }),
+              Expanded(child: Align(alignment: Alignment.centerLeft, child: Text(rightVal, style: const TextStyle(color: Colors.white)))),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Physical info
+  Widget _buildPhysicalInfoRows() {
+    final left = selectedPlayers[0];
+    final right = selectedPlayers[1];
+    // Load richer roster fields for both players
+    return FutureBuilder<List<Map<String, dynamic>?>>(
+      future: Future.wait([
+        _lookupRosterQuick(left),
+        _lookupRosterQuick(right),
+      ]),
+      builder: (context, snap) {
+        final a = snap.data != null ? snap.data![0] : null;
+        final b = snap.data != null ? snap.data![1] : null;
+        String fmtH(dynamic h) => (h == null || (h is String && h.isEmpty)) ? '-' : h.toString();
+        String fmtW(dynamic w) => (w == null || (w is String && w.isEmpty)) ? '-' : w.toString();
+        String fmt(dynamic v) => (v == null || (v is String && v.isEmpty)) ? '-' : v.toString();
+        return Column(
+          children: [
+            _symRow('Team', left['team']?.toString() ?? '-', right['team']?.toString() ?? '-'),
+            _symRow('Position', left['position']?.toString() ?? '-', right['position']?.toString() ?? '-'),
+            _symRow('Jersey #', fmt(a?['jersey_number']), fmt(b?['jersey_number'])),
+            _symRow('Age', fmt(a?['age']), fmt(b?['age'])),
+            _symRow('Experience', fmt(a?['experience']), fmt(b?['experience'])),
+            _symRow('Height', fmtH(a?['height']), fmtH(b?['height'])),
+            _symRow('Weight', fmtW(a?['weight']), fmtW(b?['weight'])),
+            _symRow('College', fmt(a?['college']), fmt(b?['college'])),
+            _symRow('Contract Yrs', fmt(a?['contractYearsRemaining']), fmt(b?['contractYearsRemaining'])),
           ],
-        ));
-      }
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> _lookupRosterQuick(Map<String, dynamic> player) async {
+    try {
+      final team = player['team']?.toString() ?? '';
+      final name = player['player_name']?.toString() ?? '';
+      final roster = await NFLRosterService.getTeamRoster(team);
+      final hit = roster.firstWhere(
+        (p) => p.name.toLowerCase().contains(name.toLowerCase()),
+        orElse: () => roster.isNotEmpty ? roster.first : NFLPlayer(
+          playerId: 'na', name: name, position: player['position'] ?? 'UNK', team: team,
+          age: 0, experience: 0, marketValue: 0, contractStatus: 'na', contractYearsRemaining: 0,
+          annualSalary: 0, overallRating: 0, positionRank: 0, ageAdjustedValue: 0,
+          positionImportance: 0, durabilityScore: 0,
+        ),
+      );
+      // We don’t have height/weight/college on NFLPlayer, so pull from CSV via team roster CSV is not exposed.
+      // However, NFLRosterService parses the same CSV and may not store these fields; leave blank if unavailable.
+      return {
+        'age': hit.age,
+        'experience': hit.experience,
+        'contractYearsRemaining': hit.contractYearsRemaining,
+        'jersey_number': null,
+        'height': null,
+        'weight': null,
+        'college': null,
+      };
+    } catch (_) {
+      return null;
     }
+  }
 
-    return rows;
+  // Season stats rows (position-agnostic core + position specific)
+  Widget _buildSeasonStatRows() {
+    final a = selectedPlayers[0];
+    final b = selectedPlayers[1];
+    String fmtNum(dynamic v) {
+      if (v == null) return '-';
+      if (v is num) return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
+      return v.toString();
+    }
+    final rows = <Widget>[
+      _symRow('PPR Points', fmtNum(a['fantasy_points_ppr']), fmtNum(b['fantasy_points_ppr'])),
+      _symRow('Total Yards', fmtNum(a['total_yards']), fmtNum(b['total_yards'])),
+      _symRow('Total TDs', fmtNum(a['total_tds']), fmtNum(b['total_tds'])),
+    ];
+    final pos = (a['position'] ?? '').toString();
+    if (pos == 'QB') {
+      rows.addAll([
+        _symRow('Pass Yds', fmtNum(a['passing_yards']), fmtNum(b['passing_yards'])),
+        _symRow('Pass TD', fmtNum(a['passing_tds']), fmtNum(b['passing_tds'])),
+        _symRow('INT', fmtNum(a['interceptions']), fmtNum(b['interceptions'])),
+        _symRow('Comp %', fmtNum(a['completion_percentage']), fmtNum(b['completion_percentage'])),
+        _symRow('Y/A', fmtNum(a['yards_per_attempt']), fmtNum(b['yards_per_attempt'])),
+        _symRow('Sacks', fmtNum(a['sacks']), fmtNum(b['sacks'])),
+      ]);
+    } else if (pos == 'RB') {
+      rows.addAll([
+        _symRow('Rush Yds', fmtNum(a['rushing_yards']), fmtNum(b['rushing_yards'])),
+        _symRow('Rush TD', fmtNum(a['rushing_tds']), fmtNum(b['rushing_tds'])),
+        _symRow('Y/C', fmtNum(a['yards_per_carry']), fmtNum(b['yards_per_carry'])),
+        _symRow('Rec', fmtNum(a['receptions']), fmtNum(b['receptions'])),
+        _symRow('Targets', fmtNum(a['targets']), fmtNum(b['targets'])),
+      ]);
+                } else {
+      // WR/TE default
+      rows.addAll([
+        _symRow('Targets', fmtNum(a['targets']), fmtNum(b['targets'])),
+        _symRow('Receptions', fmtNum(a['receptions']), fmtNum(b['receptions'])),
+        _symRow('Catch %', fmtNum(a['catch_percentage']), fmtNum(b['catch_percentage'])),
+        _symRow('Rec Yds', fmtNum(a['receiving_yards']), fmtNum(b['receiving_yards'])),
+        _symRow('Rec TD', fmtNum(a['receiving_tds']), fmtNum(b['receiving_tds'])),
+      ]);
+    }
+    return Column(children: rows);
+  }
+
+  // Advanced metrics (position-specific)
+  Widget _buildAdvancedRows() {
+    final a = selectedPlayers[0];
+    final b = selectedPlayers[1];
+    String fmt(dynamic v) {
+      if (v == null) return '-';
+      if (v is num) return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(2);
+      return v.toString();
+    }
+    final pos = (a['position'] ?? '').toString();
+    final rows = <Widget>[];
+    if (pos == 'QB') {
+      rows.addAll([
+        _symRow('Pass EPA/play', fmt(a['passing_epa']), fmt(b['passing_epa'])),
+        _symRow('TD %', fmt(a['touchdown_percentage']), fmt(b['touchdown_percentage'])),
+        _symRow('INT %', fmt(a['interception_percentage']), fmt(b['interception_percentage'])),
+        _symRow('1D (pass)', fmt(a['passing_first_downs']), fmt(b['passing_first_downs'])),
+        _symRow('Sack Rate', _rate(a['sacks'], a['attempts']), _rate(b['sacks'], b['attempts'])),
+      ]);
+    } else if (pos == 'RB') {
+      rows.addAll([
+        _symRow('Rush EPA/play', fmt(a['rushing_epa']), fmt(b['rushing_epa'])),
+        _symRow('Y/C', fmt(a['yards_per_carry']), fmt(b['yards_per_carry'])),
+        _symRow('YAC/Rec', fmt(_safeDiv(a['receiving_yards_after_catch'], a['receptions'])), fmt(_safeDiv(b['receiving_yards_after_catch'], b['receptions']))),
+        _symRow('1D (rush)', fmt(a['rushing_first_downs']), fmt(b['rushing_first_downs'])),
+        _symRow('1D (rec)', fmt(a['receiving_first_downs']), fmt(b['receiving_first_downs'])),
+      ]);
+    } else {
+      rows.addAll([
+        _symRow('Y/Tgt', fmt(a['yards_per_target']), fmt(b['yards_per_target'])),
+        _symRow('Y/Rec', fmt(a['yards_per_reception']), fmt(b['yards_per_reception'])),
+        _symRow('aDOT', fmt(_safeDiv(a['receiving_air_yards'], a['targets'])), fmt(_safeDiv(b['receiving_air_yards'], b['targets']))),
+        _symRow('YAC/Rec', fmt(_safeDiv(a['receiving_yards_after_catch'], a['receptions'])), fmt(_safeDiv(b['receiving_yards_after_catch'], b['receptions']))),
+        _symRow('EPA/play (rec)', fmt(a['receiving_epa']), fmt(b['receiving_epa'])),
+        _symRow('1D (rec)', fmt(a['receiving_first_downs']), fmt(b['receiving_first_downs'])),
+      ]);
+    }
+    return Column(children: rows);
+  }
+
+  // Career totals and per-game (best-effort from season stats fields)
+  Widget _buildCareerRows() {
+    final a = selectedPlayers[0];
+    final b = selectedPlayers[1];
+    num n(dynamic v) => (v as num?) ?? 0;
+    String perGame(dynamic total, dynamic games) {
+      final t = n(total).toDouble();
+      final g = n(games).toDouble();
+      if (g <= 0) return '-';
+      final v = t / g;
+      return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(1);
+    }
+    // We use available totals and the 'games' field where present
+    final rows = <Widget>[
+      _symRow('Games', a['games']?.toString() ?? '-', b['games']?.toString() ?? '-'),
+      _symRow('Total Yards', n(a['total_yards']).toString(), n(b['total_yards']).toString()),
+      _symRow('Yards/Game', perGame(a['total_yards'], a['games']), perGame(b['total_yards'], b['games'])),
+      _symRow('Total TDs', n(a['total_tds']).toString(), n(b['total_tds']).toString()),
+      _symRow('TDs/Game', perGame(a['total_tds'], a['games']), perGame(b['total_tds'], b['games'])),
+      _symRow('PPR Points', (n(a['fantasy_points_ppr']).toString()), (n(b['fantasy_points_ppr']).toString())),
+      _symRow('PPR/Game', perGame(a['fantasy_points_ppr'], a['games']), perGame(b['fantasy_points_ppr'], b['games'])),
+    ];
+    return Column(children: rows);
+  }
+
+  String _safeDiv(dynamic nume, dynamic den) {
+    final n = (nume as num?)?.toDouble() ?? 0.0;
+    final d = (den as num?)?.toDouble() ?? 0.0;
+    if (d == 0) return '-';
+    final v = n / d;
+    return v % 1 == 0 ? v.toInt().toString() : v.toStringAsFixed(2);
+  }
+
+  String _rate(dynamic nume, dynamic den) {
+    final n = (nume as num?)?.toDouble() ?? 0.0;
+    final d = (den as num?)?.toDouble() ?? 0.0;
+    if (d == 0) return '-';
+    final pct = (n / d) * 100.0;
+    return '${pct.toStringAsFixed(1)}%';
   }
 }
