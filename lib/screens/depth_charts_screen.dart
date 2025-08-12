@@ -110,14 +110,15 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('NFL Depth Charts', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
           ],
         ),
       ),
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name),
           _buildFilters(),
           _buildContent(),
         ],
@@ -419,7 +420,7 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
     for (int i = 1; i <= maxDepth; i++) {
       columns.add(DataColumn(
         label: Text(
-          '${i}${_getOrdinalSuffix(i)}',
+          '$i${_getOrdinalSuffix(i)}',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ));

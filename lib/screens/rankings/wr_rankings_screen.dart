@@ -66,7 +66,22 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     _updateStatFields();
     _loadWRRankings();
   }
-  
+
+  // Returns the exact stat columns to display for WR across header and rows
+  List<String> _wrFieldsToDisplay() {
+    final excluded = <String>{
+      'myRankNum', 'rank_number',
+      'player_name', 'receiver_player_name', 'fantasy_player_name',
+      'posteam', 'team',
+      'tier', 'wr_tier', 'wrTier',
+      'season',
+      'player_id', 'receiver_player_id', 'player_position', 'position', 'fantasy_player_id',
+      // remove duplicate placeholders/non-stats
+      'games', 'numGames', 'myRank', 'rank',
+    };
+    return _wrStatFields.keys.where((k) => !excluded.contains(k)).toList();
+  }
+
   void _updateStatFields() {
     _wrStatFields = RankingService.getStatFields('wr', showRanks: _showRanks);
   }
@@ -113,10 +128,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       }
       
       // Calculate percentiles for stat ranking
-      final statFields = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'wrTier'].contains(key)
-      ).toList();
-      
+      final statFields = _wrFieldsToDisplay();
       final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
       _percentileCache.clear();
       _percentileCache.addAll(percentiles);
@@ -180,9 +192,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
           : customRankings;
       
       // Update percentiles for new rankings
-      final statFields = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'wrTier'].contains(key)
-      ).toList();
+      final statFields = _wrFieldsToDisplay();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
       
@@ -214,9 +224,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
           : _originalRankings;
       
       // Update percentiles for original rankings
-      final statFields = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'wrTier'].contains(key)
-      ).toList();
+      final statFields = _wrFieldsToDisplay();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(processedRankings, statFields);
       
@@ -279,10 +287,8 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       // Apply filters
       final filteredRankings = FilterService.applyFilters(baseRankings, newFilter);
       
-      // Update percentiles
-      final statFields = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'wrTier'].contains(key)
-      ).toList();
+      // Update percentiles using unified stat columns list
+      final statFields = _wrFieldsToDisplay();
       
       final percentiles = RankingCellShadingService.calculatePercentiles(filteredRankings, statFields);
       _percentileCache.clear();
@@ -302,12 +308,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
-    final statFieldsToShow = _wrStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'wrTier'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _wrFieldsToDisplay();
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -411,13 +412,14 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -476,8 +478,8 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -660,12 +662,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-    final statFieldsToShow = _wrStatFields.keys.where((key) => 
-      !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'wr_tier', 'wrTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _wrFieldsToDisplay();
     
     for (final field in fieldsToDisplay) {
       final statInfo = _wrStatFields[field]!;
@@ -747,12 +744,7 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _wrStatFields.keys.where((key) => 
-        !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'wr_tier', 'wrTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id'].contains(key)
-      ).toList();
-      
-      // The stat fields are already filtered by the service based on _showRanks
-      final fieldsToDisplay = statFieldsToShow;
+      final fieldsToDisplay = _wrFieldsToDisplay();
       
       for (final field in fieldsToDisplay) {
         final value = wr[field];
@@ -780,7 +772,10 @@ class _WRRankingsScreenState extends State<WRRankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

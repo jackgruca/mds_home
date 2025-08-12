@@ -59,6 +59,19 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     _updateStatFields();
     _loadEdgeRankings();
   }
+
+  List<String> _edgeFieldsToDisplay() {
+    final excluded = <String>{
+      'myRankNum', 'ranking', 'rank_number',
+      'name', 'player_name',
+      'team',
+      'tier',
+      'season',
+      'player_id', 'position',
+      'games', 'numGames', 'myRank', 'rank',
+    };
+    return _edgeStatFields.keys.where((k) => !excluded.contains(k)).toList();
+  }
   
   void _updateStatFields() {
     _edgeStatFields = RankingService.getStatFields('edge', showRanks: _showRanks);
@@ -228,11 +241,7 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     if (_selectedSeason == 'All') {
       baseColumns.add('season');
     }
-    final statFieldsToShow = _edgeStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-    ).toList();
-    
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _edgeFieldsToDisplay();
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -336,13 +345,14 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -401,8 +411,8 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -585,11 +595,7 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-    final statFieldsToShow = _edgeStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-    ).toList();
-    
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _edgeFieldsToDisplay();
     
     for (final field in fieldsToDisplay) {
       final statInfo = _edgeStatFields[field]!;
@@ -672,11 +678,7 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _edgeStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-      ).toList();
-      
-      final fieldsToDisplay = statFieldsToShow;
+      final fieldsToDisplay = _edgeFieldsToDisplay();
       
       for (final field in fieldsToDisplay) {
         final value = edge[field];
@@ -703,7 +705,10 @@ class _EdgeRankingsScreenState extends State<EdgeRankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

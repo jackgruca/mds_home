@@ -5,6 +5,7 @@ import 'package:data_table_2/data_table_2.dart';
 import '../../models/adp/adp_comparison.dart';
 import '../../services/adp/adp_service.dart';
 import '../../widgets/common/custom_app_bar.dart';
+import '../../widgets/common/top_nav_bar.dart';
 import '../../utils/theme_config.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../utils/team_logo_utils.dart';
@@ -396,7 +397,13 @@ class _ADPAnalysisScreenState extends State<ADPAnalysisScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
-        titleWidget: const Text('ADP Analysis'),
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+          ],
+        ),
       ),
       body: Column(
         children: [

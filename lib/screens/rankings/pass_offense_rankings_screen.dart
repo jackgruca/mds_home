@@ -269,13 +269,14 @@ class _PassOffenseRankingsScreenState extends State<PassOffenseRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -587,7 +588,10 @@ class _PassOffenseRankingsScreenState extends State<PassOffenseRankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

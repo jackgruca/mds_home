@@ -424,13 +424,14 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -489,8 +490,8 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -538,7 +539,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
           // Toggle button for ranks vs raw stats
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: theme.dividerColor),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -568,7 +569,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
               Text(
                 '${_qbRankings.length} players',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               if (_usingCustomWeights)
@@ -595,6 +596,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
   }
 
   Widget _buildToggleButton(String label, bool isActive, VoidCallback onPressed) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onPressed,
       child: Container(
@@ -606,7 +608,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.grey.shade700,
+            color: isActive ? Colors.white : theme.colorScheme.onSurfaceVariant,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             fontSize: 12,
           ),
@@ -626,8 +628,10 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       );
     }
 
+    final theme = Theme.of(context);
     return AnimationLimiter(
-      child: SingleChildScrollView(
+      child: Container(
+        color: theme.colorScheme.surface,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
@@ -639,6 +643,7 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             headingRowHeight: 56,
             dataRowMinHeight: 48,
             dataRowMaxHeight: 48,
+            headingRowColor: WidgetStatePropertyAll(theme.colorScheme.surfaceContainerHighest),
           ),
         ),
       ),
@@ -675,7 +680,24 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
 
     // Add stat columns - skip base fields that are already added
     final statFieldsToShow = _qbStatFields.keys.where((key) => 
-      !['myRankNum', 'rank_number', 'player_name', 'passer_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'passer_player_id', 'player_position', 'fantasy_player_id', 'teamQBTier'].contains(key)
+      ![
+        'myRankNum',
+        'player_name',
+        'posteam',
+        'team',
+        'tier',
+        'qbTier',
+        'teamQBTier',
+        'season',
+        'player_id',
+        'position',
+        'passer_player_id',
+        'passer_player_name',
+        'player_position',
+        'fantasy_player_id',
+        // Remove duplicates that render as "-"
+        'rank', 'rank_number', 'myRank', 'myRankNum', 'games', 'numGames', 'games_rank'
+      ].contains(key)
     ).toList();
     
     // The stat fields are already filtered by the service based on _showRanks
@@ -761,8 +783,25 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _qbStatFields.keys.where((key) => 
-        !['myRankNum', 'rank_number', 'player_name', 'passer_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'passer_player_id', 'player_position', 'fantasy_player_id', 'teamQBTier'].contains(key)
+      final statFieldsToShow = _qbStatFields.keys.where((key) =>
+        ![
+          'myRankNum',
+          'player_name',
+          'posteam',
+          'team',
+          'tier',
+          'qbTier',
+          'teamQBTier',
+          'season',
+          'player_id',
+          'position',
+          'passer_player_id',
+          'passer_player_name',
+          'player_position',
+          'fantasy_player_id',
+          // Remove duplicates that render as "-"
+          'rank', 'rank_number', 'myRank', 'myRankNum', 'games', 'numGames', 'games_rank'
+        ].contains(key)
       ).toList();
       
       // The stat fields are already filtered by the service based on _showRanks
@@ -794,7 +833,10 @@ class _QBRankingsScreenState extends State<QBRankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

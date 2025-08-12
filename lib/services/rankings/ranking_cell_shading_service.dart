@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 class RankingCellShadingService {
+  // Muted color palette for dark mode
+  static const Color _darkGreenHigh = Color(0xFF2E7D32); // green 800
+  static const Color _darkGreenLow = Color(0xFF1B5E20);  // green 900
+  static const Color _darkOrange = Color(0xFFEF6C00);    // orange 800
+  static const Color _darkRed = Color(0xFFC62828);       // red 800
+
   static Map<String, Map<String, double>> calculatePercentiles(
     List<Map<String, dynamic>> rankings,
     List<String> statColumns,
@@ -73,7 +79,7 @@ class RankingCellShadingService {
     return sortedValues[lower] * (upper - index) + sortedValues[upper] * (index - lower);
   }
 
-  static Color getDensityColor(String column, double value, Map<String, Map<String, double>> percentileCache, {bool isRankField = false}) {
+  static Color getDensityColor(String column, double value, Map<String, Map<String, double>> percentileCache, {bool isRankField = false, required bool isDarkMode}) {
     final percentiles = percentileCache[column];
     if (percentiles == null) return Colors.grey.shade200;
     
@@ -84,27 +90,33 @@ class RankingCellShadingService {
     // Check if this is a "lower is better" stat
     final isLowerBetter = isRankField || _isLowerBetterStat(column);
     
+    // Helper to pick palette per mode
+    Color greenStrong() => isDarkMode ? _darkGreenHigh.withValues(alpha: 0.8) : Colors.green.withOpacity(0.7);
+    Color greenLight()  => isDarkMode ? _darkGreenLow.withValues(alpha: 0.6)  : Colors.green.withOpacity(0.4);
+    Color warn()        => isDarkMode ? _darkOrange.withValues(alpha: 0.55)   : Colors.orange.withOpacity(0.3);
+    Color bad()         => isDarkMode ? _darkRed.withValues(alpha: 0.55)      : Colors.red.withOpacity(0.3);
+
     if (isLowerBetter) {
       // Inverted logic: lower value = better = green
       if (value <= p25) {
-        return Colors.green.withOpacity(0.7);  // Top 25% (best values)
+        return greenStrong();  // Top 25% (best values)
       } else if (value <= p50) {
-        return Colors.green.withOpacity(0.4);  // Top 50%
+        return greenLight();  // Top 50%
       } else if (value <= p75) {
-        return Colors.orange.withOpacity(0.3); // Top 75%
+        return warn(); // Top 75%
       } else {
-        return Colors.red.withOpacity(0.3);    // Bottom 25% (worst values)
+        return bad();    // Bottom 25% (worst values)
       }
     } else {
       // Regular logic: higher value = better = green
       if (value >= p75) {
-        return Colors.green.withOpacity(0.7);
+        return greenStrong();
       } else if (value >= p50) {
-        return Colors.green.withOpacity(0.4);
+        return greenLight();
       } else if (value >= p25) {
-        return Colors.orange.withOpacity(0.3);
+        return warn();
       } else {
-        return Colors.red.withOpacity(0.3);
+        return bad();
       }
     }
   }
@@ -141,6 +153,7 @@ class RankingCellShadingService {
         numValue = double.tryParse(displayValue) ?? 0.0;
       }
     }
+    final isDarkMode = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
     
     return Container(
       width: width,
@@ -148,10 +161,10 @@ class RankingCellShadingService {
       margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: _isStringField(column) 
-            ? Colors.grey.shade100  // Default color for string fields
-            : getDensityColor(column, numValue, percentileCache, isRankField: isRankField),
+            ? (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100)  // Default color for string fields
+            : getDensityColor(column, numValue, percentileCache, isRankField: isRankField, isDarkMode: isDarkMode),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300, width: 0.5),
+        border: Border.all(color: isDarkMode ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade300, width: 0.5),
       ),
       child: Center(
         child: Text(
@@ -159,7 +172,7 @@ class RankingCellShadingService {
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: Colors.white,
           ),
           textAlign: TextAlign.center,
         ),

@@ -59,6 +59,19 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
     _updateStatFields();
     _loadIdlRankings();
   }
+
+  List<String> _idlFieldsToDisplay() {
+    final excluded = <String>{
+      'myRankNum', 'ranking', 'rank_number',
+      'name', 'player_name',
+      'team',
+      'tier',
+      'season',
+      'player_id', 'position',
+      'games', 'numGames', 'myRank', 'rank',
+    };
+    return _idlStatFields.keys.where((k) => !excluded.contains(k)).toList();
+  }
   
   void _updateStatFields() {
     _idlStatFields = RankingService.getStatFields('idl', showRanks: _showRanks);
@@ -232,11 +245,7 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
     if (_selectedSeason == 'All') {
       baseColumns.add('season');
     }
-    final statFieldsToShow = _idlStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-    ).toList();
-    
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _idlFieldsToDisplay();
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -340,13 +349,14 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -405,8 +415,8 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -589,11 +599,7 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-    final statFieldsToShow = _idlStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-    ).toList();
-    
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _idlFieldsToDisplay();
     
     for (final field in fieldsToDisplay) {
       final statInfo = _idlStatFields[field]!;
@@ -676,11 +682,7 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _idlStatFields.keys.where((key) => 
-        !['myRankNum', 'player_name', 'team', 'tier', 'season', 'player_id', 'position', 'name', 'ranking'].contains(key)
-      ).toList();
-      
-      final fieldsToDisplay = statFieldsToShow;
+      final fieldsToDisplay = _idlFieldsToDisplay();
       
       for (final field in fieldsToDisplay) {
         final value = idl[field];
@@ -707,7 +709,10 @@ class _IdlRankingsScreenState extends State<IdlRankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

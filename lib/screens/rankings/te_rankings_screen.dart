@@ -66,6 +66,19 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     _updateStatFields();
     _loadTERankings();
   }
+
+  List<String> _teFieldsToDisplay() {
+    final excluded = <String>{
+      'myRankNum', 'rank_number',
+      'player_name', 'receiver_player_name', 'fantasy_player_name',
+      'posteam', 'team',
+      'tier', 'te_tier', 'teTier',
+      'season',
+      'player_id', 'receiver_player_id', 'player_position', 'position', 'fantasy_player_id',
+      'games', 'numGames', 'myRank', 'rank',
+    };
+    return _teStatFields.keys.where((k) => !excluded.contains(k)).toList();
+  }
   
   void _updateStatFields() {
     _teStatFields = RankingService.getStatFields('te', showRanks: _showRanks);
@@ -302,12 +315,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
-    final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'teTier'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _teFieldsToDisplay();
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -411,13 +419,14 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -476,8 +485,8 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -660,12 +669,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-    final statFieldsToShow = _teStatFields.keys.where((key) => 
-      !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'te_tier', 'teTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _teFieldsToDisplay();
     
     for (final field in fieldsToDisplay) {
       final statInfo = _teStatFields[field]!;
@@ -747,12 +751,7 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _teStatFields.keys.where((key) => 
-        !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'te_tier', 'teTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id'].contains(key)
-      ).toList();
-      
-      // The stat fields are already filtered by the service based on _showRanks
-      final fieldsToDisplay = statFieldsToShow;
+      final fieldsToDisplay = _teFieldsToDisplay();
       
       for (final field in fieldsToDisplay) {
         final value = te[field];
@@ -763,12 +762,10 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: value, // For rank fields, the value IS the rank
+            rankValue: value,
             showRanks: _showRanks,
             percentileCache: _percentileCache,
             formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
-            width: double.infinity,
-            height: 48,
           ),
         ));
       }
@@ -780,7 +777,10 @@ class _TERankingsScreenState extends State<TERankingsScreen> {
             if (states.contains(WidgetState.hovered)) {
               return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

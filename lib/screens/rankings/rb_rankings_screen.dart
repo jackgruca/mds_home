@@ -70,6 +70,19 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
     _updateStatFields();
     _loadRBRankings();
   }
+
+  List<String> _rbFieldsToDisplay() {
+    final excluded = <String>{
+      'myRankNum', 'rank_number',
+      'player_name', 'receiver_player_name', 'fantasy_player_name',
+      'posteam', 'team',
+      'tier', 'rbTier', 'qbTier',
+      'season',
+      'player_id', 'receiver_player_id', 'player_position', 'position', 'fantasy_player_id',
+      'games', 'numGames', 'myRank', 'rank',
+    };
+    return _rbStatFields.keys.where((k) => !excluded.contains(k)).toList();
+  }
   
   void _updateStatFields() {
     _rbStatFields = RankingService.getStatFields('rb', showRanks: _showRanks);
@@ -311,12 +324,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
     if (_selectedSeason == 'All Seasons') {
       baseColumns.add('season');
     }
-    final statFieldsToShow = _rbStatFields.keys.where((key) => 
-      !['myRankNum', 'player_name', 'posteam', 'tier', 'season', 'player_id', 'position', 'team', 'receiver_player_id', 'receiver_player_name', 'player_position', 'fantasy_player_id', 'qbTier', 'rbTier'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _rbFieldsToDisplay();
     
     baseColumns.addAll(fieldsToDisplay);
     return baseColumns.indexOf(_sortColumn);
@@ -420,13 +428,14 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
   }
 
   Widget _buildFiltersSection() {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -485,8 +494,8 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -668,12 +677,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
     }
 
     // Add stat columns - skip base fields that are already added
-    final statFieldsToShow = _rbStatFields.keys.where((key) => 
-      !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id', 'rbTier'].contains(key)
-    ).toList();
-    
-    // The stat fields are already filtered by the service based on _showRanks
-    final fieldsToDisplay = statFieldsToShow;
+    final fieldsToDisplay = _rbFieldsToDisplay();
     
     for (final field in fieldsToDisplay) {
       final statInfo = _rbStatFields[field]!;
@@ -755,12 +759,7 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
       }
 
       // Add stat cells - skip base fields that are already added
-      final statFieldsToShow = _rbStatFields.keys.where((key) => 
-        !['myRankNum', 'rank_number', 'player_name', 'receiver_player_name', 'posteam', 'team', 'tier', 'qb_tier', 'qbTier', 'season', 'numGames', 'games', 'player_id', 'position', 'receiver_player_id', 'player_position', 'fantasy_player_id', 'rbTier'].contains(key)
-      ).toList();
-      
-      // The stat fields are already filtered by the service based on _showRanks
-      final fieldsToDisplay = statFieldsToShow;
+      final fieldsToDisplay = _rbFieldsToDisplay();
       
       for (final field in fieldsToDisplay) {
         final value = rb[field];
@@ -771,12 +770,10 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
           RankingCellShadingService.buildDensityCell(
             column: field,
             value: value,
-            rankValue: value, // For rank fields, the value IS the rank
+            rankValue: value,
             showRanks: _showRanks,
             percentileCache: _percentileCache,
             formatValue: (val, col) => _formatStatValue(val, statInfo['format']),
-            width: double.infinity,
-            height: 48,
           ),
         ));
       }
@@ -786,9 +783,12 @@ class _RBRankingsScreenState extends State<RBRankingsScreen> {
         color: WidgetStateProperty.resolveWith<Color?>(
           (Set<WidgetState> states) {
             if (states.contains(WidgetState.hovered)) {
-              return tierColor.withOpacity(0.1);
+              return tierColor.withValues(alpha: 0.1);
             }
-            return index % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+            final theme = Theme.of(context);
+            final even = theme.colorScheme.surfaceContainerLow;
+            final odd = theme.colorScheme.surface;
+            return index % 2 == 0 ? even : odd;
           },
         ),
       );

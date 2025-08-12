@@ -213,7 +213,9 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
       appBar: CustomAppBar(
         titleWidget: Row(
           children: [
-            const Text('NFL Rosters', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
           ],
         ),
         actions: [
@@ -226,7 +228,6 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name),
           _buildFilters(),
           _buildDataTable(),
           _buildPaginationControls(),
@@ -455,7 +456,7 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
                   DataCell(Text(player.position)),
                   DataCell(Text('${player.age}')),
                   DataCell(Text('${player.experience}')),
-                  DataCell(Text('${player.overallRating.toStringAsFixed(1)}')),
+                  DataCell(Text(player.overallRating.toStringAsFixed(1))),
                   DataCell(Text('\$${player.annualSalary.toStringAsFixed(1)}M')),
                 ],
               );

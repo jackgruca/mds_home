@@ -4,6 +4,7 @@ import 'package:mds_home/widgets/common/responsive_layout_builder.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/widgets/design_system/mds_button.dart';
 import 'package:mds_home/widgets/design_system/mds_card.dart';
+import 'package:mds_home/widgets/common/top_nav_bar.dart';
 import 'questionnaire_wizard_screen.dart';
 import '../../screens/fantasy/my_rankings_screen.dart';
 
@@ -13,8 +14,14 @@ class CustomRankingsHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(
-        titleWidget: Text('Custom Player Rankings'),
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+          ],
+        ),
       ),
       body: ResponsiveLayoutBuilder(
         mobile: (context) => _buildMobileLayout(context),

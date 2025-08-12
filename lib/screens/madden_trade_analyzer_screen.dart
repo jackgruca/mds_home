@@ -12,6 +12,8 @@ import '../services/trade_valuation_service.dart';
 import '../services/trade_value_calculator.dart';
 import 'dart:math';
 import '../utils/constants.dart';
+import '../widgets/common/custom_app_bar.dart';
+import '../widgets/common/top_nav_bar.dart';
 
 class MaddenTradeAnalyzerScreen extends StatefulWidget {
   const MaddenTradeAnalyzerScreen({super.key});
@@ -225,11 +227,14 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('NFL Trade Machine'),
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
+        appBar: CustomAppBar(
+          titleWidget: Row(
+            children: [
+              const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 20),
+              Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+            ],
+          ),
         ),
         body: const Center(
           child: Column(
@@ -245,11 +250,14 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('NFL Trade Machine'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+          ],
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(
