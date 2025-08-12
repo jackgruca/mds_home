@@ -985,6 +985,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
   Widget _buildStickyHeaderRow() {
     final theme = Theme.of(context);
     final isTwo = selectedPlayers.length <= 2;
+    final labelWidth = isTwo ? 180.0 : 220.0;
     Widget headerCard(int i) {
       final player = i < selectedPlayers.length ? selectedPlayers[i] : null;
       return Container(
@@ -1059,33 +1060,37 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
       );
     }
 
-    if (isTwo) {
-      return Row(
-        children: [
-          Expanded(child: headerCard(0)),
+    // Base row without add-chip; widths mirror the grid beneath
+    final baseRow = Row(
+      children: [
+        if (!isTwo) ...[
+          SizedBox(width: labelWidth),
           const SizedBox(width: 12),
-          // spacer matching centered attribute rail width
-          SizedBox(width: 180),
+        ],
+        Expanded(child: headerCard(0)),
+        const SizedBox(width: 12),
+        if (isTwo) ...[
+          SizedBox(width: labelWidth),
           const SizedBox(width: 12),
           Expanded(child: headerCard(1)),
-          const SizedBox(width: 12),
-          _buildInlineAddChip(),
+        ] else ...[
+          for (int i = 1; i < selectedPlayers.length; i++) ...[
+            Expanded(child: headerCard(i)),
+            if (i != selectedPlayers.length - 1) const SizedBox(width: 12),
+          ],
         ],
-      );
-    }
-    return Row(
+      ],
+    );
+
+    // Overlay the add-chip over the label rail: center for 2, left for 3+
+    return Stack(
       children: [
-        // left attribute rail width spacer
-        SizedBox(width: 220),
-        const SizedBox(width: 12),
-        for (int i = 0; i < selectedPlayers.length; i++) ...[
-          Expanded(child: headerCard(i)),
-          if (i != selectedPlayers.length - 1) const SizedBox(width: 12),
-        ],
-        if (selectedPlayers.length < 4) ...[
-          const SizedBox(width: 12),
-          _buildInlineAddChip(),
-        ],
+        baseRow,
+        if (selectedPlayers.length < 4)
+          Align(
+            alignment: isTwo ? Alignment.center : Alignment.centerLeft,
+            child: _buildInlineAddChip(),
+          ),
       ],
     );
   }
