@@ -154,6 +154,7 @@ class RankingCellShadingService {
       }
     }
     final isDarkMode = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+    final Color textColor = isDarkMode ? Colors.white : Colors.black87;
     
     return Container(
       width: width,
@@ -169,10 +170,10 @@ class RankingCellShadingService {
       child: Center(
         child: Text(
           formatValue(displayValue, column),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Colors.white,
+            color: textColor,
           ),
           textAlign: TextAlign.center,
         ),
