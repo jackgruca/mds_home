@@ -11,7 +11,7 @@ import '../../utils/seo_helper.dart';
 import '../../services/csv_player_stats_service.dart';
 
 class PlayerComparisonScreen extends StatefulWidget {
-  const PlayerComparisonScreen({Key? key}) : super(key: key);
+  const PlayerComparisonScreen({super.key});
 
   @override
   State<PlayerComparisonScreen> createState() => _PlayerComparisonScreenState();
@@ -675,7 +675,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
     return SizedBox(
       height: 60,
       child: Material(
-        color: Colors.white.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(30),
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
@@ -713,7 +713,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.blue[50],
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
@@ -721,7 +721,7 @@ class _PlayerComparisonScreenState extends State<PlayerComparisonScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: Colors.blue[700],
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),

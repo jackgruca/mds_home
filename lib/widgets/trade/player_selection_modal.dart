@@ -173,20 +173,22 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
           // Search bar
           TextField(
             controller: searchController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Search players...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
               isDense: true,
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
             ),
             onChanged: (value) {
               searchQuery = value;
@@ -206,9 +208,11 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                     const Text('Position', style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButtonFormField<String>(
                       value: selectedPosition,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
                         isDense: true,
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                       ),
                       items: availablePositions.map((position) {
                         return DropdownMenuItem(
@@ -234,9 +238,11 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                     const Text('Sort By', style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButtonFormField<String>(
                       value: sortBy,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
                         isDense: true,
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                       ),
                       items: const [
                         DropdownMenuItem(value: 'rating', child: Text('Overall Rating')),
@@ -266,7 +272,7 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(

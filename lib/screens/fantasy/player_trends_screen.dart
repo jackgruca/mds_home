@@ -29,8 +29,11 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
   String _trendFilter = 'All'; // 'All', 'Up', 'Down', 'Steady'
   int _recentGamesCount = 4; // Default to last 4 games
 
-  final ScrollController _horizontalScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
+  // Separate controllers so the header mirrors the body scroll without user interaction
+  final ScrollController _headerHScrollController = ScrollController();
+  final ScrollController _bodyHScrollController = ScrollController();
+  final ScrollController _leftVScrollController = ScrollController();
+  final ScrollController _rightVScrollController = ScrollController();
   
   final List<String> _availableSeasons = ['2024', '2023', '2022', '2021', '2020', '2019'];
   final List<String> _availablePositions = ['QB', 'RB', 'WR', 'TE'];
@@ -44,14 +47,32 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SEOHelper.updateForPlayerTrends();
     });
+
+    // Mirror body horizontal scroll to the header so columns remain aligned
+    _bodyHScrollController.addListener(() {
+      final double bodyOffset = _bodyHScrollController.hasClients ? _bodyHScrollController.offset : 0.0;
+      if (_headerHScrollController.hasClients && _headerHScrollController.offset != bodyOffset) {
+        _headerHScrollController.jumpTo(bodyOffset);
+      }
+    });
+
+    // Mirror right vertical scroll to the left frozen column
+    _rightVScrollController.addListener(() {
+      final double off = _rightVScrollController.hasClients ? _rightVScrollController.offset : 0.0;
+      if (_leftVScrollController.hasClients && _leftVScrollController.offset != off) {
+        _leftVScrollController.jumpTo(off);
+      }
+    });
     
     _loadPlayerTrends();
   }
 
   @override
   void dispose() {
-    _horizontalScrollController.dispose();
-    _verticalScrollController.dispose();
+    _headerHScrollController.dispose();
+    _bodyHScrollController.dispose();
+    _leftVScrollController.dispose();
+    _rightVScrollController.dispose();
     super.dispose();
   }
 
@@ -185,7 +206,7 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
           _buildControlsSection(),
@@ -427,17 +448,79 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
       );
     }
     final theme = Theme.of(context);
-    final columns = _buildColumns();
-    final rows = _buildRows();
+    // Fixed sizes to guarantee column alignment between header and rows
+    const double playerColWidth = 260;
+    const double statColWidth = 96;
+    const double rowHeight = 48;
+
+    final stats = _getPositionStats(_selectedPosition);
+
+    Widget buildHeaderCell(String group, String label, {Color? groupColor}) {
+      return SizedBox(
+        width: statColWidth,
+        height: rowHeight,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              group,
+              style: TextStyle(
+                color: groupColor ?? ThemeConfig.gold,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _getStatDisplayName(label),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget buildValueCell(String stat, PlayerTrend t, {required bool isRecent}) {
+      if (stat == 'fantasy_points_ppr' || stat == 'yards_per_target' || stat.contains('pct') || stat.contains('%')
+          || stat == 'targets' || stat == 'receptions' || stat == 'receiving_yards' || stat == 'receiving_tds'
+          || stat == 'passing_yards' || stat == 'passing_tds' || stat == 'interceptions' || stat == 'carries' || stat == 'rushing_yards' || stat == 'rushing_tds') {
+        final double v = isRecent ? _getRecentStatValue(t, stat) : _getSeasonStatValue(t, stat);
+        return SizedBox(
+          width: statColWidth,
+          height: rowHeight,
+          child: Center(
+            child: Text(
+              _formatStatValue(v, stat),
+              style: theme.textTheme.bodyMedium,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        );
+      }
+      // Fallback
+      final double v = isRecent ? _getRecentStatValue(t, stat) : _getSeasonStatValue(t, stat);
+      return SizedBox(
+        width: statColWidth,
+        height: rowHeight,
+        child: Center(
+          child: Text(_formatStatValue(v, stat), style: theme.textTheme.bodyMedium),
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -447,59 +530,119 @@ class _PlayerTrendsScreenState extends State<PlayerTrendsScreen> {
         borderRadius: BorderRadius.circular(12),
         child: Column(
           children: [
-            // Sticky header synced with horizontal scroll
+            // Sticky header: left frozen "Player" + right header row that mirrors horizontal scroll
             Container(
               color: ThemeConfig.darkNavy,
-              child: SingleChildScrollView(
-                controller: _horizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                child: Theme(
-                  data: theme.copyWith(
-                    dataTableTheme: theme.dataTableTheme.copyWith(
-                      headingRowColor: WidgetStateProperty.all(Colors.transparent),
-                      headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      dataRowMinHeight: 48,
-                      dataRowMaxHeight: 48,
-                      columnSpacing: 24,
-                      horizontalMargin: 16,
-                      dividerThickness: 0,
-                    ),
-                  ),
-                  child: DataTable(
-                    sortColumnIndex: _getColumnIndex(_sortColumn),
-                    sortAscending: _sortAscending,
-                    columns: columns,
-                    rows: const [],
-                  ),
-                ),
-              ),
-            ),
-            // Scrollable content with hidden header, synced horizontally
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _verticalScrollController,
-                child: SingleChildScrollView(
-                  controller: _horizontalScrollController,
-                  scrollDirection: Axis.horizontal,
-                  child: Theme(
-                    data: theme.copyWith(
-                      dataTableTheme: theme.dataTableTheme.copyWith(
-                        headingRowHeight: 0,
-                        dataRowMinHeight: 48,
-                        dataRowMaxHeight: 48,
-                        columnSpacing: 24,
-                        horizontalMargin: 16,
-                        dividerThickness: 0.5,
+              height: rowHeight,
+              child: Row(
+                children: [
+                  // Frozen top-left cell
+                  SizedBox(
+                    width: playerColWidth,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Player', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
-                    child: DataTable(
-                      sortColumnIndex: _getColumnIndex(_sortColumn),
-                      sortAscending: _sortAscending,
-                      columns: columns,
-                      rows: rows,
+                  ),
+                  // Scrollable header cells
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _headerHScrollController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          // Season group
+                          for (final s in stats) buildHeaderCell('SEASON', s, groupColor: ThemeConfig.gold),
+                          // Recent group
+                          for (final s in stats) buildHeaderCell('RECENT $_recentGamesCount', s, groupColor: Colors.lightBlue),
+                          // Trend group
+                          for (final s in stats) buildHeaderCell('TREND', s, groupColor: Colors.orange),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ],
+              ),
+            ),
+            // Body: left frozen first column + right grid that scrolls both ways
+            Expanded(
+              child: Row(
+                children: [
+                  // Frozen first column (players)
+                  SizedBox(
+                    width: playerColWidth,
+                    child: ListView.builder(
+                      controller: _leftVScrollController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemExtent: rowHeight,
+                      itemCount: _playerTrends.length,
+                      itemBuilder: (context, index) {
+                        final trend = _playerTrends[index];
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.grey[100],
+                                ),
+                                child: TeamLogoUtils.buildNFLTeamLogo(trend.team.trim(), size: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(trend.playerName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), overflow: TextOverflow.ellipsis),
+                                    Text('${trend.team} ${trend.position}', style: TextStyle(fontSize: 10, color: Colors.grey[600]), overflow: TextOverflow.ellipsis),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Scrollable grid (horizontal + vertical)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _bodyHScrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: statColWidth * stats.length * 3,
+                        child: ListView.builder(
+                          controller: _rightVScrollController,
+                          itemExtent: rowHeight,
+                          itemCount: _playerTrends.length,
+                          itemBuilder: (context, index) {
+                            final t = _playerTrends[index];
+                            return Row(
+                              children: [
+                                // Season values
+                                for (final s in stats) buildValueCell(s, t, isRecent: false),
+                                // Recent values
+                                for (final s in stats) buildValueCell(s, t, isRecent: true),
+                                // Trend values
+                                for (final s in stats)
+                                  SizedBox(width: statColWidth, height: rowHeight, child: Center(child: _buildTrendCell(t, s))),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

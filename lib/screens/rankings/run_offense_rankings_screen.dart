@@ -335,8 +335,8 @@ class _RunOffenseRankingsScreenState extends State<RunOffenseRankingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor)),
       ),
       child: Row(
         children: [
@@ -505,7 +505,8 @@ class _RunOffenseRankingsScreenState extends State<RunOffenseRankingsScreen> {
     return _rankings.asMap().entries.map((entry) {
       final index = entry.key;
       final team = entry.value;
-      final tier = team['runOffenseTier'] ?? 1;
+      final tierValue = team['runOffenseTier'] ?? team['tier'] ?? 1;
+      final tier = tierValue is int ? tierValue : int.tryParse(tierValue.toString()) ?? 1;
       final tierColor = _getTierColor(tier);
 
       final cells = <DataCell>[

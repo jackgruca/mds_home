@@ -260,16 +260,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).primaryColor.withValues(alpha: 0.1),
-              Colors.white,
-            ],
-          ),
-        ),
+        color: Theme.of(context).colorScheme.surface,
         child: Column(
           children: [
             _buildTradeHeader(),
@@ -356,7 +347,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
         bottom: 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: team != null ? Theme.of(context).primaryColor.withValues(alpha: 0.3) : Colors.grey[300]!,
@@ -398,7 +389,9 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: team != null ? NFLTeamColors.getTeamColors(team.abbreviation).first.withValues(alpha: 0.08) : Colors.grey[50],
+        color: team != null
+            ? NFLTeamColors.getTeamColors(team.abbreviation).first.withValues(alpha: 0.10)
+            : Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(14),
           topRight: Radius.circular(14),
@@ -638,7 +631,9 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
           width: 1,
         ),
         borderRadius: BorderRadius.circular(8),
-        color: slot.isFilled ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : Colors.grey[50],
+        color: slot.isFilled
+            ? Theme.of(context).primaryColor.withValues(alpha: 0.06)
+            : Theme.of(context).colorScheme.surfaceContainerLow,
       ),
       child: slot.isFilled
           ? _buildFilledSlot(slot.asset!, slot.slotIndex, team)
@@ -696,10 +691,10 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                     width: 50,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: gradeColor.withValues(alpha: 0.15),
+                      color: gradeColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: gradeColor.withValues(alpha: 0.5),
+                        color: gradeColor.withValues(alpha: 0.55),
                         width: 1.5,
                       ),
                     ),
@@ -748,7 +743,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
           children: [
             Icon(
               Icons.confirmation_number,
-              color: Colors.orange[700],
+              color: Colors.orange[600],
               size: 20,
             ),
             const SizedBox(width: 8),
@@ -769,7 +764,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                     asset.description,
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey[600],
+                      color: Colors.grey[500],
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -780,20 +775,16 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
               width: 50,
               height: 32,
               decoration: BoxDecoration(
-                color: chipColor.withValues(alpha: 0.15),
+                color: chipColor.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: chipColor.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
+                border: Border.all(color: chipColor.withValues(alpha: 0.55), width: 1.5),
               ),
               child: Center(
                 child: Text(
                   '$pickValueInt',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
                     color: chipColor,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -1388,7 +1379,7 @@ class _MaddenTradeAnalyzerScreenState extends State<MaddenTradeAnalyzerScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _getLikelihoodColor().withValues(alpha: 0.1),
+                      color: _getLikelihoodColor().withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: _getLikelihoodColor()),
                     ),

@@ -250,11 +250,11 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
       child: Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -266,7 +266,7 @@ class _DepthChartsScreenState extends State<DepthChartsScreen> {
             scrollDirection: Axis.horizontal,
             child: SingleChildScrollView(
               child: DataTable(
-                headingRowColor: WidgetStateProperty.all(Colors.blue[900]),
+                headingRowColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
                 columnSpacing: 24,
                 dataRowMinHeight: 48,
                 columns: _buildColumns(),

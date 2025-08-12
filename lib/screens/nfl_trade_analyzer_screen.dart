@@ -6,6 +6,8 @@ import '../models/nfl_trade/nfl_team_info.dart';
 import '../models/nfl_trade/trade_scenario.dart';
 import '../services/nfl_trade_analyzer_service.dart';
 import '../services/trade_data_service.dart';
+import '../widgets/common/custom_app_bar.dart';
+import '../widgets/common/top_nav_bar.dart';
 
 class NFLTradeAnalyzerScreen extends StatefulWidget {
   const NFLTradeAnalyzerScreen({super.key});
@@ -155,10 +157,14 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('NFL Trade Analyzer'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+      appBar: CustomAppBar(
+        titleWidget: Row(
+          children: [
+            const Text('StickToTheModel', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 20),
+            Expanded(child: TopNavBarContent(currentRoute: ModalRoute.of(context)?.settings.name)),
+          ],
+        ),
       ),
       body: isLoading 
         ? const Center(
@@ -193,6 +199,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
 
   Widget _buildInstructions() {
     return Card(
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -216,6 +223,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
 
   Widget _buildPlayerSelection() {
     return Card(
+      color: Theme.of(context).colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -461,6 +469,7 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
 
   Widget _buildTradeScenarioCard(TradeScenario scenario) {
     return Card(
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -534,11 +543,11 @@ class _NFLTradeAnalyzerScreenState extends State<NFLTradeAnalyzerScreen> {
 
   Widget _buildTradeGradeBadge(TradeGrade grade) {
     Color color = switch (grade) {
-      TradeGrade.excellent => Colors.green,
-      TradeGrade.good => Colors.lightGreen,
-      TradeGrade.fair => Colors.orange,
-      TradeGrade.poor => Colors.red,
-      TradeGrade.unrealistic => Colors.grey,
+      TradeGrade.excellent => Colors.green.shade600,
+      TradeGrade.good => Colors.lightGreen.shade600,
+      TradeGrade.fair => Colors.orange.shade600,
+      TradeGrade.poor => Colors.red.shade600,
+      TradeGrade.unrealistic => Colors.grey.shade600,
     };
 
     return Container(

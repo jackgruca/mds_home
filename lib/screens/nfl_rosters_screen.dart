@@ -365,11 +365,11 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
       child: Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -381,7 +381,7 @@ class _NflRostersScreenState extends State<NflRostersScreen> {
             scrollDirection: Axis.horizontal,
             child: SingleChildScrollView(
               child: DataTable(
-                headingRowColor: WidgetStateProperty.all(ThemeConfig.darkNavy),
+                headingRowColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
                 sortColumnIndex: _getSortColumnIndex(),
                 sortAscending: _sortAscending,
                 columnSpacing: 24,
