@@ -8,6 +8,8 @@ import 'package:mds_home/utils/team_logo_utils.dart';
 import 'package:mds_home/utils/theme_config.dart';
 import 'package:mds_home/utils/theme_aware_colors.dart';
 import 'package:mds_home/widgets/design_system/mds_table.dart';
+import 'package:mds_home/services/wr_season_stats_service.dart';
+import 'package:mds_home/services/te_season_stats_service.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -127,6 +129,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return 'RB';
       case 'WR/TE Stats':
         return 'WR'; // We'll handle TE separately in the filter logic
+      case 'WR Stats':
+        return 'WR'; // WR Stats is WR-only from CSV
+      case 'TE Stats':
+        return 'TE'; // TE Stats is TE-only from CSV
       default:
         return _selectedPosition; // For other tabs, use the dropdown filter
     }
@@ -166,6 +172,16 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       'Basic': ['player_name', 'recent_team', 'position', 'season', 'games', 'targets', 'receptions', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'fantasy_points', 'fantasy_points_ppr'],
       'Advanced': ['player_name', 'recent_team', 'position', 'season', 'target_share', 'air_yards_share', 'wopr', 'avg_depth_of_target', 'avg_cushion', 'avg_separation', 'catch_percentage', 'racr'],
       'Visualizations': ['player_name', 'recent_team', 'position', 'season', 'receiving_yards', 'receiving_tds', 'targets', 'target_share', 'fantasy_points', 'fantasy_points_ppr']
+    },
+    'WR Stats': {
+      'Basic': ['receiver_player_name', 'posteam', 'season', 'numGames', 'numTgt', 'numRec', 'numYards', 'totalTD', 'recPerGame', 'tgtPerGame', 'yardsPerGame', 'catchPct', 'YAC', 'aDoT', 'tgt_share', 'wr_rank'],
+      'Advanced': ['receiver_player_name', 'posteam', 'season', 'numGames', 'totalEPA', 'avgEPA', 'numFD', 'FDperTgt', 'YACperRec', 'num_rz_opps', 'conversion', 'explosive_rate', 'avg_separation', 'avg_intended_air_yards', 'catch_percentage', 'yac_above_expected', 'third_down_targets', 'third_down_conversions', 'third_down_rate'],
+      'Visualizations': ['receiver_player_name', 'posteam', 'season', 'numGames', 'numYards', 'totalTD', 'numTgt', 'tgt_share', 'totalEPA', 'avgEPA']
+    },
+    'TE Stats': {
+      'Basic': ['receiver_player_name', 'posteam', 'season', 'numGames', 'numTgt', 'numRec', 'numYards', 'totalTD', 'recPerGame', 'tgtPerGame', 'yardsPerGame', 'catchPct', 'YAC', 'aDoT', 'tgt_share', 'te_rank'],
+      'Advanced': ['receiver_player_name', 'posteam', 'season', 'numGames', 'totalEPA', 'avgEPA', 'numFD', 'FDperTgt', 'YACperRec', 'num_rz_opps', 'conversion', 'explosive_rate', 'avg_separation', 'avg_intended_air_yards', 'catch_percentage', 'yac_above_expected', 'third_down_targets', 'third_down_conversions', 'third_down_rate'],
+      'Visualizations': ['receiver_player_name', 'posteam', 'season', 'numGames', 'numYards', 'totalTD', 'numTgt', 'tgt_share', 'totalEPA', 'avgEPA']
     },
     'Fantasy Focus': {
       'Basic': ['player_name', 'recent_team', 'position', 'season', 'games', 'fantasy_points', 'fantasy_points_ppr', 'fantasy_points_per_game'],
@@ -449,6 +465,18 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     print('🔍 [DEBUG] Show all positions in tab: $_showAllPositionsInTab');
     print('🔍 [DEBUG] Selected position: $_selectedPosition');
     
+    // Special handling for WR Stats - load from CSV
+    if (_selectedStatCategory == 'WR Stats') {
+      await _fetchWRStatsFromCSV();
+      return;
+    }
+    
+    // Special handling for TE Stats - load from CSV
+    if (_selectedStatCategory == 'TE Stats') {
+      await _fetchTEStatsFromCSV();
+      return;
+    }
+    
     // Check if the requested page is already preloaded
     if (_preloadedPages.containsKey(_currentPage)) {
       print('[Preload] Using preloaded data for page $_currentPage');
@@ -703,6 +731,169 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     }
   }
 
+  Future<void> _fetchWRStatsFromCSV() async {
+    print('🔍 [WR_FETCH_DEBUG] _fetchWRStatsFromCSV called');
+    print('🔍 [WR_FETCH_DEBUG] Selected season: $_selectedSeason');
+    print('🔍 [WR_FETCH_DEBUG] Selected team: $_selectedTeam');
+    print('🔍 [WR_FETCH_DEBUG] Selected subcategory: $_selectedSubCategory');
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    try {
+      final wrService = WRSeasonStatsService();
+      
+      // Apply filters
+      int? seasonFilter = _selectedSeason != 'All' ? int.tryParse(_selectedSeason) : null;
+      String? teamFilter = _selectedTeam != 'All' ? _selectedTeam : null;
+      
+      print('🔍 [WR_FETCH_DEBUG] Parsed season filter: $seasonFilter');
+      print('🔍 [WR_FETCH_DEBUG] Parsed team filter: $teamFilter');
+      
+      // Load WR stats from CSV
+      final wrStats = await wrService.loadWRStats(
+        season: seasonFilter,
+        team: teamFilter,
+      );
+      
+      print('🔍 [WR_FETCH_DEBUG] Received ${wrStats.length} WR stats from service');
+      print('Loaded ${wrStats.length} WR stats from CSV');
+      
+      // Convert to map format based on current tab
+      List<Map<String, dynamic>> rows = [];
+      for (int i = 0; i < wrStats.length; i++) {
+        var stat = wrStats[i];
+        Map<String, dynamic> rowMap;
+        if (_selectedSubCategory == 'Basic') {
+          rowMap = stat.toBasicMap();
+        } else if (_selectedSubCategory == 'Advanced') {
+          rowMap = stat.toAdvancedMap();
+          if (i < 3) {
+            print('🔍 [WR_FETCH_DEBUG] Advanced map for ${stat.receiverPlayerName}: conversion=${rowMap['conversion']}, explosive_rate=${rowMap['explosive_rate']}, avg_separation=${rowMap['avg_separation']}');
+          }
+        } else {
+          // For visualizations, use full map
+          rowMap = stat.toFullMap();
+        }
+        rows.add(rowMap);
+      }
+      
+      // Apply pagination
+      _totalRecords = rows.length;
+      final startIdx = _currentPage * _rowsPerPage;
+      final endIdx = (startIdx + _rowsPerPage).clamp(0, rows.length);
+      
+      setState(() {
+        _rawRows = rows.sublist(startIdx, endIdx);
+        _isLoading = false;
+        
+        // Update headers if needed
+        if (_rawRows.isNotEmpty) {
+          _headers = _rawRows.first.keys.toList();
+          // Debug: Show what's actually in the UI data
+          if (_selectedSubCategory == 'Advanced' && _rawRows.isNotEmpty) {
+            final firstRow = _rawRows.first;
+            print('🔍 [UI_DEBUG] First row in UI - conversion: ${firstRow['conversion']}, explosive_rate: ${firstRow['explosive_rate']}, avg_separation: ${firstRow['avg_separation']}');
+            print('🔍 [UI_DEBUG] First row keys: ${firstRow.keys.take(10).join(', ')}...');
+          }
+        }
+      });
+      
+    } catch (e) {
+      print('Error loading WR stats: $e');
+      setState(() {
+        _error = 'Failed to load WR stats: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchTEStatsFromCSV() async {
+    print('🔍 [TE_FETCH_DEBUG] _fetchTEStatsFromCSV called');
+    print('🔍 [TE_FETCH_DEBUG] Selected season: $_selectedSeason');
+    print('🔍 [TE_FETCH_DEBUG] Selected team: $_selectedTeam');
+    print('🔍 [TE_FETCH_DEBUG] Selected subcategory: $_selectedSubCategory');
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    try {
+      final teService = TESeasonStatsService();
+      
+      // Apply filters
+      int? seasonFilter = _selectedSeason != 'All' ? int.tryParse(_selectedSeason) : null;
+      String? teamFilter = _selectedTeam != 'All' ? _selectedTeam : null;
+      
+      print('🔍 [TE_FETCH_DEBUG] Parsed season filter: $seasonFilter');
+      print('🔍 [TE_FETCH_DEBUG] Parsed team filter: $teamFilter');
+      
+      // Load TE stats from CSV
+      final teStats = await teService.loadTEStats(
+        season: seasonFilter,
+        team: teamFilter,
+      );
+      
+      print('🔍 [TE_FETCH_DEBUG] Received ${teStats.length} TE stats from service');
+      print('Loaded ${teStats.length} TE stats from CSV');
+      
+      // Debug first few records
+      if (teStats.isNotEmpty) {
+        print('🔍 [TE_FETCH_DEBUG] First TE stat: ${teStats[0].receiverPlayerName}, ${teStats[0].posteam}, ${teStats[0].season}');
+      }
+      
+      // Convert to map format based on current tab
+      List<Map<String, dynamic>> rows = [];
+      for (int i = 0; i < teStats.length; i++) {
+        var stat = teStats[i];
+        Map<String, dynamic> rowMap;
+        if (_selectedSubCategory == 'Basic') {
+          rowMap = stat.toBasicMap();
+        } else if (_selectedSubCategory == 'Advanced') {
+          rowMap = stat.toAdvancedMap();
+          if (i < 3) {
+            print('🔍 [TE_FETCH_DEBUG] Advanced map for ${stat.receiverPlayerName}: conversion=${rowMap['conversion']}, explosive_rate=${rowMap['explosive_rate']}, avg_separation=${rowMap['avg_separation']}');
+          }
+        } else {
+          // For visualizations, use full map
+          rowMap = stat.toFullMap();
+        }
+        rows.add(rowMap);
+      }
+      
+      // Apply pagination
+      _totalRecords = rows.length;
+      final startIdx = _currentPage * _rowsPerPage;
+      final endIdx = (startIdx + _rowsPerPage).clamp(0, rows.length);
+      
+      setState(() {
+        _rawRows = rows.sublist(startIdx, endIdx);
+        _isLoading = false;
+        
+        // Update headers if needed
+        if (_rawRows.isNotEmpty) {
+          _headers = _rawRows.first.keys.toList();
+          // Debug: Show what's actually in the UI data
+          if (_selectedSubCategory == 'Advanced' && _rawRows.isNotEmpty) {
+            final firstRow = _rawRows.first;
+            print('🔍 [TE_UI_DEBUG] First row in UI - conversion: ${firstRow['conversion']}, explosive_rate: ${firstRow['explosive_rate']}, avg_separation: ${firstRow['avg_separation']}');
+            print('🔍 [TE_UI_DEBUG] First row keys: ${firstRow.keys.take(10).join(', ')}...');
+          }
+        }
+      });
+      
+    } catch (e) {
+      print('Error loading TE stats: $e');
+      setState(() {
+        _error = 'Failed to load TE stats: $e';
+        _isLoading = false;
+      });
+    }
+  }
+  
   void _applyFiltersAndFetch() {
     _currentPage = 0;
     _pageCursors = [null];
@@ -1005,6 +1196,19 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
               onTap: (index) {
                 setState(() {
                   _selectedSubCategory = ['Basic', 'Advanced', 'Visualizations'][index];
+                  
+                  // Clear WR/TE stats cache when switching subcategories to force re-fetch
+                  if (_selectedStatCategory == 'WR Stats') {
+                    final wrService = WRSeasonStatsService();
+                    wrService.clearCache();
+                    // Trigger immediate re-fetch
+                    _fetchDataFromFirebase();
+                  } else if (_selectedStatCategory == 'TE Stats') {
+                    final teService = TESeasonStatsService();
+                    teService.clearCache();
+                    // Trigger immediate re-fetch
+                    _fetchDataFromFirebase();
+                  }
                 });
               },
             ),
@@ -1023,6 +1227,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return Colors.green.shade600;
       case 'WR/TE Stats':
         return Colors.orange.shade600;
+      case 'WR Stats':
+        return Colors.deepOrange.shade600; // Different color from WR/TE Stats
+      case 'TE Stats':
+        return Colors.teal.shade600; // Different color for TE Stats
       case 'Fantasy Focus':
         return Colors.purple.shade600;
       default:
@@ -1038,6 +1246,8 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return Icons.directions_run;
       case 'WR/TE Stats':
         return Icons.catching_pokemon;
+      case 'WR Stats':
+        return Icons.sports_football; // Different icon for WR Stats
       case 'Fantasy Focus':
         return Icons.star;
       default:
@@ -1518,7 +1728,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
 
   // Helper method to determine if current tab is position-specific
   bool _isPositionSpecificTab() {
-    return ['QB Stats', 'RB Stats', 'WR/TE Stats'].contains(_selectedStatCategory);
+    return ['QB Stats', 'RB Stats', 'WR/TE Stats', 'WR Stats', 'TE Stats'].contains(_selectedStatCategory);
   }
   
   // Helper method to get display text for current position filter
@@ -1530,6 +1740,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         return 'RB';
       case 'WR/TE Stats':
         return 'WR/TE';
+      case 'WR Stats':
+        return 'WR (CSV)'; // Add indication it's from CSV
+      case 'TE Stats':
+        return 'TE (CSV)'; // Add indication it's from CSV
       default:
         return _selectedPosition;
     }
