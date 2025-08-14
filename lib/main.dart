@@ -14,6 +14,8 @@ import 'screens/hubs/data_center_screen.dart';
 import 'screens/hubs/rankings_hub_screen.dart';
 import 'screens/wr_model_screen.dart';
 import 'screens/player_season_stats_screen.dart';
+import 'screens/player_game_stats_screen.dart';
+import 'screens/test_player_data_screen.dart';
 import 'screens/nfl_rosters_screen.dart';
 import 'screens/historical_game_data_screen.dart';
 import 'services/analytics_query_service.dart';
@@ -284,6 +286,10 @@ class _MyAppState extends State<MyApp> {
                 return MaterialPageRoute(builder: (_) => const WRModelScreen());
               case '/player-season-stats':
                 return MaterialPageRoute(builder: (_) => const PlayerSeasonStatsScreen());
+              case '/player-game-stats':
+                return MaterialPageRoute(builder: (_) => const PlayerGameStatsScreen());
+              case '/test-player-data':
+                return MaterialPageRoute(builder: (_) => const TestPlayerDataScreen());
               case '/nfl-rosters':
                 return MaterialPageRoute(builder: (_) => const NflRostersScreen());
               case '/historical-game-data':

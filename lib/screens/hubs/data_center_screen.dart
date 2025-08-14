@@ -207,6 +207,12 @@ class _ToolGrid extends StatelessWidget {
       'route': '/player-season-stats',
     },
     {
+      'icon': Icons.sports_football,
+      'title': 'Player Game Stats',
+      'subtitle': 'Game-level player statistics and performance',
+      'route': '/player-game-stats',
+    },
+    {
       'icon': Icons.groups,
       'title': 'Player Data',
       'subtitle': 'Comprehensive player information and stats',
@@ -232,7 +238,7 @@ class _ToolGrid extends StatelessWidget {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
-    return _buildSection(context, 'Data Tools', _dataTools, crossAxisCount: 3);
+    return _buildSection(context, 'Data Tools', _dataTools, crossAxisCount: 2);
   }
 
   Widget _buildSection(BuildContext context, String title, List<Map<String, dynamic>> tools, {required int crossAxisCount}) {
