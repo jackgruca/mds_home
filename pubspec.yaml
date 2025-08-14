@@ -73,5 +73,6 @@ flutter:
     - data_processing/assets/data/player_weekly_passing_ngs.csv
     - data_processing/assets/data/wr_season_stats.csv
     - data_processing/assets/data/te_season_stats.csv
+    - data_processing/assets/data/rb_season_stats.csv
     - data_processing/assets/data/adp/
 

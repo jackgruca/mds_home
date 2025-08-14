@@ -10,6 +10,7 @@ import 'package:mds_home/utils/theme_aware_colors.dart';
 import 'package:mds_home/widgets/design_system/mds_table.dart';
 import 'package:mds_home/services/wr_season_stats_service.dart';
 import 'package:mds_home/services/te_season_stats_service.dart';
+import 'package:mds_home/services/rb_season_stats_service.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -164,9 +165,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       'Visualizations': ['player_name', 'recent_team', 'season', 'passing_yards', 'passing_tds', 'passer_rating', 'completion_percentage', 'fantasy_points', 'fantasy_points_ppr']
     },
     'RB Stats': {
-      'Basic': ['player_name', 'recent_team', 'season', 'games', 'rushing_attempts', 'rushing_yards', 'rushing_tds', 'yards_per_carry', 'receptions', 'receiving_yards', 'fantasy_points', 'fantasy_points_ppr'],
-      'Advanced': ['player_name', 'recent_team', 'season', 'rush_efficiency', 'avg_time_to_los', 'rush_yards_over_expected', 'rush_yards_over_expected_per_att', 'rush_pct_over_expected', 'target_share', 'yards_per_touch'],
-      'Visualizations': ['player_name', 'recent_team', 'season', 'rushing_yards', 'rushing_tds', 'receiving_yards', 'fantasy_points', 'fantasy_points_ppr', 'yards_per_carry']
+      'Basic': ['fantasy_player_name', 'posteam', 'season', 'numGames', 'numRush', 'numYards', 'totalTD', 'yardsPerRush', 'rushPerGame', 'yardsPerGame', 'tdPerGame', 'numRec', 'recYards', 'recTD', 'myRankNum', 'tier'],
+      'Advanced': ['fantasy_player_name', 'posteam', 'season', 'numGames', 'totalEPA', 'avgEPA', 'run_share', 'tgt_share', 'conversion', 'explosive_rate', 'avg_eff', 'avg_RYOE_perAtt', 'third_down_rate'],
+      'Visualizations': ['fantasy_player_name', 'posteam', 'season', 'numGames', 'numYards', 'totalTD', 'numRush', 'run_share', 'totalEPA', 'avgEPA']
     },
     'WR/TE Stats': {
       'Basic': ['player_name', 'recent_team', 'position', 'season', 'games', 'targets', 'receptions', 'receiving_yards', 'receiving_tds', 'yards_per_reception', 'fantasy_points', 'fantasy_points_ppr'],
@@ -474,6 +475,12 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     // Special handling for TE Stats - load from CSV
     if (_selectedStatCategory == 'TE Stats') {
       await _fetchTEStatsFromCSV();
+      return;
+    }
+    
+    // Special handling for RB Stats - load from CSV
+    if (_selectedStatCategory == 'RB Stats') {
+      await _fetchRBStatsFromCSV();
       return;
     }
     
@@ -894,6 +901,132 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     }
   }
   
+  Future<void> _fetchRBStatsFromCSV() async {
+    print('🔍 [RB_FETCH_DEBUG] _fetchRBStatsFromCSV called');
+    print('🔍 [RB_FETCH_DEBUG] Selected season: $_selectedSeason');
+    print('🔍 [RB_FETCH_DEBUG] Selected team: $_selectedTeam');
+    print('🔍 [RB_FETCH_DEBUG] Selected subcategory: $_selectedSubCategory');
+    
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    try {
+      final rbService = RBSeasonStatsService();
+      
+      // Force clear cache to ensure fresh data load
+      rbService.clearCache();
+      
+      // Apply filters
+      int? seasonFilter = _selectedSeason != 'All' ? int.tryParse(_selectedSeason) : null;
+      String? teamFilter = _selectedTeam != 'All' ? _selectedTeam : null;
+      
+      print('🔍 [RB_FETCH_DEBUG] Parsed season filter: $seasonFilter');
+      print('🔍 [RB_FETCH_DEBUG] Parsed team filter: $teamFilter');
+      
+      // Load RB stats from CSV
+      final rbStats = await rbService.loadRBStats(
+        season: seasonFilter,
+        team: teamFilter,
+      );
+      
+      print('🔍 [RB_FETCH_DEBUG] Received ${rbStats.length} RB stats from service');
+      print('Loaded ${rbStats.length} RB stats from CSV');
+      
+      // Debug first few records
+      if (rbStats.isNotEmpty) {
+        print('🔍 [RB_FETCH_DEBUG] First RB stat: ${rbStats[0].fantasyPlayerName}, ${rbStats[0].posteam}, ${rbStats[0].season}');
+      }
+      
+      // Convert to map format based on current tab
+      List<Map<String, dynamic>> rows = [];
+      print('🔍 [RB_FETCH_DEBUG] Converting ${rbStats.length} RB stats to maps for subcategory: $_selectedSubCategory');
+      
+      for (int i = 0; i < rbStats.length; i++) {
+        var stat = rbStats[i];
+        Map<String, dynamic> rowMap;
+        
+        print('🔍 [RB_FETCH_DEBUG] Converting stat ${i+1}: ${stat.fantasyPlayerName} (${stat.posteam}, ${stat.season})');
+        
+        if (_selectedSubCategory == 'Basic') {
+          rowMap = stat.toBasicMap();
+          if (i < 2) {
+            print('🔍 [RB_FETCH_DEBUG] Basic map for ${stat.fantasyPlayerName}: numYards=${rowMap['numYards']}, totalTD=${rowMap['totalTD']}, yardsPerGame=${rowMap['yardsPerGame']}');
+          }
+        } else if (_selectedSubCategory == 'Advanced') {
+          print('🔍 [RB_FETCH_DEBUG] Calling toAdvancedMap() for ${stat.fantasyPlayerName}...');
+          rowMap = stat.toAdvancedMap();
+          if (i < 2) {
+            print('🔍 [RB_FETCH_DEBUG] Advanced map for ${stat.fantasyPlayerName}: totalEPA=${rowMap['totalEPA']}, run_share=${rowMap['run_share']}, avg_eff=${rowMap['avg_eff']}');
+            print('🔍 [RB_FETCH_DEBUG] Advanced map keys: ${rowMap.keys.toList()}');
+            print('🔍 [RB_FETCH_DEBUG] Advanced map conversion values: ${rowMap['conversion']}, explosive_rate: ${rowMap['explosive_rate']}, third_down_rate: ${rowMap['third_down_rate']}');
+          }
+        } else {
+          // For visualizations, use full map
+          rowMap = stat.toFullMap();
+          if (i < 2) {
+            print('🔍 [RB_FETCH_DEBUG] Visualization map for ${stat.fantasyPlayerName}: ${rowMap.keys.length} fields');
+          }
+        }
+        rows.add(rowMap);
+        
+        if (i < 2) {
+          print('🔍 [RB_FETCH_DEBUG] Added row ${i+1} with ${rowMap.length} fields to rows list');
+        }
+      }
+      
+      // Apply pagination
+      _totalRecords = rows.length;
+      final startIdx = _currentPage * _rowsPerPage;
+      final endIdx = (startIdx + _rowsPerPage).clamp(0, rows.length);
+      
+      setState(() {
+        _rawRows = rows.sublist(startIdx, endIdx);
+        _isLoading = false;
+        
+        // Update headers if needed
+        if (_rawRows.isNotEmpty) {
+          _headers = _rawRows.first.keys.toList();
+          print('🔍 [RB_UI_DEBUG] Setting headers for ${_rawRows.length} rows. Headers: ${_headers.length} fields');
+          print('🔍 [RB_UI_DEBUG] First 10 headers: ${_headers.take(10).join(', ')}');
+          
+          // Debug: Show what's actually in the UI data
+          if (_selectedSubCategory == 'Advanced' && _rawRows.isNotEmpty) {
+            final firstRow = _rawRows.first;
+            print('🔍 [RB_UI_DEBUG] ===== ADVANCED UI DATA DEBUG =====');
+            print('🔍 [RB_UI_DEBUG] First row player: ${firstRow['fantasy_player_name']}');
+            print('🔍 [RB_UI_DEBUG] First row totalEPA: ${firstRow['totalEPA']} (type: ${firstRow['totalEPA'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row avgEPA: ${firstRow['avgEPA']} (type: ${firstRow['avgEPA'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row run_share: ${firstRow['run_share']} (type: ${firstRow['run_share'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row tgt_share: ${firstRow['tgt_share']} (type: ${firstRow['tgt_share'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row conversion: ${firstRow['conversion']} (type: ${firstRow['conversion'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row explosive_rate: ${firstRow['explosive_rate']} (type: ${firstRow['explosive_rate'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row avg_eff: ${firstRow['avg_eff']} (type: ${firstRow['avg_eff'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row avg_RYOE_perAtt: ${firstRow['avg_RYOE_perAtt']} (type: ${firstRow['avg_RYOE_perAtt'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] First row third_down_rate: ${firstRow['third_down_rate']} (type: ${firstRow['third_down_rate'].runtimeType})');
+            print('🔍 [RB_UI_DEBUG] All advanced row keys: ${firstRow.keys.toList()}');
+            print('🔍 [RB_UI_DEBUG] ===== END ADVANCED UI DATA DEBUG =====');
+          } else if (_selectedSubCategory == 'Basic' && _rawRows.isNotEmpty) {
+            final firstRow = _rawRows.first;
+            print('🔍 [RB_UI_DEBUG] ===== BASIC UI DATA DEBUG =====');
+            print('🔍 [RB_UI_DEBUG] First row player: ${firstRow['fantasy_player_name']}');
+            print('🔍 [RB_UI_DEBUG] First row numYards: ${firstRow['numYards']}, totalTD: ${firstRow['totalTD']}, yardsPerGame: ${firstRow['yardsPerGame']}');
+            print('🔍 [RB_UI_DEBUG] All basic row keys: ${firstRow.keys.toList()}');
+            print('🔍 [RB_UI_DEBUG] ===== END BASIC UI DATA DEBUG =====');
+          }
+        }
+      });
+      
+    } catch (e) {
+      print('Error loading RB stats: $e');
+      setState(() {
+        _error = 'Failed to load RB stats: $e';
+        _isLoading = false;
+      });
+    }
+  }
+  
   void _applyFiltersAndFetch() {
     _currentPage = 0;
     _pageCursors = [null];
@@ -1197,7 +1330,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                 setState(() {
                   _selectedSubCategory = ['Basic', 'Advanced', 'Visualizations'][index];
                   
-                  // Clear WR/TE stats cache when switching subcategories to force re-fetch
+                  // Clear stats cache when switching subcategories to force re-fetch
                   if (_selectedStatCategory == 'WR Stats') {
                     final wrService = WRSeasonStatsService();
                     wrService.clearCache();
@@ -1206,6 +1339,11 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                   } else if (_selectedStatCategory == 'TE Stats') {
                     final teService = TESeasonStatsService();
                     teService.clearCache();
+                    // Trigger immediate re-fetch
+                    _fetchDataFromFirebase();
+                  } else if (_selectedStatCategory == 'RB Stats') {
+                    final rbService = RBSeasonStatsService();
+                    rbService.clearCache();
                     // Trigger immediate re-fetch
                     _fetchDataFromFirebase();
                   }
@@ -1737,7 +1875,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       case 'QB Stats':
         return 'QB';
       case 'RB Stats':
-        return 'RB';
+        return 'RB (CSV)'; // Add indication it's from CSV
       case 'WR/TE Stats':
         return 'WR/TE';
       case 'WR Stats':
