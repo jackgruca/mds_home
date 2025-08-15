@@ -15,7 +15,7 @@ class CsvIdlRankingsService {
     if (_isLoaded) return;
 
     try {
-      print('🔍 IDL: Loading CSV from assets/rankings/idl_rankings.csv...');
+      print('🔍 IDL: Loading CSV from data/processed/rankings/idl_rankings.csv...');
       _cachedData = await _csvService.fetchRankings('idl');
       _isLoaded = true;
       print('✅ IDL rankings data loaded: ${_cachedData.length} player-seasons');

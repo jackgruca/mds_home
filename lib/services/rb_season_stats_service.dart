@@ -229,7 +229,7 @@ class RBSeasonStats {
   }
   
   Map<String, dynamic> toAdvancedMap() {
-    print('🔍 [RB_ADVANCED_DEBUG] Creating advanced map for ${fantasyPlayerName}');
+    print('🔍 [RB_ADVANCED_DEBUG] Creating advanced map for $fantasyPlayerName');
     print('🔍 [RB_ADVANCED_DEBUG] Raw values - totalEPA: $totalEPA, avgEPA: $avgEPA, runShare: $runShare');
     print('🔍 [RB_ADVANCED_DEBUG] Raw values - tgtShare: $tgtShare, conversion: $conversion, explosiveRate: $explosiveRate');
     print('🔍 [RB_ADVANCED_DEBUG] Raw values - avgEff: $avgEff, avgRYOEperAtt: $avgRYOEperAtt, thirdDownRate: $thirdDownRate');
@@ -336,7 +336,7 @@ class RBSeasonStatsService {
       print('🔍 [RB_CSV_DEBUG] Starting to load RB stats CSV...');
       print('🔍 [RB_CSV_DEBUG] Attempting to load from path: data_processing/assets/data/rb_season_stats.csv');
       
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/rb_season_stats.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/rb_season_stats.csv');
       print('🔍 [RB_CSV_DEBUG] CSV string loaded successfully. Length: ${csvString.length} characters');
       
       // Manual line-by-line parsing (same as player_game_stats_service.dart)

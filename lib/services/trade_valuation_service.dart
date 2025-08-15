@@ -156,7 +156,7 @@ class TradeValuationService {
     if (_cachedContracts != null) return;
 
     try {
-      final csvData = await rootBundle.loadString('assets/nfl_contract_data.csv');
+      final csvData = await rootBundle.loadString('data/processed/player_stats/nfl_contract_data.csv');
       _cachedContracts = await _parseContractData(csvData);
     } catch (e) {
       // print('Error loading contract data: $e');
@@ -242,16 +242,16 @@ class TradeValuationService {
     Map<String, List<PlayerRanking>> rankings = {};
     
     // Load QB rankings
-    rankings['QB'] = await _loadPositionRankingsFromFile('assets/rankings/qb_rankings.csv', 'QB');
+    rankings['QB'] = await _loadPositionRankingsFromFile('data/processed/rankings/qb_rankings.csv', 'QB');
     
     // Load RB rankings  
-    rankings['RB'] = await _loadPositionRankingsFromFile('assets/rankings/rb_rankings.csv', 'RB');
+    rankings['RB'] = await _loadPositionRankingsFromFile('data/processed/rankings/rb_rankings.csv', 'RB');
     
     // Load WR rankings
-    rankings['WR'] = await _loadPositionRankingsFromFile('assets/rankings/wr_rankings.csv', 'WR');
+    rankings['WR'] = await _loadPositionRankingsFromFile('data/processed/rankings/wr_rankings.csv', 'WR');
     
     // Load TE rankings
-    rankings['TE'] = await _loadPositionRankingsFromFile('assets/rankings/te_rankings.csv', 'TE');
+    rankings['TE'] = await _loadPositionRankingsFromFile('data/processed/rankings/te_rankings.csv', 'TE');
 
     _cachedRankings = PositionRankings(rankings);
   }
@@ -310,7 +310,7 @@ class TradeValuationService {
     if (_cachedTeamNeeds != null) return;
 
     try {
-      final csvData = await rootBundle.loadString('assets/2026/team_needs.csv');
+      final csvData = await rootBundle.loadString('data/processed/draft_sim/2026/team_needs.csv');
       _cachedTeamNeeds = await _parseTeamNeedsData(csvData);
     } catch (e) {
       // print('Error loading team needs: $e');

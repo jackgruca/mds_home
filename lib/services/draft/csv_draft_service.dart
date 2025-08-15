@@ -3,7 +3,7 @@ import 'package:csv/csv.dart';
 import '../../models/draft/draft_player.dart';
 
 class CSVDraftService {
-  static const String _csvPath = 'assets/2026/available_players.csv';
+  static const String _csvPath = 'data/processed/draft_sim/2026/available_players.csv';
 
   num? _parseNum(dynamic value) {
     if (value == null) return null;

@@ -246,7 +246,7 @@ class PlayerStatEntry {
 
 class CsvPlayerStatsService {
   static List<PlayerStatEntry>? _cachedPlayerStats;
-  static const String _csvAssetPath = 'assets/nfl_player_stats.csv';
+  static const String _csvAssetPath = 'data/processed/player_stats/nfl_player_stats.csv';
 
   /// Load player stats from CSV
   static Future<void> _loadPlayerStatsFromCSV() async {

@@ -184,7 +184,7 @@ class PlayerGameStatsService {
     
     try {
       print('Attempting to load game logs CSV...');
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/player_game_logs.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/player_game_logs.csv');
       print('CSV string loaded, length: ${csvString.length}');
       
       // Split into lines and manually parse due to inconsistent quoting
@@ -259,7 +259,7 @@ class PlayerGameStatsService {
     if (_epaDataCache != null) return;
     
     try {
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_epa.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_epa.csv');
       final List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
       
       if (csvData.isEmpty) return;
@@ -277,7 +277,7 @@ class PlayerGameStatsService {
     if (_ngsDataCache != null) return;
     
     try {
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_ngs.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_ngs.csv');
       final List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
       
       if (csvData.isEmpty) return;
@@ -295,7 +295,7 @@ class PlayerGameStatsService {
     if (_ngsPassingCache != null) return;
     
     try {
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_passing_ngs.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_passing_ngs.csv');
       final List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
       
       if (csvData.isEmpty) return;

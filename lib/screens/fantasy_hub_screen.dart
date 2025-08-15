@@ -21,19 +21,19 @@ class FantasyHubScreen extends StatelessWidget {
     {
       'title': 'Compare Players Side-by-Side',
       'desc': 'Analyze and compare fantasy players with detailed stats.',
-      'image': 'assets/images/blog/player_projections_blog.jpg',
+      'image': 'data/images/ff/shiva.png',
       'route': '/fantasy/player-comparison',
     },
     {
       'title': 'Create Your Fantasy Big Board',
       'desc': 'Compare rankings across major platforms and create your own.',
-      'image': 'assets/images/blog/player_projections_blog.jpg',
+      'image': 'data/images/ff/shiva.png',
       'route': '/fantasy/big-board',
     },
     {
       'title': 'Fantasy Mock Draft Now!',
       'desc': 'Practice your strategy against realistic opponents.',
-      'image': 'assets/images/blog/player_projections_blog.jpg', 
+      'image': 'data/images/ff/shiva.png', 
       'route': '/draft/fantasy',
     },
   ];
@@ -74,7 +74,7 @@ class FantasyHubScreen extends StatelessWidget {
         'title': 'Breakout Player Projections 2024',
         'excerpt': 'Identifying the players poised for a significant leap...',
         'date': '2024-04-22',
-        'imageUrl': 'assets/images/blog/player_projections_blog.jpg',
+        'imageUrl': 'data/images/ff/shiva.png',
         'route': '/blog/breakout-players'
       },
       // Add more fantasy-related blog posts

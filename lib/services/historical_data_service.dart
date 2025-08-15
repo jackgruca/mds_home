@@ -14,7 +14,7 @@ class HistoricalDataService {
     if (_isInitialized) return;
 
     try {
-      final String data = await rootBundle.loadString('assets/data/historical_nfl_matchups.csv');
+      final String data = await rootBundle.loadString('data/processed/team_data/historical_nfl_matchups.csv');
       
       const csvConverter = CsvToListConverter(
         eol: '\n',

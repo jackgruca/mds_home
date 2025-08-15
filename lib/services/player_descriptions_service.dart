@@ -15,7 +15,7 @@ static Future<void> initialize({int year = 2025}) async {
   if (_isInitialized) return;
   
   try {
-    final data = await rootBundle.loadString('assets/$year/player_descriptions.csv');
+    final data = await rootBundle.loadString('data/processed/draft_sim/$year/player_descriptions.csv');
     
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
     debugPrint("CSV parsed with ${csvTable.length} rows");

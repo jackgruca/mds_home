@@ -17,13 +17,13 @@ class GmHubScreen extends StatelessWidget {
      {
       'title': 'Run a Mock Draft',
       'desc': 'Simulate the NFL draft with your settings.',
-      'image': 'assets/images/blog/draft_analysis_blog.jpg',
+      'image': 'data/images/data/moneyBall.jpeg',
       'route': '/draft',
     },
     {
       'title': 'Analyze Team Needs',
       'desc': 'Identify key areas for improvement this offseason.',
-      'image': 'assets/images/placeholder/team_needs.png', // Placeholder
+      'image': 'data/images/gm/big board.png', // Use actual image
       'route': '/gm-hub/needs', // Updated example route to match potential hub route prefix
     },
     // Add more team-builder specific slides
@@ -62,7 +62,7 @@ class GmHubScreen extends StatelessWidget {
         'title': 'NFL Draft Surprises & Sleepers',
         'excerpt': 'Unpacking the most unexpected picks and hidden gems...',
         'date': '2024-04-28',
-        'imageUrl': 'assets/images/blog/draft_analysis_blog.jpg',
+        'imageUrl': 'data/images/data/moneyBall.jpeg',
         'route': '/blog/draft-surprises'
       },
       // Add more team building/draft related blog posts

@@ -19,13 +19,13 @@ class DataExplorerScreen extends StatelessWidget {
     {
       'title': 'Explore Historical Data',
       'desc': 'Query decades of NFL game and betting results.',
-      'image': 'assets/images/placeholder/historical_data.png', // Placeholder
+      'image': 'data/images/data/moneyBall.jpeg', // Use actual image
       'route': '/data/historical',
     },
     {
       'title': 'Visualize Trends',
       'desc': 'Create custom charts and spot patterns.',
-      'image': 'assets/images/placeholder/data_viz.png', // Placeholder
+      'image': 'data/images/data/moneyBall.jpeg', // Use actual image
       'route': '/data/charts',
     },
     // Add more data-explorer specific slides
@@ -65,7 +65,7 @@ class DataExplorerScreen extends StatelessWidget {
         'title': 'Using Data to Find Betting Value',
         'excerpt': 'A look at how historical data can inform...',
         'date': '2024-03-15',
-        'imageUrl': 'assets/images/placeholder/data_blog.png', // Placeholder
+        'imageUrl': 'data/images/data/moneyBall.jpeg', // Use actual image
         'route': '/blog/data-betting-value' // Example route
       },
   ];

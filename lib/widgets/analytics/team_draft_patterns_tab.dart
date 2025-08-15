@@ -50,7 +50,7 @@ Future<void> _loadData() async {
     // Load original picks if a specific team is selected
     if (_selectedTeam != 'All Teams') {
       try {
-        final data = await rootBundle.loadString('assets/${widget.draftYear}/draft_order.csv');
+        final data = await rootBundle.loadString('data/processed/draft_sim/${widget.draftYear}/draft_order.csv');
         List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
         
         // Extract picks for this team

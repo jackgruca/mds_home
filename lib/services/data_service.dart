@@ -15,7 +15,7 @@ class DataService {
 
 static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
   try {
-    final data = await rootBundle.loadString('assets/$year/draft_order.csv');
+    final data = await rootBundle.loadString('data/processed/draft_sim/$year/draft_order.csv');
     
     // Use column headers for parsing
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
@@ -63,7 +63,7 @@ static Future<List<DraftPick>> loadDraftOrder({required int year}) async {
 static Future<List<Map<String, String>>> loadLivePicks({required int year}) async {
   try {
     // Try to load the file, but return empty list if file doesn't exist yet
-    final data = await rootBundle.loadString('assets/$year/live_picks.csv');
+    final data = await rootBundle.loadString('data/processed/draft_sim/$year/live_picks.csv');
     
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
     
@@ -109,7 +109,7 @@ static Future<List<Map<String, String>>> loadLivePicks({required int year}) asyn
 // Updated part of the loadAvailablePlayers method in DataService
 static Future<List<Player>> loadAvailablePlayers({required int year}) async {
   try {
-    final data = await rootBundle.loadString('assets/$year/available_players.csv');
+    final data = await rootBundle.loadString('data/processed/draft_sim/$year/available_players.csv');
     
     // Use column headers for parsing
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);
@@ -242,7 +242,7 @@ static Future<List<Player>> loadAvailablePlayers({required int year}) async {
 
 static Future<List<TeamNeed>> loadTeamNeeds({required int year}) async {
   try {
-    final data = await rootBundle.loadString('assets/$year/team_needs.csv');
+    final data = await rootBundle.loadString('data/processed/draft_sim/$year/team_needs.csv');
     
     // Use column headers for parsing
     List<List<dynamic>> csvTable = const CsvToListConverter(eol: "\n").convert(data);

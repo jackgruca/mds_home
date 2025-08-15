@@ -4,7 +4,7 @@ import '../../models/projections/stat_prediction.dart';
 import '../../models/projections/prediction_comparison.dart';
 
 class StatPredictorService {
-  static const String _csvAssetPath = 'assets/2025/FF_WR_2025_v2.csv';
+  static const String _csvAssetPath = 'data/processed/draft_sim/2025/FF_WR_2025_v2.csv';
   
   List<StatPrediction>? _cachedPredictions;
   Map<String, List<StatPrediction>>? _cachedTeamPredictions;

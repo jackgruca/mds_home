@@ -4,7 +4,7 @@ import 'package:mds_home/models/projections/player_projection.dart';
 import 'package:mds_home/models/projections/team_projections.dart';
 
 class PlayerProjectionsService {
-  static const String _csvAssetPath = 'assets/2025/FF_WR_2025_v2.csv';
+  static const String _csvAssetPath = 'data/processed/draft_sim/2025/FF_WR_2025_v2.csv';
   
   // Team name mappings
   static const Map<String, String> _teamNames = {

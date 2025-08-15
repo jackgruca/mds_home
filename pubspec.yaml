@@ -46,33 +46,26 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/
-    - assets/cap_space/
-    - assets/draft_value_chart.csv
-    - assets/current_players_combined.csv
-    - assets/nfl_roster_data.csv
-    - assets/nfl_contract_data.csv
-    - assets/nfl_depth_charts.csv
-    - assets/nfl_player_stats.csv
-    - assets/rankings/
-    - assets/2026/
-    - assets/blog_posts.json
-    - assets/images/
-    - assets/images/blog/
-    - assets/images/GM/
-    - assets/images/FF/
-    - assets/images/data/    
-    - assets/2024/
-    - assets/2025/
-    - assets/2026/
-    - data_processing/assets/data/
-    - data_processing/assets/data/player_career_stats.csv
-    - data_processing/assets/data/player_game_logs.csv
-    - data_processing/assets/data/player_weekly_epa.csv
-    - data_processing/assets/data/player_weekly_ngs.csv
-    - data_processing/assets/data/player_weekly_passing_ngs.csv
-    - data_processing/assets/data/wr_season_stats.csv
-    - data_processing/assets/data/te_season_stats.csv
-    - data_processing/assets/data/rb_season_stats.csv
+    # Core images
+    - data/images/
+    - data/images/ff/
+    - data/images/gm/
+    - data/images/blog/
+    - data/images/data/
+    
+    # Draft simulation data by year
+    - data/processed/draft_sim/
+    - data/processed/draft_sim/2024/
+    - data/processed/draft_sim/2025/
+    - data/processed/draft_sim/2026/
+    
+    # Player statistics and rankings
+    - data/processed/player_stats/
+    - data/processed/rankings/
+    - data/processed/team_data/
+    - data/processed/team_data/current_players_combined.csv
+    - data/processed/projections/
+    
+    # ADP data (keeping original path for now)
     - data_processing/assets/data/adp/
 

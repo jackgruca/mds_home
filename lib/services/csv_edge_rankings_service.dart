@@ -15,7 +15,7 @@ class CsvEdgeRankingsService {
     if (_isLoaded) return;
 
     try {
-      print('🔍 EDGE: Loading CSV from assets/rankings/edge_rankings.csv...');
+      print('🔍 EDGE: Loading CSV from data/processed/rankings/edge_rankings.csv...');
       _cachedData = await _csvService.fetchRankings('edge');
       _isLoaded = true;
       print('✅ EDGE rankings data loaded: ${_cachedData.length} player-seasons');

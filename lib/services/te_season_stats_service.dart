@@ -280,7 +280,7 @@ class TESeasonStatsService {
       print('🔍 [TE_CSV_DEBUG] Starting to load TE stats CSV...');
       print('🔍 [TE_CSV_DEBUG] Attempting to load from path: data_processing/assets/data/te_season_stats.csv');
       
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/te_season_stats.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/te_season_stats.csv');
       print('🔍 [TE_CSV_DEBUG] CSV string loaded successfully. Length: ${csvString.length} characters');
       
       // Manual line-by-line parsing (avoiding the pitfall from WR stats)

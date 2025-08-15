@@ -39,8 +39,8 @@ class PlayerDataService {
 
     // Try paths in order of preference
     final pathsToTry = [
-      'data_processing/assets/data/current_players_combined.csv',
-      'current_players_combined.csv',  // Fallback
+      'data/processed/team_data/current_players_combined.csv',
+      'data_processing/assets/data/current_players_combined.csv',  // Legacy fallback
     ];
 
     for (String path in pathsToTry) {
@@ -85,14 +85,16 @@ class PlayerDataService {
             _cachedPlayers!.add(player);
             successCount++;
             
-            // Log first player for verification
-            if (i == 1) {
-              print('📊 First player parsed: ${player.fullName} (${player.team}, ${player.position})');
+            // Log first few players for verification
+            if (i <= 3) {
+              print('📊 Player $i parsed: ${player.fullName} (${player.team}, ${player.position}) - ${player.fantasyPpg} PPG');
             }
-          } catch (e) {
+          } catch (e, stackTrace) {
             print('❌ Error parsing row $i: $e');
-            if (errorCount < 3) { // Only show first 3 errors to avoid spam
-              print('   Row data: ${csvTable[i].take(10).toList()}...');
+            if (errorCount < 5) { // Show first 5 errors with more detail
+              print('   Row length: ${csvTable[i].length}');
+              print('   Row data (first 15): ${csvTable[i].take(15).toList()}');
+              print('   Stack trace: $stackTrace');
             }
             errorCount++;
           }
@@ -122,8 +124,16 @@ class PlayerDataService {
     
     // If we get here, all paths failed
     print('💥 CRITICAL: All CSV loading attempts failed!');
-    print('📁 Available paths in pubspec.yaml should include our CSV files');
+    print('📁 Tried paths:');
+    for (String path in pathsToTry) {
+      print('   - $path');
+    }
+    print('📁 Check pubspec.yaml includes these asset paths');
+    print('📁 Check files exist in Flutter asset bundle');
     _cachedPlayers = [];
+    
+    // Throw an exception so we know something went wrong
+    throw Exception('Failed to load player data from any path');
   }
 
   void _buildIndexes() {
@@ -220,7 +230,7 @@ class PlayerDataService {
 
     try {
       print('🏈 Loading career stats data...');
-      final csvString = await rootBundle.loadString('data_processing/assets/data/player_career_stats.csv');
+      final csvString = await rootBundle.loadString('data/processed/player_stats/player_career_stats.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
         fieldDelimiter: ',',
@@ -266,7 +276,7 @@ class PlayerDataService {
 
     try {
       print('🏈 Loading game logs data...');
-      final csvString = await rootBundle.loadString('data_processing/assets/data/player_game_logs.csv');
+      final csvString = await rootBundle.loadString('data/processed/player_stats/player_game_logs.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
         fieldDelimiter: ',',
@@ -312,7 +322,7 @@ class PlayerDataService {
 
     try {
       print('📊 Loading weekly EPA data...');
-      final csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_epa.csv');
+      final csvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_epa.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
         fieldDelimiter: ',',
@@ -356,7 +366,7 @@ class PlayerDataService {
 
     try {
       print('📊 Loading season EPA summary...');
-      final csvString = await rootBundle.loadString('data_processing/assets/data/player_season_epa_summary.csv');
+      final csvString = await rootBundle.loadString('data/processed/player_stats/player_season_epa_summary.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
         fieldDelimiter: ',',
@@ -415,7 +425,7 @@ class PlayerDataService {
       print('📊 Loading weekly NGS data...');
       
       // Load existing rushing/receiving NGS data
-      final csvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_ngs.csv');
+      final csvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_ngs.csv');
       
       final List<List<dynamic>> csvTable = const CsvToListConverter(
         fieldDelimiter: ',',
@@ -440,7 +450,7 @@ class PlayerDataService {
       // Load new passing NGS data
       try {
         print('📊 Loading weekly passing NGS data...');
-        final passingCsvString = await rootBundle.loadString('data_processing/assets/data/player_weekly_passing_ngs.csv');
+        final passingCsvString = await rootBundle.loadString('data/processed/player_stats/player_weekly_passing_ngs.csv');
         
         final List<List<dynamic>> passingCsvTable = const CsvToListConverter(
           fieldDelimiter: ',',

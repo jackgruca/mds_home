@@ -19,7 +19,7 @@ static Future<void> initialize() async {
   
   try {
     debugPrint("Loading draft value chart...");
-    final data = await rootBundle.loadString('assets/draft_value_chart.csv');
+    final data = await rootBundle.loadString('data/processed/team_data/draft_value_chart.csv');
     debugPrint("CSV content length: ${data.length}");
     
     // Show a preview of the CSV data

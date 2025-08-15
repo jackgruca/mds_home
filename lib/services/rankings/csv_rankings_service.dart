@@ -21,7 +21,7 @@ class CSVRankingsService {
   // Generic method to fetch rankings for any position
   Future<List<Map<String, dynamic>>> fetchRankings(String position) async {
     try {
-      final String csvPath = 'assets/rankings/${position.toLowerCase()}_rankings.csv';
+      final String csvPath = 'data/processed/rankings/${position.toLowerCase()}_rankings.csv';
       final String rawData = await rootBundle.loadString(csvPath);
       
       final List<List<dynamic>> listData = const CsvToListConverter(

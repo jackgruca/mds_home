@@ -44,7 +44,7 @@ class TradeDataService {
   /// Load team cap space data from CSV
   static Future<void> _loadCapSpaceData() async {
     try {
-      final String csvString = await rootBundle.loadString('assets/cap_space/team_cap_space.csv');
+      final String csvString = await rootBundle.loadString('data/processed/team_data/team_cap_space.csv');
       // Manually parse to handle currency commas and parentheses
       final lines = const LineSplitter().convert(csvString.trim());
       if (lines.isEmpty) return;
@@ -151,12 +151,12 @@ class TradeDataService {
   /// Load all player rankings from CSV files
   static Future<void> _loadAllPlayerRankings() async {
     // Load each position group
-    await _loadPositionRankings('qb', 'assets/rankings/qb_rankings.csv');
-    await _loadPositionRankings('rb', 'assets/rankings/rb_rankings.csv');
-    await _loadPositionRankings('wr', 'assets/rankings/wr_rankings.csv');
-    await _loadPositionRankings('te', 'assets/rankings/te_rankings.csv');
-    await _loadPositionRankings('edge', 'assets/rankings/edge_rankings.csv');
-    await _loadPositionRankings('idl', 'assets/rankings/idl_rankings.csv');
+    await _loadPositionRankings('qb', 'data/processed/rankings/qb_rankings.csv');
+    await _loadPositionRankings('rb', 'data/processed/rankings/rb_rankings.csv');
+    await _loadPositionRankings('wr', 'data/processed/rankings/wr_rankings.csv');
+    await _loadPositionRankings('te', 'data/processed/rankings/te_rankings.csv');
+    await _loadPositionRankings('edge', 'data/processed/rankings/edge_rankings.csv');
+    await _loadPositionRankings('idl', 'data/processed/rankings/idl_rankings.csv');
   }
 
   /// Load player rankings for a specific position
@@ -598,7 +598,7 @@ class TradeDataService {
   /// Weights decrease by slot: [1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.15]
   static Future<void> _loadTeamNeeds2026() async {
     try {
-      final String csvString = await rootBundle.loadString('assets/2026/team_needs.csv');
+      final String csvString = await rootBundle.loadString('data/processed/draft_sim/2026/team_needs.csv');
       List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
       // Web fallback: sometimes the CSV parser returns a single row; manually split
       if (csvData.length <= 1) {

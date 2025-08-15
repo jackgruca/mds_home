@@ -80,7 +80,7 @@ class DepthChartEntry {
 
 class CsvDepthChartsService {
   static List<DepthChartEntry>? _cachedDepthCharts;
-  static const String _csvAssetPath = 'assets/nfl_depth_charts.csv';
+  static const String _csvAssetPath = 'data/processed/player_stats/nfl_depth_charts.csv';
 
   /// Load depth chart data from CSV
   static Future<void> _loadDepthChartsFromCSV() async {

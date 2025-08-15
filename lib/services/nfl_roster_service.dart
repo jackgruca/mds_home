@@ -5,7 +5,7 @@ import '../models/nfl_trade/nfl_player.dart';
 
 class NFLRosterService {
   static List<NFLPlayer>? _cachedPlayers;
-  static const String _csvAssetPath = 'assets/nfl_roster_data.csv';
+  static const String _csvAssetPath = 'data/processed/player_stats/nfl_roster_data.csv';
 
   /// Get players for a specific team with filtering and sorting options
   static Future<List<NFLPlayer>> getTeamRoster(

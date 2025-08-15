@@ -85,19 +85,19 @@ class GmHubScreen extends StatelessWidget {
     {
       'title': 'Build Your Championship Roster',
       'desc': 'Utilize our suite of tools to construct the ultimate team.',
-      'image': 'assets/images/GM/PIT Draft.png', // Updated to PIT Draft image
+      'image': 'data/images/gm/PIT Draft.png', // Updated to PIT Draft image
       'route': '/team-builder/roster', // Example route
     },
     {
       'title': 'Master the NFL Draft',
       'desc': 'Leverage insights from mock drafts and big boards.',
-      'image': 'assets/images/GM/big board.png', // Use GM big board image
+      'image': 'data/images/gm/big board.png', // Use GM big board image
       'route': '/draft',
     },
      {
       'title': 'Navigate Free Agency Like a Pro',
       'desc': 'Track player movement and manage your cap space effectively.',
-      'image': 'assets/images/placeholder/gm_hub_slide_3.png', // Placeholder path
+      'image': 'data/images/gm/big board.png', // Use actual image
       'route': '/team-builder/fa-tracker',
     },
   ];

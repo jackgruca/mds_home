@@ -24,7 +24,7 @@ class _TestPlayerDataScreenState extends State<TestPlayerDataScreen> {
   Future<void> _loadTestData() async {
     try {
       print('Loading CSV data...');
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/player_game_logs.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/player_game_logs.csv');
       print('CSV loaded, length: ${csvString.length}');
       
       // Debug the raw CSV string
@@ -103,7 +103,7 @@ class _TestPlayerDataScreenState extends State<TestPlayerDataScreen> {
                               ],
                             ),
                           ),
-                        )).toList(),
+                        )),
                       ],
                     ],
                   ),

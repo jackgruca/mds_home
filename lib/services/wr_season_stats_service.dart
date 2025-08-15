@@ -285,7 +285,7 @@ class WRSeasonStatsService {
       print('🔍 [WR_CSV_DEBUG] Starting to load WR stats CSV...');
       print('🔍 [WR_CSV_DEBUG] Attempting to load from path: data_processing/assets/data/wr_season_stats.csv');
       
-      final String csvString = await rootBundle.loadString('data_processing/assets/data/wr_season_stats.csv');
+      final String csvString = await rootBundle.loadString('data/processed/player_stats/wr_season_stats.csv');
       print('🔍 [WR_CSV_DEBUG] CSV string loaded successfully. Length: ${csvString.length} characters');
       
       // Manual line-by-line parsing (same as player_game_stats_service.dart)

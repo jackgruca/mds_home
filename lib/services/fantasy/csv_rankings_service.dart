@@ -3,7 +3,7 @@ import 'package:csv/csv.dart';
 import '../../models/fantasy/player_ranking.dart';
 
 class CSVRankingsService {
-  static const String _csvPath = 'assets/2025/FF_ranks.csv';
+  static const String _csvPath = 'data/processed/draft_sim/2025/FF_ranks.csv';
 
   num? _parseNum(dynamic value) {
     if (value == null) return null;
