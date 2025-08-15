@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../utils/theme_aware_colors.dart';
 import '../../utils/theme_config.dart';
+import '../../services/rankings/ranking_cell_shading_service.dart';
 
 enum MdsTableStyle {
   standard,    // Basic clean table with alternating rows
@@ -89,7 +90,7 @@ class MdsTable extends StatefulWidget {
 }
 
 class _MdsTableState extends State<MdsTable> {
-  late Map<String, Map<dynamic, double>> _columnPercentiles;
+  late Map<String, Map<String, double>> _percentileCache;
 
   @override
   void initState() {
@@ -106,34 +107,17 @@ class _MdsTableState extends State<MdsTable> {
   }
 
   void _calculatePercentiles() {
-    _columnPercentiles = {};
-    
     // Get columns that need percentile shading
     final shadingColumns = widget.columns
         .where((col) => col.enablePercentileShading && col.numeric)
         .map((col) => col.key)
         .toList();
 
-    for (final columnKey in shadingColumns) {
-      final values = widget.rows
-          .map((row) => row.data[columnKey])
-          .whereType<num>()
-          .toList();
-
-      if (values.isNotEmpty) {
-        values.sort();
-        _columnPercentiles[columnKey] = {};
-
-        for (final row in widget.rows) {
-          final value = row.data[columnKey];
-          if (value is num) {
-            final rank = values.where((v) => v < value).length;
-            final count = values.where((v) => v == value).length;
-            _columnPercentiles[columnKey]![value] = (rank + 0.5 * count) / values.length;
-          }
-        }
-      }
-    }
+    // Convert rows to format expected by RankingCellShadingService
+    final rankings = widget.rows.map((row) => row.data).toList();
+    
+    // Use the same percentile calculation as WR Rankings
+    _percentileCache = RankingCellShadingService.calculatePercentiles(rankings, shadingColumns);
   }
 
   @override
@@ -298,24 +282,24 @@ class _MdsTableState extends State<MdsTable> {
   double _getColumnSpacing() {
     switch (widget.style) {
       case MdsTableStyle.premium:
-        return 24;
+        return 8; // Much more compact for narrower headers
       case MdsTableStyle.comparison:
-        return 32;
+        return 12;
       case MdsTableStyle.analytics:
-        return 8;
+        return 6;
       default:
-        return 16;
+        return 8;
     }
   }
 
   double _getHorizontalMargin() {
     switch (widget.style) {
       case MdsTableStyle.premium:
-        return 20;
+        return 8; // Reduced margin for more compact layout
       case MdsTableStyle.analytics:
-        return 8;
+        return 6;
       default:
-        return 16;
+        return 8;
     }
   }
 
@@ -351,11 +335,21 @@ class _MdsTableState extends State<MdsTable> {
   List<DataColumn> _buildColumns() {
     return widget.columns.map((column) {
       return DataColumn(
-        label: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(column.label),
+        label: Expanded( // Use Expanded to fill available width
+          child: Center( // Then center within that width
+            child: Text(
+              column.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
         ),
-        numeric: column.numeric,
+        numeric: false, // Always false to prevent DataTable's right-alignment
         tooltip: column.tooltip,
         onSort: column.sortable && widget.onSort != null
             ? (columnIndex, ascending) {
@@ -378,13 +372,12 @@ class _MdsTableState extends State<MdsTable> {
         color: _getRowColor(index, row),
         cells: widget.columns.map((column) {
           final value = row.data[column.key];
-          final percentile = _columnPercentiles[column.key]?[value];
 
           if (column.cellBuilder != null) {
-            return DataCell(column.cellBuilder!(value, index, percentile));
+            return DataCell(column.cellBuilder!(value, index, null));
           }
 
-          return DataCell(_buildDefaultCell(column, value, percentile));
+          return DataCell(_buildDefaultCell(column, value, index));
         }).toList(),
         onSelectChanged: row.onTap != null ? (_) => row.onTap!() : null,
       );
@@ -401,46 +394,79 @@ class _MdsTableState extends State<MdsTable> {
     });
   }
 
-  Widget _buildDefaultCell(MdsTableColumn column, dynamic value, double? percentile) {
-    Color? backgroundColor;
-    TextStyle textStyle = const TextStyle(fontSize: 14);
-
-    // Apply percentile shading if enabled
-    if (column.enablePercentileShading && percentile != null && value is num) {
-      backgroundColor = Color.fromRGBO(
-        100, 140, 240, 
-        0.1 + (percentile * 0.85)
-      );
+  Widget _buildDefaultCell(MdsTableColumn column, dynamic value, int rowIndex) {
+    // Use density cell highlighting if percentile shading is enabled
+    if (column.enablePercentileShading && column.numeric) {
+      // Check if value is numeric or can be parsed as numeric
+      bool isNumericValue = false;
+      if (value is num) {
+        isNumericValue = true;
+      } else if (value is String && value != 'N/A' && value.isNotEmpty) {
+        // Try to parse string as number
+        final cleaned = value.replaceAll(',', '').trim();
+        final parsed = double.tryParse(cleaned);
+        isNumericValue = parsed != null && parsed.isFinite;
+      }
       
-      if (percentile > 0.85) {
-        textStyle = textStyle.copyWith(fontWeight: FontWeight.bold);
+      if (isNumericValue) {
+        // Return density cell directly - it has its own left alignment
+        return RankingCellShadingService.buildDensityCell(
+          column: column.key,
+          value: value,
+          rankValue: value,
+          showRanks: false,
+          percentileCache: _percentileCache,
+          formatValue: (val, col) => _formatValue(column, val),
+          width: double.infinity, // Use full cell width
+          height: _getRowHeight() - 4, // Slightly smaller for padding
+        );
       }
     }
 
+    // Default cell for non-numeric or non-percentile columns (including strings)
     String displayValue = _formatValue(column, value);
 
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: backgroundColor,
-      alignment: column.numeric ? Alignment.centerRight : Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Text(
-        displayValue,
-        style: textStyle,
-        textAlign: column.textAlign,
+    return Align(
+      alignment: Alignment.centerLeft, // Force left alignment
+      child: Padding(
+        padding: const EdgeInsets.only(left: 6, right: 2), // Match density cell padding
+        child: Text(
+          displayValue,
+          style: const TextStyle(fontSize: 11), // Match density cell font size
+          textAlign: TextAlign.left, // Text is left-aligned
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
       ),
     );
   }
 
   String _formatValue(MdsTableColumn column, dynamic value) {
-    if (value == null) return 'N/A';
+    if (value == null || value == '') return 'N/A';
     
+    // If it's already a number, format based on column type
     if (value is num && column.numeric) {
       if (column.isDoubleField) {
         return value.toStringAsFixed(2);
       } else {
         return value.toInt().toString();
+      }
+    }
+    
+    // If it's a string but should be numeric, try to format properly
+    if (value is String && column.numeric) {
+      final cleaned = value.replaceAll(',', '').trim();
+      final parsed = double.tryParse(cleaned);
+      if (parsed != null && parsed.isFinite) {
+        if (column.isDoubleField) {
+          return parsed.toStringAsFixed(2);
+        } else if (parsed == parsed.roundToDouble()) {
+          // It's a whole number, show without decimals
+          return parsed.toInt().toString();
+        } else {
+          // Has decimals, keep them
+          return value.toString();
+        }
       }
     }
     

@@ -24,14 +24,21 @@ class RankingCellShadingService {
       final values = rankings
           .map((item) {
             final value = item[column];
+            if (value == null || value == 'N/A' || value == '') {
+              return null;
+            }
             if (value is num) {
               return value.toDouble();
             } else if (value is String) {
-              return double.tryParse(value) ?? 0.0;
+              // Try to parse string numbers, handling commas and spaces
+              final cleaned = value.replaceAll(',', '').trim();
+              final parsed = double.tryParse(cleaned);
+              return parsed;
             }
-            return 0.0;
+            return null;
           })
-          .where((value) => value.isFinite)
+          .where((value) => value != null && value.isFinite)
+          .cast<double>()
           .toList()
         ..sort();
       
@@ -128,7 +135,14 @@ class RankingCellShadingService {
       'int_rank',       // Interception rank - lower rank number is better
       'int_rank_num',   // Interception rank number - lower rank number is better
     };
-    return lowerBetterStats.contains(column);
+    
+    // Any field containing "rank" or "Rank" where lower numbers are better (rank 1 = best)
+    final isRankField = column.toLowerCase().contains('rank') || 
+                       column.contains('Rank') ||
+                       column.endsWith('_rank') ||
+                       column.endsWith('Rank');
+    
+    return lowerBetterStats.contains(column) || isRankField;
   }
 
   static Widget buildDensityCell({
@@ -144,38 +158,47 @@ class RankingCellShadingService {
     final displayValue = showRanks ? rankValue : value;
     final isRankField = showRanks && (column.endsWith('_rank') || column.endsWith('_rank_num'));
     
-    // Handle string fields - don't try to convert to number
-    double numValue = 0.0;
+    // Parse numeric value for color calculation
+    double? numValue;
     if (!_isStringField(column)) {
-      if (displayValue is num) {
+      if (displayValue == null || displayValue == 'N/A' || displayValue == '') {
+        numValue = null;
+      } else if (displayValue is num) {
         numValue = displayValue.toDouble();
       } else if (displayValue is String) {
-        numValue = double.tryParse(displayValue) ?? 0.0;
+        // Clean and parse string numbers
+        final cleaned = displayValue.replaceAll(',', '').trim();
+        numValue = double.tryParse(cleaned);
       }
     }
+    
     final isDarkMode = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
     final Color textColor = isDarkMode ? Colors.white : Colors.black87;
     
     return Container(
       width: width,
       height: height,
-      margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: _isStringField(column) 
-            ? (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100)  // Default color for string fields
+        color: _isStringField(column) || numValue == null
+            ? (isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100)  // Default color for string fields or null values
             : getDensityColor(column, numValue, percentileCache, isRankField: isRankField, isDarkMode: isDarkMode),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: isDarkMode ? Colors.black.withValues(alpha: 0.2) : Colors.grey.shade300, width: 0.5),
+        borderRadius: BorderRadius.circular(2),
       ),
-      child: Center(
-        child: Text(
-          formatValue(displayValue, column),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: textColor,
+      child: Align(
+        alignment: Alignment.centerLeft, // Force left alignment
+        child: Padding(
+          padding: const EdgeInsets.only(left: 6, right: 2), // More left padding for clear left alignment
+          child: Text(
+            formatValue(displayValue, column),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+            ),
+            textAlign: TextAlign.left, // Text itself is left-aligned
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
-          textAlign: TextAlign.center,
         ),
       ),
     );

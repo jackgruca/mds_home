@@ -113,14 +113,9 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   // Tab controller for Basic/Advanced/Visualizations
   late TabController _tabController;
   
-  // New: Position-aware filtering state
-  bool _showAllPositionsInTab = false; // Toggle to show all positions in position-specific tabs
   
   // Helper method to get the position filter for the current tab
   String _getEffectivePositionFilter() {
-    if (_showAllPositionsInTab) {
-      return _selectedPosition; // Use the dropdown filter when showing all positions
-    }
     
     // Auto-filter by position based on the selected tab
     switch (_selectedStatCategory) {
@@ -141,21 +136,131 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   
   // Helper method to determine if we should include TE in WR/TE Stats
   bool _shouldIncludeTE() {
-    return _selectedStatCategory == 'WR/TE Stats' && !_showAllPositionsInTab;
+    return _selectedStatCategory == 'WR/TE Stats';
   }
 
   List<String> _headers = [];
   List<String> _selectedFields = []; // Initially empty, populated from data
 
-  // State for Query Builder
+  // State for Filter Panel
+  bool _showFilterPanel = false;
   final List<QueryCondition> _queryConditions = [];
   String? _newQueryField;
   QueryOperator? _newQueryOperator;
   final TextEditingController _newQueryValueController =
       TextEditingController();
-  bool _isQueryBuilderExpanded = false; // Initially collapsed
 
   FirebaseFunctions functions = FirebaseFunctions.instance;
+
+  // Header name condensation mapping for narrower tables
+  static const Map<String, String> _headerCondenseMap = {
+    // Common fields
+    'fantasy_player_name': 'Player',
+    'receiver_player_name': 'Player',
+    'player_name': 'Player',
+    'posteam': 'Team',
+    'recent_team': 'Team',
+    'team': 'Team',
+    'season': 'Yr',
+    'numGames': 'G',
+    'games': 'G',
+    
+    // QB Stats
+    'passing_yards': 'Pass Yds',
+    'passing_tds': 'Pass TD',
+    'passer_rating': 'Rating',
+    'completion_percentage': 'Cmp%',
+    'fantasy_points': 'Fpts',
+    'fantasy_points_ppr': 'PPR',
+    
+    // RB Stats
+    'numRush': 'Rush',
+    'numYards': 'Rush Yds',
+    'yardsPerRush': 'Y/R',
+    'rushPerGame': 'Rush/G',
+    'yardsPerGame': 'Yds/G',
+    'totalTD': 'TD',
+    'tdPerGame': 'TD/G',
+    'numRec': 'Rec',
+    'recYards': 'Rec Yds',
+    'recTD': 'Rec TD',
+    'totalEPA': 'EPA',
+    'avgEPA': 'EPA/G',
+    'run_share': 'Run%',
+    'tgt_share': 'Tgt%',
+    'conversion': 'Conv',
+    'explosive_rate': 'Expl%',
+    'avg_eff': 'Eff',
+    'avg_RYOE_perAtt': 'RYOE',
+    'third_down_rate': '3rd%',
+    'myRankNum': 'Rank',
+    'tier': 'Tier',
+    
+    // WR/TE Stats
+    'numTgt': 'Tgt',
+    'targets': 'Tgt',
+    'receptions': 'Rec',
+    'receiving_yards': 'Rec Yds',
+    'receiving_tds': 'Rec TD',
+    'yards_per_reception': 'Y/Rec',
+    'recPerGame': 'Rec/G',
+    'tgtPerGame': 'Tgt/G',
+    'catchPct': 'Catch%',
+    'catch_percentage': 'Catch%',
+    'YAC': 'YAC',
+    'aDoT': 'aDOT',
+    'numFD': 'FD',
+    'FDperTgt': 'FD/Tgt',
+    'YACperRec': 'YAC/Rec',
+    'num_rz_opps': 'RZ Opp',
+    'avg_separation': 'Sep',
+    'avg_intended_air_yards': 'IAY',
+    'yac_above_expected': 'YAC+',
+    'third_down_targets': '3rd Tgt',
+    'third_down_conversions': '3rd Conv',
+    'wr_rank': 'Rank',
+    'position': 'Pos',
+  };
+
+  // Function to get condensed header name
+  String _getCondensedHeader(String originalHeader) {
+    return _headerCondenseMap[originalHeader] ?? originalHeader;
+  }
+
+  // Get all possible filterable fields from all stat categories
+  List<String> _getAllFilterableFields() {
+    Set<String> allFields = {};
+    
+    // Add fields from all stat category groups
+    for (var category in _statCategoryFieldGroups.values) {
+      for (var fieldList in category.values) {
+        allFields.addAll(fieldList);
+      }
+    }
+    
+    // Add any additional common fields that might not be in the groups
+    allFields.addAll([
+      'fantasy_player_name', 'receiver_player_name', 'player_name',
+      'posteam', 'recent_team', 'team', 'season', 'position',
+      'numGames', 'games', 'myRankNum', 'tier',
+      // QB fields
+      'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',
+      'completion_percentage', 'passer_rating', 'fantasy_points', 'fantasy_points_ppr',
+      // RB fields  
+      'numRush', 'numYards', 'totalTD', 'yardsPerRush', 'rushPerGame',
+      'yardsPerGame', 'tdPerGame', 'numRec', 'recYards', 'recTD',
+      'totalEPA', 'avgEPA', 'run_share', 'tgt_share', 'conversion',
+      'explosive_rate', 'avg_eff', 'avg_RYOE_perAtt', 'third_down_rate',
+      // WR/TE fields
+      'numTgt', 'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+      'yards_per_reception', 'recPerGame', 'tgtPerGame', 'catchPct', 'catch_percentage',
+      'YAC', 'aDoT', 'numFD', 'FDperTgt', 'YACperRec', 'num_rz_opps',
+      'avg_separation', 'avg_intended_air_yards', 'yac_above_expected',
+      'third_down_targets', 'third_down_conversions', 'wr_rank',
+    ]);
+    
+    return allFields.toList()..sort();
+  }
 
   // Field groups for tabbed view - organized by position with Basic/Advanced/Visualizations structure
   static final Map<String, Map<String, List<String>>> _statCategoryFieldGroups = {
@@ -233,6 +338,13 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
 
   // Helper function to format header names prettily with abbreviations
   String _formatHeaderName(String header) {
+    // First check if we have a condensed mapping
+    String condensedHeader = _getCondensedHeader(header);
+    if (condensedHeader != header) {
+      return condensedHeader;
+    }
+    
+    // Fallback to original mapping
     // Define abbreviations and pretty names - expanded for new categories
     final Map<String, String> headerMap = {
       'player_name': 'Player',
@@ -430,6 +542,47 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     super.dispose();
   }
 
+  // Helper to determine if a field contains numeric data (including string representations of numbers)
+  bool _isNumericField(String field) {
+    // Explicitly list fields that are ALWAYS text/string
+    const stringOnlyFields = {
+      'player_name', 'fantasy_player_name', 'receiver_player_name', 'passer_player_name',
+      'recent_team', 'posteam', 'team', 'position', 'player_position',
+      'player_id', 'fantasy_player_id', 'receiver_player_id', 'passer_player_id',
+    };
+    
+    if (stringOnlyFields.contains(field)) return false;
+    
+    // If we have data, check the first non-null value to determine type
+    if (_rawRows.isNotEmpty) {
+      for (var row in _rawRows) {
+        final value = row[field];
+        if (value == null || value == 'N/A') continue;
+        
+        // If it's already a number, it's numeric
+        if (value is num) return true;
+        
+        // If it's a string, try to parse it
+        if (value is String) {
+          // Check if it can be parsed as a number
+          final parsed = double.tryParse(value.replaceAll(',', ''));
+          if (parsed != null && parsed.isFinite) return true;
+          // If parsing fails, it's probably a string field
+          return false;
+        }
+        
+        // Found a non-null value, made decision
+        break;
+      }
+    }
+    
+    // Aggressive fallback: assume numeric unless it clearly contains text keywords
+    return !field.toLowerCase().contains('name') && 
+           !field.toLowerCase().contains('team') && 
+           !field.toLowerCase().contains('position') &&
+           !field.toLowerCase().contains('_id');
+  }
+
   // Helper to determine field type for query input
   String getFieldType(String field) {
     const Set<String> doubleFields = {
@@ -463,7 +616,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     // DEBUG LOGGING - Track data fetching state
     print('🔍 [DEBUG] _fetchDataFromFirebase called');
     print('🔍 [DEBUG] Current stat category: $_selectedStatCategory');
-    print('🔍 [DEBUG] Show all positions in tab: $_showAllPositionsInTab');
+    print('🔍 [DEBUG] Selected position: $_selectedPosition');
     print('🔍 [DEBUG] Selected position: $_selectedPosition');
     
     // Special handling for WR Stats - load from CSV
@@ -1214,6 +1367,13 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     );
   }
 
+  void _toggleFilterPanel() {
+    setState(() {
+      _showFilterPanel = !_showFilterPanel;
+    });
+  }
+
+
   Widget _buildCompactControlsSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1223,46 +1383,57 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
       ),
       child: Column(
         children: [
-          // Position/Category Selection Row
+          // Filters Row
           Row(
             children: [
-              // Position/Category buttons
-              Expanded(
-                flex: 3,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: (_statCategoryFieldGroups.keys).map((category) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(category),
-                          selected: _selectedStatCategory == category,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _selectedStatCategory = category;
-                                _showAllPositionsInTab = false;
-                              });
-                              _applyFiltersAndFetch();
-                            }
-                          },
-                          selectedColor: _getPositionColor().withValues(alpha: 0.2),
-                          labelStyle: TextStyle(
-                            color: _selectedStatCategory == category 
-                                ? _getPositionColor() 
-                                : Colors.grey.shade700,
-                            fontWeight: _selectedStatCategory == category 
-                                ? FontWeight.bold 
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+              // Position Category Dropdown
+              SizedBox(
+                width: 120,
+                child: DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(),
                   ),
+                  value: _selectedStatCategory,
+                  items: (_statCategoryFieldGroups.keys).map((category) => DropdownMenuItem(
+                    value: category,
+                    child: Text(category, overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedStatCategory = value;
+                      });
+                      _applyFiltersAndFetch();
+                    }
+                  },
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              
+              // Position Filter
+              SizedBox(
+                width: 100,
+                child: DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Position',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(),
+                  ),
+                  value: _selectedPosition,
+                  items: _positions.map((position) => DropdownMenuItem(
+                    value: position,
+                    child: Text(position),
+                  )).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedPosition = value!);
+                    _applyFiltersAndFetch();
+                  },
+                ),
+              ),
+              
+              const SizedBox(width: 12),
               
               // Season Filter
               SizedBox(
@@ -1305,6 +1476,27 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
                     setState(() => _selectedTeam = value!);
                     _applyFiltersAndFetch();
                   },
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Filter Button
+              ElevatedButton.icon(
+                onPressed: _toggleFilterPanel,
+                icon: Icon(
+                  _showFilterPanel ? Icons.close : Icons.filter_list,
+                  size: 16,
+                ),
+                label: Text(_showFilterPanel ? 'Close' : 'Filters'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _queryConditions.isNotEmpty 
+                      ? Colors.blue.shade600 
+                      : null,
+                  foregroundColor: _queryConditions.isNotEmpty 
+                      ? Colors.white 
+                      : null,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
             ],
@@ -1423,219 +1615,37 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
+      body: Stack(
         children: [
-          // Compact Controls Section
-          _buildCompactControlsSection(),
-          
-          // Compact Query Builder
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Row(
-                children: [
-                  Icon(Icons.tune, color: Theme.of(context).primaryColor, size: 20),
-                  const SizedBox(width: 8),
-                  Text('Advanced Filters',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                  const Spacer(),
-                  if (_queryConditions.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_queryConditions.length}',
-                        style: TextStyle(
-                          color: Theme.of(context).primaryColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                ],
+          Column(
+            children: [
+              // Compact Controls Section
+              _buildCompactControlsSection(),
+              
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(_error!,
+                                                              style: TextStyle(
+                                   color: ThemeAwareColors.getErrorColor(context), fontSize: 16),
+                                textAlign: TextAlign.center),
+                          ))
+                        : _buildDataTable(),
               ),
-              initiallyExpanded: _isQueryBuilderExpanded,
-              onExpansionChanged: (expanded) {
-                setState(() {
-                  _isQueryBuilderExpanded = expanded;
-                });
-              },
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          // Position Dropdown
-                          Expanded(
-                            flex: 1,
-                            child: DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Position',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(),
-                              ),
-                              value: _selectedPosition,
-                              items: _positions
-                                  .map((pos) => DropdownMenuItem(
-                                        value: pos,
-                                        child: Text(pos),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedPosition = value;
-                                  });
-                                  _applyFiltersAndFetch();
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          // Field Dropdown
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Field',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(),
-                              ),
-                              value: _headers.contains(_newQueryField)
-                                  ? _newQueryField
-                                  : null,
-                              items: _headers
-                                  .map((header) => DropdownMenuItem(
-                                        value: header,
-                                        child: Text(header,
-                                            overflow: TextOverflow.ellipsis),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _newQueryField = value;
-                                  _newQueryOperator = null;
-                                  _newQueryValueController.clear();
-                                });
-                              },
-                              isExpanded: true,
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          // Operator Dropdown
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<QueryOperator>(
-                              decoration: const InputDecoration(
-                                labelText: 'Operator',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(),
-                              ),
-                              value: _newQueryOperator,
-                              items: _allOperators
-                                  .map((op) => DropdownMenuItem(
-                                        value: op,
-                                        child: Text(queryOperatorToString(op)),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() => _newQueryOperator = value);
-                              },
-                              isExpanded: true,
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          // Value Input
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: _newQueryValueController,
-                              decoration: const InputDecoration(
-                                labelText: 'Value',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(),
-                              ),
-                              keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
-                                  ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
-                                  : TextInputType.text,
-                            ),
-                          ),
-                          const SizedBox(width: 8.0),
-                          ElevatedButton(
-                            onPressed: _addQueryCondition,
-                            child: const Text('Add'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12.0),
-                      if (_queryConditions.isNotEmpty) ...[
-                        Text('Active Filters:',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6.0,
-                          runSpacing: 4.0,
-                          children: _queryConditions
-                              .asMap()
-                              .entries
-                              .map((entry) => Chip(
-                                    label: Text(entry.value.toString()),
-                                    onDeleted: () =>
-                                        _removeQueryCondition(entry.key),
-                                    deleteIconColor: Colors.red.shade400,
-                                  ))
-                              .toList(),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (_queryConditions.isNotEmpty)
-                            TextButton(
-                              onPressed: _clearAllQueryConditions,
-                              child: const Text('Clear All'),
-                            ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                            label: const Text('Apply Filters'),
-                            onPressed: _applyFiltersAndFetch,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            ],
+          ),
+          // Right-side filter panel
+          if (_showFilterPanel)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _buildFilterPanel(),
             ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(_error!,
-                                                          style: TextStyle(
-                                 color: ThemeAwareColors.getErrorColor(context), fontSize: 16),
-                            textAlign: TextAlign.center),
-                      ))
-                    : _buildDataTable(),
-          ),
         ],
       ),
     );
@@ -1698,7 +1708,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     }
 
     // Use effective position filter for determining visible fields
-    final String effectivePosition = _showAllPositionsInTab ? _selectedPosition : _getEffectivePositionFilter();
+    final String effectivePosition = _getEffectivePositionFilter();
     final List<String> displayFields = getVisibleFieldsForCategory(_selectedStatCategory, effectivePosition);
     
     // DEBUG LOGGING - Track column field calculation
@@ -1712,43 +1722,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     return Column(
       children: [
         
-        // Position-aware toggle for position-specific tabs
-        if (_isPositionSpecificTab()) 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.filter_list, size: 16, color: ThemeAwareColors.getSecondaryTextColor(context)),
-                const SizedBox(width: 8),
-                Text(
-                  _showAllPositionsInTab 
-                    ? 'Showing: ${_selectedPosition == 'All' ? 'All Positions' : '$_selectedPosition Only'}'
-                    : 'Showing: ${_getPositionDisplayText()} Only',
-                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
-                ),
-                const SizedBox(width: 12),
-                Switch(
-                  value: _showAllPositionsInTab,
-                  onChanged: (value) {
-                    setState(() {
-                      _showAllPositionsInTab = value;
-                    });
-                    _applyFiltersAndFetch();
-                  },
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Show All Positions',
-                  style: TextStyle(fontSize: 13, color: ThemeAwareColors.getSecondaryTextColor(context)),
-                ),
-              ],
-            ),
-          ),
         
         // Add row with action buttons
         Padding(
@@ -1795,21 +1768,27 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
             columns: displayFields.map((header) => MdsTableColumn(
               key: header,
               label: _formatHeaderName(header),
-              numeric: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num),
-              enablePercentileShading: _rawRows.isNotEmpty && _rawRows.any((row) => row[header] is num) && header != 'season' && header != 'games',
+              numeric: _isNumericField(header),
+              enablePercentileShading: _isNumericField(header), // Apply to ALL numeric fields
               isDoubleField: doubleFields.contains(header),
-              cellBuilder: header == 'recent_team' ? (value, rowIndex, percentile) {
+              cellBuilder: header == 'recent_team' || header == 'posteam' || header == 'team' ? (value, rowIndex, percentile) {
                 if (value == null) return const Text('N/A');
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TeamLogoUtils.buildNFLTeamLogo(
-                      value.toString(),
-                      size: 24.0,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(value.toString()),
-                  ],
+                return Container(
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TeamLogoUtils.buildNFLTeamLogo(
+                        value.toString(),
+                        size: 20.0, // Slightly smaller logo
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        value.toString(),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
                 );
               } : null,
             )).toList(),
@@ -1864,26 +1843,246 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     );
   }
 
-  // Helper method to determine if current tab is position-specific
-  bool _isPositionSpecificTab() {
-    return ['QB Stats', 'RB Stats', 'WR/TE Stats', 'WR Stats', 'TE Stats'].contains(_selectedStatCategory);
+  Widget _buildFilterPanel() {
+    return Container(
+      width: 350,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+          left: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.filter_list, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Advanced Filters',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (_queryConditions.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_queryConditions.length} active',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _toggleFilterPanel,
+                  icon: const Icon(Icons.close, size: 20),
+                  tooltip: 'Close filters',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
+          ),
+          
+          // Filter Builder
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Filter Builder Form
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Field Dropdown
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Field',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
+                        value: _getAllFilterableFields().contains(_newQueryField) ? _newQueryField : null,
+                        items: _getAllFilterableFields().map((header) => DropdownMenuItem(
+                          value: header,
+                          child: Text(header, overflow: TextOverflow.ellipsis),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _newQueryField = value;
+                            _newQueryOperator = null;
+                            _newQueryValueController.clear();
+                          });
+                        },
+                        isExpanded: true,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Operator Dropdown
+                      DropdownButtonFormField<QueryOperator>(
+                        decoration: const InputDecoration(
+                          labelText: 'Operator',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
+                        value: _newQueryOperator,
+                        items: _allOperators.map((op) => DropdownMenuItem(
+                          value: op,
+                          child: Text(queryOperatorToString(op)),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() => _newQueryOperator = value);
+                        },
+                        isExpanded: true,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Value Input
+                      TextField(
+                        controller: _newQueryValueController,
+                        decoration: const InputDecoration(
+                          labelText: 'Value',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: getFieldType(_newQueryField ?? '') == 'int' || getFieldType(_newQueryField ?? '') == 'double'
+                            ? TextInputType.numberWithOptions(decimal: getFieldType(_newQueryField ?? '') == 'double')
+                            : TextInputType.text,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Add Filter Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _addQueryCondition,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add Filter'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Active Filters Section
+                  if (_queryConditions.isNotEmpty) ...[
+                    Text(
+                      'Active Filters:',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _queryConditions.length,
+                        itemBuilder: (context, index) {
+                          final condition = _queryConditions[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(
+                                condition.toString(),
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                onPressed: () => _removeQueryCondition(index),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: _clearAllQueryConditions,
+                            child: const Text('Clear All'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _applyFiltersAndFetch,
+                            child: const Text('Apply'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.filter_list_off,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No filters applied',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add filters using the form above',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
-  
-  // Helper method to get display text for current position filter
-  String _getPositionDisplayText() {
-    switch (_selectedStatCategory) {
-      case 'QB Stats':
-        return 'QB';
-      case 'RB Stats':
-        return 'RB (CSV)'; // Add indication it's from CSV
-      case 'WR/TE Stats':
-        return 'WR/TE';
-      case 'WR Stats':
-        return 'WR (CSV)'; // Add indication it's from CSV
-      case 'TE Stats':
-        return 'TE (CSV)'; // Add indication it's from CSV
-      default:
-        return _selectedPosition;
-    }
-  }
+
 } 
