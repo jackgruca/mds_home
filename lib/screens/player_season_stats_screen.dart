@@ -11,6 +11,9 @@ import 'package:mds_home/widgets/design_system/mds_table.dart';
 import 'package:mds_home/services/wr_season_stats_service.dart';
 import 'package:mds_home/services/te_season_stats_service.dart';
 import 'package:mds_home/services/rb_season_stats_service.dart';
+import 'package:mds_home/services/player_data_service.dart';
+import 'package:mds_home/models/player_info.dart';
+import 'players/player_detail_screen.dart';
 
 // Enum for Query Operators (reusing from historical_data_screen.dart)
 enum QueryOperator {
@@ -78,6 +81,10 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
   String? _error;
   List<Map<String, dynamic>> _rawRows = [];
   int _totalRecords = 0;
+  
+  // Player data service for navigation
+  final PlayerDataService _playerService = PlayerDataService();
+  bool _playerDataLoaded = false;
 
   // Pagination state
   int _currentPage = 0;
@@ -497,10 +504,268 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     'catch_percentage': 'Catch Percentage (%)',
   };
 
+  Future<void> _loadPlayerData() async {
+    try {
+      await _playerService.loadPlayerData();
+      setState(() {
+        _playerDataLoaded = true;
+      });
+    } catch (e) {
+      // Player data failed to load, but we can still show season stats
+      print('Failed to load player data for navigation: $e');
+    }
+  }
+  
+  void _navigateToPlayerDetail(Map<String, dynamic> rowData) {
+    print('🔍 DEBUG: Row data keys: ${rowData.keys.toList()}');
+    print('🔍 DEBUG: Row data values: ${rowData.toString()}');
+    
+    // Extract available identification data
+    String? playerName = rowData['player_name'] ?? 
+                        rowData['fantasy_player_name'] ?? 
+                        rowData['receiver_player_name'] ??
+                        rowData['player_display_name'];
+    
+    String? team = rowData['team'] ?? 
+                   rowData['posteam'] ?? 
+                   rowData['recent_team'];
+    
+    String? position = rowData['position'];
+    String? playerId = rowData['player_id'] ?? 
+                       rowData['fantasy_player_id'] ?? 
+                       rowData['receiver_player_id'] ??
+                       rowData['gsis_id'];
+    
+    print('🔍 DEBUG: Extracted data:');
+    print('  - Player name: "$playerName"');
+    print('  - Team: "$team"');
+    print('  - Position: "$position"');
+    print('  - Player ID: "$playerId"');
+    
+    if (playerName == null) {
+      print('❌ DEBUG: No player name found in row data');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to find player information')),
+      );
+      return;
+    }
+    
+    if (!_playerDataLoaded) {
+      print('❌ DEBUG: Player data not loaded yet');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Player data still loading, please try again')),
+      );
+      return;
+    }
+    
+    final allPlayers = _playerService.getAllPlayers();
+    print('🔍 DEBUG: Searching in ${allPlayers.length} players');
+    
+    PlayerInfo? matchedPlayer;
+    
+    // Strategy 1: Try player ID match (most precise)
+    if (playerId != null && playerId.isNotEmpty) {
+      print('🔍 DEBUG: Strategy 1 - Trying player ID match: "$playerId"');
+      matchedPlayer = allPlayers.where((p) => p.playerId == playerId).firstOrNull;
+      if (matchedPlayer != null) {
+        print('✅ DEBUG: Found by player ID: "${matchedPlayer.fullName}"');
+      }
+    }
+    
+    // Strategy 2: Try name + position match (team-agnostic for player moves)
+    if (matchedPlayer == null && position != null) {
+      print('🔍 DEBUG: Strategy 2 - Trying name+position match (team-agnostic)');
+      var candidates = allPlayers.where((p) {
+        bool nameMatch = p.fullName.toLowerCase().contains(playerName.toLowerCase()) ||
+                        (p.displayName?.toLowerCase().contains(playerName.toLowerCase()) ?? false);
+        bool positionMatch = p.position.toLowerCase() == position.toLowerCase() ||
+                            p.positionGroup.toLowerCase() == position.toLowerCase();
+        
+        return nameMatch && positionMatch;
+      }).toList();
+      
+      print('🔍 DEBUG: Found ${candidates.length} candidates with name+position');
+      if (candidates.length == 1) {
+        matchedPlayer = candidates.first;
+        print('✅ DEBUG: Found unique match by name+position: "${matchedPlayer.fullName}" (${matchedPlayer.team})');
+      } else if (candidates.length > 1) {
+        print('🔍 DEBUG: Multiple name+position matches: ${candidates.map((p) => "${p.fullName} (${p.team})").join(', ')}');
+        // If we have team info, try to filter by current team first
+        if (team != null) {
+          var teamFiltered = candidates.where((p) => p.team.toLowerCase() == team.toLowerCase()).toList();
+          if (teamFiltered.isNotEmpty) {
+            matchedPlayer = teamFiltered.first;
+            print('✅ DEBUG: Found by name+position+current_team: "${matchedPlayer.fullName}"');
+          } else {
+            // No current team match, just take the first one
+            matchedPlayer = candidates.first;
+            print('✅ DEBUG: No current team match, using first name+position match: "${matchedPlayer.fullName}"');
+          }
+        } else {
+          matchedPlayer = candidates.first;
+          print('✅ DEBUG: Using first name+position match: "${matchedPlayer.fullName}"');
+        }
+      }
+    }
+    
+    // Strategy 3: Try abbreviated name + position matching (for "J.Taylor" style names)
+    if (matchedPlayer == null && position != null && playerName.contains('.')) {
+      print('🔍 DEBUG: Strategy 3 - Trying abbreviated name+position match');
+      final parts = playerName.split('.');
+      if (parts.length == 2) {
+        final firstInitial = parts[0].toLowerCase();
+        final lastName = parts[1].toLowerCase();
+        
+        var candidates = allPlayers.where((p) {
+          final fullNameParts = p.fullName.toLowerCase().split(' ');
+          final displayNameParts = p.displayName?.toLowerCase().split(' ') ?? [];
+          
+          bool nameMatch = (fullNameParts.length >= 2 && 
+                           fullNameParts.last == lastName && 
+                           fullNameParts.first.startsWith(firstInitial)) ||
+                          (displayNameParts.length >= 2 && 
+                           displayNameParts.last == lastName && 
+                           displayNameParts.first.startsWith(firstInitial));
+          
+          bool positionMatch = p.position.toLowerCase() == position.toLowerCase() ||
+                              p.positionGroup.toLowerCase() == position.toLowerCase();
+          
+          return nameMatch && positionMatch;
+        }).toList();
+        
+        print('🔍 DEBUG: Found ${candidates.length} candidates with abbreviated name+position');
+        if (candidates.length == 1) {
+          matchedPlayer = candidates.first;
+          print('✅ DEBUG: Found unique match by abbreviated name+position: "${matchedPlayer.fullName}"');
+        } else if (candidates.length > 1) {
+          print('🔍 DEBUG: Multiple abbreviated matches: ${candidates.map((p) => "${p.fullName} (${p.team})").join(', ')}');
+          // If we have team info, try to filter by current team first
+          if (team != null) {
+            var teamFiltered = candidates.where((p) => p.team.toLowerCase() == team.toLowerCase()).toList();
+            if (teamFiltered.isNotEmpty) {
+              matchedPlayer = teamFiltered.first;
+              print('✅ DEBUG: Found by abbreviated name+position+current_team: "${matchedPlayer.fullName}"');
+            } else {
+              matchedPlayer = candidates.first;
+              print('✅ DEBUG: No current team match, using first abbreviated match: "${matchedPlayer.fullName}"');
+            }
+          } else {
+            matchedPlayer = candidates.first;
+            print('✅ DEBUG: Using first abbreviated name+position match: "${matchedPlayer.fullName}"');
+          }
+        }
+      }
+    }
+    
+    // Strategy 4: Try abbreviated name matching without position (for cases like "C.McCaffrey")
+    if (matchedPlayer == null && playerName.contains('.')) {
+      print('🔍 DEBUG: Strategy 4 - Trying abbreviated name match without position');
+      final parts = playerName.split('.');
+      if (parts.length == 2) {
+        final firstInitial = parts[0].toLowerCase();
+        final lastName = parts[1].toLowerCase();
+        
+        var candidates = allPlayers.where((p) {
+          final fullNameParts = p.fullName.toLowerCase().split(' ');
+          final displayNameParts = p.displayName?.toLowerCase().split(' ') ?? [];
+          
+          bool nameMatch = (fullNameParts.length >= 2 && 
+                           fullNameParts.last == lastName && 
+                           fullNameParts.first.startsWith(firstInitial)) ||
+                          (displayNameParts.length >= 2 && 
+                           displayNameParts.last == lastName && 
+                           displayNameParts.first.startsWith(firstInitial));
+          
+          return nameMatch;
+        }).toList();
+        
+        print('🔍 DEBUG: Found ${candidates.length} candidates with abbreviated name (no position filter)');
+        if (candidates.length == 1) {
+          matchedPlayer = candidates.first;
+          print('✅ DEBUG: Found unique abbreviated match: "${matchedPlayer.fullName}"');
+        } else if (candidates.length > 1) {
+          print('🔍 DEBUG: Multiple abbreviated matches: ${candidates.map((p) => "${p.fullName} (${p.team})").join(', ')}');
+          // If we have team info, try to filter by team
+          if (team != null) {
+            var teamFiltered = candidates.where((p) => p.team.toLowerCase() == team.toLowerCase()).toList();
+            if (teamFiltered.isNotEmpty) {
+              matchedPlayer = teamFiltered.first;
+              print('✅ DEBUG: Found by abbreviated name+team: "${matchedPlayer.fullName}"');
+            } else {
+              matchedPlayer = candidates.first;
+              print('✅ DEBUG: No team match, using first abbreviated match: "${matchedPlayer.fullName}"');
+            }
+          } else {
+            matchedPlayer = candidates.first;
+            print('✅ DEBUG: Using first abbreviated match: "${matchedPlayer.fullName}"');
+          }
+        }
+      }
+    }
+    
+    // Strategy 5: Try name contains match with team filter (broader search)
+    if (matchedPlayer == null && team != null) {
+      print('🔍 DEBUG: Strategy 5 - Trying name contains + team match');
+      var candidates = allPlayers.where((p) {
+        bool nameMatch = p.fullName.toLowerCase().contains(playerName.toLowerCase()) ||
+                        (p.displayName?.toLowerCase().contains(playerName.toLowerCase()) ?? false);
+        bool teamMatch = p.team.toLowerCase() == team.toLowerCase();
+        
+        return nameMatch && teamMatch;
+      }).toList();
+      
+      print('🔍 DEBUG: Found ${candidates.length} candidates with name contains + team');
+      if (candidates.isNotEmpty) {
+        matchedPlayer = candidates.first;
+        print('✅ DEBUG: Found by name contains + team: "${matchedPlayer.fullName}"');
+        if (candidates.length > 1) {
+          print('🔍 DEBUG: Multiple matches: ${candidates.map((p) => "${p.fullName} (${p.position})").join(', ')}');
+        }
+      }
+    }
+    
+    // Strategy 6: Try exact name match (last resort, ignoring team/position)
+    if (matchedPlayer == null) {
+      print('🔍 DEBUG: Strategy 6 - Trying exact name match (last resort)');
+      var candidates = allPlayers.where((p) => 
+        p.fullName.toLowerCase() == playerName.toLowerCase() ||
+        (p.displayName?.toLowerCase() == playerName.toLowerCase())
+      ).toList();
+      
+      print('🔍 DEBUG: Found ${candidates.length} candidates with exact name');
+      if (candidates.length == 1) {
+        matchedPlayer = candidates.first;
+        print('✅ DEBUG: Found unique exact name match: "${matchedPlayer.fullName}"');
+      } else if (candidates.length > 1) {
+        print('🔍 DEBUG: Multiple exact name matches: ${candidates.map((p) => "${p.fullName} (${p.team} ${p.position})").join(', ')}');
+        matchedPlayer = candidates.first;
+        print('✅ DEBUG: Using first exact name match: "${matchedPlayer.fullName}"');
+      }
+    }
+    
+    if (matchedPlayer != null) {
+      print('✅ DEBUG: Final match: "${matchedPlayer.fullName}" (${matchedPlayer.team} ${matchedPlayer.position})');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlayerDetailScreen(player: matchedPlayer!),
+        ),
+      );
+    } else {
+      print('❌ DEBUG: No precise match found for "$playerName" on team "$team"');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Player details not available for $playerName')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this); // Basic, Advanced, Visualizations
+    
+    // Load player data for navigation
+    _loadPlayerData();
     
     // Handle route parameters from data hub
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1568,22 +1833,6 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
     }
   }
 
-  IconData _getPositionIcon() {
-    switch (_selectedStatCategory) {
-      case 'QB Stats':
-        return Icons.sports_football;
-      case 'RB Stats':
-        return Icons.directions_run;
-      case 'WR/TE Stats':
-        return Icons.catching_pokemon;
-      case 'WR Stats':
-        return Icons.sports_football; // Different icon for WR Stats
-      case 'Fantasy Focus':
-        return Icons.star;
-      default:
-        return Icons.analytics;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1795,6 +2044,7 @@ class _PlayerSeasonStatsScreenState extends State<PlayerSeasonStatsScreen>
             rows: _rawRows.asMap().entries.map((entry) => MdsTableRow(
               id: '${entry.key}',
               data: entry.value,
+              onTap: _playerDataLoaded ? () => _navigateToPlayerDetail(entry.value) : null,
             )).toList(),
             sortColumn: _sortColumn,
             sortAscending: _sortAscending,
