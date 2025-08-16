@@ -6,6 +6,9 @@ import 'package:mds_home/widgets/auth/auth_dialog.dart';
 import 'package:mds_home/services/player_game_stats_service.dart';
 import 'package:mds_home/widgets/design_system/mds_table.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:mds_home/services/player_data_service.dart';
+import 'package:mds_home/models/player_info.dart';
+import 'players/player_detail_screen.dart';
 
 // Enum for Query Operators
 enum QueryOperator {
@@ -76,6 +79,9 @@ class _PlayerGameStatsScreenState extends State<PlayerGameStatsScreen>
   int _totalRecords = 0;
   
   final PlayerGameStatsService _service = PlayerGameStatsService();
+  final PlayerDataService _playerDataService = PlayerDataService();
+  bool _isPlayerDataLoading = true;
+  List<PlayerInfo> _allPlayers = [];
 
   // Pagination state
   int _currentPage = 0;
@@ -269,6 +275,15 @@ class _PlayerGameStatsScreenState extends State<PlayerGameStatsScreen>
     });
     
     try {
+      // Load player data for navigation
+      print('Loading player data for navigation...');
+      await _playerDataService.loadPlayerData();
+      _allPlayers = _playerDataService.getAllPlayers();
+      print('Loaded ${_allPlayers.length} players for navigation');
+      setState(() {
+        _isPlayerDataLoading = false;
+      });
+      
       // Load available seasons and weeks
       final seasons = await _service.getAvailableSeasons();
       final weeks = await _service.getAvailableWeeks();
@@ -1267,6 +1282,7 @@ class _PlayerGameStatsScreenState extends State<PlayerGameStatsScreen>
         return MdsTableRow(
           id: row['game_id']?.toString() ?? row['player_name']?.toString() ?? index.toString(),
           data: row,
+          onTap: () => _navigateToPlayerDetail(row),
         );
       }).toList(),
       sortColumn: _sortColumn,
@@ -1275,7 +1291,7 @@ class _PlayerGameStatsScreenState extends State<PlayerGameStatsScreen>
       onSort: (column, ascending) {
         setState(() {
           _sortColumn = column;
-          _sortAscending: ascending;
+          _sortAscending = ascending;
           _sortData();
         });
       },
@@ -1331,6 +1347,155 @@ class _PlayerGameStatsScreenState extends State<PlayerGameStatsScreen>
     if (field == 'game_date') return 100;
     if (field.contains('percentage') || field.contains('rate')) return 80;
     return 100;
+  }
+
+  void _navigateToPlayerDetail(Map<String, dynamic> rowData) {
+    if (_isPlayerDataLoading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Player data still loading, please wait...')),
+      );
+      return;
+    }
+
+    // Extract player identification data
+    String? playerName = rowData['player_name'] ?? 
+                        rowData['fantasy_player_name'] ?? 
+                        rowData['receiver_player_name'] ??
+                        rowData['player_display_name'];
+    String? team = rowData['team'] ?? rowData['posteam'] ?? rowData['recent_team'];
+    String? position = rowData['position'];
+    String? playerId = rowData['player_id'] ?? 
+                       rowData['fantasy_player_id'] ?? 
+                       rowData['receiver_player_id'] ??
+                       rowData['gsis_id'];
+
+    print('Looking for player: $playerName, Team: $team, Position: $position, ID: $playerId');
+    
+    PlayerInfo? matchedPlayer;
+    String? matchReason;
+
+    // Strategy 1: Player ID match (most precise)
+    if (playerId != null && playerId.isNotEmpty) {
+      matchedPlayer = _allPlayers.where((player) {
+        return player.playerId == playerId;
+      }).firstOrNull;
+      if (matchedPlayer != null) {
+        matchReason = 'ID match';
+        print('✓ Found player by ID: ${matchedPlayer.fullName}');
+      }
+    }
+
+    // Strategy 2: Name + position match (team-agnostic for historical data)
+    if (matchedPlayer == null && playerName != null && position != null) {
+      matchedPlayer = _allPlayers.where((player) {
+        return player.fullName.toLowerCase() == playerName.toLowerCase() &&
+               player.position.toLowerCase() == position.toLowerCase();
+      }).firstOrNull;
+      if (matchedPlayer != null) {
+        matchReason = 'name + position match';
+        print('✓ Found player by name + position: ${matchedPlayer.fullName}');
+      }
+    }
+
+    // Strategy 3: Abbreviated name + position match (handle "J.Taylor" style names)
+    if (matchedPlayer == null && playerName != null && position != null) {
+      // Check if this looks like an abbreviated name (e.g., "J.Taylor")
+      if (playerName.contains('.')) {
+        final parts = playerName.split('.');
+        if (parts.length >= 2) {
+          final firstInitial = parts[0].toLowerCase();
+          final lastName = parts.last.toLowerCase();
+          
+          matchedPlayer = _allPlayers.where((player) {
+            final fullNameParts = player.fullName.toLowerCase().split(' ');
+            return fullNameParts.isNotEmpty &&
+                   fullNameParts.first.startsWith(firstInitial) &&
+                   fullNameParts.last == lastName &&
+                   player.position.toLowerCase() == position.toLowerCase();
+          }).firstOrNull;
+          if (matchedPlayer != null) {
+            matchReason = 'abbreviated name + position match';
+            print('✓ Found player by abbreviated name + position: ${matchedPlayer.fullName}');
+          }
+        }
+      }
+    }
+
+    // Strategy 4: Abbreviated name without position (fallback)
+    if (matchedPlayer == null && playerName != null && playerName.contains('.')) {
+      final parts = playerName.split('.');
+      if (parts.length >= 2) {
+        final firstInitial = parts[0].toLowerCase();
+        final lastName = parts.last.toLowerCase();
+        
+        final candidates = _allPlayers.where((player) {
+          final fullNameParts = player.fullName.toLowerCase().split(' ');
+          return fullNameParts.isNotEmpty &&
+                 fullNameParts.first.startsWith(firstInitial) &&
+                 fullNameParts.last == lastName;
+        }).toList();
+        
+        if (candidates.length == 1) {
+          matchedPlayer = candidates.first;
+          matchReason = 'abbreviated name match';
+          print('✓ Found player by abbreviated name: ${matchedPlayer.fullName}');
+        } else if (candidates.length > 1) {
+          print('⚠ Multiple players found for abbreviated name $playerName: ${candidates.map((p) => p.fullName).join(", ")}');
+          // If we have team info, try to disambiguate
+          if (team != null) {
+            matchedPlayer = candidates.where((player) => 
+              player.team.toLowerCase() == team.toLowerCase()).firstOrNull;
+            if (matchedPlayer != null) {
+              matchReason = 'abbreviated name + team disambiguation';
+              print('✓ Disambiguated by team: ${matchedPlayer.fullName}');
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 5: Name contains + team match (for partial name matches)
+    if (matchedPlayer == null && playerName != null && team != null) {
+      final searchName = playerName.toLowerCase();
+      matchedPlayer = _allPlayers.where((player) {
+        return (player.fullName.toLowerCase().contains(searchName) ||
+                searchName.contains(player.fullName.toLowerCase())) &&
+               player.team.toLowerCase() == team.toLowerCase();
+      }).firstOrNull;
+      if (matchedPlayer != null) {
+        matchReason = 'name contains + team match';
+        print('✓ Found player by name contains + team: ${matchedPlayer.fullName}');
+      }
+    }
+
+    // Strategy 6: Exact name match (last resort)
+    if (matchedPlayer == null && playerName != null) {
+      matchedPlayer = _allPlayers.where((player) {
+        return player.fullName.toLowerCase() == playerName.toLowerCase();
+      }).firstOrNull;
+      if (matchedPlayer != null) {
+        matchReason = 'exact name match';
+        print('✓ Found player by exact name: ${matchedPlayer.fullName}');
+      }
+    }
+
+    if (matchedPlayer != null) {
+      print('Successfully matched player: ${matchedPlayer.fullName} ($matchReason)');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PlayerDetailScreen(player: matchedPlayer!),
+        ),
+      );
+    } else {
+      print('❌ No player found for: $playerName');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Player details not available for "$playerName"'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   // Cell formatter no longer used; MdsTable handles value display
