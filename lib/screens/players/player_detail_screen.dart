@@ -5,6 +5,7 @@ import '../../models/player_career_stats.dart';
 import '../../models/player_weekly_epa.dart';
 import '../../models/player_season_epa_summary.dart';
 import '../../services/player_data_service.dart';
+import '../../utils/constants.dart';
 
 class PlayerDetailScreen extends StatefulWidget {
   final PlayerInfo player;
@@ -50,14 +51,23 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
       backgroundColor: Colors.grey[100],
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // ESPN-style banner header
+          // Modern header with team color gradient
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: _getTeamPrimaryColor(),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                color: Colors.white,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _getTeamPrimaryColor(),
+                      _getTeamPrimaryColor().withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -81,6 +91,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
                                         style: const TextStyle(
                                           fontSize: 28,
                                           fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
                                       ),
                                       if (widget.player.jerseyNumber != null) ...[
@@ -88,15 +99,15 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: _getPositionColor(widget.player.positionGroup).withValues(alpha: 0.1),
+                                            color: Colors.white.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
                                             '#${widget.player.jerseyNumber}',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.bold,
-                                              color: _getPositionColor(widget.player.positionGroup),
+                                              color: Colors.white,
                                             ),
                                           ),
                                         ),
@@ -110,7 +121,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.grey[200],
+                                          color: Colors.white.withValues(alpha: 0.2),
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
@@ -118,15 +129,16 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         widget.player.position,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
-                                          color: Colors.grey,
+                                          color: Colors.white.withValues(alpha: 0.9),
                                         ),
                                       ),
                                     ],
@@ -193,6 +205,11 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
     );
   }
   
+  Color _getTeamPrimaryColor() {
+    final teamColors = NFLTeamColors.getTeamColors(widget.player.team);
+    return teamColors.isNotEmpty ? teamColors[0] : Theme.of(context).primaryColor;
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -201,9 +218,9 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: Colors.grey,
+              color: Colors.white.withValues(alpha: 0.7),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -213,6 +230,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ],
@@ -221,23 +239,58 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
   }
 
   Widget _buildOverviewTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 2024 Season Overview with dynamic grid
-          _buildSectionTitle('2024 Season Overview'),
-          const SizedBox(height: 16),
-          _buildDynamicStatsGrid(),
-          
-          const SizedBox(height: 32),
-          
-          // Career Summary Table
-          _buildSectionTitle('Career Summary'),
-          const SizedBox(height: 16),
-          _buildCareerSummaryTable(),
-        ],
+    return Container(
+      color: Colors.grey[50],
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Stats section with clean background
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '2024 SEASON',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCleanStatsGrid(),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 1),
+            
+            // Career Summary Section
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CAREER SUMMARY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernCareerTable(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -252,134 +305,224 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
     );
   }
 
-  Widget _buildDynamicStatsGrid() {
-    final statGroups = _getGroupedSeasonStats();
+  Widget _buildCleanStatsGrid() {
+    final stats = _getSeasonStatsForPosition();
     
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Desktop: single row layout
-        if (constraints.maxWidth > 768) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: statGroups.map((group) => Container(
-                margin: const EdgeInsets.only(right: 32),
-                child: _buildStatGroup(group),
-              )).toList(),
-            ),
-          );
-        }
-        // Mobile: vertical stacked layout
-        else {
-          return Column(
-            children: statGroups.map((group) => _buildStatGroup(group)).toList(),
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildStatGroup(StatGroup group) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isDesktop = MediaQuery.of(context).size.width > 768;
+        final isDesktop = constraints.maxWidth > 768;
+        final crossAxisCount = isDesktop ? 4 : 3;
         
-        return Container(
-          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Group header
-              Container(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  group.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              // Stats - vertical on desktop, horizontal scroll on mobile
-              isDesktop 
-                ? Column(
-                    children: group.stats.map((stat) => Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: _buildModernStatCard(stat),
-                    )).toList(),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: group.stats.map((stat) => _buildModernStatCard(stat)).toList(),
-                    ),
-                  ),
-            ],
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: isDesktop ? 48 : 24,
+            mainAxisSpacing: 20,
+            childAspectRatio: isDesktop ? 2.5 : 2.0,
           ),
+          itemCount: stats.length,
+          itemBuilder: (context, index) {
+            return _buildCleanStatItem(stats[index]);
+          },
         );
       },
     );
   }
 
-  Widget _buildModernStatCard(StatData stat) {
-    return Container(
-      margin: const EdgeInsets.only(right: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Category label
-          Text(
-            stat.label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+  Widget _buildCleanStatItem(Map<String, dynamic> stat) {
+    final bool hasRank = stat['rank'] != null;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Label
+        Text(
+          stat['label'].toUpperCase(),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            color: Colors.grey[500],
           ),
-          const SizedBox(height: 8),
-          // Value and rank row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
+        ),
+        const SizedBox(height: 4),
+        // Value with rank
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              stat['value'],
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                height: 1.0,
+              ),
+            ),
+            if (hasRank) ...[
+              const SizedBox(width: 6),
               Text(
-                stat.value,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  height: 1,
+                '#${stat['rank']}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: _getRankColor(stat['rank']),
                 ),
               ),
-              if (stat.rank != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _getRankColor(stat.rank!).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '#${stat.rank}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getRankColor(stat.rank!),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
             ],
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildCareerSummaryTable() {
+  List<Map<String, dynamic>> _getSeasonStatsForPosition() {
+    List<Map<String, dynamic>> stats = [];
+    
+    if (widget.player.isQuarterback) {
+      stats = [
+        {
+          'label': 'Pass Yards',
+          'value': widget.player.passingYards.toString(),
+          'rank': 8,
+        },
+        {
+          'label': 'Pass TDs',
+          'value': widget.player.passingTds.toString(),
+          'rank': 10,
+        },
+        {
+          'label': 'Completion %',
+          'value': widget.player.attempts > 0 
+            ? '${((widget.player.completions / widget.player.attempts) * 100).toStringAsFixed(1)}%'
+            : '0%',
+          'rank': 12,
+        },
+        {
+          'label': 'Interceptions',
+          'value': widget.player.interceptions.toString(),
+          'rank': 12,
+        },
+        {
+          'label': 'Rush Yards',
+          'value': widget.player.rushingYards.toString(),
+          'rank': 15,
+        },
+        {
+          'label': 'Rush TDs',
+          'value': widget.player.rushingTds.toString(),
+          'rank': 18,
+        },
+        {
+          'label': 'Fantasy PPG',
+          'value': widget.player.fantasyPpg.toStringAsFixed(1),
+          'rank': 5,
+        },
+        {
+          'label': 'Games',
+          'value': widget.player.games.toString(),
+        },
+      ];
+    } else if (widget.player.isRunningBack) {
+      stats = [
+        {
+          'label': 'Rush Yards',
+          'value': widget.player.rushingYards.toString(),
+          'rank': 5,
+        },
+        {
+          'label': 'Rush TDs',
+          'value': widget.player.rushingTds.toString(),
+          'rank': 8,
+        },
+        {
+          'label': 'YPC',
+          'value': widget.player.carries > 0 
+            ? (widget.player.rushingYards / widget.player.carries).toStringAsFixed(1)
+            : '0.0',
+          'rank': 10,
+        },
+        {
+          'label': 'Receptions',
+          'value': widget.player.receptions.toString(),
+          'rank': 10,
+        },
+        {
+          'label': 'Rec Yards',
+          'value': widget.player.receivingYards.toString(),
+          'rank': 12,
+        },
+        {
+          'label': 'Rec TDs',
+          'value': widget.player.receivingTds.toString(),
+          'rank': 15,
+        },
+        {
+          'label': 'Fantasy PPG',
+          'value': widget.player.fantasyPpg.toStringAsFixed(1),
+          'rank': 5,
+        },
+        {
+          'label': 'Games',
+          'value': widget.player.games.toString(),
+        },
+      ];
+    } else if (widget.player.isWideReceiver || widget.player.isTightEnd) {
+      stats = [
+        {
+          'label': 'Receptions',
+          'value': widget.player.receptions.toString(),
+          'rank': 5,
+        },
+        {
+          'label': 'Rec Yards',
+          'value': widget.player.receivingYards.toString(),
+          'rank': 8,
+        },
+        {
+          'label': 'Rec TDs',
+          'value': widget.player.receivingTds.toString(),
+          'rank': 10,
+        },
+        {
+          'label': 'Targets',
+          'value': widget.player.targets.toString(),
+          'rank': 6,
+        },
+        {
+          'label': 'Catch %',
+          'value': widget.player.targets > 0 
+            ? '${((widget.player.receptions / widget.player.targets) * 100).toStringAsFixed(1)}%'
+            : '0%',
+          'rank': 15,
+        },
+        {
+          'label': 'YPR',
+          'value': widget.player.receptions > 0 
+            ? (widget.player.receivingYards / widget.player.receptions).toStringAsFixed(1)
+            : '0.0',
+          'rank': 12,
+        },
+        {
+          'label': 'Fantasy PPG',
+          'value': widget.player.fantasyPpg.toStringAsFixed(1),
+          'rank': 5,
+        },
+        {
+          'label': 'Games',
+          'value': widget.player.games.toString(),
+        },
+      ];
+    }
+    
+    return stats;
+  }
+
+  Widget _buildModernCareerTable() {
     final careerStats = _playerService.getPlayerCareerStats(widget.player.playerId);
     
     // Calculate career totals
@@ -400,95 +543,111 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
       careerRecTds += season.receivingTds;
     }
     
-    return Card(
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Table headers and data
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columnSpacing: 20,
-                dataRowMaxHeight: 40,
-                dataRowMinHeight: 40,
-                headingRowHeight: 36,
-                columns: _buildSummaryTableColumns(),
-                rows: [
-                  // 2024 Season row
-                  _buildSummaryTableRow(
-                    '2024',
-                    widget.player.games,
-                    widget.player.passingYards,
-                    widget.player.passingTds,
-                    widget.player.interceptions,
-                    widget.player.rushingYards,
-                    widget.player.rushingTds,
-                    widget.player.receptions,
-                    widget.player.receivingYards,
-                    widget.player.receivingTds,
-                  ),
-                  // Career row
-                  _buildSummaryTableRow(
-                    'Career',
-                    careerGames,
-                    careerPassYards,
-                    careerPassTds,
-                    careerInts,
-                    careerRushYards,
-                    careerRushTds,
-                    careerReceptions,
-                    careerRecYards,
-                    careerRecTds,
-                  ),
-                ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: WidgetStateProperty.all(Colors.grey.shade50),
+            dataRowColor: WidgetStateProperty.resolveWith<Color?>((states) {
+              if (states.contains(WidgetState.hovered)) {
+                return Colors.grey.shade50;
+              }
+              return null;
+            }),
+            columnSpacing: 24,
+            horizontalMargin: 20,
+            dataRowMaxHeight: 48,
+            dataRowMinHeight: 48,
+            headingRowHeight: 44,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200),
               ),
             ),
-          ],
+            columns: _buildModernTableColumns(),
+            rows: [
+              // 2024 Season row
+              _buildModernTableRow(
+                '2024',
+                widget.player.games,
+                widget.player.passingYards,
+                widget.player.passingTds,
+                widget.player.interceptions,
+                widget.player.rushingYards,
+                widget.player.rushingTds,
+                widget.player.receptions,
+                widget.player.receivingYards,
+                widget.player.receivingTds,
+                false,
+              ),
+              // Career row
+              _buildModernTableRow(
+                'Career',
+                careerGames,
+                careerPassYards,
+                careerPassTds,
+                careerInts,
+                careerRushYards,
+                careerRushTds,
+                careerReceptions,
+                careerRecYards,
+                careerRecTds,
+                true,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List<DataColumn> _buildSummaryTableColumns() {
+  List<DataColumn> _buildModernTableColumns() {
     List<DataColumn> columns = [
-      const DataColumn(label: Text('', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('G', style: TextStyle(fontWeight: FontWeight.bold))),
+      DataColumn(label: Text('', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+      DataColumn(label: Text('G', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
     ];
     
     // Add position-specific columns
     if (widget.player.isQuarterback) {
       columns.addAll([
-        const DataColumn(label: Text('Pass Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Pass TD', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('INT', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rush Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rush TD', style: TextStyle(fontWeight: FontWeight.bold))),
+        DataColumn(label: Text('PASS YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('PASS TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('INT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('RUSH YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('RUSH TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
       ]);
     } else if (widget.player.isRunningBack) {
       columns.addAll([
-        const DataColumn(label: Text('Rush Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rush TD', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rec', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rec Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rec TD', style: TextStyle(fontWeight: FontWeight.bold))),
+        DataColumn(label: Text('RUSH YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('RUSH TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('REC', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('REC YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('REC TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
       ]);
     } else if (widget.player.isWideReceiver || widget.player.isTightEnd) {
       columns.addAll([
-        const DataColumn(label: Text('Rec', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rec Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rec TD', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rush Yds', style: TextStyle(fontWeight: FontWeight.bold))),
-        const DataColumn(label: Text('Rush TD', style: TextStyle(fontWeight: FontWeight.bold))),
+        DataColumn(label: Text('REC', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('REC YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('REC TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('RUSH YDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
+        DataColumn(label: Text('RUSH TD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))),
       ]);
     }
+    
+    // Add Fantasy column
+    columns.add(DataColumn(label: Text('FANTASY PPG', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700]))));
     
     return columns;
   }
 
-  DataRow _buildSummaryTableRow(
+  DataRow _buildModernTableRow(
     String label,
     int games,
     int stat1,
@@ -499,145 +658,71 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
     int stat6,
     int stat7,
     int stat8,
+    bool isCareerRow,
   ) {
+    final textStyle = TextStyle(
+      fontSize: 13,
+      fontWeight: isCareerRow ? FontWeight.w600 : FontWeight.normal,
+      color: isCareerRow ? Colors.grey[900] : Colors.grey[800],
+    );
+    
     List<DataCell> cells = [
-      DataCell(Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
-      DataCell(Text(games.toString())),
+      DataCell(Text(label, style: textStyle.copyWith(fontWeight: FontWeight.w600))),
+      DataCell(Text(games.toString(), style: textStyle)),
     ];
     
     // Add position-specific cells
     if (widget.player.isQuarterback) {
       cells.addAll([
-        DataCell(Text(stat1.toString())), // Pass Yds
-        DataCell(Text(stat2.toString())), // Pass TD
-        DataCell(Text(stat3.toString())), // INT
-        DataCell(Text(stat4.toString())), // Rush Yds
-        DataCell(Text(stat5.toString())), // Rush TD
+        DataCell(Text(_formatNumber(stat1), style: textStyle)), // Pass Yds
+        DataCell(Text(stat2.toString(), style: textStyle)), // Pass TD
+        DataCell(Text(stat3.toString(), style: textStyle)), // INT
+        DataCell(Text(_formatNumber(stat4), style: textStyle)), // Rush Yds
+        DataCell(Text(stat5.toString(), style: textStyle)), // Rush TD
       ]);
     } else if (widget.player.isRunningBack) {
       cells.addAll([
-        DataCell(Text(stat4.toString())), // Rush Yds
-        DataCell(Text(stat5.toString())), // Rush TD
-        DataCell(Text(stat6.toString())), // Rec
-        DataCell(Text(stat7.toString())), // Rec Yds
-        DataCell(Text(stat8.toString())), // Rec TD
+        DataCell(Text(_formatNumber(stat4), style: textStyle)), // Rush Yds
+        DataCell(Text(stat5.toString(), style: textStyle)), // Rush TD
+        DataCell(Text(stat6.toString(), style: textStyle)), // Rec
+        DataCell(Text(_formatNumber(stat7), style: textStyle)), // Rec Yds
+        DataCell(Text(stat8.toString(), style: textStyle)), // Rec TD
       ]);
     } else if (widget.player.isWideReceiver || widget.player.isTightEnd) {
       cells.addAll([
-        DataCell(Text(stat6.toString())), // Rec
-        DataCell(Text(stat7.toString())), // Rec Yds
-        DataCell(Text(stat8.toString())), // Rec TD
-        DataCell(Text(stat4.toString())), // Rush Yds
-        DataCell(Text(stat5.toString())), // Rush TD
+        DataCell(Text(stat6.toString(), style: textStyle)), // Rec
+        DataCell(Text(_formatNumber(stat7), style: textStyle)), // Rec Yds
+        DataCell(Text(stat8.toString(), style: textStyle)), // Rec TD
+        DataCell(Text(_formatNumber(stat4), style: textStyle)), // Rush Yds
+        DataCell(Text(stat5.toString(), style: textStyle)), // Rush TD
       ]);
     }
+    
+    // Add Fantasy PPG
+    double fantasyPpg = isCareerRow && games > 0 
+      ? _calculateCareerFantasyPpg() / games
+      : widget.player.fantasyPpg;
+    cells.add(DataCell(Text(fantasyPpg.toStringAsFixed(1), style: textStyle)));
     
     return DataRow(cells: cells);
   }
-
-  List<StatGroup> _getGroupedSeasonStats() {
-    List<StatGroup> groups = [];
-    
-    if (widget.player.isQuarterback) {
-      // Passing Stats
-      groups.add(StatGroup(
-        'Passing Stats',
-        [
-          StatData('Pass Yards', widget.player.passingYards.toString(), 8),
-          StatData('Pass TDs', widget.player.passingTds.toString(), 10),
-          StatData('Completion %', widget.player.attempts > 0 
-            ? '${((widget.player.completions / widget.player.attempts) * 100).toStringAsFixed(1)}%'
-            : '0%', 12),
-          StatData('INTs', widget.player.interceptions.toString(), 12),
-        ],
-      ));
-      
-      // Rushing Stats
-      if (widget.player.rushingYards > 0 || widget.player.rushingTds > 0) {
-        groups.add(StatGroup(
-          'Rushing Stats',
-          [
-            StatData('Rush Yards', widget.player.rushingYards.toString(), 15),
-            StatData('Rush TDs', widget.player.rushingTds.toString(), 18),
-          ],
-        ));
-      }
-      
-      // Overall Stats
-      groups.add(StatGroup(
-        'Fantasy Stats',
-        [
-          StatData('Fantasy PPG', widget.player.fantasyPpg.toStringAsFixed(1), 5),
-          StatData('Total TDs', widget.player.totalTds.toString(), 8),
-          StatData('Games', widget.player.games.toString(), null),
-        ],
-      ));
-      
-    } else if (widget.player.isRunningBack) {
-      // Rushing Stats
-      groups.add(StatGroup(
-        'Rushing Stats',
-        [
-          StatData('Rush Yards', widget.player.rushingYards.toString(), 5),
-          StatData('Rush TDs', widget.player.rushingTds.toString(), 8),
-          StatData('YPC', widget.player.carries > 0 
-            ? (widget.player.rushingYards / widget.player.carries).toStringAsFixed(1)
-            : '0.0', 10),
-        ],
-      ));
-      
-      // Receiving Stats
-      if (widget.player.targets > 0 || widget.player.receptions > 0) {
-        groups.add(StatGroup(
-          'Receiving Stats',
-          [
-            StatData('Receptions', widget.player.receptions.toString(), 10),
-            StatData('Rec Yards', widget.player.receivingYards.toString(), 12),
-            StatData('Rec TDs', widget.player.receivingTds.toString(), 15),
-          ],
-        ));
-      }
-      
-      // Fantasy Stats
-      groups.add(StatGroup(
-        'Fantasy Stats',
-        [
-          StatData('Fantasy PPG', widget.player.fantasyPpg.toStringAsFixed(1), 5),
-          StatData('Total TDs', widget.player.totalTds.toString(), 8),
-          StatData('Games', widget.player.games.toString(), null),
-        ],
-      ));
-      
-    } else if (widget.player.isWideReceiver || widget.player.isTightEnd) {
-      // Receiving Stats
-      groups.add(StatGroup(
-        'Receiving Stats',
-        [
-          StatData('Receptions', widget.player.receptions.toString(), 5),
-          StatData('Rec Yards', widget.player.receivingYards.toString(), 8),
-          StatData('Rec TDs', widget.player.receivingTds.toString(), 10),
-          StatData('Targets', widget.player.targets.toString(), 6),
-          StatData('Catch %', widget.player.targets > 0 
-            ? '${((widget.player.receptions / widget.player.targets) * 100).toStringAsFixed(1)}%'
-            : '0%', 15),
-          StatData('YPR', widget.player.receptions > 0 
-            ? (widget.player.receivingYards / widget.player.receptions).toStringAsFixed(1)
-            : '0.0', 12),
-        ],
-      ));
-      
-      // Fantasy Stats
-      groups.add(StatGroup(
-        'Fantasy Stats',
-        [
-          StatData('Fantasy PPG', widget.player.fantasyPpg.toStringAsFixed(1), 5),
-          StatData('Games', widget.player.games.toString(), null),
-        ],
-      ));
+  
+  String _formatNumber(int number) {
+    if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}k';
     }
-    
-    return groups;
+    return number.toString();
   }
+  
+  double _calculateCareerFantasyPpg() {
+    final careerStats = _playerService.getPlayerCareerStats(widget.player.playerId);
+    double totalFantasyPoints = 0;
+    for (var season in careerStats) {
+      totalFantasyPoints += season.fantasyPpg * season.games;
+    }
+    return totalFantasyPoints;
+  }
+
 
   Widget _buildCareerStatsTab() {
     return FutureBuilder(
@@ -1249,20 +1334,6 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> with TickerProv
     return Colors.grey;
   }
 
-  Color _getPositionColor(String position) {
-    switch (position) {
-      case 'QB':
-        return Colors.red;
-      case 'RB':
-        return Colors.green;
-      case 'WR':
-        return Colors.blue;
-      case 'TE':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
 
   Widget _buildAdvancedSeasonSummary(PlayerSeasonEpaSummary seasonSummary) {
     List<String> summaryStats = [];
@@ -1452,17 +1523,3 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class StatData {
-  final String label;
-  final String value;
-  final int? rank;
-  
-  StatData(this.label, this.value, this.rank);
-}
-
-class StatGroup {
-  final String title;
-  final List<StatData> stats;
-  
-  StatGroup(this.title, this.stats);
-}
